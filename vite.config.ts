@@ -18,7 +18,8 @@ export default defineConfig({
         short_name: 'SCRPG Builder',
         description: 'Create heroes for the Sentinel Comics RPG.',
         theme_color: '#1f3a93',
-        background_color: '#ffffff',
+        // Dark, since dark is the default whenever the system has no preference.
+        background_color: '#15171c',
         display: 'standalone',
         start_url: base,
         scope: base,

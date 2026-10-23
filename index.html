@@ -8,6 +8,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1f3a93" />
     <title>SCRPG Builder</title>
+    <script>
+      // Apply the color theme before the first paint, so it never flashes the wrong one.
+      // Mirrors readPreference and resolveTheme in src/theme/theme.ts; keep them in sync.
+      ;(function () {
+        var pref = 'system'
+        try {
+          var stored = localStorage.getItem('scrpg-theme')
+          if (stored === 'light' || stored === 'dark' || stored === 'system') pref = stored
+        } catch (e) {}
+        var light = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+        var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        var theme = pref === 'system' ? (light && !dark ? 'light' : 'dark') : pref
+        document.documentElement.dataset.theme = theme
+        document.documentElement.style.colorScheme = theme
+        var meta = document.querySelector('meta[name="theme-color"]')
+        if (meta) meta.setAttribute('content', theme === 'dark' ? '#2c4aa8' : '#1f3a93')
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

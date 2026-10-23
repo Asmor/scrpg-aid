@@ -311,7 +311,7 @@ function checkArchetype(ctx: Context, ar: Archetype): void {
 
 /**
  * Checks one ability pick on its own: used for Red abilities and retcons, and by the UI
- * while a player fills in an ability. `slotLimit` adds a limit to every trait slot.
+ * while a player fills in an ability. `slotLimit` limits the first trait slot of its kind.
  */
 export function checkAbilityPick(
   hero: Hero,
