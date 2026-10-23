@@ -1,31 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { TraitRef } from '../rules/catalog'
-import type { Die } from '../rules/types'
-import { createHero, type Hero, type TraitAssignment } from '../hero/model'
+import { createHero, type Hero } from '../hero/model'
+import { A, P, Q, validHero } from '../test/heroes'
 import { deriveTraits, ROLEPLAYING_QUALITY, traitLabel } from './traits'
-
-const P = (id: string): TraitRef => ({ kind: 'power', id })
-const Q = (id: string): TraitRef => ({ kind: 'quality', id })
-const A = (trait: TraitRef, die: Die, upgrades?: true): TraitAssignment => (upgrades ? { trait, die, upgrades } : { trait, die })
-
-/**
- * A rules-legal hero through the personality step:
- * Upper Class (d10, d8 qualities) → Accident (d10, d8, d8 powers) → Speedster (d12, d6) → Lone Wolf.
- */
-function validHero(): Hero {
-  const hero = createHero('constructed', { id: 'h' })
-  hero.background = { id: 'upper-class', qualities: [A(Q('fitness'), 'd10'), A(Q('alertness'), 'd8')] }
-  hero.powerSource = {
-    id: 'accident',
-    powers: [A(P('agility'), 'd10'), A(P('fire'), 'd8'), A(P('awareness'), 'd8')],
-    abilities: [],
-    bonus: [],
-  }
-  hero.archetype = { id: 'speedster', traits: [A(P('speed'), 'd12'), A(P('flight'), 'd6')], abilities: [], bonus: [] }
-  hero.personality = { id: 'lone-wolf', bonus: [] }
-  hero.traitNames['quality:roleplaying-quality'] = 'Old Money'
-  return hero
-}
 
 const codes = (hero: Hero) => deriveTraits(hero).warnings.map((w) => w.code)
 const dice = (hero: Hero) => Object.fromEntries(deriveTraits(hero).traits.map((t) => [t.trait.id, t.die]))

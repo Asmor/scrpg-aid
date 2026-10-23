@@ -79,6 +79,7 @@ const abilityPick = object({
   'uses?': arrayOf(traitRef),
   'blanks?': blanks,
   'customName?': string,
+  'category?': string,
 })
 const principle = object({ id: nonEmptyString, 'customization?': string })
 

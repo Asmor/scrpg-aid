@@ -12,6 +12,7 @@ A progressive web app for creating, editing, saving, sharing, and exporting (PDF
 - `data/`: rules data extracted from the PDFs (Phase 0). The app reads its rules from here, and it is the **source of truth** for game rules. See `data/README.md` for file layout and conventions.
 - `scripts/validate_data.py`: validates everything in `data/` (stdlib Python 3, no dependencies).
 - `GOAL.md`: project goals and phases.
+- `.claude/agents/`: sub-agents. `code-reviewer` reviews every change (see Definition of done). `rules-expert` answers rules questions from `data/` only; use it when the user asks a rules question, or when you need a rules answer of your own before deciding how to build something.
 - `src/`: the app. React 19 + TypeScript (strict) + Vite, with `vite-plugin-pwa` for offline support. Rules logic lives in `src/rules/` (pure, UI-independent); tests sit next to the code as `*.test.ts(x)` and run in Vitest with jsdom and Testing Library.
 - Storage: heroes are saved in the browser only (IndexedDB) for Phase 1, behind a storage interface so cloud storage (Drive, OneDrive, Dropbox) can be added later.
 - `.github/workflows/deploy.yml`: runs `npm run check` on every push and PR, and deploys `main` to GitHub Pages. `BASE_PATH` sets the URL prefix (`/<repo>/` on Pages, `/` locally).

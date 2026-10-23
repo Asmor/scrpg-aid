@@ -237,6 +237,7 @@ export interface Archetype extends EntryRef {
   bonuses?: Bonus[]
   fixedGreenAbilities?: Ability[]
   fixedGreenConstraint?: string
+  fixedGreenRule?: DistinctRule
   greenAbilities?: AbilityChoice
   fixedYellowAbilities?: Ability[]
   yellowAbilities?: AbilityChoice

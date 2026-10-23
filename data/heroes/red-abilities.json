@@ -133,7 +133,7 @@
       "abilities": [
         { "name": "Heroic Sacrifice", "type": "R", "text": "When an opponent Attacks, you may become the target of that Attack and Defend by rolling your single Red zone die." },
         { "name": "Inspiring Totem", "type": "I", "text": "When you use an ability action, you may also perform any one basic action using your Mid die on the same roll." },
-        { "name": "Lead by Example", "type": "A", "text": "Make a basic action using [quality.] Use your Max die. All other heroes who take the same basic action on their turn against the same target receive a Boost from your Mid+Min dice." },
+        { "name": "Lead by Example", "type": "A", "text": "Make a basic action using [quality]. Use your Max die. All other heroes who take the same basic action on their turn against the same target receive a Boost from your Mid+Min dice." },
         { "name": "Ultimatum", "type": "A", "text": "Hinder using [quality]. Use your Max+Min dice. Boost yourself or an ally with your Mid die." }
       ]
     }

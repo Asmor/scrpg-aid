@@ -254,6 +254,13 @@ def is_ref_list(v):
 def check_restrictions(node, where):
     """Restriction keys on a choice block: well formed, and consistent with its count."""
     count = node.get("count")
+    # A prose constraint on another list (e.g. fixedGreenConstraint) needs a matching rule
+    # (fixedGreenRule).
+    for k in node:
+        if k.endswith("Constraint"):
+            rule_key = k[: -len("Constraint")] + "Rule"
+            if node.get(rule_key) not in RULES:
+                err(where, f"{k} needs a machine-readable {rule_key} (one of {sorted(RULES)})")
     # Every prose constraint needs a machine-readable form the app can check.
     if "constraint" in node and not (RESTRICTION_KEYS & node.keys() or node.get("fromGreenList") or (
             isinstance(node.get("options"), list) and node["options"]

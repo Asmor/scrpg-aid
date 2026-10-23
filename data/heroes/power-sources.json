@@ -614,6 +614,9 @@
           {
             "name": "Onboard Upgrade",
             "type": "A",
+            "requires": {
+              "power": "power-suit"
+            },
             "text": "Boost yourself using Power Suit. Use your Min+Mid dice. That bonus is persistent and exclusive."
           }
         ],

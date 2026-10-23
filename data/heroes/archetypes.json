@@ -1460,6 +1460,7 @@
         }
       ],
       "fixedGreenConstraint": "Each uses a different power.",
+      "fixedGreenRule": "differentPowers",
       "yellowAbilities": {
         "count": 1,
         "options": [

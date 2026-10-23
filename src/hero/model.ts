@@ -66,6 +66,11 @@ export interface AbilityPick extends AbilityId {
   blanks?: Record<string, string | string[]>
   /** The player's own name for the ability. */
   customName?: string
+  /**
+   * For Red abilities, whose names repeat across categories: the category it was taken
+   * from, as "power:athletic" or "quality:mental".
+   */
+  category?: string
 }
 
 export interface PrincipleChoice {
