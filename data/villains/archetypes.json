@@ -1,0 +1,264 @@
+{
+  "page": 220,
+  "notes": "A villain archetype sets how the villain's status die is determined, adds to Health, and offers abilities. Unlike heroes, villains can always use all of their abilities regardless of zone.",
+  "archetypes": [
+    {
+      "id": "bruiser", "number": 1, "name": "Bruiser", "page": 221, "healthModifier": 20,
+      "suggestedApproaches": ["bully", "disruptive", "generalist", "prideful"],
+      "status": { "basis": "healthZone", "summary": "Tracks status by its own Health zone, like a hero (zones from the villain Health chart).", "zones": { "green": "d6", "yellow": "d8", "red": "d10" } },
+      "abilities": {
+        "count": 2,
+        "options": [
+          { "name": "Bring It On!", "type": "R", "text": "When Attacked, use the amount of damage taken by the Attack to Boost yourself." },
+          { "name": "Feel No Pain", "type": "I", "text": "Reduce damage taken by physical and energy sources by 1 while in the Green zone, 2 in the Yellow zone, and 3 in the Red zone." },
+          { "name": "Grin and Bear It", "type": "A", "text": "Defend using [quality] and use your Mid+Min dice. Recover Health equal to your Max die." },
+          { "name": "Lash Out", "type": "A", "text": "Attack using [power]. If you are Green status, use your Max die. If you are Yellow status, use the Max+Min dice. If you are Red status, use Max+Min against one target and Mid against another." },
+          { "name": "Living Wall", "type": "R", "text": "When a nearby ally would be Attacked, you may become the target of that Attack instead. You may use this reaction any number of times in a round by taking 1 irreducible damage for each time past the first." },
+          { "name": "Toss Hero", "type": "A", "text": "Attack using [power] and use your Max die. Either Hinder that target with your Mid die or Attack another nearby target with your Mid die." }
+        ]
+      }
+    },
+    {
+      "id": "domain", "number": 2, "name": "Domain", "page": 222, "healthModifier": 30,
+      "suggestedApproaches": ["dampening", "overpowered"],
+      "status": { "basis": "count", "counts": "environment minions, lieutenants, and/or challenges in the scene", "tiers": [
+        { "min": 3, "die": "d10" }, { "min": 1, "max": 2, "die": "d8" }, { "min": 0, "max": 0, "die": "d6" }
+      ] },
+      "abilities": {
+        "count": 3,
+        "options": [
+          { "name": "Ascend From My Realm", "type": "I", "text": "Ignore damage from an environment source during the environment’s turn." },
+          { "name": "The Earth Trembles Around You", "type": "A", "text": "Roll any number of environment minion dice. Attack every target in the scene (other than yourself) with those dice. Remove those minions." },
+          { "name": "Power Heeds My Call in All Forms", "type": "A", "text": "Remove any number of environment-created bonuses. For each bonus removed, you may Attack one target using your Mid die, using a different bonus against each." },
+          { "name": "This Place is Mine to Command", "type": "A", "text": "Activate one of the environment’s twists in its current zone or one zone closer to red." },
+          { "name": "To Me, My Minions", "type": "A", "text": "Roll any number of environment minion dice and Recover that much Health. Remove those minions." },
+          { "name": "The World Moves to Defend Me", "type": "R", "text": "When Attacked, redirect the Attack to an environment minion." }
+        ]
+      }
+    },
+    {
+      "id": "formidable", "number": 3, "name": "Formidable", "page": 223, "healthModifier": 25,
+      "suggestedApproaches": ["ancient", "disruptive", "overpowered"],
+      "status": { "basis": "weakness", "summary": "Has a critical weakness; status depends on penalties related to that weakness.", "tiers": [
+        { "condition": "Has penalties related to its weakness and no bonuses", "die": "d4" },
+        { "condition": "Has some penalties related to its weakness but also some bonuses that mitigate it", "die": "d8" },
+        { "condition": "Has no penalties related to its weakness", "die": "d12" }
+      ] },
+      "abilities": {
+        "count": 2,
+        "options": [
+          { "name": "Channel Greatness", "type": "A", "text": "Boost using [power] and use your Max die. That bonus is persistent and exclusive. Also Attack with your Mid die." },
+          { "name": "Cleansing Elevation", "type": "A", "text": "Boost using [power] and use your Max+Min dice. Remove all penalties on yourself." },
+          { "name": "Expended Negation", "type": "A", "text": "Destroy one of your bonuses. Deal each opponent damage equal to the value of that bonus." },
+          { "name": "Share in your Glory", "type": "A", "text": "Boost yourself using [power] and use your Max die. Boost a nearby ally with your Mid die and Boost another nearby ally using your Min die." },
+          { "name": "Unrivalled Paragon", "type": "A", "text": "Take any basic action and use your Max die." },
+          { "name": "Untempered Grit", "type": "R", "text": "Ignore all penalties on you for your action. Take irreducible damage equal to the total of those penalties." }
+        ]
+      }
+    },
+    {
+      "id": "fragile", "number": 4, "name": "Fragile", "page": 224, "healthModifier": -5,
+      "suggestedApproaches": ["focused", "underpowered"],
+      "status": { "basis": "healthZone", "summary": "Tracks status by its own Health zone, like a hero (zones from the villain Health chart).", "zones": { "green": "d10", "yellow": "d8", "red": "d6" } },
+      "abilities": {
+        "count": 2,
+        "options": [
+          { "name": "Careless Smash", "type": "A", "text": "Attack using [power] and use your Max+Mid dice. Hinder yourself with your Min die." },
+          { "name": "Cheese It!", "type": "R", "text": "When Attacked, Defend yourself by rolling your single status die. If the damage is reduced to 0, you may move to anywhere else in the scene." },
+          { "name": "Dismantling Jab", "type": "A", "text": "Attack using [quality]. Then remove all bonuses from the target." },
+          { "name": "Escape Plan", "type": "I", "text": "Whenever your personal zone changes, you may immediately move elsewhere in the scene." },
+          { "name": "Shrouded Attack", "type": "A", "text": "Attack using [quality] and use your Max die. Defend against all Attacks against you with your Min die until the start of your next turn." },
+          { "name": "Versatile Strike", "type": "A", "text": "Attack using [quality] and use your Max die. If you are at full Health, this Attack deals irreducible damage and cannot be reacted to. If you are in the Green zone but not at full health, Defend yourself with your Min die. If you are in the Yellow zone, Boost yourself with your Min die. If you are in the Red zone, Recover Health equal to your Min die." }
+        ]
+      }
+    },
+    {
+      "id": "guerrilla", "number": 5, "name": "Guerrilla", "page": 225, "healthModifier": 20,
+      "suggestedApproaches": ["ninja", "prideful"],
+      "status": { "basis": "count", "counts": "opponents engaged with the villain", "tiers": [
+        { "min": 4, "die": "d10" }, { "min": 2, "max": 3, "die": "d8" }, { "min": 0, "max": 1, "die": "d6" }
+      ] },
+      "abilities": {
+        "count": 2,
+        "options": [
+          { "name": "Close Quarters Combat", "type": "A", "text": "Attack multiple close targets using [quality]. Hinder each target using your Min die." },
+          { "name": "Even Odds", "type": "I", "text": "At the start of your turn, gain a bonus equal to the number of opponents that Attacked you since your last turn." },
+          { "name": "Fighting Rhythm", "type": "A", "text": "Attack using [quality], using the Max die against one target, Mid die against a different target, and the Min die against a third target. If you Attack three different targets, the damage is irreducible." },
+          { "name": "Human Shield", "type": "A", "text": "Attack one target using [quality] and use your Max+Min dice. Defend against all Attacks made by targets other than that target with your Mid die until the start of your next turn. All Defended damage is dealt to the target of your Attack." },
+          { "name": "Malicious Deflection", "type": "R", "text": "Defend against an Attack by rolling your single status die. Deal that much damage to a different nearby target." },
+          { "name": "Tangled Fray", "type": "I", "text": "If you are outnumbered by nearby opponents, reduce all damage dealt to you by 2." }
+        ]
+      }
+    },
+    {
+      "id": "indomitable", "number": 6, "name": "Indomitable", "page": 226, "healthModifier": 20,
+      "suggestedApproaches": ["generalist", "relentless"],
+      "status": { "basis": "fixed", "die": "d8", "summary": "Status never changes." },
+      "abilities": {
+        "count": 2,
+        "options": [
+          { "name": "Absorb Energy", "type": "R", "text": "Defend by rolling your single status die. If that defense reduces the damage to 0, Boost using the amount of damage prevented." },
+          { "name": "Grab and Drag", "type": "A", "text": "Attack using [power]. Either Hinder that target using Max, or Defend yourself using Min and you and that target end up elsewhere in the scene." },
+          { "name": "Heavy Duty", "type": "I", "text": "Reduce damage dealt to you by 2." },
+          { "name": "Prepare for the Worst", "type": "A", "text": "Boost yourself using [quality] and use your Max die. That bonus is persistent and exclusive." },
+          { "name": "Suppressive Fire", "type": "A", "text": "Attack multiple targets using [quality]. Hinder those targets using your Min die." },
+          { "name": "Unflagging", "type": "A", "text": "Attack using [power] and use your Max die. Recover Health equal to your Min die." }
+        ]
+      }
+    },
+    {
+      "id": "inhibitor", "number": 7, "name": "Inhibitor", "page": 227, "healthModifier": 10,
+      "suggestedApproaches": ["dampening", "focused"],
+      "status": { "basis": "count", "counts": "heroes with at least one penalty", "tiers": [
+        { "min": 3, "die": "d10" }, { "min": 1, "max": 2, "die": "d8" }, { "min": 0, "max": 0, "die": "d6" }
+      ] },
+      "abilities": {
+        "count": 2,
+        "options": [
+          { "name": "Area Suppression", "type": "A", "text": "Hinder using [power] against multiple targets and use your Max die. Attack one of those targets with your Mid die." },
+          { "name": "Overwhelming Syphon", "type": "A", "text": "Each hero loses Health equal to the total penalties on them. Recover the same amount of Health. Remove those penalties." },
+          { "name": "Targeted Drain", "type": "A", "text": "Hinder using [power] and use your Max+Mid dice, or use your Max die and make it persistent and exclusive." },
+          { "name": "Tethered Life", "type": "A", "text": "Hinder using [power]. That penalty is persistent and exclusive. As long as that penalty is in play, reduce damage dealt to you by 1 and whenever you are dealt damage, the target with this penalty takes 1 irreducible damage." },
+          { "name": "Twisted Fate", "type": "A", "text": "Select a nearby target. Either turn all bonuses on that target to equivalent penalties, or move a penalty from that target to another target that you can see." },
+          { "name": "Upper Handed Strike", "type": "R", "text": "When Attacked by someone with a penalty you created, Defend by rolling your single status die, and the attacker also suffers that much damage." }
+        ]
+      }
+    },
+    {
+      "id": "inventor", "number": 8, "name": "Inventor", "page": 228, "healthModifier": 10,
+      "suggestedApproaches": ["mastermind", "underpowered"],
+      "status": { "basis": "count", "counts": "bonuses and penalties the villain created with Inventions and/or Science, plus inventions deployed in the scene (including ones created by its minions, lieutenants, and twists)", "tiers": [
+        { "min": 4, "die": "d12" }, { "min": 2, "max": 3, "die": "d10" }, { "min": 1, "max": 1, "die": "d8" }, { "min": 0, "max": 0, "die": "d6" }
+      ] },
+      "abilities": {
+        "count": 2,
+        "options": [
+          { "name": "Capable Creator", "type": "I", "text": "Whenever you create a bonus, increase that bonus by 1." },
+          { "name": "Cut Both Ways", "type": "A", "text": "Boost using [power]. Hinder with your Max die. Attack with your Min die." },
+          { "name": "Empowered Destruction", "type": "A", "text": "Attack using [power] and at least one bonus. Use your Max+Mid+Min dice and add all of your bonuses to it, destroying them." },
+          { "name": "Leverage Advantage", "type": "A", "text": "Attack using [power] and at least one bonus. If you have multiple bonuses, you may also Attack another target using the Min die and one other bonus, and may also Attack a third target using the Max die and a third bonus." },
+          { "name": "To Serve their Maker", "type": "R", "text": "Discard one of your bonuses to Defend against all Attacks against you until your next turn, using that bonus value as the Defend result." },
+          { "name": "Variable Creating", "type": "A", "text": "Boost using [power] and use your Max die, also Boost with your Mid die, and either make one of those bonuses persistent and exclusive or Attack with your Min die." }
+        ]
+      }
+    },
+    {
+      "id": "legion", "number": 9, "name": "Legion", "page": 229, "healthModifier": -5,
+      "suggestedApproaches": ["adaptive", "creator", "tactician"],
+      "pairingNote": "If pairing with Creator, avoid overlapping abilities. A Legion villain needs some way to create more minions (from an approach ability, archetype ability, or upgrade).",
+      "status": { "basis": "count", "counts": "minions in the scene allied with the villain", "tiers": [
+        { "min": 9, "die": "d4" }, { "min": 5, "max": 8, "die": "d6" }, { "min": 3, "max": 4, "die": "d8" }, { "min": 1, "max": 2, "die": "d10" }, { "min": 0, "max": 0, "die": "d12" }
+      ] },
+      "abilities": {
+        "count": 2,
+        "options": [
+          { "name": "Divide and Conquer", "type": "R", "text": "When you would take physical damage, prevent that damage and create a minion with a die size equal to your current status die (including the newly made minion). You may use this reaction more than once a round, but each time you use this reaction after the first time, you take 1 irreducible damage." },
+          { "name": "Instability of Form", "type": "I", "text": "Whenever a Legion minion larger than a d4 rolls a save against physical damage, if its save is successful, it splits into two dice of one smaller size instead of being reduced a die size, and you take 1 irreducible damage. If it fails its save, the minion is only reduced one die size, rather than being destroyed." },
+          { "name": "Parts of the Whole", "type": "A", "text": "Roll your single status die. Deal yourself that much irreducible damage. Create that many d6 minions." },
+          { "name": "Returned Vitality", "type": "R", "text": "When one of your minions is destroyed, roll its die. You Recover that much Health." },
+          { "name": "Split Up", "type": "A", "text": "Add two minions of size equal to one die size lower than your current status." },
+          { "name": "Combine", "type": "A", "text": "Remove any number of Legion-controlled minions. Roll their dice and Recover that much Health." }
+        ]
+      },
+      "fixedAbilities": [
+        { "name": "Uncoordinated Actions", "type": "I", "text": "Whenever multiple Legion minions all take the same action against the same target, you must roll all of their dice at the same time and use the lowest rolling die amongst them for each minion’s result on that action." }
+      ]
+    },
+    {
+      "id": "loner", "number": 10, "name": "Loner", "page": 230, "healthModifier": 10,
+      "suggestedApproaches": ["leech", "relentless", "skilled"],
+      "status": { "basis": "count", "counts": "other villains in the scene allied with the villain", "tiers": [
+        { "min": 0, "max": 0, "die": "d10" }, { "min": 1, "max": 2, "die": "d8" }, { "min": 3, "die": "d6" }
+      ] },
+      "abilities": {
+        "count": 2,
+        "options": [
+          { "name": "Antisocial Behavior", "type": "A", "text": "Hinder multiple targets using [power/quality]. Recover Health equal to the number of targets Hindered this way." },
+          { "name": "Best on my Own", "type": "A", "text": "Attack using [power] and use your Max die. Recover Health equal to your Mid+Min dice." },
+          { "name": "Better Them than Me", "type": "R", "text": "When a non-minion ally in this scene is defeated, roll your single [quality] die as a Boost for yourself." },
+          { "name": "Singular Strength", "type": "I", "text": "As long as you have no nearby allies in the scene, increase all damage you deal by 1 and reduce all damage you take by 1." },
+          { "name": "Thin the Herd", "type": "A", "text": "Attack multiple targets using [power]. Hinder each target with your Max die." },
+          { "name": "Worst Case Response", "type": "R", "text": "When you would be Hindered or when an Attack would reduce you to 0 Health, reduce the penalty to -1 or reduce that damage to 1." }
+        ]
+      }
+    },
+    {
+      "id": "overlord", "number": 11, "name": "Overlord", "page": 231, "healthModifier": 15,
+      "suggestedApproaches": ["creator", "mastermind", "tactician"],
+      "pairingNote": "If pairing with Creator, avoid overlapping abilities.",
+      "status": { "basis": "count", "counts": "minions and lieutenants loyal to the villain in the scene", "tiers": [
+        { "min": 9, "die": "d12" }, { "min": 5, "max": 8, "die": "d10" }, { "min": 3, "max": 4, "die": "d8" }, { "min": 1, "max": 2, "die": "d6" }, { "min": 0, "max": 0, "die": "d4" }
+      ] },
+      "abilities": {
+        "count": 3,
+        "options": [
+          { "name": "By My Command", "type": "A", "text": "Boost using [quality] for all your minions until the start of your next turn." },
+          { "name": "Get Back in There!", "type": "R", "text": "Reroll any number of minion saves against the same Attack." },
+          { "name": "Give Me Your Strength", "type": "A", "text": "Roll all your minion dice and combine the result to Boost. Attack using [power] and use that bonus." },
+          { "name": "“Look Out, Boss!”", "type": "R", "text": "Redirect an Attack to one of your minions." },
+          { "name": "Rapid Deployment", "type": "A", "text": "Use [quality] to create a number of minions equal to the value of your Max die. The starting die size for those minions is the same as the size of your Min die." },
+          { "name": "Form Up", "type": "A", "text": "Attack using [power] and use your Max die. Defend against all Attacks against you until the start of your next turn using the number of your minions." }
+        ]
+      }
+    },
+    {
+      "id": "predator", "number": 12, "name": "Predator", "page": 232, "healthModifier": 15,
+      "suggestedApproaches": ["leech", "relentless", "specialized"],
+      "status": { "basis": "count", "counts": "heroes engaged with the villain", "tiers": [
+        { "min": 0, "max": 1, "die": "d10" }, { "min": 2, "max": 3, "die": "d8" }, { "min": 4, "die": "d6" }
+      ] },
+      "abilities": {
+        "count": 2,
+        "options": [
+          { "name": "Surprise Trap", "type": "R", "text": "When Attacked, roll your single status die. Hinder the Attack using that result, and deal damage to the attacker equal to that penalty." },
+          { "name": "Hazardous Terrain", "type": "A", "text": "Hinder multiple targets using [power]. Use your Max die. Attack any target that gains a penalty this way that already had one penalty from you, using your Mid+Min dice." },
+          { "name": "Hidden Hunter", "type": "I", "text": "Double any bonuses or penalties of your choice involved with taking action against a target that is unaware of your presence or distracted from remembering that you’re still around." },
+          { "name": "Hunt the Weak", "type": "A", "text": "Attack using [quality]. Use your Max die. If the target has a penalty you created or is in the Red zone, use your Max+Mid dice instead." },
+          { "name": "Stealth Approach", "type": "A", "text": "Boost yourself using [quality]. Use your Max die. That bonus is persistent and exclusive. Defend using your Mid die against all Attacks until the start of your next turn." },
+          { "name": "Track my Prey", "type": "A", "text": "Hinder using [power]. Use your Max die. That penalty lasts until your next turn, and while that penalty lasts, that hero cannot use reactions and cannot benefit from Defend actions." }
+        ]
+      }
+    },
+    {
+      "id": "squad", "number": 13, "name": "Squad", "page": 233, "healthModifier": 5,
+      "suggestedApproaches": ["bully", "focused", "specialized"],
+      "status": { "basis": "count", "counts": "other villains in the scene", "tiers": [
+        { "min": 0, "max": 0, "die": "d6" }, { "min": 1, "max": 2, "die": "d8" }, { "min": 3, "die": "d10" }
+      ] },
+      "abilities": {
+        "count": 2,
+        "options": [
+          { "name": "On My Mark", "type": "A", "text": "One ally makes a basic action now, using their Max die. They reroll all 1s they roll as part of this action." },
+          { "name": "My Allies are my Strength", "type": "I", "text": "Increase damage you deal by the number of nearby non-minion allies." },
+          { "name": "Press the Advantage", "type": "A", "text": "Attack using [quality] and use your Max die. If you choose that target to go next, they must Attack you on their turn if possible." },
+          { "name": "Protect My Allies", "type": "R", "text": "When another villain is Attacked, Defend against the Attack by rolling your single status die. Boost yourself using the amount of damage reduced." },
+          { "name": "Stay in Formation!", "type": "A", "text": "Boost using [quality]. Boost another target using your Max die, and use your Min die to Defend against all Attacks against you until your next turn." },
+          { "name": "Take Point", "type": "A", "text": "Attack using [quality]. Use your Max die. Defend all nearby allies with your Mid+Min dice until the start of your next turn." }
+        ]
+      }
+    },
+    {
+      "id": "titan", "number": 14, "name": "Titan", "page": 234, "healthModifier": 30,
+      "suggestedApproaches": ["ancient", "overpowered"],
+      "status": {
+        "basis": "challenge", "startingDie": "d12",
+        "summary": "Starts at d12. The Titan's challenge lowers its status one die size each time a part is completed.",
+        "challenge": [
+          { "successes": 2, "text": "Expose a vulnerable part of the Titan and reduce their status by one die size" },
+          { "successes": 1, "text": "Take advantage of the exposed weakness to reduce the Titan’s status by one die size" }
+        ]
+      },
+      "abilities": {
+        "count": 3,
+        "options": [
+          { "name": "Crush All Underfoot", "type": "A", "text": "Attack using [power] against multiple targets. Hinder those targets with your Min die." },
+          { "name": "Down the Hatch", "type": "A", "text": "Attack using [power] and use your Max die. The target can either be Hindered equal to your Max+Mid+Min dice, or be unable to take any other actions other than using an Overcome to attempt to escape." },
+          { "name": "Foolish Insect", "type": "R", "text": "When a hero takes a minor twist in the Titan’s challenge, in addition to the chosen twist, also roll your status die and deal that much damage to that hero." },
+          { "name": "You Are But Gnats to Me", "type": "I", "text": "Reduce all damage taken by 6 (if you have a d12 status die), 4 (if you have a d10 status die) or 2 (if you have a d8 or lower status die)." },
+          { "name": "I Will Not be Defeated So Easily", "type": "R", "text": "When Attacked by a roll that includes doubles, remove one of the successes from the Titan’s challenge." },
+          { "name": "The Land Quakes Underfoot", "type": "A", "text": "Activate one of the environment’s twists in its current zone." }
+        ]
+      }
+    }
+  ]
+}

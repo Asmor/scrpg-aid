@@ -1,0 +1,1419 @@
+{
+  "page": 208,
+  "notes": "An approach gives a villain its power and quality dice (assign them to powers and qualities from the hero list on page 47; the suggestions are not requirements), a d8 roleplaying quality, base Health, and abilities.",
+  "roleplayingQuality": {
+    "die": "d8",
+    "page": 121
+  },
+  "approaches": [
+    {
+      "id": "adaptive",
+      "number": 1,
+      "name": "Adaptive",
+      "page": 210,
+      "baseHealth": 15,
+      "powerDice": [
+        "d10",
+        "d8",
+        "d8",
+        "d6"
+      ],
+      "suggestedPowers": [
+        {
+          "power": "power-suit"
+        },
+        {
+          "power": "robotics"
+        },
+        {
+          "power": "shapeshifting"
+        },
+        {
+          "power": "size-changing"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d8",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "creativity"
+        },
+        {
+          "quality": "science"
+        },
+        {
+          "quality": "self-discipline"
+        },
+        {
+          "quality": "technology"
+        }
+      ],
+      "abilities": {
+        "count": 3,
+        "options": [
+          {
+            "name": "Adapt and Thrive",
+            "type": "R",
+            "text": "When Attacked, Defend by rolling your single [Power] die. Also Boost yourself with the result of that die."
+          },
+          {
+            "name": "Diversity through Adversity",
+            "type": "I",
+            "text": "On your turn, whenever you Attack a target you haven’t dealt damage to yet this scene, also Boost yourself using your Max die."
+          },
+          {
+            "name": "Efficient Reconfiguration",
+            "type": "A",
+            "text": "Lower two of your powers by one die size each. Increase one of your other powers to d12. Then take a basic action using that power."
+          },
+          {
+            "name": "Initiate Upgrade Procedure",
+            "type": "A",
+            "text": "Boost using [power] and use your Max die. Attack with your Mid die. Defend with your Min die."
+          },
+          {
+            "name": "Powerful Imitation",
+            "type": "A",
+            "text": "Use an action ability of one of your allies."
+          },
+          {
+            "name": "The Pain of Perfection",
+            "type": "A",
+            "text": "Take d6 irreducible damage. Increase all your powers by one die size each until the end of the scene."
+          }
+        ]
+      }
+    },
+    {
+      "id": "ancient",
+      "number": 2,
+      "name": "Ancient",
+      "page": 210,
+      "baseHealth": 30,
+      "powerDice": [
+        "d12",
+        "d10",
+        "d10",
+        "d8"
+      ],
+      "suggestedPowers": [
+        {
+          "power": "cosmic"
+        },
+        {
+          "power": "infernal"
+        },
+        {
+          "power": "presence"
+        },
+        {
+          "power": "vitality"
+        }
+      ],
+      "qualityDice": [
+        "d12",
+        "d12",
+        "d10",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "history"
+        },
+        {
+          "quality": "insight"
+        },
+        {
+          "quality": "magical-lore"
+        },
+        {
+          "quality": "otherworldly-mythos"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Behold My Immortal Glory",
+            "type": "A",
+            "text": "Hinder using [power] against multiple targets and use your Max die. Attack each using your Mid+Min dice."
+          },
+          {
+            "name": "From Before Space and Time",
+            "type": "R",
+            "text": "Take 1 irreducible damage to reroll a dice pool of someone Attacking or Hindering you."
+          },
+          {
+            "name": "Immortal Vitality",
+            "type": "I",
+            "text": "If you would be reduced to 0 Health and you don’t have a penalty, roll your single [power] die and become that Health."
+          },
+          {
+            "name": "Ideal Action",
+            "type": "A",
+            "text": "Take a basic action using [quality] and use your Max die."
+          },
+          {
+            "name": "Out of Time",
+            "type": "A",
+            "text": "Boost yourself using [power]. If there are any heroes with their Health in the Yellow zone, use your Mid+Min dice. If there are any heroes with their Health in the Red zone, use your Max+Mid+Min dice."
+          },
+          {
+            "name": "Unknowable Pain",
+            "type": "A",
+            "text": "Attack using [power] and use your Max die. Hinder a target dealt damage this way using your Max+Min dice."
+          }
+        ]
+      }
+    },
+    {
+      "id": "bully",
+      "number": 3,
+      "name": "Bully",
+      "page": 211,
+      "baseHealth": 25,
+      "powerDice": [
+        "d10",
+        "d8",
+        "d8"
+      ],
+      "suggestedPowers": [
+        {
+          "power": "fire"
+        },
+        {
+          "power": "presence"
+        },
+        {
+          "power": "strength"
+        },
+        {
+          "power": "vitality"
+        }
+      ],
+      "qualityDice": [
+        "d8",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "criminal-underworld-info"
+        },
+        {
+          "quality": "close-combat"
+        },
+        {
+          "quality": "fitness"
+        },
+        {
+          "quality": "imposing"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Bust Their Heads",
+            "type": "A",
+            "text": "Attack two nearby targets using [power], using your Max die against one and your Mid+Min against the other. If either target Defends against the Attack, the Defend works against both attacks."
+          },
+          {
+            "name": "Cruel and Unusual",
+            "type": "I",
+            "text": "Whenever you or your nearby allies Hinder, increase the penalty created by 1."
+          },
+          {
+            "name": "Crush the Small",
+            "type": "A",
+            "text": "Attack using [power] and use your Max die. Defend against all Attacks from that target using your Mid die until the start of your next turn."
+          },
+          {
+            "name": "Injured Tantrum",
+            "type": "A",
+            "text": "Attack using [power] and use your Max die. Also Hinder that target: if the target has a d6 or less status die, use your Max+Min dice; if the target has a d8 status die, use your Max die; and if the target has larger than a d8, use your Mid die."
+          },
+          {
+            "name": "Punish Weakness",
+            "type": "A",
+            "text": "Boost yourself using [power]. If there are any heroes with their Health in the Yellow zone, use your Mid+Min dice. If there are any heroes with their Health in the Red zone, use your Max+Mid+Min dice."
+          },
+          {
+            "name": "Thick",
+            "type": "I",
+            "text": "Reduce all damage dealt to you by 2."
+          }
+        ]
+      }
+    },
+    {
+      "id": "creator",
+      "number": 4,
+      "name": "Creator",
+      "page": 212,
+      "baseHealth": 15,
+      "powerDice": [
+        "d10",
+        "d8",
+        "d8",
+        "d6"
+      ],
+      "suggestedPowers": [
+        {
+          "powerCategory": "elemental-energy"
+        },
+        {
+          "powerCategory": "materials"
+        },
+        {
+          "power": "robotics"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d8",
+        "d8",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "creativity"
+        },
+        {
+          "quality": "leadership"
+        },
+        {
+          "quality": "magical-lore"
+        },
+        {
+          "quality": "technology"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Harvest their Power",
+            "type": "R",
+            "text": "When one of your minions is destroyed, roll its die and you recover that much Health."
+          },
+          {
+            "name": "Retributive Lash",
+            "type": "R",
+            "text": "When one of your minions is destroyed, roll its die and deal damage equal to that roll to another target."
+          },
+          {
+            "name": "Powerful Ally",
+            "type": "A",
+            "text": "Use [power/quality] to create a lieutenant of the same die size as your Max die."
+          },
+          {
+            "name": "Shared Power",
+            "type": "A",
+            "text": "Boost one of your minions using [power] and use your Max die. If it is your only minion, also Boost yourself using your Mid die. If not, Boost each of your other minions using your Min die."
+          },
+          {
+            "name": "Summon Mob",
+            "type": "A",
+            "text": "Use [power/quality] to create a number of minions equal to the value of your Max die. The starting die size for those minions is the same as the size of your Min die."
+          },
+          {
+            "name": "Swarm Attack",
+            "type": "A",
+            "text": "Attack using [power] and use your Max die, with a bonus equal to the number of minions you control."
+          }
+        ]
+      }
+    },
+    {
+      "id": "dampening",
+      "number": 5,
+      "name": "Dampening",
+      "page": 212,
+      "baseHealth": 25,
+      "powerDice": [
+        "d10",
+        "d8",
+        "d8"
+      ],
+      "suggestedPowers": [
+        {
+          "power": "cosmic"
+        },
+        {
+          "power": "suggestion"
+        },
+        {
+          "power": "transmutation"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d8",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "banter"
+        },
+        {
+          "quality": "medicine"
+        },
+        {
+          "quality": "science"
+        },
+        {
+          "quality": "self-discipline"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Capitalize on their Failure",
+            "type": "R",
+            "text": "When a nearby hero that you can see invokes a twist, roll your [power] die as a Hinder against them."
+          },
+          {
+            "name": "Curse of Weakness",
+            "type": "A",
+            "text": "Hinder using [power] and use your Max die; that penalty is persistent and exclusive. As long as that penalty is on the target, reduce their highest power die of your choice by one die size. Attack using your Mid die."
+          },
+          {
+            "name": "Field of Woe",
+            "type": "A",
+            "text": "Hinder multiple targets using [power]. While a hero has this penalty, reduce all their power dice by one size."
+          },
+          {
+            "name": "Nullifying Backlash",
+            "type": "R",
+            "text": "When Attacked by a hero with a penalty, ignore their damage and remove a penalty on that hero."
+          },
+          {
+            "name": "Scrambling Strike",
+            "type": "A",
+            "text": "Attack using [power]. Reduce all the target’s quality dice by one size until your next turn."
+          },
+          {
+            "name": "Terror of Inadequacy",
+            "type": "A",
+            "text": "Attack using [quality] and use your Max die. Hinder each opponent that can see or hear the target of your Attack using your Min die."
+          }
+        ]
+      }
+    },
+    {
+      "id": "disruptive",
+      "number": 6,
+      "name": "Disruptive",
+      "page": 213,
+      "baseHealth": 20,
+      "powerDice": [
+        "d10",
+        "d10",
+        "d8",
+        "d8"
+      ],
+      "suggestedPowers": [
+        {
+          "powerCategory": "elemental-energy"
+        },
+        {
+          "power": "illusions"
+        },
+        {
+          "power": "suggestion"
+        },
+        {
+          "power": "transmutation"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d8",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "alertness"
+        },
+        {
+          "quality": "insight"
+        },
+        {
+          "quality": "persuasion"
+        },
+        {
+          "quality": "ranged-combat"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Beneficial Chaos",
+            "type": "A",
+            "text": "Hinder using [power]. Use your Max die. Recover using your Min+Mid dice."
+          },
+          {
+            "name": "Covering Fire",
+            "type": "A",
+            "text": "Hinder multiple targets using [quality]. You and any nearby allies Defend using your Max die."
+          },
+          {
+            "name": "Enraging Touch",
+            "type": "A",
+            "text": "Attack using [power]. Use your Max die. A target dealt damage this way Attacks an ally by rolling their single largest power die."
+          },
+          {
+            "name": "Heedless Explosion",
+            "type": "A",
+            "text": "Attack multiple targets using [quality]. Use your Min die. Hinder each target with your Max die. If one of those targets rolls doubles on their next turn, they take damage equal to the penalty."
+          },
+          {
+            "name": "Painful Disruption",
+            "type": "R",
+            "text": "When Attacked by a hero with a penalty, that hero takes damage equal to the size of that penalty."
+          },
+          {
+            "name": "Taste the Madness",
+            "type": "R",
+            "text": "Whenever a target takes a Hinder action against you, you may first roll your [power] die as a Hinder on them."
+          }
+        ]
+      }
+    },
+    {
+      "id": "focused",
+      "number": 7,
+      "name": "Focused",
+      "page": 213,
+      "baseHealth": 15,
+      "powerDice": [
+        "d12",
+        "d8"
+      ],
+      "suggestedPowers": [
+        {
+          "powerCategory": "elemental-energy"
+        },
+        {
+          "powerCategory": "materials"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "creativity"
+        },
+        {
+          "quality": "ranged-combat"
+        },
+        {
+          "quality": "self-discipline"
+        }
+      ],
+      "abilities": {
+        "count": 3,
+        "constraint": "Two use the same power and the third uses a different power.",
+        "options": [
+          {
+            "name": "Elemental Absorption",
+            "type": "R",
+            "text": "When Attacked with [energy/element], recover that amount of Health instead of taking damage. When Hindered with [energy/element], Boost yourself instead."
+          },
+          {
+            "name": "Defensive Charging",
+            "type": "A",
+            "text": "Defend yourself using [power]. This Defend lasts until your next turn. If an Attack deals more damage than the Defend’s value, end the Defend and Attack the attacker equal to the Defend."
+          },
+          {
+            "name": "Perfect Alignment",
+            "type": "I",
+            "text": "Ignore all damage from [energy/element]."
+          },
+          {
+            "name": "Pour it On",
+            "type": "A",
+            "text": "Attack one target using [power]. Use your Max die. That target cannot Defend or use reactions against this Attack. Attack multiple other nearby targets using your Min die."
+          },
+          {
+            "name": "Sympathetic Shield",
+            "type": "R",
+            "text": "Defend against an Attack against only you by rolling your single [power] die. Boost yourself by the damage reduced."
+          },
+          {
+            "name": "Vicious Entanglement",
+            "type": "A",
+            "text": "Hinder one target using [power]. Use your Max die. Attack that target using your Mid die."
+          }
+        ]
+      }
+    },
+    {
+      "id": "generalist",
+      "number": 8,
+      "name": "Generalist",
+      "page": 214,
+      "baseHealth": 25,
+      "powerDice": [
+        "d10",
+        "d8",
+        "d8",
+        "d6"
+      ],
+      "suggestedPowers": [
+        {
+          "powerCategory": "materials"
+        },
+        {
+          "powerCategory": "mobility"
+        },
+        {
+          "power": "strength"
+        },
+        {
+          "power": "vitality"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d8",
+        "d6"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "close-combat"
+        },
+        {
+          "quality": "conviction"
+        },
+        {
+          "quality": "criminal-underworld-info"
+        },
+        {
+          "quality": "fitness"
+        }
+      ],
+      "abilities": {
+        "count": 3,
+        "options": [
+          {
+            "name": "Bodyguard",
+            "type": "R",
+            "text": "When an ally is Attacked, Defend them by rolling your single [power] die. Boost yourself by that amount."
+          },
+          {
+            "name": "Dependable",
+            "type": "I",
+            "text": "Whenever you roll a 1 on a die, reroll that die once."
+          },
+          {
+            "name": "Heavy Hitter",
+            "type": "A",
+            "text": "Attack using [quality]. Use your Max die. Recover Health equal to your Min die."
+          },
+          {
+            "name": "Stalwart Combatant",
+            "type": "A",
+            "text": "Boost using [power]. Use your Max die. Defend with your Mid die."
+          },
+          {
+            "name": "Tough Customer",
+            "type": "I",
+            "text": "Reduce physical and energy damage dealt to you by 1 if the scene is in the Green zone, 2 in the Yellow zone, or 3 in the Red zone."
+          },
+          {
+            "name": "Wracking Aura",
+            "type": "A",
+            "text": "Hinder multiple nearby targets using [power]. Boost yourself using your Max die."
+          }
+        ]
+      }
+    },
+    {
+      "id": "leech",
+      "number": 9,
+      "name": "Leech",
+      "page": 214,
+      "baseHealth": 15,
+      "powerDice": [
+        "d10",
+        "d8",
+        "d6"
+      ],
+      "suggestedPowers": [
+        {
+          "powerCategory": "elemental-energy"
+        },
+        {
+          "power": "shapeshifting"
+        },
+        {
+          "power": "toxic"
+        }
+      ],
+      "qualityDice": [
+        "d8",
+        "d8",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "close-combat"
+        },
+        {
+          "quality": "medicine"
+        },
+        {
+          "quality": "persuasion"
+        },
+        {
+          "quality": "stealth"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Hypnotic Gaze",
+            "type": "R",
+            "text": "When Attacked, Defend yourself by rolling your single [power] die. If this negates the Attack entirely, Hinder that target and Boost yourself with that same die roll."
+          },
+          {
+            "name": "Life Drain",
+            "type": "A",
+            "text": "Attack using [power/quality]. Use your Max die. Hinder that target with your Mid die. Recover Health equal to your Min die."
+          },
+          {
+            "name": "Power Consumption",
+            "type": "R",
+            "text": "When a bonus is used against you in an Attack or Hinder, you may first destroy that bonus. If you do, roll your single [power] die and Recover Health equal to the roll plus the destroyed bonus."
+          },
+          {
+            "name": "Siphoning Wither",
+            "type": "A",
+            "text": "Hinder using [power]. Use your Max+Min dice. Boost with your Mid die."
+          },
+          {
+            "name": "Unnerving Whispers",
+            "type": "A",
+            "text": "Hinder multiple targets using [power]. Recover Health equal to your Min die. If you roll doubles, also Attack one of those targets using your Max die."
+          },
+          {
+            "name": "Violent Vitality",
+            "type": "A",
+            "text": "Attack using [power]. Use your Max die. Boost with your Min die. This bonus is persistent and exclusive."
+          }
+        ]
+      }
+    },
+    {
+      "id": "mastermind",
+      "number": 10,
+      "name": "Mastermind",
+      "page": 215,
+      "baseHealth": 20,
+      "powerDice": [
+        "d12",
+        "d10",
+        "d8"
+      ],
+      "suggestedPowers": [
+        {
+          "power": "deduction"
+        },
+        {
+          "power": "inventions"
+        },
+        {
+          "power": "lightning-calculator"
+        },
+        {
+          "power": "power-suit"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d8",
+        "d8",
+        "d8",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "creativity"
+        },
+        {
+          "quality": "insight"
+        },
+        {
+          "quality": "investigation"
+        },
+        {
+          "quality": "science"
+        },
+        {
+          "quality": "technology"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Contingencies upon Contingencies",
+            "type": "A",
+            "text": "Boost yourself using [quality] and use your Max die. Either make that bonus persistent and exclusive, or Boost yourself again using your Min+Mid dice."
+          },
+          {
+            "name": "If My Calculations Are Correct…",
+            "type": "R",
+            "text": "Take 1 irreducible damage to reroll your dice pool on your turn or the dice pool of a hero Attacking or Hindering you."
+          },
+          {
+            "name": "Exploit Weakness",
+            "type": "A",
+            "text": "Attack one hero using [quality]. Hinder all heroes using your Max die."
+          },
+          {
+            "name": "Reversal of Fortune",
+            "type": "R",
+            "text": "When Attacked, Boost yourself using the attacker’s Max die."
+          },
+          {
+            "name": "Prepared for Anything",
+            "type": "R",
+            "text": "At the start of your turn, if you have no bonuses in play, roll your single [quality] die as a Boost for yourself."
+          },
+          {
+            "name": "Villainous Monologue",
+            "type": "A",
+            "text": "Hinder all opponents that can see or hear you using [quality]. Boost yourself using your Max die."
+          }
+        ]
+      }
+    },
+    {
+      "id": "ninja",
+      "number": 11,
+      "name": "Ninja",
+      "page": 216,
+      "baseHealth": 20,
+      "powerDice": [
+        "d10",
+        "d10",
+        "d8",
+        "d8",
+        "d6"
+      ],
+      "suggestedPowers": [
+        {
+          "power": "agility"
+        },
+        {
+          "power": "signature-weaponry"
+        },
+        {
+          "power": "strength"
+        },
+        {
+          "power": "wall-crawling"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d10",
+        "d8",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "alertness"
+        },
+        {
+          "quality": "close-combat"
+        },
+        {
+          "quality": "criminal-underworld-info"
+        },
+        {
+          "quality": "stealth"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Deadly Blink",
+            "type": "A",
+            "text": "Attack multiple nearby targets using [quality]. Then, end up wherever you want in the scene."
+          },
+          {
+            "name": "Defensive Dash",
+            "type": "R",
+            "text": "When Attacked, Defend yourself by rolling for your single [quality] die. Boost yourself with the amount of damage reduced."
+          },
+          {
+            "name": "Fade From Sight",
+            "type": "I",
+            "text": "If you take an action on your turn that does not involve an Attack or Hinder, also use your Min die to Defend against all Attacks against you until your next turn."
+          },
+          {
+            "name": "Rising Winds, Crashing Waves",
+            "type": "A",
+            "text": "Attack using [quality], using your Max die against one target, Mid die against another, and Min die against any target."
+          },
+          {
+            "name": "Sever the Tendons",
+            "type": "A",
+            "text": "Attack using [quality]. Hinder that target using your Max+Min dice."
+          },
+          {
+            "name": "Shadow’s Blade",
+            "type": "A",
+            "text": "Attack using [quality] and use your Max die. Defend against all Attacks against you with your Mid die until the start of your next turn."
+          }
+        ]
+      }
+    },
+    {
+      "id": "overpowered",
+      "number": 12,
+      "name": "Overpowered",
+      "page": 216,
+      "baseHealth": 35,
+      "powerDice": [
+        "d12",
+        "d10",
+        "d10"
+      ],
+      "suggestedPowers": [
+        {
+          "powerCategory": "elemental-energy"
+        },
+        {
+          "power": "presence"
+        },
+        {
+          "powerCategory": "psychic"
+        }
+      ],
+      "qualityDice": [
+        "d8",
+        "d6"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "conviction"
+        },
+        {
+          "quality": "finesse"
+        },
+        {
+          "quality": "imposing"
+        },
+        {
+          "quality": "self-discipline"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Do Not Dare to Touch Me",
+            "type": "R",
+            "text": "When Attacked, Defend yourself by rolling your single [power] die. Deal that much damage to a different nearby target."
+          },
+          {
+            "name": "Face My Full Might",
+            "type": "A",
+            "text": "Attack using [power]. Use your Max+Mid+Min dice. Hinder yourself using your Max die. Take damage equal to your Mid+Min dice."
+          },
+          {
+            "name": "Fear My Overwhelming Power",
+            "type": "A",
+            "text": "Hinder using [power] and use your Max die. Attack that target using your Mid+Min dice."
+          },
+          {
+            "name": "Raw Power",
+            "type": "I",
+            "text": "Whenever you roll a 1, reroll that die."
+          },
+          {
+            "name": "Rejoice, My Followers",
+            "type": "A",
+            "text": "Boost using [power]. Recover Health equal to your Max die. Each of your nearby allies Recovers Health equal to your Min die. Each of your nearby minions and lieutenants whose die sizes have degraded at all are increased one die size."
+          },
+          {
+            "name": "You Are Not Worthy of My Power",
+            "type": "A",
+            "text": "Attack multiple targets using [power] and use your Max die. Hinder each target using your Mid die."
+          }
+        ]
+      }
+    },
+    {
+      "id": "prideful",
+      "number": 13,
+      "name": "Prideful",
+      "page": 217,
+      "baseHealth": 25,
+      "powerDice": [
+        "d10",
+        "d10",
+        "d10",
+        "d8"
+      ],
+      "suggestedPowers": [
+        {
+          "power": "awareness"
+        },
+        {
+          "power": "gadgets"
+        },
+        {
+          "power": "power-suit"
+        },
+        {
+          "power": "strength"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d10",
+        "d8",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "close-combat"
+        },
+        {
+          "quality": "conviction"
+        },
+        {
+          "quality": "imposing"
+        },
+        {
+          "quality": "self-discipline"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "constraint": "Each uses a different power or quality.",
+        "options": [
+          {
+            "name": "I Know Your Weakness",
+            "type": "R",
+            "text": "When a nearby hero rolls a 1 on one of their dice during their turn, roll your single [power/quality] die as an Attack against them."
+          },
+          {
+            "name": "I Will Deal With the Rest of You Later",
+            "type": "A",
+            "text": "Attack one target using [power/quality]. Use your Max+Min dice. Defend against all Attacks against you by all other targets until the start of your next turn with your Mid die."
+          },
+          {
+            "name": "My Greatness Cannot Be Denied",
+            "type": "A",
+            "text": "Attack one target using [power/quality] and use your Max+Min dice. If that Attack causes the target to change zones, Boost using your Mid die. That bonus is persistent and exclusive."
+          },
+          {
+            "name": "Sustained Mockery",
+            "type": "A",
+            "text": "Hinder using [power/quality]. Use your Max die. That penalty is persistent and exclusive."
+          },
+          {
+            "name": "Unquestionable Might",
+            "type": "I",
+            "text": "Reduce all damage dealt to you by 2."
+          },
+          {
+            "name": "You Cannot Survive",
+            "type": "R",
+            "text": "If an opponent ends their turn near you, you may roll your single [power] die as a Hinder against them."
+          }
+        ],
+        "rule": "differentPowersOrQualities"
+      }
+    },
+    {
+      "id": "relentless",
+      "number": 14,
+      "name": "Relentless",
+      "page": 217,
+      "baseHealth": 20,
+      "powerDice": [
+        "d10",
+        "d8",
+        "d6"
+      ],
+      "suggestedPowers": [
+        {
+          "power": "intuition"
+        },
+        {
+          "powerCategory": "mobility"
+        },
+        {
+          "power": "signature-weaponry"
+        },
+        {
+          "power": "speed"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d8",
+        "d6"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "alertness"
+        },
+        {
+          "quality": "conviction"
+        },
+        {
+          "quality": "investigation"
+        },
+        {
+          "quality": "ranged-combat"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Dogged Pursuit",
+            "type": "R",
+            "text": "When an opponent moves away from you, you may follow them and roll your single status die as a Hinder against them."
+          },
+          {
+            "name": "Prey on the Weak",
+            "type": "A",
+            "text": "Attack and Hinder using [quality]. If the target has: a d6 or less status die, use your Max+Min dice; a d8 status die, use your Max die; larger than a d8, use your Mid die."
+          },
+          {
+            "name": "Repeated Punishment",
+            "type": "R",
+            "text": "After making an Attack action on your turn, use your Mid die to make another Attack against one target of the initial Attack."
+          },
+          {
+            "name": "Too Close for Comfort",
+            "type": "I",
+            "text": "Whenever a nearby opponent would Attack you, you may destroy a bonus on yourself or a penalty on that opponent to reduce the Attack by the value of the destroyed mod."
+          },
+          {
+            "name": "Twist the Knife",
+            "type": "R",
+            "text": "When one of your allies Attacks an opponent, roll your single [quality] die and add that amount of damage to the Attack."
+          },
+          {
+            "name": "Up in Your Face",
+            "type": "A",
+            "text": "Attack using [quality]. Use your Max die. If the target does not Attack you on their next turn, Hinder them using your Mid die."
+          }
+        ]
+      }
+    },
+    {
+      "id": "skilled",
+      "number": 15,
+      "name": "Skilled",
+      "page": 218,
+      "baseHealth": 15,
+      "powerDice": [
+        "d10",
+        "d8",
+        "d6"
+      ],
+      "suggestedPowers": [
+        {
+          "powerCategory": "intellectual"
+        },
+        {
+          "powerCategory": "technological"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d10",
+        "d8",
+        "d8",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "qualityCategory": "mental"
+        },
+        {
+          "qualityCategory": "physical"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Best in the Biz",
+            "type": "A",
+            "text": "Hinder using [power]. Use your Min die. Boost yourself using your Max die."
+          },
+          {
+            "name": "Dodge and Weave",
+            "type": "R",
+            "text": "When Attacked, Defend yourself by rolling your single [quality] die. Deal that much damage to another target."
+          },
+          {
+            "name": "Consistently Capable",
+            "type": "I",
+            "text": "Whenever you gain a penalty, reduce the size of that penalty by 1."
+          },
+          {
+            "name": "Flexible Expertise",
+            "type": "A",
+            "text": "Take any basic action using your Max die. Recover Health equal to your Mid die."
+          },
+          {
+            "name": "Incomparable Inequity",
+            "type": "A",
+            "text": "Hinder using [quality] and use your Max+Min dice. This penalty is persistent and exclusive."
+          },
+          {
+            "name": "Misdirection",
+            "type": "A",
+            "text": "Hinder multiple targets using [quality] and use your Max die. If you roll doubles, also Attack each target with your Mid die."
+          }
+        ]
+      }
+    },
+    {
+      "id": "specialized",
+      "number": 16,
+      "name": "Specialized",
+      "page": 218,
+      "baseHealth": 20,
+      "powerDice": [
+        "d10",
+        "d8"
+      ],
+      "suggestedPowers": [
+        {
+          "powerCategory": "athletic"
+        },
+        {
+          "powerCategory": "intellectual"
+        }
+      ],
+      "qualityDice": [
+        "d12",
+        "d8"
+      ],
+      "suggestedQualities": [
+        {
+          "qualityCategory": "mental"
+        },
+        {
+          "qualityCategory": "physical"
+        }
+      ],
+      "abilities": {
+        "count": 3,
+        "constraint": "Two use the same quality and the third uses a different quality.",
+        "options": [
+          {
+            "name": "Active Cover",
+            "type": "R",
+            "text": "Defend against an Attack where you’re the only target by rolling your single [quality] die. One other nearby target takes an amount of damage equal to the damage reduced."
+          },
+          {
+            "name": "Cleaving Slash",
+            "type": "A",
+            "text": "Attack using [quality] against one target with your Max die, another with your Mid die, and a third with your Min die."
+          },
+          {
+            "name": "Focused Attack",
+            "type": "A",
+            "text": "Attack using [quality] and use your Max+Min dice. Defend yourself using your Mid die."
+          },
+          {
+            "name": "Known Target",
+            "type": "I",
+            "text": "Whenever you Attack a target that you have dealt damage to at least once already in this scene, gain a +1 persistent and exclusive bonus against that target."
+          },
+          {
+            "name": "Neutralizing Strike",
+            "type": "A",
+            "text": "Attack one target using [quality] and use your Max+Min dice. That target cannot Defend or use reactions against this attack."
+          },
+          {
+            "name": "Tangled Torment",
+            "type": "A",
+            "text": "Hinder one target using [quality] and use your Max die. Attack that target using your Mid die."
+          }
+        ]
+      }
+    },
+    {
+      "id": "tactician",
+      "number": 17,
+      "name": "Tactician",
+      "page": 219,
+      "baseHealth": 20,
+      "powerDice": [
+        "d8",
+        "d8",
+        "d6",
+        "d6"
+      ],
+      "suggestedPowers": [
+        {
+          "power": "awareness"
+        },
+        {
+          "power": "flight"
+        },
+        {
+          "power": "intuition"
+        },
+        {
+          "power": "signature-vehicle"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d8",
+        "d6"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "alertness"
+        },
+        {
+          "quality": "insight"
+        },
+        {
+          "quality": "leadership"
+        },
+        {
+          "quality": "ranged-combat"
+        }
+      ],
+      "abilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Group Up",
+            "type": "A",
+            "text": "Attack using [quality] and use your Max die. Add 1 to the Attack for each other ally that Attacked that target since your last turn."
+          },
+          {
+            "name": "I’ll Back You Up",
+            "type": "R",
+            "text": "When a nearby ally makes an Attack, you may also Attack the same target by rolling your single [quality] die."
+          },
+          {
+            "name": "Joint Action",
+            "type": "A",
+            "text": "Make a basic action using [quality] and use your Max die. One nearby ally also makes that same basic action as their reaction."
+          },
+          {
+            "name": "Organized March",
+            "type": "A",
+            "text": "Boost using [quality] and use your Max die. That bonus applies to every ally’s action until the beginning of your next turn."
+          },
+          {
+            "name": "Try Again",
+            "type": "R",
+            "text": "Take 1 irreducible damage to reroll an ally’s dice pool."
+          },
+          {
+            "name": "Working Together",
+            "type": "I",
+            "text": "As long as you have at least 1 nearby ally, you may reroll all 1s on your dice."
+          }
+        ]
+      }
+    },
+    {
+      "id": "underpowered",
+      "number": 18,
+      "name": "Underpowered",
+      "page": 219,
+      "baseHealth": 10,
+      "powerDice": [
+        "d8",
+        "d6",
+        "d6",
+        "d6"
+      ],
+      "suggestedPowers": [
+        {
+          "powerCategory": "elemental-energy"
+        },
+        {
+          "powerCategory": "technological"
+        }
+      ],
+      "qualityDice": [
+        "d10",
+        "d8",
+        "d6"
+      ],
+      "suggestedQualities": [
+        {
+          "quality": "banter"
+        },
+        {
+          "quality": "conviction"
+        },
+        {
+          "quality": "criminal-underworld-info"
+        },
+        {
+          "quality": "technology"
+        }
+      ],
+      "abilities": {
+        "count": 3,
+        "constraint": "All use different powers and qualities.",
+        "options": [
+          {
+            "name": "Avoid the Inevitable",
+            "type": "I",
+            "text": "Whenever you would be reduced to 0 or fewer Health, prevent that damage and reduce all your power dice by one size. If this reduces any dice to below a d4, you are knocked out."
+          },
+          {
+            "name": "Do Not Underestimate Me",
+            "type": "A",
+            "text": "Attack using [power]. Use your Max+Mid dice. Take irreducible damage equal to your Min die. If you roll doubles, you cannot use this ability again for the rest of the scene."
+          },
+          {
+            "name": "I Can Do Anything",
+            "type": "A",
+            "text": "Boost using [quality]. Use your Max die. Hinder using your Mid die. Attack using your Min die."
+          },
+          {
+            "name": "Last Ditch Effort",
+            "type": "R",
+            "text": "When Attacked, Defend yourself by rolling your single [power] die. If your roll reduces the damage to exactly 0, Recover Health equal to the damage reduced, Boost using that amount, and Hinder the source of the Attack using that amount."
+          },
+          {
+            "name": "Luck? Or Genius?",
+            "type": "A",
+            "text": "Attack using [power]. If you roll doubles, add that value to your Attack. If you roll triples, add all three dice to your Attack."
+          },
+          {
+            "name": "Still a Threat",
+            "type": "A",
+            "text": "Attack multiple targets using [quality]. Defend against all Attacks against you until your next turn using your Min die."
+          }
+        ]
+      }
+    }
+  ]
+}

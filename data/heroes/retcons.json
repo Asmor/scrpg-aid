@@ -1,0 +1,14 @@
+{
+  "step": 6,
+  "page": 112,
+  "count": 1,
+  "retcons": [
+    { "id": "swap-power-dice", "kind": "swapDice", "targets": ["power"], "summary": "Swap any two of your power dice." },
+    { "id": "swap-quality-dice", "kind": "swapDice", "targets": ["quality"], "summary": "Swap any two of your quality dice." },
+    { "id": "change-ability-trait", "kind": "changeAbilityTrait", "summary": "Change which power or quality one of your abilities uses." },
+    { "id": "add-d6-trait", "kind": "gainPowerOrQuality", "die": "d6", "summary": "Add any power or quality, from any category, at d6." },
+    { "id": "upgrade-red-status", "kind": "upgradeStatusDie", "zone": "red", "steps": 1, "max": "d12", "summary": "Raise your Red status die by one size (maximum d12)." },
+    { "id": "change-principle", "kind": "changePrinciple", "summary": "Replace either of your principles with any other principle." },
+    { "id": "extra-red-ability", "kind": "gainRedAbility", "count": 1, "summary": "Gain one more Red ability, following the Step 5 rules." }
+  ]
+}

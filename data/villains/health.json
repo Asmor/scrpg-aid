@@ -1,0 +1,313 @@
+{
+  "page": 239,
+  "formula": {
+    "summary": "Villain Health = approach base Health + archetype Health modifier + 5 × number of heroes + Health from each upgrade.",
+    "terms": [
+      {
+        "source": "approach",
+        "field": "baseHealth"
+      },
+      {
+        "source": "archetype",
+        "field": "healthModifier"
+      },
+      {
+        "perHero": 5
+      },
+      {
+        "source": "upgrades",
+        "field": "health",
+        "sum": true
+      }
+    ]
+  },
+  "zoneNote": "Use these ranges for villains whose status follows their Health zone (e.g. Bruiser, Fragile), or whenever a villain's own zone is needed. Observation (not stated in the book): every Health term in this data is a multiple of 5, so a villain built from it always lands on a row of this chart; the validator enforces this.",
+  "ranges": [
+    {
+      "max": 100,
+      "orMore": true,
+      "green": [
+        100,
+        75
+      ],
+      "yellow": [
+        74,
+        26
+      ],
+      "red": [
+        25,
+        1
+      ]
+    },
+    {
+      "max": 95,
+      "green": [
+        95,
+        70
+      ],
+      "yellow": [
+        69,
+        25
+      ],
+      "red": [
+        24,
+        1
+      ]
+    },
+    {
+      "max": 90,
+      "green": [
+        90,
+        66
+      ],
+      "yellow": [
+        65,
+        23
+      ],
+      "red": [
+        22,
+        1
+      ]
+    },
+    {
+      "max": 85,
+      "green": [
+        85,
+        60
+      ],
+      "yellow": [
+        59,
+        22
+      ],
+      "red": [
+        21,
+        1
+      ]
+    },
+    {
+      "max": 80,
+      "green": [
+        80,
+        55
+      ],
+      "yellow": [
+        54,
+        21
+      ],
+      "red": [
+        20,
+        1
+      ]
+    },
+    {
+      "max": 75,
+      "green": [
+        75,
+        50
+      ],
+      "yellow": [
+        49,
+        20
+      ],
+      "red": [
+        19,
+        1
+      ]
+    },
+    {
+      "max": 70,
+      "green": [
+        70,
+        50
+      ],
+      "yellow": [
+        49,
+        18
+      ],
+      "red": [
+        17,
+        1
+      ]
+    },
+    {
+      "max": 65,
+      "green": [
+        65,
+        45
+      ],
+      "yellow": [
+        44,
+        18
+      ],
+      "red": [
+        17,
+        1
+      ]
+    },
+    {
+      "max": 60,
+      "green": [
+        60,
+        41
+      ],
+      "yellow": [
+        40,
+        17
+      ],
+      "red": [
+        16,
+        1
+      ]
+    },
+    {
+      "max": 55,
+      "green": [
+        55,
+        38
+      ],
+      "yellow": [
+        37,
+        17
+      ],
+      "red": [
+        16,
+        1
+      ]
+    },
+    {
+      "max": 50,
+      "green": [
+        50,
+        35
+      ],
+      "yellow": [
+        34,
+        16
+      ],
+      "red": [
+        15,
+        1
+      ]
+    },
+    {
+      "max": 45,
+      "green": [
+        45,
+        32
+      ],
+      "yellow": [
+        31,
+        16
+      ],
+      "red": [
+        15,
+        1
+      ]
+    },
+    {
+      "max": 40,
+      "green": [
+        40,
+        30
+      ],
+      "yellow": [
+        29,
+        15
+      ],
+      "red": [
+        14,
+        1
+      ]
+    },
+    {
+      "max": 35,
+      "green": [
+        35,
+        27
+      ],
+      "yellow": [
+        26,
+        13
+      ],
+      "red": [
+        12,
+        1
+      ]
+    },
+    {
+      "max": 30,
+      "green": [
+        30,
+        23
+      ],
+      "yellow": [
+        22,
+        12
+      ],
+      "red": [
+        11,
+        1
+      ]
+    },
+    {
+      "max": 25,
+      "green": [
+        25,
+        20
+      ],
+      "yellow": [
+        19,
+        10
+      ],
+      "red": [
+        9,
+        1
+      ]
+    },
+    {
+      "max": 20,
+      "green": [
+        20,
+        16
+      ],
+      "yellow": [
+        15,
+        8
+      ],
+      "red": [
+        7,
+        1
+      ]
+    },
+    {
+      "max": 15,
+      "green": [
+        15,
+        11
+      ],
+      "yellow": [
+        10,
+        6
+      ],
+      "red": [
+        5,
+        1
+      ]
+    },
+    {
+      "max": 10,
+      "green": [
+        10,
+        10
+      ],
+      "yellow": [
+        9,
+        5
+      ],
+      "red": [
+        4,
+        1
+      ]
+    }
+  ]
+}

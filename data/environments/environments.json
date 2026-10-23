@@ -1,0 +1,306 @@
+{
+  "page": 240,
+  "steps": [
+    "Name the environment, which also sets its scale (from a single building up to a city, region, or dimension).",
+    "Choose three traits: broad characteristics of the place rather than specific threats.",
+    "Give each trait a die. Together they form the environment's dice pool.",
+    "Write twists for each zone of the scene tracker (Green, Yellow, Red), plus any threats and challenges they introduce."
+  ],
+  "fields": [
+    "name",
+    "traits",
+    "twists",
+    "threats",
+    "challenges"
+  ],
+  "traits": {
+    "count": 3,
+    "page": 240,
+    "guidance": "Traits work mostly in the background when twists come into play, so keep them general (a characteristic of the place, not a single gadget or monster)."
+  },
+  "traitDice": {
+    "page": 241,
+    "default": "d8, or d10 for a trait that matters more",
+    "noBalancingRequired": true,
+    "impactGuide": [
+      {
+        "die": "d4",
+        "impact": "Minimal"
+      },
+      {
+        "die": "d6",
+        "impact": "Average"
+      },
+      {
+        "die": "d8",
+        "impact": "Challenging"
+      },
+      {
+        "die": "d10",
+        "impact": "Dangerous"
+      },
+      {
+        "die": "d12",
+        "impact": "Catastrophic"
+      }
+    ]
+  },
+  "twists": {
+    "page": 241,
+    "perZone": {
+      "minor": "2-3",
+      "major": 1
+    },
+    "zones": [
+      "green",
+      "yellow",
+      "red"
+    ],
+    "summary": "Twists escalate as the scene tracker moves from Green to Red. One way to plan them is a three-stage story of the place falling apart: stable (Green), decaying (Yellow), collapsing (Red). Twists usually use the environment's Min, Mid, and Max dice, and they can hit anyone, not just heroes. Each major twist should fire at most once per scene (p. 158).",
+    "effectTypes": [
+      {
+        "id": "basic-action",
+        "summary": "Take a basic action against one or more targets: Attack, Boost, Hinder, Defend, or (rarely) Overcome a challenge. Bonuses and penalties can be one-use or persistent and exclusive."
+      },
+      {
+        "id": "add-threats",
+        "summary": "Add minions or lieutenants that are allied, hostile, or neutral. New threats act starting on the next turn."
+      },
+      {
+        "id": "create-challenge",
+        "summary": "Something goes wrong and needs one or more Overcome successes to fix."
+      },
+      {
+        "id": "advance-scene-tracker",
+        "summary": "Move the scene tracker forward."
+      },
+      {
+        "id": "doomsday-device",
+        "summary": "Set off a doomsday device built into the environment. Use at most one."
+      },
+      {
+        "id": "powerful-entity",
+        "summary": "Show an outside entity acting on the scene without giving it a full sheet."
+      },
+      {
+        "id": "combination",
+        "summary": "Combine two or more of these, splitting the three dice between the effects."
+      }
+    ],
+    "strengthGuidelines": {
+      "page": 244,
+      "basicActions": {
+        "green": {
+          "minor": {
+            "oneTarget": [
+              "Use Mid"
+            ],
+            "allTargets": [
+              "Use Min"
+            ]
+          },
+          "major": {
+            "oneTarget": [
+              "Use Max"
+            ],
+            "twoTargets": [
+              "2 actions using Mid then Min"
+            ],
+            "allTargets": [
+              "Use Min"
+            ]
+          }
+        },
+        "yellow": {
+          "minor": {
+            "oneTarget": [
+              "Use Max",
+              "Use Mid (persistent and exclusive)",
+              "Use Mid + other effect using Min"
+            ],
+            "twoTargets": [
+              "2 actions using Mid",
+              "Use Min (persistent and exclusive)"
+            ],
+            "allTargets": [
+              "Use Min"
+            ]
+          },
+          "major": {
+            "oneTarget": [
+              "Use Mid+Min",
+              "Use Max (persistent and exclusive)",
+              "Use Max + other effect using Mid"
+            ],
+            "twoTargets": [
+              "2 actions using Mid",
+              "2 actions using Mid then Min (one of them persistent and exclusive)"
+            ],
+            "allTargets": [
+              "Use Mid",
+              "Use Min (persistent and exclusive)",
+              "2 actions: Max on one then Min on others"
+            ]
+          }
+        },
+        "red": {
+          "minor": {
+            "oneTarget": [
+              "Use Max+Min",
+              "2 actions using Max (one of them persistent and exclusive)",
+              "2 actions using Max then Mid (one of them persistent and exclusive)",
+              "2 actions using Mid (both persistent and exclusive)"
+            ],
+            "twoTargets": [
+              "Use Mid (persistent and exclusive)",
+              "2 actions using Mid then Min",
+              "2 actions using Min (persistent and exclusive)"
+            ],
+            "allTargets": [
+              "Use Mid",
+              "2 actions: Max on one then Mid on others"
+            ]
+          },
+          "major": {
+            "allTargets": [
+              "Use Max",
+              "2 actions using Mid (persistent and exclusive)",
+              "Use Mid then another effect"
+            ]
+          }
+        }
+      },
+      "addThreats": {
+        "page": 245,
+        "green": {
+          "minor": [
+            "Add a single minion"
+          ],
+          "major": [
+            "Add Min minions",
+            "Add a single minion and another effect",
+            "Add a single lieutenant"
+          ]
+        },
+        "yellow": {
+          "minor": [
+            "Add Mid minions",
+            "Add Min minions and another effect",
+            "Add a single lieutenant threat"
+          ],
+          "major": [
+            "Add Mid minions and another effect",
+            "Restore all minion threats to full strength",
+            "Add a single lieutenant and another effect",
+            "Add a single, more powerful lieutenant"
+          ]
+        },
+        "red": {
+          "minor": [
+            "Add Max minion threats",
+            "Add a single, more powerful lieutenant",
+            "Restore a single lieutenant threat to full strength"
+          ],
+          "major": [
+            "Restore all minions and lieutenants to full strength",
+            "Add a single, more powerful lieutenant and another effect"
+          ]
+        }
+      },
+      "createChallenge": {
+        "page": 245,
+        "green": {
+          "minor": [
+            "Add a simple challenge"
+          ],
+          "major": [
+            "Increase the difficulty of an existing challenge"
+          ]
+        },
+        "yellow": {
+          "minor": [
+            "Add a timed or multi-step challenge"
+          ],
+          "major": [
+            "Add a simple challenge and another effect"
+          ]
+        },
+        "red": {
+          "minor": [
+            "Add a timed or multi-step challenge and another effect"
+          ],
+          "major": [
+            "Activate a doomsday device"
+          ]
+        }
+      },
+      "advanceSceneTracker": {
+        "page": 245,
+        "green": {
+          "minor": [],
+          "major": [
+            "Advance the scene tracker by one space"
+          ]
+        },
+        "yellow": {
+          "minor": [],
+          "major": [
+            "Advance the scene tracker by one space"
+          ]
+        },
+        "red": {
+          "minor": [],
+          "major": [
+            "Advance the scene tracker by one space"
+          ]
+        }
+      }
+    }
+  },
+  "turn": {
+    "pages": [
+      157,
+      158
+    ],
+    "order": [
+      "Advance the scene tracker one space.",
+      "All active environment threats act (as minions/lieutenants).",
+      "If no threats are in play, introduce a new one unlocked by the current zone; otherwise trigger an environment twist for the current zone. If no twist fits, roll the environment's dice as a basic Attack, Boost, or Hinder (environments don't Defend or Overcome)."
+    ]
+  },
+  "challenges": {
+    "page": 189,
+    "summary": "A challenge is an obstacle described in a few words, with one or more checkboxes, each cleared by a successful Overcome. Aim for about three successes and at most five. A challenge can also have a timer, conditional or mutually exclusive approaches, an outcome when it's resolved, a consequence when it's triggered, an ability it uses when it takes a turn, and suggested twists.",
+    "fields": [
+      "name",
+      "description",
+      "resolution",
+      "timer",
+      "outcome",
+      "triggered",
+      "action",
+      "twists"
+    ],
+    "timerGuide": {
+      "page": 191,
+      "tiers": [
+        {
+          "impact": "Limited civilian impact or danger to heroes",
+          "timer": "1-2 turns"
+        },
+        {
+          "impact": "Major civilian impact or danger to heroes",
+          "timer": "Until the scene status changes (e.g. Yellow to Red)"
+        },
+        {
+          "impact": "Catastrophic impact on the immediate area",
+          "timer": "Use a doomsday device"
+        }
+      ]
+    },
+    "doomsdayDevices": {
+      "page": 197,
+      "summary": "A multi-success challenge with catastrophic consequences if triggered. It takes its own turns, advancing the scene tracker by a set amount each turn (one or two spaces, or to the start or end of the next zone). It may also have abilities and twists."
+    }
+  }
+}

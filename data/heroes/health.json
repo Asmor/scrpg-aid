@@ -1,0 +1,39 @@
+{
+  "step": 7,
+  "page": 113,
+  "formula": {
+    "base": 8,
+    "addMaxOf": [
+      { "statusDie": "red" },
+      { "bestOf": [{ "powerCategory": "athletic" }, { "qualityCategory": "mental" }], "pickOne": true, "fallbackDie": "d4" }
+    ],
+    "addRoll": { "die": "d8", "orFixed": 4, "chooseBeforeRolling": true },
+    "summary": "Max Health = 8 + the max value of your Red status die + the max value of one Athletic power or Mental quality you choose (use d4 if you have none) + a d8 roll or a flat 4 (decide before rolling). Some archetypes and personalities allow other powers or qualities in place of the Athletic/Mental one."
+  },
+  "ranges": [
+    { "max": 40, "green": [40, 30], "yellow": [29, 15], "red": [14, 1] },
+    { "max": 39, "green": [39, 30], "yellow": [29, 15], "red": [14, 1] },
+    { "max": 38, "green": [38, 29], "yellow": [28, 14], "red": [13, 1] },
+    { "max": 37, "green": [37, 29], "yellow": [28, 14], "red": [13, 1] },
+    { "max": 36, "green": [36, 28], "yellow": [27, 14], "red": [13, 1] },
+    { "max": 35, "green": [35, 27], "yellow": [26, 13], "red": [12, 1] },
+    { "max": 34, "green": [34, 26], "yellow": [25, 13], "red": [12, 1] },
+    { "max": 33, "green": [33, 26], "yellow": [25, 13], "red": [12, 1] },
+    { "max": 32, "green": [32, 25], "yellow": [24, 12], "red": [11, 1] },
+    { "max": 31, "green": [31, 24], "yellow": [23, 12], "red": [11, 1] },
+    { "max": 30, "green": [30, 23], "yellow": [22, 12], "red": [11, 1] },
+    { "max": 29, "green": [29, 23], "yellow": [22, 11], "red": [10, 1] },
+    { "max": 28, "green": [28, 22], "yellow": [21, 11], "red": [10, 1] },
+    { "max": 27, "green": [27, 21], "yellow": [20, 11], "red": [10, 1] },
+    { "max": 26, "green": [26, 21], "yellow": [20, 10], "red": [9, 1] },
+    { "max": 25, "green": [25, 20], "yellow": [19, 10], "red": [9, 1] },
+    { "max": 24, "green": [24, 19], "yellow": [18, 10], "red": [9, 1] },
+    { "max": 23, "green": [23, 19], "yellow": [18, 9], "red": [8, 1] },
+    { "max": 22, "green": [22, 18], "yellow": [17, 9], "red": [8, 1] },
+    { "max": 21, "green": [21, 17], "yellow": [16, 9], "red": [8, 1] },
+    { "max": 20, "green": [20, 16], "yellow": [15, 8], "red": [7, 1] },
+    { "max": 19, "green": [19, 15], "yellow": [14, 8], "red": [7, 1] },
+    { "max": 18, "green": [18, 15], "yellow": [14, 8], "red": [7, 1] },
+    { "max": 17, "green": [17, 14], "yellow": [13, 7], "red": [6, 1] }
+  ]
+}

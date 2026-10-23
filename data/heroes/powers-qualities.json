@@ -1,0 +1,188 @@
+{
+  "page": 47,
+  "powerCategories": [
+    {
+      "id": "athletic",
+      "name": "Athletic",
+      "usedForHealth": true,
+      "page": 115,
+      "powers": [
+        { "id": "agility", "name": "Agility", "summary": "Sharp reflexes." },
+        { "id": "speed", "name": "Speed", "summary": "Moves very fast." },
+        { "id": "strength", "name": "Strength", "summary": "Lifts and hits hard." },
+        { "id": "vitality", "name": "Vitality", "summary": "Robust health; high ratings can mean regeneration." }
+      ]
+    },
+    {
+      "id": "elemental-energy",
+      "name": "Elemental/Energy",
+      "page": 115,
+      "powers": [
+        { "id": "cold", "name": "Cold", "summary": "Drops temperatures and shapes ice." },
+        { "id": "cosmic", "name": "Cosmic", "summary": "Wields the universe's primal energies." },
+        { "id": "electricity", "name": "Electricity", "summary": "Generates or channels electricity." },
+        { "id": "fire", "name": "Fire", "summary": "Creates and controls flame." },
+        { "id": "infernal", "name": "Infernal", "summary": "Commands demonic, underworld energy." },
+        { "id": "nuclear", "name": "Nuclear", "summary": "Channels atomic power and radiation." },
+        { "id": "radiant", "name": "Radiant", "summary": "Wields holy light against evil." },
+        { "id": "sonic", "name": "Sonic", "summary": "Uses focused sound, destructively or to mimic sounds." },
+        { "id": "weather", "name": "Weather", "summary": "Controls storms and wind; pair with Electricity or Cold for more direct effects." }
+      ]
+    },
+    {
+      "id": "hallmark",
+      "name": "Hallmark",
+      "requiresCustomization": true,
+      "page": 115,
+      "powers": [
+        { "id": "signature-vehicle", "name": "Signature Vehicle", "rename": true, "summary": "A custom vehicle that is almost always available. Rename it to the specific vehicle." },
+        { "id": "signature-weaponry", "name": "Signature Weaponry", "rename": true, "summary": "A weapon (or arsenal) closely tied to the hero. Rename it to the specific weapon." },
+        { "id": "invented-power", "name": "Invented Power", "requiresGmPermission": true, "rename": true, "summary": "A new power not covered by the list; requires GM approval.", "page": 116 }
+      ]
+    },
+    {
+      "id": "intellectual",
+      "name": "Intellectual",
+      "page": 116,
+      "powers": [
+        { "id": "awareness", "name": "Awareness", "summary": "Heightened senses, from danger sense to keen sight and hearing." },
+        { "id": "deduction", "name": "Deduction", "summary": "Reaches conclusions by analyzing details." },
+        { "id": "intuition", "name": "Intuition", "summary": "Reliable gut feelings about what will happen." },
+        { "id": "lightning-calculator", "name": "Lightning Calculator", "summary": "Instant, complex mental math." },
+        { "id": "presence", "name": "Presence", "summary": "A forceful personality that impresses others." }
+      ]
+    },
+    {
+      "id": "materials",
+      "name": "Materials",
+      "page": 116,
+      "powers": [
+        { "id": "metal", "name": "Metal", "summary": "Controls and shapes metal." },
+        { "id": "plants", "name": "Plants", "summary": "Makes plants grow and respond at will." },
+        { "id": "stone", "name": "Stone", "summary": "Shapes stone to build or destroy." },
+        { "id": "toxic", "name": "Toxic", "summary": "Manipulates poisons, toxic waste, and noxious gases." },
+        { "id": "transmutation", "name": "Transmutation", "summary": "Changes non-living materials from one substance to another; take other Materials powers to also control them." }
+      ]
+    },
+    {
+      "id": "mobility",
+      "name": "Mobility",
+      "page": 117,
+      "powers": [
+        { "id": "flight", "name": "Flight", "summary": "Flies." },
+        { "id": "leaping", "name": "Leaping", "summary": "Makes huge leaps." },
+        { "id": "momentum", "name": "Momentum", "summary": "Builds up and directs momentum while moving." },
+        { "id": "swimming", "name": "Swimming", "summary": "Moves easily through water; at d8 or higher, can also breathe underwater." },
+        { "id": "swinging", "name": "Swinging", "summary": "Swings around using ropes, lines, or similar, given something to grab." },
+        { "id": "teleportation", "name": "Teleportation", "summary": "Vanishes and reappears elsewhere; larger dice mean more range and control." },
+        { "id": "wall-crawling", "name": "Wall-Crawling", "summary": "Clings to and moves quickly across walls." }
+      ]
+    },
+    {
+      "id": "psychic",
+      "name": "Psychic",
+      "page": 117,
+      "powers": [
+        { "id": "animal-control", "name": "Animal Control", "summary": "Communicates with and commands non-sentient animals." },
+        { "id": "illusions", "name": "Illusions", "summary": "Projects convincing mental images." },
+        { "id": "precognition", "name": "Precognition", "summary": "Glimpses possible futures." },
+        { "id": "postcognition", "name": "Postcognition", "summary": "Sees the past of a person, place, or object." },
+        { "id": "remote-viewing", "name": "Remote Viewing", "summary": "Projects senses to another location." },
+        { "id": "suggestion", "name": "Suggestion", "summary": "Influences others' minds." },
+        { "id": "telekinesis", "name": "Telekinesis", "summary": "Moves objects mentally; larger dice mean heavier objects and finer control." },
+        { "id": "telepathy", "name": "Telepathy", "summary": "Reads minds and sends thoughts." }
+      ]
+    },
+    {
+      "id": "self-control",
+      "name": "Self Control",
+      "page": 118,
+      "powers": [
+        { "id": "absorption", "name": "Absorption", "summary": "Absorbs incoming energy and redirects it in other forms." },
+        { "id": "density-control", "name": "Density Control", "summary": "Becomes denser for toughness or lighter." },
+        { "id": "duplication", "name": "Duplication", "summary": "Creates copies, usually not as capable as the original." },
+        { "id": "elasticity", "name": "Elasticity", "summary": "Stretches the body." },
+        { "id": "intangibility", "name": "Intangibility", "summary": "Passes through solid matter." },
+        { "id": "invisibility", "name": "Invisibility", "summary": "Becomes unseen." },
+        { "id": "part-detachment", "name": "Part Detachment", "summary": "Detaches body parts and uses them independently." },
+        { "id": "shapeshifting", "name": "Shapeshifting", "summary": "Takes other forms of roughly the same size, limited or freely." },
+        { "id": "size-changing", "name": "Size-Changing", "summary": "Grows or shrinks dramatically." }
+      ]
+    },
+    {
+      "id": "technological",
+      "name": "Technological",
+      "page": 118,
+      "powers": [
+        { "id": "gadgets", "name": "Gadgets", "summary": "A variety of useful tech tools, usually made by someone else." },
+        { "id": "inventions", "name": "Inventions", "summary": "Self-made tech tools, some always carried." },
+        { "id": "power-suit", "name": "Power Suit", "summary": "A technological suit with many built-in functions." },
+        { "id": "robotics", "name": "Robotics", "summary": "Builds robot helpers." }
+      ]
+    }
+  ],
+  "qualityCategories": [
+    {
+      "id": "information",
+      "name": "Information",
+      "page": 119,
+      "qualities": [
+        { "id": "criminal-underworld-info", "name": "Criminal Underworld Info", "summary": "Connections in organized crime." },
+        { "id": "deep-space-knowledge", "name": "Deep Space Knowledge", "summary": "Knowledge of worlds and bodies beyond the solar system." },
+        { "id": "history", "name": "History", "summary": "Broad knowledge of world history." },
+        { "id": "magical-lore", "name": "Magical Lore", "summary": "Knowledge of the occult and mystical realms." },
+        { "id": "medicine", "name": "Medicine", "summary": "Treating illness and injury." },
+        { "id": "otherworldly-mythos", "name": "Otherworldly Mythos", "summary": "Knowledge of other dimensions." },
+        { "id": "science", "name": "Science", "summary": "Physical sciences such as physics and biology." },
+        { "id": "technology", "name": "Technology", "summary": "Engineering and computers." }
+      ]
+    },
+    {
+      "id": "mental",
+      "name": "Mental",
+      "usedForHealth": true,
+      "page": 119,
+      "qualities": [
+        { "id": "alertness", "name": "Alertness", "summary": "Senses trained to stay alert." },
+        { "id": "conviction", "name": "Conviction", "summary": "Driven by strong belief or faith." },
+        { "id": "creativity", "name": "Creativity", "summary": "Skilled in a creative or artistic field." },
+        { "id": "investigation", "name": "Investigation", "summary": "Trained in evidence gathering and forensics." },
+        { "id": "self-discipline", "name": "Self-Discipline", "summary": "Strong control over emotions and will." }
+      ]
+    },
+    {
+      "id": "physical",
+      "name": "Physical",
+      "page": 120,
+      "qualities": [
+        { "id": "acrobatics", "name": "Acrobatics", "summary": "Gymnastic and aerial maneuvers." },
+        { "id": "close-combat", "name": "Close Combat", "summary": "Hand-to-hand and melee fighting." },
+        { "id": "finesse", "name": "Finesse", "summary": "Precise, delicate handwork." },
+        { "id": "fitness", "name": "Fitness", "summary": "Peak physical condition and endurance." },
+        { "id": "ranged-combat", "name": "Ranged Combat", "summary": "Attacking from a distance." },
+        { "id": "stealth", "name": "Stealth", "summary": "Sneaking in any environment." }
+      ]
+    },
+    {
+      "id": "social",
+      "name": "Social",
+      "page": 120,
+      "qualities": [
+        { "id": "banter", "name": "Banter", "summary": "Quick, often needling talk." },
+        { "id": "insight", "name": "Insight", "summary": "Reads people and spots what they hide." },
+        { "id": "imposing", "name": "Imposing", "summary": "Intimidates foes." },
+        { "id": "leadership", "name": "Leadership", "summary": "Directs allies effectively." },
+        { "id": "persuasion", "name": "Persuasion", "summary": "Convinces others." }
+      ]
+    },
+    {
+      "id": "special",
+      "name": "Special",
+      "requiresCustomization": true,
+      "page": 121,
+      "qualities": [
+        { "id": "roleplaying-quality", "name": "Roleplaying Quality", "rename": true, "summary": "A quality you write yourself that sums up the hero's core concept, broader than a single skill. Gained during the personality step." }
+      ]
+    }
+  ]
+}

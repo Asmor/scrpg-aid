@@ -1,0 +1,273 @@
+{
+  "page": 235,
+  "notes": "A villain with no upgrades is a minor villain. Each upgrade makes the villain a match for roughly one more hero and adds its Health value. A villain with any upgrades should also get one villainous mastery.",
+  "upgrades": [
+    {
+      "id": "mook-squad",
+      "number": 1,
+      "name": "Mook Squad",
+      "page": 235,
+      "health": 0,
+      "requirement": "Has a set of signature minions.",
+      "summary": "A set of signature minions appears in the scene with the villain, and the villain can keep refilling them.",
+      "abilities": [
+        {
+          "name": "Alert!",
+          "type": "A",
+          "text": "Replenish your minion squad up to the number of heroes."
+        }
+      ]
+    },
+    {
+      "id": "hardier-minions",
+      "number": 2,
+      "name": "Hardier Minions",
+      "page": 235,
+      "health": 5,
+      "requirement": "Known for particularly deadly or resilient help.",
+      "abilities": [
+        {
+          "name": "Empower Minions",
+          "type": "A",
+          "text": "Choose one group of minions in the scene. Upgrade all their dice one size (maximum d12)."
+        }
+      ]
+    },
+    {
+      "id": "group-fighter",
+      "number": 3,
+      "name": "Group Fighter",
+      "page": 236,
+      "health": 20,
+      "requirement": "Equipped to fight a group.",
+      "abilities": [
+        {
+          "name": "Extra Attack",
+          "type": "I",
+          "text": "When you take an action that lets you make an Attack, also make an Attack using your Mid die."
+        }
+      ]
+    },
+    {
+      "id": "villainous-vehicle",
+      "number": 4,
+      "name": "Villainous Vehicle",
+      "page": 236,
+      "health": 15,
+      "requirement": "Needs a fully autonomous war machine (tank, platform, starship, etc.) beyond the Signature Vehicle power.",
+      "summary": "Build the vehicle as a lieutenant. Its die size sets how many vehicle abilities it gets.",
+      "lieutenantOptions": [
+        {
+          "die": "d8",
+          "abilityCount": 4
+        },
+        {
+          "die": "d10",
+          "abilityCount": 3
+        },
+        {
+          "die": "d12",
+          "abilityCount": 2
+        }
+      ],
+      "vehicleAbilities": [
+        {
+          "name": "Distance Attack",
+          "type": "I",
+          "text": "To attack this vehicle, the hero must make an Overcome action in order to get close enough to it."
+        },
+        {
+          "name": "Sturdy",
+          "type": "I",
+          "text": "When rolling a damage save, add 2 to the result."
+        },
+        {
+          "name": "Escape Plan",
+          "type": "R",
+          "text": "When the villain is Attacked, roll this vehicle’s die. If it rolls higher than the villain’s current Health, both the villain and the vehicle escape the scene."
+        },
+        {
+          "name": "Bombard",
+          "type": "A",
+          "text": "Attack all heroes with this vehicle’s roll. Use this ability only if the vehicle is below its starting die size or the scene is in the Red zone."
+        },
+        {
+          "name": "Minion Deployment",
+          "type": "A",
+          "text": "Add minions to an existing group equal to half (rounded down) the vehicle’s current die size. Those minions are of a size equal to the highest die size already existing in that group. If the vehicle has a bonus or penalty, adjust the number of minions created by that amount and then remove that mod."
+        },
+        {
+          "name": "Reliable",
+          "type": "I",
+          "text": "When this vehicle uses a [basic action] on its turn, roll twice and use the higher result."
+        },
+        {
+          "name": "Recovery",
+          "type": "A",
+          "text": "Roll the vehicle’s die. The villain Recovers that much Health."
+        }
+      ]
+    },
+    {
+      "id": "power-upgrade",
+      "number": 5,
+      "name": "Power Upgrade",
+      "page": 236,
+      "health": 20,
+      "requirement": "Has used a process, ritual, device, etc. to increase its power.",
+      "effect": {
+        "kind": "upgradeAllDice",
+        "targets": [
+          "power"
+        ],
+        "steps": 1,
+        "overflow": "gainArchetypeAbility"
+      },
+      "summary": "Raise every power die one size. For any power that would go above d12, gain another ability from the villain's archetype instead."
+    },
+    {
+      "id": "quality-upgrade",
+      "number": 6,
+      "name": "Quality Upgrade",
+      "page": 237,
+      "health": 20,
+      "requirement": "Has specialized training.",
+      "effect": {
+        "kind": "upgradeAllDice",
+        "targets": [
+          "quality"
+        ],
+        "steps": 1,
+        "excludeRoleplayingQuality": true,
+        "overflow": "gainApproachAbility"
+      },
+      "summary": "Raise every quality die one size, except the d8 roleplaying quality. For any quality that would go above d12, gain another ability from the villain's approach instead."
+    },
+    {
+      "id": "defense-shield",
+      "number": 7,
+      "name": "Defense Shield",
+      "page": 237,
+      "health": 0,
+      "requirement": "Protected by a shield.",
+      "abilities": [
+        {
+          "name": "Defense Shield",
+          "type": "I",
+          "text": "You cannot be damaged by anyone except yourself until the defense shield is destroyed. The defense shield has 40 Health, or can be deactivated with three Overcome successes. If a hero takes a minor twist working on the shield, you can make an Attack as a reaction by rolling your single [power] die."
+        },
+        {
+          "name": "Reestablish Shield",
+          "type": "A",
+          "text": "Overcome using [power]. Use your Max die. On a success, remove one success from the deactivating challenge. Alternatively, instead of an Overcome, use the Max die to Recover that much of the defense shield’s Health. This ability cannot be used if the defense shield has been completely removed."
+        }
+      ]
+    },
+    {
+      "id": "calming-aura",
+      "number": 8,
+      "name": "Calming Aura",
+      "page": 237,
+      "health": 10,
+      "requirement": "Good at seeming harmless or putting heroes off their guard.",
+      "abilities": [
+        {
+          "name": "Calming Aura",
+          "type": "I",
+          "text": "The heroes act as being in the Green zone for status die, access to abilities, and for the purposes of all abilities. Heroes may remove this ability with three Overcome successes. If a hero takes a minor twist, you may use a reaction to Hinder them by rolling your single [power] die."
+        }
+      ]
+    },
+    {
+      "id": "power-dampening-field",
+      "number": 9,
+      "name": "Power Dampening Field",
+      "page": 237,
+      "health": 10,
+      "requirement": "Can weaken heroes' powers while keeping its own.",
+      "abilities": [
+        {
+          "name": "Power Dampening Field",
+          "type": "I",
+          "text": "While the scene is in the Green zone, all heroes’ power dice at d8 or above are reduced one size. In the Yellow zone, all heroes’ power dice at d10 or above are reduced two die sizes. In the Red zone, all heroes’ power dice are treated as if they are d4. Heroes may remove this ability with three Overcome successes. If a hero takes a minor twist, the hero must lose access to a power entirely until this ability is removed."
+        }
+      ]
+    },
+    {
+      "id": "brainwashing-zone",
+      "number": 10,
+      "name": "Brainwashing Zone",
+      "page": 238,
+      "health": 10,
+      "requirement": "Can tamper with heroes' minds.",
+      "abilities": [
+        {
+          "name": "Brainwashing Zone",
+          "type": "I",
+          "text": "While the scene is in the Green zone, all heroes’ quality dice at d8 or above are reduced one size. In the Yellow zone, all heroes’ quality dice at d10 or above are reduced two die sizes. In the Red zone, all heroes’ quality dice are treated as if they are d4. Heroes may remove this ability with three Overcome successes. If a hero takes a minor twist, the hero must lose access to a quality entirely until this ability is removed. If a hero is knocked out while this ability is active, you may create a new minion using the hero’s highest power die to represent the controlled version of that hero."
+        }
+      ]
+    }
+  ],
+  "masteries": {
+    "page": 238,
+    "summary": "A villain with any upgrades also takes one villainous mastery. Masteries work like heroic principles: they let the villain automatically succeed at certain Overcome actions.",
+    "options": [
+      {
+        "name": "Master of Annihilation",
+        "type": "I",
+        "text": "If you can cause massive collateral damage without regard for casualties, automatically succeed at an Overcome where a show of overwhelming force can solve the problem."
+      },
+      {
+        "name": "Master Behind the Curtain",
+        "type": "I",
+        "text": "As long as you are not directly involved in the fray and are using your influence indirectly, automatically succeed at an Overcome to manipulate a situation."
+      },
+      {
+        "name": "Master of Conquest",
+        "type": "I",
+        "text": "As long as you are in command of your own forces, automatically succeed at an Overcome involving seizing an area or capturing civilians."
+      },
+      {
+        "name": "Master of Enforced Order",
+        "type": "I",
+        "text": "If you have complete control over your immediate surroundings, automatically succeed in an Overcome to organize rabble to accomplish a task."
+      },
+      {
+        "name": "Master of Mad Science",
+        "type": "I",
+        "text": "As long as you have access to materials, you can automatically succeed when Overcoming a challenge by using scientific principles and inventions."
+      },
+      {
+        "name": "Master Mercenary",
+        "type": "I",
+        "text": "If you have been given a contract to perform a specific task, automatically succeed at an Overcome in a situation where the difference is getting paid and not getting paid."
+      },
+      {
+        "name": "Master of Mysticism",
+        "type": "I",
+        "text": "If you have access to proper materials, automatically succeed at an Overcome in a situation involving harnessing magical forces."
+      },
+      {
+        "name": "Master of Profitability",
+        "type": "I",
+        "text": "If you have access to great wealth and other resources, automatically succeed at an Overcome to leverage those resources to get even richer, no matter who else pays the price."
+      },
+      {
+        "name": "Master of Superiority",
+        "type": "I",
+        "text": "As long as you are manifesting effects related to a power you have at d12, automatically succeed at an Overcome involving usage of those powers."
+      },
+      {
+        "name": "Master of Total Chaos",
+        "type": "I",
+        "text": "If you are in a situation where everything is spiraling out of control, automatically succeed in an Overcome to accomplish a task by throwing out the rules."
+      },
+      {
+        "name": "Master of the Unfathomable",
+        "type": "I",
+        "text": "If you are in a situation involving eldritch and disturbing forces, automatically succeed at an Overcome to do the bidding of a being beyond human concerns."
+      }
+    ]
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "page": 204,
+  "minions": {
+    "page": 204,
+    "steps": [
+      "Name the minion and settle its concept.",
+      "Pick its die size.",
+      "Write a short description of what it is and how it threatens heroes (ranged or melee, physical or energy, etc.).",
+      "Optional: add one or two abilities.",
+      "Optional: note its usual tactics in a sentence or two."
+    ],
+    "fields": ["name", "die", "count", "description", "abilities", "tactics"],
+    "countNote": "Published minions note how many appear, typically per hero (for example, \"1 per hero\").",
+    "dieSizes": {
+      "page": 205,
+      "examples": [
+        { "die": "d4", "examples": ["damaged bots", "panicked mob", "rat swarms", "untrained humans", "ravenous guppies"] },
+        { "die": "d6", "examples": ["armed thugs", "police officers", "security guards", "street fighters", "piranhas"] },
+        { "die": "d8", "examples": ["cyborg guards", "ninjas", "professional soldiers", "raptors", "sharks"] },
+        { "die": "d10", "examples": ["battle-armored soldiers", "elite assassins", "elite cyborg commandos", "laser sharks"] },
+        { "die": "d12", "examples": ["armored infantry carriers", "enraged t-rexes", "gunships", "megalodons"] }
+      ],
+      "advice": "Large groups of high-die minions get dangerous quickly. To make minions more capable without that risk, give them situational bonuses through abilities instead of a bigger die."
+    },
+    "abilityGuidelines": {
+      "page": 206,
+      "count": "Usually none; one, or at most two, if they need to stand out.",
+      "modRange": { "min": 1, "max": 3, "typical": 2 },
+      "suggestedEffects": [
+        "A bonus to one basic action under specific conditions",
+        "A bonus to Boosts targeting an ally in the same location",
+        "A bonus to Hinders targeting an enemy",
+        "A bonus to Defends protecting one ally",
+        "A bonus to damage",
+        "A bonus to saves",
+        "Attack an extra target (usually with a penalty)",
+        "Move between locations without spending an action",
+        "Sacrifice itself to: shield a villain from one damage source; Attack all enemies in its location (with a penalty); give all allies in its location a bonus; give all enemies in its location a penalty; Recover a villain's Health by its roll; bring an environment threat or twist into play; or split into smaller-die minions"
+      ]
+    }
+  },
+  "lieutenants": {
+    "page": 207,
+    "summary": "Built like minions, but tougher (a successful save doesn't reduce their die) and with more and better abilities. They can be elite followers, superpowered underlings, monsters, or war machines.",
+    "naming": "Usually unique or special; individuals often get a full name and a title.",
+    "dieSizes": {
+      "typical": ["d8", "d10", "d12"],
+      "uncommon": ["d6"],
+      "note": "A d6 lieutenant suits a threat that isn't very deadly but is hard to get rid of."
+    },
+    "abilityCount": "One or more.",
+    "abilityGuidelines": {
+      "suggestedEffects": [
+        "Any of the minion ability effects",
+        "A bonus to two or more basic actions under specific conditions",
+        "A bonus to Boosts",
+        "One Boost that affects several allies in the same location",
+        "A bonus to Hinders",
+        "One Hinder that affects several enemies in the same location",
+        "A bonus to Defends",
+        "One Defend that protects several allies in the same location",
+        "Attack or Defend plus Boost an ally from the same roll",
+        "Attack or Defend plus Hinder an enemy from the same roll",
+        "A special action: create standard minions based on its roll; Recover a villain's Health by its roll; bring an environment threat or twist into play; or move a hero to another location",
+        "Sacrifice itself to: let a villain escape; let a villain act during the lieutenant's turn; or advance the scene tracker one space"
+      ]
+    },
+    "massiveFoes": "For truly colossal threats, the book suggests combining an environment (for its actions), challenges (to defeat it), and threats (that protect it) rather than a single lieutenant."
+  },
+  "sceneDifficulty": {
+    "page": 186,
+    "summary": "H = number of heroes in the scene; ½H rounds up. In a group of minions, two minions can be traded for one lieutenant one die size larger.",
+    "tiers": [
+      { "difficulty": "easy", "minions": { "count": "H", "die": "d6" }, "lieutenants": { "count": "halfH", "die": "d8" }, "villains": "none", "environment": "none", "challenges": "1–2 successes, or 1 success plus an added complication" },
+      { "difficulty": "moderate", "minions": { "count": "H", "die": "d8" }, "lieutenants": { "count": "halfH", "die": "d10" }, "villains": "minor villain (no upgrades or masteries)", "environment": "standard environment", "challenges": "3–4 successes, or 1–2 successes plus an added complication" },
+      { "difficulty": "difficult", "minions": { "count": "H", "die": "d10" }, "lieutenants": { "count": "halfH", "die": "d12" }, "villains": "major villain (with upgrades and masteries)", "environment": "hostile environment", "challenges": "5+ successes, or 3–4 successes plus an added complication" }
+    ]
+  }
+}

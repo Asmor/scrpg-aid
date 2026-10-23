@@ -1,0 +1,1569 @@
+{
+  "step": 2,
+  "page": 57,
+  "chartPage": 56,
+  "powerSources": [
+    {
+      "id": "accident",
+      "roll": 1,
+      "name": "Accident",
+      "page": 57,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "powerCategory": "athletic"
+          },
+          {
+            "powerCategory": "elemental-energy"
+          },
+          {
+            "powerCategory": "intellectual"
+          },
+          {
+            "powerCategory": "materials"
+          },
+          {
+            "powerCategory": "psychic"
+          },
+          {
+            "powerCategory": "self-control"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Area Alteration",
+            "type": "A",
+            "text": "[Boost or Hinder] any number of nearby targets using [power]. Use your Max die."
+          },
+          {
+            "name": "Inflict",
+            "type": "A",
+            "text": "Attack using [power]. Hinder that same target using your Min die."
+          },
+          {
+            "name": "Reflexive Burst",
+            "type": "R",
+            "text": "When your personal zone changes, Attack all close enemy targets by rolling your single [power] die."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "greenAbilities": {
+        "count": 1,
+        "options": [
+          {
+            "name": "Ambush Awareness",
+            "type": "R",
+            "text": "If you haven’t yet acted in an action scene, you may Defend against an Attack by rolling your single [power] die."
+          },
+          {
+            "name": "Change in Circumstance",
+            "type": "R",
+            "text": "When you change personal zones, you may Boost by rolling your single [power] die."
+          },
+          {
+            "name": "Immunity",
+            "type": "I",
+            "text": "You do not take damage from [energy/element]."
+          }
+        ]
+      },
+      "archetypeDice": [
+        "d12",
+        "d6"
+      ]
+    },
+    {
+      "id": "training",
+      "roll": 2,
+      "name": "Training",
+      "page": 58,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "gadgets"
+          },
+          {
+            "power": "signature-vehicle"
+          },
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "powerCategory": "athletic"
+          },
+          {
+            "powerCategory": "intellectual"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Always Be Prepared",
+            "type": "A",
+            "text": "Boost yourself using [power]. That bonus is persistent and exclusive. Then, Attack using your Min die. You may use the bonus you just created on that Attack."
+          },
+          {
+            "name": "Reactive Field",
+            "type": "R",
+            "text": "When you are attacked by a nearby enemy, the attacker also takes an equal amount of damage."
+          },
+          {
+            "name": "Flowing Fight",
+            "type": "A",
+            "text": "Attack using [power]. Use your Mid die to Attack one extra target for each bonus you have. Apply a different bonus to each Attack."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "bonuses": [
+        {
+          "kind": "extraArchetypeQuality",
+          "die": "d8",
+          "summary": "During the archetype step, also take one extra quality from that archetype's quality list at d8."
+        }
+      ],
+      "archetypeDice": [
+        "d10",
+        "d8",
+        "d8"
+      ]
+    },
+    {
+      "id": "genetic",
+      "roll": 3,
+      "name": "Genetic",
+      "page": 58,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "agility"
+          },
+          {
+            "power": "flight"
+          },
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "power": "strength"
+          },
+          {
+            "power": "vitality"
+          },
+          {
+            "powerCategory": "intellectual"
+          },
+          {
+            "powerCategory": "psychic"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Danger Sense",
+            "type": "R",
+            "text": "When damaged by an environment target or a surprise Attack, Defend by rolling your single [power] die."
+          },
+          {
+            "name": "Adaptive",
+            "type": "A",
+            "text": "Boost yourself using [power], then either remove a penalty on yourself or Recover using your Min die."
+          },
+          {
+            "name": "Area Assault",
+            "type": "A",
+            "text": "Attack multiple targets using [power], using your Min die against each."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "greenAbilities": {
+        "count": 1,
+        "options": [
+          {
+            "name": "Growth",
+            "type": "A",
+            "text": "Boost yourself using [quality]. That bonus is persistent and exclusive."
+          },
+          {
+            "name": "Rally",
+            "type": "A",
+            "text": "Attack using [quality]. Other nearby heroes in the Yellow or Red zone Recover equal to your Min die."
+          }
+        ]
+      },
+      "archetypeDice": [
+        "d10",
+        "d8",
+        "d8"
+      ]
+    },
+    {
+      "id": "experimentation",
+      "roll": 4,
+      "name": "Experimentation",
+      "page": 59,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "powerCategory": "athletic"
+          },
+          {
+            "powerCategory": "elemental-energy"
+          },
+          {
+            "powerCategory": "intellectual"
+          },
+          {
+            "powerCategory": "mobility"
+          },
+          {
+            "powerCategory": "self-control"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Personal Upgrade",
+            "type": "A",
+            "text": "Boost yourself using [power]. Use your Max die. That bonus is persistent and exclusive."
+          },
+          {
+            "name": "Misdirection",
+            "type": "R",
+            "text": "When a nearby hero in the Yellow or Red zone would take damage, Defend against that damage by rolling your single [power] die, then redirect any remaining damage to a nearby minion of your choice."
+          },
+          {
+            "name": "Throw Minion",
+            "type": "A",
+            "text": "Attack a minion using [power] The result of the minion’s save Attacks another target of your choice."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "greenAbilities": {
+        "count": 1,
+        "options": [
+          {
+            "name": "Overpower",
+            "type": "I",
+            "text": "Whenever you are Boosted, increase that bonus by +1. Then, if that bonus is +5 or higher, take damage equal to that bonus and remove it."
+          },
+          {
+            "name": "Unflagging",
+            "type": "I",
+            "text": "At the start of your turn, remove a penalty on yourself."
+          }
+        ]
+      },
+      "archetypeDice": [
+        "d8",
+        "d8",
+        "d8"
+      ]
+    },
+    {
+      "id": "mystical",
+      "roll": 5,
+      "name": "Mystical",
+      "page": 59,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "awareness"
+          },
+          {
+            "power": "flight"
+          },
+          {
+            "power": "presence"
+          },
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "power": "teleportation"
+          },
+          {
+            "powerCategory": "elemental-energy"
+          },
+          {
+            "powerCategory": "materials"
+          },
+          {
+            "powerCategory": "psychic"
+          },
+          {
+            "powerCategory": "self-control"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Modification Wave",
+            "type": "A",
+            "text": "Boost or Hinder using [power], and apply that mod to multiple nearby targets."
+          },
+          {
+            "name": "Mystic Redirection",
+            "type": "R",
+            "text": "When another hero in the Yellow or Red zone would take damage, you may redirect it to yourself and Defend against it by rolling your single [power] die."
+          },
+          {
+            "name": "Sever Link",
+            "type": "A",
+            "text": "Overcome an environmental challenge using [power]. Use your Max die. Either remove any penalty in the scene or Boost equal to your Mid die."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "bonuses": [
+        {
+          "kind": "gainQuality",
+          "die": "d10",
+          "options": [
+            {
+              "qualityCategory": "information"
+            }
+          ],
+          "summary": "Gain an Information quality at d10."
+        }
+      ],
+      "archetypeDice": [
+        "d10",
+        "d8",
+        "d8"
+      ]
+    },
+    {
+      "id": "nature",
+      "roll": 6,
+      "name": "Nature",
+      "page": 60,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "animal-control"
+          },
+          {
+            "power": "cold"
+          },
+          {
+            "power": "electricity"
+          },
+          {
+            "power": "fire"
+          },
+          {
+            "power": "flight"
+          },
+          {
+            "power": "leaping"
+          },
+          {
+            "power": "shapeshifting"
+          },
+          {
+            "power": "swimming"
+          },
+          {
+            "power": "swinging"
+          },
+          {
+            "power": "wall-crawling"
+          },
+          {
+            "power": "weather"
+          },
+          {
+            "powerCategory": "athletic"
+          },
+          {
+            "powerCategory": "materials"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "options": [
+          {
+            "name": "Call to the Wild",
+            "type": "A",
+            "text": "Gain a d8 minion. It takes its turn before yours, but goes away at the end of the scene. You may only have one such minion at a time."
+          },
+          {
+            "name": "Predator’s Eye",
+            "type": "A",
+            "text": "Attack using [power]. Use your Max+Min dice. Then gain a Boost using your Mid die. The target of the Attack gains a bonus of the same size."
+          },
+          {
+            "name": "Wild Strength",
+            "type": "R",
+            "text": "When you defeat a minion, roll that minion’s die and Boost yourself using that roll to create a bonus for your next action."
+          }
+        ]
+      },
+      "greenAbilities": {
+        "count": 1,
+        "options": [
+          {
+            "name": "Grasping Vines",
+            "type": "A",
+            "text": "Hinder using [power]. Use your Max die. You may split that penalty across multiple nearby targets."
+          },
+          {
+            "name": "Natural Weapon",
+            "type": "A",
+            "text": "Attack using [power]. Use your Max die."
+          }
+        ]
+      },
+      "archetypeDice": [
+        "d10",
+        "d8",
+        "d8"
+      ]
+    },
+    {
+      "id": "relic",
+      "roll": 7,
+      "name": "Relic",
+      "page": 61,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "awareness"
+          },
+          {
+            "power": "intuition"
+          },
+          {
+            "power": "signature-vehicle"
+          },
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "powerCategory": "elemental-energy"
+          },
+          {
+            "powerCategory": "materials"
+          },
+          {
+            "powerCategory": "mobility"
+          },
+          {
+            "powerCategory": "psychic"
+          },
+          {
+            "powerCategory": "self-control"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Harvest Life Force",
+            "type": "A",
+            "text": "Attack using [power]. Use your Min die. Take damage equal to your Mid die, and one nearby ally Recovers Health equal to your Max die."
+          },
+          {
+            "name": "Magical Shield",
+            "type": "R",
+            "text": "When another hero in the Yellow or Red zone would take damage, you may Defend them by rolling your single [power] die."
+          },
+          {
+            "name": "Momentary Power",
+            "type": "A",
+            "text": "Boost yourself using [power]. Use your Max die. Hinder a nearby opponent with your Min die."
+          },
+          {
+            "name": "Relic Drain",
+            "type": "A",
+            "text": "Hinder using [power]. Also Recover Health equal to your Min die."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "greenAbilities": {
+        "count": 1,
+        "options": [
+          {
+            "name": "Draw Power",
+            "type": "A",
+            "text": "Boost yourself using [power]. That bonus is persistent and exclusive."
+          },
+          {
+            "name": "Punishment",
+            "type": "I",
+            "text": "Whenever you Attack an enemy that has inflicted a penalty on you, treat that penalty as if it were a bonus for the purpose of that Attack."
+          }
+        ]
+      },
+      "archetypeDice": [
+        "d10",
+        "d10",
+        "d6"
+      ]
+    },
+    {
+      "id": "powered-suit",
+      "roll": 8,
+      "name": "Powered Suit",
+      "page": 62,
+      "powers": {
+        "dice": "fromBackground",
+        "required": [
+          {
+            "power": "power-suit",
+            "dieCount": 1
+          }
+        ],
+        "options": [
+          {
+            "power": "awareness"
+          },
+          {
+            "power": "cold"
+          },
+          {
+            "power": "elasticity"
+          },
+          {
+            "power": "electricity"
+          },
+          {
+            "power": "fire"
+          },
+          {
+            "power": "lightning-calculator"
+          },
+          {
+            "power": "nuclear"
+          },
+          {
+            "power": "part-detachment"
+          },
+          {
+            "power": "signature-vehicle"
+          },
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "powerCategory": "athletic"
+          },
+          {
+            "powerCategory": "mobility"
+          }
+        ],
+        "note": "One die goes to Power Suit; the rest go to the listed options."
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Energy Converter",
+            "type": "R",
+            "text": "When you take damage from [element/energy], treat the amount of damage you take as a Boost action for yourself."
+          },
+          {
+            "name": "Explosive Attack",
+            "type": "A",
+            "text": "Attack up to three different targets using [power]. Apply your Max die to one, your Mid die to another, and your Min die to the third. If you roll doubles, take a minor twist or take irreducible damage equal to that die."
+          },
+          {
+            "name": "Onboard Upgrade",
+            "type": "A",
+            "text": "Boost yourself using Power Suit. Use your Min+Mid dice. That bonus is persistent and exclusive."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "greenAbilities": {
+        "count": 1,
+        "options": [
+          {
+            "name": "Damage Reduction",
+            "type": "I",
+            "text": "Reduce [physical or energy] damage you take by 1 while you are in the Green zone, 2 while in the Yellow zone, and 3 while in the Red zone."
+          },
+          {
+            "name": "Diagnostic Subroutine",
+            "type": "I",
+            "text": "Whenever your status changes due to a change in your current Health, you may remove a penalty on yourself."
+          }
+        ]
+      },
+      "archetypeDice": [
+        "d10",
+        "d6",
+        "d6"
+      ]
+    },
+    {
+      "id": "radiation",
+      "roll": 9,
+      "name": "Radiation",
+      "page": 63,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "nuclear"
+          },
+          {
+            "power": "signature-vehicle"
+          },
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "powerCategory": "athletic"
+          },
+          {
+            "powerCategory": "self-control"
+          },
+          {
+            "powerCategory": "technological"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Radioactive Recharge",
+            "type": "A",
+            "text": "Boost yourself using [power]. Then, either remove a penalty on yourself or Recover using your Min die."
+          },
+          {
+            "name": "Unstable Reaction",
+            "type": "R",
+            "text": "After rolling during your turn, you may take 1 irreducible damage to reroll your entire dice pool."
+          },
+          {
+            "name": "Wither",
+            "type": "A",
+            "text": "Attack using [power]. Hinder that target using your Max die."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "greenAbilities": {
+        "count": 1,
+        "options": [
+          {
+            "name": "Charged Up",
+            "type": "I",
+            "text": "Whenever you roll a 1 on one or more dice, you may reroll those dice. You must accept the result of the reroll."
+          },
+          {
+            "name": "Dangerous Lash",
+            "type": "A",
+            "text": "Attack multiple targets using [power], applying your Min die to each. If you roll doubles, also attack an ally using your Mid die."
+          },
+          {
+            "name": "Radioactive Aura",
+            "type": "R",
+            "text": "When a new target enters the scene close to you, you may Attack it by rolling your single [power] die."
+          }
+        ]
+      },
+      "archetypeDice": [
+        "d10",
+        "d8",
+        "d6"
+      ]
+    },
+    {
+      "id": "tech-upgrades",
+      "roll": 10,
+      "name": "Tech Upgrades",
+      "page": 64,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "signature-vehicle"
+          },
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "powerCategory": "athletic"
+          },
+          {
+            "powerCategory": "elemental-energy"
+          },
+          {
+            "powerCategory": "intellectual"
+          },
+          {
+            "powerCategory": "mobility"
+          },
+          {
+            "powerCategory": "technological"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Energy Burst",
+            "type": "A",
+            "text": "Attack multiple targets using [power], using your Min die against each."
+          },
+          {
+            "name": "Recharge",
+            "type": "A",
+            "text": "Boost yourself using [power]. Then, either remove a penalty on yourself or Recover using your Min die."
+          },
+          {
+            "name": "Techno-Absorb",
+            "type": "I",
+            "text": "When you would take damage from [element/energy], you may Recover that amount of Health instead."
+          },
+          {
+            "name": "Tactical Analysis",
+            "type": "R",
+            "text": "When Attacked, treat the amount of damage you take as a Boost action for yourself."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "greenAbilities": {
+        "count": 1,
+        "options": [
+          {
+            "name": "Indiscriminate Fabrication",
+            "type": "A",
+            "text": "Boost using [power], assigning your Min, Mid, and Max dice to 3 different bonuses, one of which must be given to an enemy."
+          },
+          {
+            "name": "Organi-Hack",
+            "type": "A",
+            "text": "Attack a target using [power]. Hinder that target with your Min die."
+          }
+        ]
+      },
+      "archetypeDice": [
+        "d10",
+        "d8",
+        "d8"
+      ]
+    },
+    {
+      "id": "supernatural",
+      "roll": 11,
+      "name": "Supernatural",
+      "page": 65,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "awareness"
+          },
+          {
+            "power": "cold"
+          },
+          {
+            "power": "electricity"
+          },
+          {
+            "power": "fire"
+          },
+          {
+            "power": "infernal"
+          },
+          {
+            "power": "plants"
+          },
+          {
+            "power": "presence"
+          },
+          {
+            "power": "radiant"
+          },
+          {
+            "power": "strength"
+          },
+          {
+            "power": "transmutation"
+          },
+          {
+            "power": "vitality"
+          },
+          {
+            "power": "weather"
+          },
+          {
+            "powerCategory": "mobility"
+          },
+          {
+            "powerCategory": "psychic"
+          },
+          {
+            "powerCategory": "self-control"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Area Healing",
+            "type": "A",
+            "text": "Boost an ally using [power]. You and nearby heroes in the Yellow and Red zones Recover Health equal to your Min die."
+          },
+          {
+            "name": "Mass Modification",
+            "type": "A",
+            "text": "Boost or Hinder using [power], and apply that mod to multiple close targets."
+          },
+          {
+            "name": "Personal Upgrade",
+            "type": "A",
+            "text": "Boost yourself using [power]. Use your Max die. That bonus is persistent and exclusive."
+          },
+          {
+            "name": "Reach through Veil",
+            "type": "R",
+            "text": "When a nearby ally would take damage, Defend that ally by rolling your single status die, and move them elsewhere in the same scene."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "bonuses": [
+        {
+          "kind": "gainPower",
+          "die": "d10",
+          "excludeListed": true,
+          "summary": "Gain one power that is not on this power source's list, at d10."
+        }
+      ],
+      "archetypeDice": [
+        "d10",
+        "d10",
+        "d6"
+      ]
+    },
+    {
+      "id": "artificial-being",
+      "roll": 12,
+      "name": "Artificial Being",
+      "page": 66,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "inventions"
+          },
+          {
+            "power": "robotics"
+          },
+          {
+            "power": "signature-vehicle"
+          },
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "powerCategory": "athletic"
+          },
+          {
+            "powerCategory": "elemental-energy"
+          },
+          {
+            "powerCategory": "intellectual"
+          },
+          {
+            "powerCategory": "mobility"
+          },
+          {
+            "powerCategory": "self-control"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Created Immunity",
+            "type": "I",
+            "text": "When you would take damage from [element/energy], you may Recover that amount of Health instead."
+          },
+          {
+            "name": "Multiple Assault",
+            "type": "A",
+            "text": "Attack using [power] against multiple targets, using your Min die against each."
+          },
+          {
+            "name": "Recalculating...",
+            "type": "R",
+            "text": "After rolling during your turn, you may take 1 irreducible damage to reroll your entire dice pool."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "greenAbilities": {
+        "count": 1,
+        "options": [
+          {
+            "name": "Created Form",
+            "type": "I",
+            "text": "Reduce physical damage to yourself by 1 while you are in the Green zone, 2 while in the Yellow zone, and 3 while in the Red zone."
+          },
+          {
+            "name": "Intentionality",
+            "type": "I",
+            "text": "Whenever you roll a 1 on one or more dice, you may reroll those dice. You must accept the result of the reroll."
+          }
+        ]
+      },
+      "archetypeDice": [
+        "d10",
+        "d8",
+        "d8"
+      ]
+    },
+    {
+      "id": "cursed",
+      "roll": 13,
+      "name": "Cursed",
+      "page": 67,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "powerCategory": "athletic"
+          },
+          {
+            "powerCategory": "elemental-energy"
+          },
+          {
+            "powerCategory": "materials"
+          },
+          {
+            "powerCategory": "self-control"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Attunement",
+            "type": "I",
+            "text": "When you would take damage from [element/energy], you may Recover that amount of Health instead."
+          },
+          {
+            "name": "Costly Strength",
+            "type": "A",
+            "text": "Boost all nearby allies using [power]. Use your Max+Mid dice. Hinder yourself with your Min die."
+          },
+          {
+            "name": "Cursed Resolve",
+            "type": "A",
+            "text": "Boost yourself using [power]. Then, either remove a penalty on yourself or Recover using your Min die."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "greenAbilities": {
+        "count": 1,
+        "options": [
+          {
+            "name": "Double Edged Luck",
+            "type": "I",
+            "text": "Whenever you roll a 1 on one or more dice, you may reroll those dice. You must accept the result of the reroll."
+          },
+          {
+            "name": "Extremes",
+            "type": "I",
+            "text": "Whenever you roll a die’s max value, treat that value as 1 higher. When you roll a 1 on a die, treat that die as if it had rolled a 0."
+          }
+        ]
+      },
+      "archetypeDice": [
+        "d12",
+        "d6"
+      ]
+    },
+    {
+      "id": "alien",
+      "roll": 14,
+      "name": "Alien",
+      "page": 67,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "signature-vehicle"
+          },
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "powerCategory": "athletic"
+          },
+          {
+            "powerCategory": "elemental-energy"
+          },
+          {
+            "powerCategory": "intellectual"
+          },
+          {
+            "powerCategory": "mobility"
+          },
+          {
+            "powerCategory": "psychic"
+          },
+          {
+            "powerCategory": "technological"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Alien Boost",
+            "type": "A",
+            "text": "Boost all nearby allies using [power]. Use your Max+Mid dice. Hinder yourself with your Min die."
+          },
+          {
+            "name": "Empower and Repair",
+            "type": "A",
+            "text": "Boost, Hinder, Defend, or Attack using [power]. You and all nearby heroes in the Yellow or Red zone Recover Health equal to your Min die."
+          },
+          {
+            "name": "Halt",
+            "type": "R",
+            "text": "When you are Attacked at close range, Defend yourself by rolling your single [power] die."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "bonuses": [
+        {
+          "kind": "upgradeDie",
+          "from": [
+            "d6"
+          ],
+          "to": "d8",
+          "targets": [
+            "power",
+            "quality"
+          ],
+          "fallback": {
+            "kind": "gainPower",
+            "die": "d6",
+            "fromListed": true
+          },
+          "summary": "Upgrade one d6 power or quality to d8. If you have no d6 powers, instead add a new power from this power source's list at d6."
+        }
+      ],
+      "archetypeDice": [
+        "d8",
+        "d8",
+        "d8"
+      ]
+    },
+    {
+      "id": "genius",
+      "roll": 15,
+      "name": "Genius",
+      "page": 68,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "inventions"
+          },
+          {
+            "power": "robotics"
+          },
+          {
+            "power": "signature-vehicle"
+          },
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "powerCategory": "intellectual"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "A Plan For Everything",
+            "type": "R",
+            "text": "When you are attacked, first roll your single [power] die. Defend yourself with that roll. Then, Boost yourself using that roll."
+          },
+          {
+            "name": "Expanded Mind",
+            "type": "A",
+            "text": "Boost yourself using [power]. Use your Max die. That bonus is persistent and exclusive. Then Attack using your Min die."
+          },
+          {
+            "name": "Overwhelming Vision",
+            "type": "A",
+            "text": "Attack using [power]. Then, if the target of the Attack survived, also Attack that target with your Max die. Otherwise, Recover an amount of Health equal to your Min die."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "bonuses": [
+        {
+          "kind": "gainQuality",
+          "die": "d10",
+          "options": [
+            {
+              "qualityCategory": "information"
+            },
+            {
+              "qualityCategory": "mental"
+            }
+          ],
+          "summary": "Gain an extra Information or Mental quality at d10."
+        }
+      ],
+      "archetypeDice": [
+        "d10",
+        "d6",
+        "d6"
+      ]
+    },
+    {
+      "id": "cosmos",
+      "roll": 16,
+      "name": "Cosmos",
+      "page": 68,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "cosmic"
+          },
+          {
+            "power": "intuition"
+          },
+          {
+            "power": "signature-vehicle"
+          },
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "powerCategory": "mobility"
+          },
+          {
+            "powerCategory": "psychic"
+          },
+          {
+            "powerCategory": "self-control"
+          },
+          {
+            "powerCategory": "technological"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Cosmic Ray Absorption",
+            "type": "I",
+            "text": "If you would take damage from [element/energy you have a related power for], instead reduce that damage to 0 and Recover that amount of Health."
+          },
+          {
+            "name": "Encourage",
+            "type": "A",
+            "text": "Attack using [power]. Boost all nearby heroes taking Attack or Overcome actions using your Min die until your next turn."
+          },
+          {
+            "name": "Mass Effect",
+            "type": "A",
+            "text": "Boost or Hinder using [power] and apply that mod to multiple close targets."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "bonuses": [
+        {
+          "kind": "shiftDice",
+          "downgrade": {
+            "from": [
+              "d8",
+              "d10",
+              "d12"
+            ],
+            "targets": [
+              "power"
+            ],
+            "steps": 1
+          },
+          "upgrade": {
+            "from": [
+              "d6",
+              "d8",
+              "d10"
+            ],
+            "targets": [
+              "power"
+            ],
+            "steps": 1
+          },
+          "summary": "Lower one d8, d10, or d12 power by one die size, and raise one d6, d8, or d10 power by one die size."
+        }
+      ],
+      "archetypeDice": [
+        "d10",
+        "d8",
+        "d8"
+      ]
+    },
+    {
+      "id": "extradimensional",
+      "roll": 17,
+      "name": "Extradimensional",
+      "page": 69,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "cosmic"
+          },
+          {
+            "power": "duplication"
+          },
+          {
+            "power": "infernal"
+          },
+          {
+            "power": "intangibility"
+          },
+          {
+            "power": "invisibility"
+          },
+          {
+            "power": "radiant"
+          },
+          {
+            "power": "signature-vehicle"
+          },
+          {
+            "power": "signature-weaponry"
+          },
+          {
+            "power": "transmutation"
+          },
+          {
+            "power": "teleportation"
+          },
+          {
+            "powerCategory": "intellectual"
+          },
+          {
+            "powerCategory": "psychic"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Absorb Essence",
+            "type": "R",
+            "text": "When you defeat a minion, roll that minion’s die and Boost yourself using that roll."
+          },
+          {
+            "name": "Aura of Pain",
+            "type": "A",
+            "text": "Attack multiple targets using [power]. Then, take irreducible damage equal to the number of targets hit."
+          },
+          {
+            "name": "Bizarre Strike",
+            "type": "A",
+            "text": "Attack using [power]. Use your Max die. Hinder that target with your Mid die. Hinder yourself with your Min die."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "greenAbilities": {
+        "count": 1,
+        "options": [
+          {
+            "name": "Attune",
+            "type": "A",
+            "text": "Boost yourself using [power]. That bonus is persistent and exclusive. Damage dealt using that bonus is all [energy/element]."
+          },
+          {
+            "name": "Extrasensory Awareness",
+            "type": "R",
+            "text": "When you would take damage that would change your zone, Defend against that damage by rolling your single [quality] die."
+          }
+        ]
+      },
+      "archetypeDice": [
+        "d12",
+        "d6"
+      ]
+    },
+    {
+      "id": "unknown",
+      "roll": 18,
+      "name": "Unknown",
+      "page": 69,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "powerCategory": "elemental-energy"
+          },
+          {
+            "powerCategory": "intellectual"
+          },
+          {
+            "powerCategory": "materials"
+          },
+          {
+            "powerCategory": "self-control"
+          },
+          {
+            "powerCategory": "technological"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Brainstorm",
+            "type": "A",
+            "text": "Attack using [power]. Hit one target using your Min die, another target with your Mid die, and Boost using your Max die."
+          },
+          {
+            "name": "Strange Enhancement",
+            "type": "A",
+            "text": "Boost all nearby allies using [power] using your Max+Mid dice. Hinder yourself with your Min die."
+          },
+          {
+            "name": "Volatile Creations",
+            "type": "R",
+            "text": "When one of your bonuses, penalties, or other creation of your powers is destroyed, deal a target damage equal to the roll of your [power] die."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "bonuses": [
+        {
+          "kind": "gainQuality",
+          "die": "d8",
+          "options": [
+            {
+              "qualityCategory": "social"
+            }
+          ],
+          "summary": "Gain a Social quality at d8."
+        }
+      ],
+      "archetypeDice": [
+        "d10",
+        "d8",
+        "d6"
+      ]
+    },
+    {
+      "id": "higher-power",
+      "roll": 19,
+      "name": "Higher Power",
+      "page": 70,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "powerCategory": "athletic"
+          },
+          {
+            "powerCategory": "elemental-energy"
+          },
+          {
+            "powerCategory": "materials"
+          },
+          {
+            "powerCategory": "psychic"
+          },
+          {
+            "powerCategory": "self-control"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Command Power",
+            "type": "R",
+            "text": "When you take damage from [elemental/energy], you may deal that much damage to another target."
+          },
+          {
+            "name": "Dangerous Explosion",
+            "type": "A",
+            "text": "Attack multiple targets using [power]. Use your Mid die. Hinder all targets damaged by this ability with your Min die. Hinder yourself with your Max die."
+          },
+          {
+            "name": "Embolden",
+            "type": "A",
+            "text": "Attack using [power], and Boost all nearby heroes taking [choose two basic actions] using your Min die until your next turn."
+          },
+          {
+            "name": "Resolve",
+            "type": "A",
+            "text": "Boost yourself using [power], then remove a penalty on yourself or Recover using your Min die."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "greenAbilities": {
+        "count": 1,
+        "options": [
+          {
+            "name": "Resilience",
+            "type": "I",
+            "text": "At the start of your turn, remove any -1 penalties on you."
+          },
+          {
+            "name": "Twist Reality",
+            "type": "R",
+            "text": "After rolling during your turn, you may take 1 irreducible damage to reroll your entire dice pool."
+          }
+        ]
+      },
+      "archetypeDice": [
+        "d10",
+        "d8",
+        "d8"
+      ]
+    },
+    {
+      "id": "the-multiverse",
+      "roll": 20,
+      "name": "The Multiverse",
+      "page": 70,
+      "powers": {
+        "dice": "fromBackground",
+        "options": [
+          {
+            "power": "awareness"
+          },
+          {
+            "power": "cosmic"
+          },
+          {
+            "power": "intuition"
+          },
+          {
+            "power": "speed"
+          },
+          {
+            "power": "teleportation"
+          },
+          {
+            "powerCategory": "psychic"
+          },
+          {
+            "powerCategory": "self-control"
+          }
+        ]
+      },
+      "yellowAbilities": {
+        "count": 2,
+        "constraint": "Each uses a different power.",
+        "options": [
+          {
+            "name": "Power From Beyond",
+            "type": "A",
+            "text": "Boost yourself using [power]. Use your Max die. That bonus is persistent and exclusive. Then, Attack using your Min die."
+          },
+          {
+            "name": "Respond In Kind",
+            "type": "R",
+            "text": "When you are hit with an Attack at close range, the attacker also takes damage equal to their effect die."
+          },
+          {
+            "name": "Dread Pallor",
+            "type": "A",
+            "text": "Hinder multiple targets using [power]. Use your Mid die for one and your Min die for the rest."
+          },
+          {
+            "name": "Reality Scorned",
+            "type": "A",
+            "text": "Attack using [power]. If your target survived, Hinder them using your Max die."
+          }
+        ],
+        "rule": "differentPowers"
+      },
+      "bonuses": [
+        {
+          "kind": "gainPower",
+          "die": "d6",
+          "summary": "Gain one extra power from any category at d6."
+        }
+      ],
+      "archetypeDice": [
+        "d10",
+        "d8",
+        "d6"
+      ]
+    }
+  ]
+}
