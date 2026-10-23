@@ -12,12 +12,13 @@ import {
   principlesById,
 } from '../rules/data'
 import { parseSlots } from '../rules/slots'
-import type { Ability, AbilityType, Die, HealthRange, Zone } from '../rules/types'
+import type { Ability, AbilityType, Die, HealthRange, MinionForm, Zone } from '../rules/types'
 import type { AbilityPick, AbilitySource, Hero, PrincipleChoice } from '../hero/model'
 import { checkAbilities, checkAbilityPick, checkAbilityRetcon } from './abilities'
 import { computeHealth, statusDice } from './health'
 import { findAbility, outPick } from './lookup'
 import { checkPrinciples, heroPrinciples } from './principles'
+import { checkForms, formLabel, formTraits } from './forms'
 import { checkRedAbilities } from './red'
 import { checkRetcon } from './retcons'
 import { deriveTraits, traitLabel, type HeroTrait } from './traits'
@@ -42,6 +43,15 @@ export interface SheetPrinciple {
   majorTwist: string
 }
 
+/** A Form-Changer form as shown on the auxiliary sheet. */
+export interface SheetForm {
+  zone: 'green' | 'yellow'
+  name: string
+  /** The form's powers and qualities, with the Yellow form's upgrades applied. */
+  traits: HeroTrait[]
+  ability?: { name: string; type: AbilityType; text: string }
+}
+
 export interface HeroSheet {
   characteristics: { background?: string; powerSource?: string; archetype?: string; personality?: string }
   powers: HeroTrait[]
@@ -52,6 +62,10 @@ export interface HeroSheet {
   principles: SheetPrinciple[]
   abilities: SheetAbility[]
   outAbility?: string
+  /** Form-Changer forms. */
+  forms: SheetForm[]
+  /** Minion-Maker's chosen minion forms. */
+  minionForms: MinionForm[]
   warnings: RuleWarning[]
 }
 
@@ -78,7 +92,10 @@ function fillPrinciple(text: string, choice: PrincipleChoice): string {
   return value ? text.replace(/\[[^\]]+\]/g, value) : text
 }
 
-const ZONE_OF: Record<Exclude<AbilitySource, 'out'>, Zone> = {
+/** Sources whose abilities go in a zone on the sheet (the Out ability and form abilities are shown separately). */
+type ZoneSource = Exclude<AbilitySource, 'out' | 'archetype.form'>
+
+const ZONE_OF: Record<ZoneSource, Zone> = {
   'powerSource.green': 'green',
   'powerSource.yellow': 'yellow',
   'archetype.fixedGreen': 'green',
@@ -90,7 +107,7 @@ const ZONE_OF: Record<Exclude<AbilitySource, 'out'>, Zone> = {
   retcon: 'red',
 }
 
-function sheetAbility(hero: Hero, ability: Ability, pick: AbilityPick & { source: Exclude<AbilitySource, 'out'> }): SheetAbility {
+function sheetAbility(hero: Hero, ability: Ability, pick: AbilityPick & { source: ZoneSource }): SheetAbility {
   return {
     zone: ZONE_OF[pick.source],
     name: pick.customName?.trim() || ability.name,
@@ -111,6 +128,7 @@ export function buildSheet(hero: Hero): HeroSheet {
     ...checkAbilityRetcon(hero, traits),
     ...checkPrinciples(hero),
     ...checkRetcon(hero),
+    ...checkForms(hero, traits),
   ]
 
   // Ability picks, with the ability retcon's new traits applied.
@@ -123,13 +141,14 @@ export function buildSheet(hero: Hero): HeroSheet {
   ].map((p) => (retcon && p.source === retcon.ability.source && p.name === retcon.ability.name ? { ...p, uses: retcon.uses } : p))
 
   const abilities: SheetAbility[] = []
-  for (const pick of picks) {
-    const ability = pick.source !== 'out' && findAbility(hero, pick)
-    if (ability) abilities.push(sheetAbility(hero, ability, { ...pick, source: pick.source as Exclude<AbilitySource, 'out'> }))
+  const inZone = (p: AbilityPick): p is AbilityPick & { source: ZoneSource } => p.source !== 'out' && p.source !== 'archetype.form'
+  for (const pick of picks.filter(inZone)) {
+    const ability = findAbility(hero, pick)
+    if (ability) abilities.push(sheetAbility(hero, ability, pick))
   }
   // Fixed abilities come with the archetype even if no pick was recorded; unfilled blanks stay in brackets.
   const ar = hero.archetype && archetypesById.get(hero.archetype.id)
-  const fixed: [Ability[] | undefined, Exclude<AbilitySource, 'out'>][] = [
+  const fixed: [Ability[] | undefined, ZoneSource][] = [
     [ar?.fixedGreenAbilities, 'archetype.fixedGreen'],
     [ar?.fixedYellowAbilities, 'archetype.fixedYellow'],
     [ar?.fixedRedAbilities, 'archetype.fixedRed'],
@@ -167,12 +186,32 @@ export function buildSheet(hero: Hero): HeroSheet {
   const personality = hero.personality && personalitiesById.get(hero.personality.id)
   let out: string | undefined
   const recorded = outPick(hero)
-  if (personality && recorded) {
-    const ability = findAbility(hero, recorded)!
+  const outEntry = recorded && findAbility(hero, recorded)
+  if (recorded && outEntry) {
+    const ability = outEntry
     warnings.push(...checkAbilityPick(hero, traits, ability, recorded, 'personality'))
     const pick = retcon?.ability.source === 'out' ? { ...recorded, uses: retcon.uses } : recorded
     out = fillText(hero, ability.text, pick.uses, pick.blanks)
   }
+
+  // Form-Changer forms and Minion-Maker minion forms.
+  const formSpec = ar?.forms
+  const recordedForms = hero.archetype?.forms ?? []
+  const forms: SheetForm[] = recordedForms.map((form) => {
+    const entry = form.ability && [...(formSpec?.greenFormAbilities ?? []), ...(formSpec?.yellowFormAbilities ?? [])].find((a) => a.name === form.ability!.name)
+    const inForm = formTraits(hero, traits, form)
+    return {
+      zone: form.zone,
+      name: formLabel(recordedForms, form),
+      traits: inForm,
+      ability: entry && {
+        name: form.ability!.customName?.trim() || entry.name,
+        type: entry.type,
+        text: fillText(hero, entry.text, form.ability!.uses, form.ability!.blanks),
+      },
+    }
+  })
+  const minionForms = (hero.archetype?.minionForms?.forms ?? []).flatMap((name) => ar?.minionForms?.forms.find((f) => f.name === name) ?? [])
 
   const health = computeHealth(hero, traits)
   warnings.push(...health.warnings)
@@ -190,6 +229,8 @@ export function buildSheet(hero: Hero): HeroSheet {
     principles,
     abilities,
     outAbility: out,
+    forms,
+    minionForms,
     warnings,
   }
 }

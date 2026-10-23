@@ -104,6 +104,8 @@ describe('buildSheet', () => {
       principles: [],
       abilities: [],
       outAbility: undefined,
+      forms: [],
+      minionForms: [],
       warnings: [],
     })
   })

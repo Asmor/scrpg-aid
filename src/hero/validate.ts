@@ -119,6 +119,10 @@ const heroShape = object({
       abilities: arrayOf(abilityPick),
       bonus: arrayOf(assignment),
       'principle?': principle,
+      'forms?': arrayOf(
+        object({ zone: oneOf('green', 'yellow'), 'name?': string, powers: arrayOf(assignment), 'upgrades?': arrayOf(traitRef), 'ability?': abilityPick }),
+      ),
+      'minionForms?': object({ 'quality?': traitRef, forms: arrayOf(nonEmptyString) }),
     }),
   ),
   personality: nullable(object({ id: nonEmptyString, 'roll?': rollRecord, 'outUses?': arrayOf(traitRef), 'outBlanks?': blanks, bonus: arrayOf(assignment) })),

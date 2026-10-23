@@ -45,6 +45,8 @@ export type AbilitySource =
   | 'archetype.fixedYellow'
   | 'archetype.yellow'
   | 'archetype.fixedRed'
+  /** A Form-Changer form's ability. */
+  | 'archetype.form'
   | 'red'
   | 'retcon'
   /** The personality's Out ability (only used to point the ability-trait retcon at it). */
@@ -97,6 +99,27 @@ export interface PowerSourceChoice {
   bonus: TraitAssignment[]
 }
 
+/** A Form-Changer form, recorded on the auxiliary sheet. */
+export interface FormChoice {
+  zone: 'green' | 'yellow'
+  /** The player's name for the form. */
+  name?: string
+  /** The form's power dice: the hero's power dice rearranged across powers. */
+  powers: TraitAssignment[]
+  /** Yellow form only: the two different powers or qualities raised one size. */
+  upgrades?: TraitRef[]
+  /** The form's ability (source 'archetype.form'). */
+  ability?: AbilityPick
+}
+
+/** Minion-Maker's minion forms. */
+export interface MinionFormsChoice {
+  /** The quality whose max value sets how many forms to choose. */
+  quality?: TraitRef
+  /** Names of the chosen forms. */
+  forms: string[]
+}
+
 export interface ArchetypeChoice {
   id: string
   roll?: RollRecord
@@ -105,6 +128,10 @@ export interface ArchetypeChoice {
   abilities: AbilityPick[]
   bonus: TraitAssignment[]
   principle?: PrincipleChoice
+  /** Form-Changer's forms. */
+  forms?: FormChoice[]
+  /** Minion-Maker's minion forms. */
+  minionForms?: MinionFormsChoice
 }
 
 export interface PersonalityChoice {

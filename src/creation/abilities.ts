@@ -10,9 +10,9 @@
  *
  * `sameUsePattern` only appears in villain data, so it isn't checked here.
  *
- * Divided and Modular's chosen abilities and Form-Changer and Minion-Maker's forms
- * aren't modelled yet; for those archetypes only the parts shared with other
- * archetypes are checked here. (When Divided is built, confirm with the user what
+ * Divided and Modular's chosen abilities aren't modelled yet; for those archetypes only
+ * the parts shared with other archetypes are checked here. Form-Changer and Minion-Maker
+ * forms are checked in ./forms.ts. (When Divided is built, confirm with the user what
  * "[a power gained from your archetype]" means for a Divided hero.)
  */
 import { describeRef, getCategory, getTrait, refsMatch, traitKey, type TraitRef } from '../rules/catalog'

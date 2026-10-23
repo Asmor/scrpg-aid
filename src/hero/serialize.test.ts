@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createHero } from './model'
+import { formChangerHero, minionMakerHero } from '../test/heroes'
 import { CURRENT_VERSION, HERO_FORMAT, parseSaved, parseSavedJson, toSaved } from './serialize'
 
 const hero = () => createHero('guided', { id: 'h1', now: new Date('2026-10-23T12:00:00Z') })
@@ -56,6 +57,10 @@ describe('serialize', () => {
       [{ personality: { id: 'x', bonus: [], outBlanks: { a: 3 } } }, 'hero.personality.outBlanks.a is malformed'],
       [{ personality: { id: 'x', bonus: [], outUses: [{ kind: 'nope', id: 'a' }] } }, 'hero.personality.outUses[0].kind has an unknown value'],
       [{ retcon: { id: 'x', kind: 'nope' } }, 'hero.retcon.kind has an unknown value'],
+      [{ archetype: { id: 'x', traits: [], abilities: [], bonus: [], forms: [{ zone: 'red', powers: [] }] } }, 'hero.archetype.forms[0].zone has an unknown value'],
+      [{ archetype: { id: 'x', traits: [], abilities: [], bonus: [], forms: [{ zone: 'yellow', powers: [], upgrades: ['speed'] }] } }, 'hero.archetype.forms[0].upgrades[0] should be an object'],
+      [{ archetype: { id: 'x', traits: [], abilities: [], bonus: [], minionForms: { forms: [''] } } }, 'hero.archetype.minionForms.forms[0] is missing'],
+      [{ archetype: { id: 'x', traits: [], abilities: [], bonus: [], minionForms: { quality: 'creativity', forms: [] } } }, 'hero.archetype.minionForms.quality should be an object'],
       [{ retcon: { id: 'x', kind: 'swapDice', traits: [] } }, 'hero.retcon.traits should name exactly two traits'],
       [{ retcon: { id: 'x', kind: 'swapDice', traits: [{ kind: 'power' }] } }, 'hero.retcon.traits[0].id is missing'],
       [{ retcon: { id: 'x', kind: 'gainPowerOrQuality' } }, 'hero.retcon.gained should be an object'],
@@ -84,6 +89,12 @@ describe('serialize', () => {
     expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: full })).toEqual({ ok: true, hero: full })
     const swap = { ...hero(), retcon: { id: 'swap-power-dice', kind: 'swapDice', traits: [t, { kind: 'quality', id: 'finesse' }] } }
     expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: swap })).toEqual({ ok: true, hero: swap })
+  })
+
+  it('round-trips Form-Changer and Minion-Maker heroes', () => {
+    for (const h of [formChangerHero(), minionMakerHero()]) {
+      expect(parseSavedJson(JSON.stringify(toSaved(h)))).toEqual({ ok: true, hero: h })
+    }
   })
 
   it('migrates old versions forward, one version at a time', () => {
