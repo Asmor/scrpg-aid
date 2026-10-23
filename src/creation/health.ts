@@ -3,7 +3,8 @@
  *
  * Max Health = base + the max of each `addMaxOf` term (the Red status die, then one chosen
  * trait from the allowed list, or the fallback die if the hero has none) + a roll or the
- * fixed value. Some archetypes and personalities widen the trait list (`healthOptions`).
+ * fixed value. The hero records one Health trait, so this assumes the formula has a single
+ * trait term, as health.json does. Some archetypes and personalities widen the trait list (`healthOptions`).
  * Health that can't be worked out yet (missing choices) is left undefined, with a note
  * saying what's missing; that's incompleteness, not a rule problem.
  */
@@ -67,7 +68,10 @@ export function computeHealth(hero: Hero, traits: readonly HeroTrait[]): HealthR
       complete = false
     } else {
       const picked = options.find((t) => traitKey(t.trait) === traitKey(choice.trait as TraitRef))
-      if (!picked) {
+      if (!traits.some((t) => traitKey(t.trait) === traitKey(choice.trait as TraitRef))) {
+        note('health-trait-not-held', `Your Health uses ${traitLabel(hero, choice.trait)}, which you don't have.`)
+        complete = false
+      } else if (!picked) {
         note('health-trait-not-allowed', `${traitLabel(hero, choice.trait)} can't be used for Health.`)
         complete = false
       } else {

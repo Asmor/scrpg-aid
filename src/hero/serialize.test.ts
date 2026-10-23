@@ -54,6 +54,7 @@ describe('serialize', () => {
       [{ background: { id: 'x', qualities: [], roll: { dice: ['d10'], results: [1.5], manual: false } } }, 'hero.background.roll.results[0] should be a whole number'],
       [{ powerSource: { id: 'x', powers: [], abilities: [{ source: 'a', name: 'b', uses: [{ kind: 'trait', id: 'x' }] }], bonus: [] } }, 'hero.powerSource.abilities[0].uses[0].kind has an unknown value'],
       [{ personality: { id: 'x', bonus: [], outBlanks: { a: 3 } } }, 'hero.personality.outBlanks.a is malformed'],
+      [{ personality: { id: 'x', bonus: [], outUses: [{ kind: 'nope', id: 'a' }] } }, 'hero.personality.outUses[0].kind has an unknown value'],
       [{ retcon: { id: 'x', kind: 'nope' } }, 'hero.retcon.kind has an unknown value'],
       [{ retcon: { id: 'x', kind: 'swapDice', traits: [] } }, 'hero.retcon.traits should name exactly two traits'],
       [{ retcon: { id: 'x', kind: 'swapDice', traits: [{ kind: 'power' }] } }, 'hero.retcon.traits[0].id is missing'],

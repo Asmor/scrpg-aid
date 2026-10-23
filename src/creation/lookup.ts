@@ -1,5 +1,5 @@
 /** Finds the rules entry behind an ability a hero took. */
-import { archetypesById, powerSourcesById, redAbilityCategories } from '../rules/data'
+import { archetypesById, personalitiesById, powerSourcesById, redAbilityCategories } from '../rules/data'
 import type { Ability, OptionRef, RedAbilityCategory } from '../rules/types'
 import type { AbilityPick, Hero } from '../hero/model'
 
@@ -69,8 +69,20 @@ function optionsFor(hero: Hero, pick: AbilityPick): readonly Ability[] {
   }
 }
 
+/** The Out ability as a pick, carrying the personality's Out choices, or undefined before a personality is chosen. */
+export function outPick(hero: Hero): AbilityPick | undefined {
+  if (!hero.personality || !personalitiesById.has(hero.personality.id)) return undefined
+  return { source: 'out', name: OUT_ABILITY_NAME, uses: hero.personality.outUses, blanks: hero.personality.outBlanks }
+}
+
+export const OUT_ABILITY_NAME = 'Out ability'
+
 /** The rules entry for any ability the hero took, or undefined if it can't be found. */
 export function findAbility(hero: Hero, pick: AbilityPick): Ability | undefined {
+  if (pick.source === 'out') {
+    const personality = hero.personality && personalitiesById.get(hero.personality.id)
+    return personality ? { name: OUT_ABILITY_NAME, type: 'A', text: personality.outAbility } : undefined
+  }
   if (pick.source === 'red' || pick.source === 'retcon') {
     const red = findRedAbility(hero, pick)
     return red.found ? red.ability : undefined

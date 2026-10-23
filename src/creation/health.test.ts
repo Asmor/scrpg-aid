@@ -61,6 +61,9 @@ describe('Health', () => {
     const hero = completeHero()
     hero.health = { trait: P('fire'), mode: 'fixed' }
     expect(health(hero).warnings.map((w) => w.message)).toEqual(["Fire can't be used for Health."])
+    hero.health = { trait: P('telepathy'), mode: 'fixed' }
+    expect(health(hero).warnings.map((w) => w.message)).toEqual(["Your Health uses Telepathy, which you don't have."])
+    hero.health = { trait: P('fire'), mode: 'fixed' }
     // Mischievous allows any power or quality.
     hero.personality = { id: 'mischievous', bonus: [], outUses: [P('fire')] }
     expect(health(hero)).toMatchObject({ max: 28, warnings: [] })

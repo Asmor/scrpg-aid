@@ -515,7 +515,8 @@
         "name": "Principle of Dependence",
         "type": "A",
         "text": "Overcome in a situation that the object of your dependence was made for. Use your Max die. You and each of your allies gain a hero point."
-      }
+      },
+      "customization": "Something"
     },
     {
       "id": "equality",

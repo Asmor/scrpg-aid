@@ -47,6 +47,8 @@ export type AbilitySource =
   | 'archetype.fixedRed'
   | 'red'
   | 'retcon'
+  /** The personality's Out ability (only used to point the ability-trait retcon at it). */
+  | 'out'
 
 /** Identifies one ability the hero took. */
 export interface AbilityId {

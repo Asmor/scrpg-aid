@@ -21,7 +21,7 @@ import { parseSlots, type TraitSlot } from '../rules/slots'
 import type { Ability, AbilityChoice, Archetype, DistinctRule, OptionRef, RequireAtLeast, TraitKind } from '../rules/types'
 import type { AbilityPick, AbilitySource, Hero } from '../hero/model'
 import type { HeroTrait } from './traits'
-import { findAbility } from './lookup'
+import { findAbility, outPick } from './lookup'
 import { traitLabel } from './traits'
 import { warning, type RuleWarning, type StepId } from './warnings'
 
@@ -343,12 +343,14 @@ export function checkAbilities(hero: Hero, traits: readonly HeroTrait[]): RuleWa
 /**
  * Checks the "change which power or quality one of your abilities uses" retcon: it must
  * point at an ability the hero took, and the new traits must fit that ability's slots.
- * The user ruled that the ability's Red category and block restrictions no longer apply.
+ * The user ruled that the ability's Red category and block restrictions no longer apply,
+ * and that the Out ability can be its target.
  */
 export function checkAbilityRetcon(hero: Hero, traits: readonly HeroTrait[]): RuleWarning[] {
   const retcon = hero.retcon
   if (retcon?.kind !== 'changeAbilityTrait') return []
-  const picks = [...(hero.powerSource?.abilities ?? []), ...(hero.archetype?.abilities ?? []), ...hero.redAbilities]
+  const out = outPick(hero)
+  const picks = [...(hero.powerSource?.abilities ?? []), ...(hero.archetype?.abilities ?? []), ...hero.redAbilities, ...(out ? [out] : [])]
   const pick = picks.find((p) => p.source === retcon.ability.source && p.name === retcon.ability.name)
   const ability = pick && findAbility(hero, pick)
   if (!pick || !ability) {

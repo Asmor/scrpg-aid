@@ -54,11 +54,35 @@ describe('buildSheet', () => {
     expect(buildSheet(hero).abilities.filter((a) => a.zone === 'red').map((a) => a.name)).toEqual(['Paragon Feat', 'Push Your Limits', 'Reactive Strike'])
   })
 
-  it('includes fixed abilities without blanks even when no pick is recorded', () => {
+  it('includes fixed abilities even when no pick is recorded, with unfilled blanks in brackets', () => {
     const hero = completeHero()
     hero.archetype = { id: 'modular', traits: [], abilities: [], bonus: [] }
     const names = buildSheet(hero).abilities.map((a) => a.name)
     expect(names).toEqual(expect.arrayContaining(['Switch', 'Quick Switch', 'Emergency Switch']))
+    hero.archetype = { id: 'minion-maker', traits: [], abilities: [], bonus: [] }
+    expect(buildSheet(hero).abilities.find((a) => a.name === 'Make Minion')?.text).toContain('[power]')
+  })
+
+  it('fills in Principle of Dependence’s blank', () => {
+    const hero = completeHero()
+    hero.background = { ...hero.background!, id: 'unremarkable', qualities: hero.background!.qualities, principle: { id: 'dependence', customization: 'my inhaler' } }
+    const sheet = buildSheet(hero)
+    expect(sheet.principles[0]?.roleplaying).toBe('You are reliant on my inhaler and cannot normally function without it.')
+  })
+
+  it('lets the ability retcon change the Out ability', () => {
+    const hero = completeHero()
+    hero.retcon = { id: 'change-ability-trait', kind: 'changeAbilityTrait', ability: { source: 'out', name: 'Out ability' }, uses: [Q('alertness')] }
+    const sheet = buildSheet(hero)
+    expect(sheet.outAbility).toBe('Boost an ally by rolling your single Alertness die.')
+    expect(sheet.warnings.filter((w) => w.step === 'retcon')).toEqual([])
+  })
+
+  it('warns about a retcon the hero can’t take', () => {
+    const hero = completeHero()
+    hero.personality = { id: 'nurturing', bonus: [], outUses: [Q('fitness')] }
+    hero.retcon = { id: 'upgrade-red-status', kind: 'upgradeStatusDie' }
+    expect(buildSheet(hero).warnings.map((w) => w.code)).toContain('retcon-not-allowed')
   })
 
   it('collects warnings from every check, including the Out ability', () => {

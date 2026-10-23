@@ -16,9 +16,10 @@ import type { Ability, AbilityType, Die, HealthRange, Zone } from '../rules/type
 import type { AbilityPick, AbilitySource, Hero, PrincipleChoice } from '../hero/model'
 import { checkAbilities, checkAbilityPick, checkAbilityRetcon } from './abilities'
 import { computeHealth, statusDice } from './health'
-import { findAbility } from './lookup'
+import { findAbility, outPick } from './lookup'
 import { checkPrinciples, heroPrinciples } from './principles'
 import { checkRedAbilities } from './red'
+import { checkRetcon } from './retcons'
 import { deriveTraits, traitLabel, type HeroTrait } from './traits'
 import type { RuleWarning } from './warnings'
 
@@ -77,7 +78,7 @@ function fillPrinciple(text: string, choice: PrincipleChoice): string {
   return value ? text.replace(/\[[^\]]+\]/g, value) : text
 }
 
-const ZONE_OF: Record<AbilitySource, Zone> = {
+const ZONE_OF: Record<Exclude<AbilitySource, 'out'>, Zone> = {
   'powerSource.green': 'green',
   'powerSource.yellow': 'yellow',
   'archetype.fixedGreen': 'green',
@@ -89,7 +90,7 @@ const ZONE_OF: Record<AbilitySource, Zone> = {
   retcon: 'red',
 }
 
-function sheetAbility(hero: Hero, ability: Ability, pick: AbilityPick): SheetAbility {
+function sheetAbility(hero: Hero, ability: Ability, pick: AbilityPick & { source: Exclude<AbilitySource, 'out'> }): SheetAbility {
   return {
     zone: ZONE_OF[pick.source],
     name: pick.customName?.trim() || ability.name,
@@ -98,11 +99,6 @@ function sheetAbility(hero: Hero, ability: Ability, pick: AbilityPick): SheetAbi
     text: fillText(hero, ability.text, pick.uses, pick.blanks),
     source: pick.source,
   }
-}
-
-/** The Out ability as an ability, so its blanks can be checked like any other. */
-function outAbility(text: string): Ability {
-  return { name: 'Out ability', type: 'A', text }
 }
 
 export function buildSheet(hero: Hero): HeroSheet {
@@ -114,6 +110,7 @@ export function buildSheet(hero: Hero): HeroSheet {
     ...checkRedAbilities(hero, traits),
     ...checkAbilityRetcon(hero, traits),
     ...checkPrinciples(hero),
+    ...checkRetcon(hero),
   ]
 
   // Ability picks, with the ability retcon's new traits applied.
@@ -127,12 +124,12 @@ export function buildSheet(hero: Hero): HeroSheet {
 
   const abilities: SheetAbility[] = []
   for (const pick of picks) {
-    const ability = findAbility(hero, pick)
-    if (ability) abilities.push(sheetAbility(hero, ability, pick))
+    const ability = pick.source !== 'out' && findAbility(hero, pick)
+    if (ability) abilities.push(sheetAbility(hero, ability, { ...pick, source: pick.source as Exclude<AbilitySource, 'out'> }))
   }
-  // Fixed abilities without blanks come with the archetype even if no pick was recorded.
+  // Fixed abilities come with the archetype even if no pick was recorded; unfilled blanks stay in brackets.
   const ar = hero.archetype && archetypesById.get(hero.archetype.id)
-  const fixed: [Ability[] | undefined, AbilitySource][] = [
+  const fixed: [Ability[] | undefined, Exclude<AbilitySource, 'out'>][] = [
     [ar?.fixedGreenAbilities, 'archetype.fixedGreen'],
     [ar?.fixedYellowAbilities, 'archetype.fixedYellow'],
     [ar?.fixedRedAbilities, 'archetype.fixedRed'],
@@ -166,13 +163,15 @@ export function buildSheet(hero: Hero): HeroSheet {
     })
   }
 
-  // The Out ability, checked like any ability with blanks.
+  // The Out ability, checked like any ability with blanks (the ability retcon may change it).
   const personality = hero.personality && personalitiesById.get(hero.personality.id)
   let out: string | undefined
-  if (personality) {
-    const pick: AbilityPick = { source: 'red', name: 'Out ability', uses: hero.personality!.outUses, blanks: hero.personality!.outBlanks }
-    warnings.push(...checkAbilityPick(hero, traits, outAbility(personality.outAbility), pick, 'personality'))
-    out = fillText(hero, personality.outAbility, pick.uses, pick.blanks)
+  const recorded = outPick(hero)
+  if (personality && recorded) {
+    const ability = findAbility(hero, recorded)!
+    warnings.push(...checkAbilityPick(hero, traits, ability, recorded, 'personality'))
+    const pick = retcon?.ability.source === 'out' ? { ...recorded, uses: retcon.uses } : recorded
+    out = fillText(hero, ability.text, pick.uses, pick.blanks)
   }
 
   const health = computeHealth(hero, traits)
