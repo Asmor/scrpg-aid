@@ -72,5 +72,6 @@ describe('rolling', () => {
     const second = reroll(first, [7, 8], true)
     expect(second).toEqual({ dice: ['d10', 'd10'], results: [7, 8], manual: true, rerolled: true })
     expect(canReroll(second)).toBe(false)
+    expect(() => reroll(second, [1, 1], false)).toThrow('already used its reroll')
   })
 })

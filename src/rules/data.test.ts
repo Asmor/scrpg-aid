@@ -115,6 +115,12 @@ describe('hero rules data', () => {
     }
   })
 
+  it('gives each entry at most one bonus (the trait logic relies on this)', () => {
+    for (const entry of [...powerSources, ...archetypes, ...personalities]) {
+      expect((entry.bonuses ?? []).length, entry.id).toBeLessThanOrEqual(1)
+    }
+  })
+
   it('has bonuses with known kinds and valid dice', () => {
     const bonuses = [
       ...powerSources.flatMap((p) => p.bonuses ?? []),

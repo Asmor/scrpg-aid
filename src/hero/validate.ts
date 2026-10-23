@@ -68,7 +68,7 @@ const either =
 
 const traitRef = object({ kind: oneOf('power', 'quality'), id: nonEmptyString })
 const rollRecord = object({ dice: arrayOf(die), results: arrayOf(integer), manual: boolean, 'rerolled?': boolean })
-const assignment = object({ trait: traitRef, die, 'replaces?': oneOf(true) })
+const assignment = object({ trait: traitRef, die, 'upgrades?': oneOf(true) })
 const blanks = recordOf(either(string, arrayOf(string)))
 // Ability sources accept any text, not just today's AbilitySource values, so heroes
 // saved by a newer app with new sources still open; unknown sources show as warnings.

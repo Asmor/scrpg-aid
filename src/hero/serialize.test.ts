@@ -73,7 +73,7 @@ describe('serialize', () => {
       traitNames: { 'quality:roleplaying-quality': 'Lucky' },
       background: { id: 'upper-class', roll: { dice: ['d10', 'd10'], results: [1, 4], manual: true, rerolled: true }, qualities: [{ trait: t, die: 'd10' }], principle: { id: 'destiny' } },
       powerSource: { id: 'accident', powers: [], abilities: [{ source: 'powerSource.yellow', name: 'X', uses: [t], blanks: { a: 'b', c: ['d', 'e'] }, customName: 'Y' }], bonus: [] },
-      archetype: { id: 'speedster', traits: [{ trait: t, die: 'd8', replaces: true }], abilities: [], bonus: [], principle: { id: 'energy-element', customization: 'Fire' } },
+      archetype: { id: 'speedster', traits: [{ trait: t, die: 'd8', upgrades: true }], abilities: [], bonus: [], principle: { id: 'energy-element', customization: 'Fire' } },
       personality: { id: 'impulsive', outBlanks: { x: 'y' }, bonus: [] },
       retcon: { id: 'change-principle', kind: 'changePrinciple', replace: 'archetype', with: { id: 'destiny' } },
       health: { trait: t, mode: 'roll', rollResult: 5, manual: true },

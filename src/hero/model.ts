@@ -8,9 +8,10 @@
  * Deriving final dice: steps are applied in order (background, power source, archetype,
  * personality, retcon). A step's assignments give each trait its die. When a step assigns
  * a trait the hero already has, the assignment says what the player meant:
- * - `replaces: true`: the new die replaces the old one, and the old die joins this step's
- *   pool to be assigned elsewhere in the same step.
+ * - `upgrades: true`: the new, bigger die upgrades the old one, and the old die joins this
+ *   step's pool to be assigned elsewhere in the same step ("Assigning dice", p. 44).
  * - otherwise it's a duplicate, which is reported as a warning.
+ * Bonuses that grant a die follow the same upgrade rule, but don't free the old die.
  *
  * Versioning (see ./serialize.ts): an optional field may be added without a new version
  * only if an older app that ignores it still reads the hero correctly. Anything that
@@ -20,25 +21,19 @@
  * change freely.
  */
 import { traitKey, type TraitRef } from '../rules/catalog'
+import type { RollRecord } from '../rules/rolling'
 import type { Die } from '../rules/types'
 
-export type CreationMethod = 'guided' | 'constructed'
+export type { RollRecord }
 
-/** Dice rolled to pick a table entry, in app or typed in by the player. */
-export interface RollRecord {
-  dice: Die[]
-  results: number[]
-  manual: boolean
-  /** Each step allows one reroll if nothing fits. */
-  rerolled?: boolean
-}
+export type CreationMethod = 'guided' | 'constructed'
 
 /** One die assigned to a power or quality during a step. */
 export interface TraitAssignment {
   trait: TraitRef
   die: Die
-  /** The hero already has this trait and the player chose to replace its die (see the module doc). */
-  replaces?: true
+  /** The hero already has this trait and the player chose to upgrade it with this bigger die (see the module doc). */
+  upgrades?: true
 }
 
 /** Where an ability came from. Archetype sources are relative to the archetype choice holding them. */

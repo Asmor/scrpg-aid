@@ -3,9 +3,17 @@
  * After rolling, the player may pick the entry matching any single die, or the sum of
  * any two dice (data/rules/hero-creation.md, "Choosing from a table by rolling").
  */
-import type { RollRecord } from '../hero/model'
 import { dieSize } from './dice'
 import type { Die } from './types'
+
+/** Dice rolled to pick a table entry, in app or typed in by the player. */
+export interface RollRecord {
+  dice: Die[]
+  results: number[]
+  manual: boolean
+  /** Each step allows one reroll (see canReroll). */
+  rerolled?: boolean
+}
 
 /** Returns a number in [0, 1). Injectable so tests can roll known values. */
 export type Random = () => number
@@ -71,16 +79,25 @@ export function checkManualResults(
   return { ok: true, results: normalized }
 }
 
+/** Records a roll. Results must already be checked (rollDice, or checkManualResults for typed-in rolls). */
 export function newRoll(dice: readonly Die[], results: readonly number[], manual: boolean): RollRecord {
   return { dice: [...dice], results: [...results], manual }
 }
 
-/** A step allows one reroll if nothing fits. */
+/**
+ * A step allows one reroll if nothing fits (data/rules/hero-creation.md, "Methods", p. 46).
+ * The user ruled that "nothing fits" means the player doesn't like the options, so the
+ * reroll is available whether or not the roll reached any entry.
+ */
 export function canReroll(roll: RollRecord | undefined): boolean {
   return roll !== undefined && !roll.rerolled
 }
 
-/** Replaces a roll with a reroll of the same dice, marking the step's reroll as used. */
+/**
+ * Replaces a roll with a reroll of the same dice, marking the step's reroll as used.
+ * Results must already be checked, as for newRoll. Throws if the reroll was already used.
+ */
 export function reroll(roll: RollRecord, results: readonly number[], manual: boolean): RollRecord {
+  if (!canReroll(roll)) throw new Error('This step has already used its reroll.')
   return { dice: [...roll.dice], results: [...results], manual, rerolled: true }
 }
