@@ -530,6 +530,13 @@
       "abilities": {
         "count": 3,
         "constraint": "Two use the same power and the third uses a different power.",
+        "sameUsePattern": {
+          "uses": "power",
+          "groups": [
+            2,
+            1
+          ]
+        },
         "options": [
           {
             "name": "Elemental Absorption",
@@ -1242,6 +1249,13 @@
       "abilities": {
         "count": 3,
         "constraint": "Two use the same quality and the third uses a different quality.",
+        "sameUsePattern": {
+          "uses": "quality",
+          "groups": [
+            2,
+            1
+          ]
+        },
         "options": [
           {
             "name": "Active Cover",
@@ -1401,6 +1415,7 @@
       "abilities": {
         "count": 3,
         "constraint": "All use different powers and qualities.",
+        "rule": "differentPowersOrQualities",
         "options": [
           {
             "name": "Avoid the Inevitable",

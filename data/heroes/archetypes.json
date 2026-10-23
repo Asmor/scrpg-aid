@@ -56,6 +56,8 @@
       "greenAbilities": {
         "count": 2,
         "constraint": "Each uses a different power or quality from the Speedster list.",
+        "rule": "differentPowersOrQualities",
+        "usesFrom": "archetypeLists",
         "options": [
           {
             "name": "Always on the Move",
@@ -150,6 +152,8 @@
       "greenAbilities": {
         "count": 2,
         "constraint": "Each uses a different power or quality from the Shadow lists.",
+        "rule": "differentPowersOrQualities",
+        "usesFrom": "archetypeLists",
         "options": [
           {
             "name": "Sabotage",
@@ -240,6 +244,8 @@
       "greenAbilities": {
         "count": 2,
         "constraint": "Each uses a different power or quality from the Physical Powerhouse list (including Strength).",
+        "rule": "differentPowersOrQualities",
+        "usesFrom": "archetypeLists",
         "options": [
           {
             "name": "Damage Resistant",
@@ -271,7 +277,8 @@
       "yellowAbilities": {
         "count": 1,
         "fromGreenList": true,
-        "constraint": "Take one of the Green options as a Yellow ability, using a different power or quality than your Green abilities."
+        "constraint": "Take one of the Green options as a Yellow ability, using a different power or quality than your Green abilities.",
+        "differentFromGreen": true
       },
       "principleCategory": "expertise",
       "personalityDice": [
@@ -333,6 +340,20 @@
       "greenAbilities": {
         "count": 2,
         "constraint": "One uses Signature Weaponry and the other uses one of your qualities.",
+        "requireAtLeast": [
+          {
+            "count": 1,
+            "uses": [
+              {
+                "power": "signature-weaponry"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "uses": "quality"
+          }
+        ],
         "options": [
           {
             "name": "Dual Wielder",
@@ -443,6 +464,8 @@
       "greenAbilities": {
         "count": 2,
         "constraint": "Each uses a different one of your powers from the Blaster list.",
+        "rule": "differentPowers",
+        "usesFrom": "archetypePowerList",
         "options": [
           {
             "name": "Exploit Vulnerability",
@@ -542,6 +565,20 @@
       "greenAbilities": {
         "count": 3,
         "constraint": "At least one uses your Close Combat quality and another uses one of your powers.",
+        "requireAtLeast": [
+          {
+            "count": 1,
+            "uses": [
+              {
+                "quality": "close-combat"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "uses": "power"
+          }
+        ],
         "options": [
           {
             "name": "Defensive Strike",
@@ -578,7 +615,8 @@
       "yellowAbilities": {
         "count": 1,
         "fromGreenList": true,
-        "constraint": "Take one of the Green options as a Yellow ability, using a different power or quality from any of your Green abilities."
+        "constraint": "Take one of the Green options as a Yellow ability, using a different power or quality from any of your Green abilities.",
+        "differentFromGreen": true
       },
       "principleCategory": "responsibility",
       "personalityDice": [
@@ -639,6 +677,7 @@
       "greenAbilities": {
         "count": 3,
         "constraint": "Use at least two different powers.",
+        "minDifferentPowers": 2,
         "options": [
           {
             "name": "Deflect",
@@ -738,6 +777,19 @@
       "greenAbilities": {
         "count": 2,
         "constraint": "At least one uses your Flight or Signature Vehicle power.",
+        "requireAtLeast": [
+          {
+            "count": 1,
+            "uses": [
+              {
+                "power": "flight"
+              },
+              {
+                "power": "signature-vehicle"
+              }
+            ]
+          }
+        ],
         "options": [
           {
             "name": "Aerial Bombardment",
@@ -849,6 +901,11 @@
       "greenAbilities": {
         "count": 2,
         "constraint": "Both use your Elemental/Energy powers.",
+        "usesFrom": [
+          {
+            "powerCategory": "elemental-energy"
+          }
+        ],
         "options": [
           {
             "name": "Backlash",
@@ -875,6 +932,11 @@
       "yellowAbilities": {
         "count": 1,
         "constraint": "Uses one of your Elemental/Energy powers.",
+        "usesFrom": [
+          {
+            "powerCategory": "elemental-energy"
+          }
+        ],
         "options": [
           {
             "name": "Damage Spike",

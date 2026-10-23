@@ -5,8 +5,10 @@ Checks that every JSON file parses; that entries have their required fields;
 that ids are unique; that references to powers, qualities, categories, and
 approaches resolve; that option references are well formed; that abilities
 have a name, type, and text; that choice counts don't exceed their options;
-that every page reference names a book from books.json; and that dice, page
-numbers, roll tables, and Health tables are well formed.
+that every prose constraint has a machine-readable restriction and that
+restriction keys are well formed; that every page reference names a book
+from books.json; and that dice, page numbers, roll tables, and Health tables
+are well formed.
 
 Usage: python3 scripts/validate_data.py   (exits non-zero on any error)
 Set SCRPG_DATA to validate a different data directory.
@@ -31,7 +33,11 @@ DIE_LIST_KEYS = {"dice", "powerDice", "qualityDice", "powerSourceDice", "archety
                  "personalityDice", "startingDice"}
 SINGLE_DIE_KEYS = {"die", "fallbackDie", "startingDie", "fillerPowerDie"}
 OPTION_LIST_KEYS = {"options", "powerOptions", "required", "suggestedPowers",
-                    "suggestedQualities", "extraOptions"}
+                    "suggestedQualities", "extraOptions", "usesFrom", "uses"}
+# Machine-readable restrictions on which power/quality the abilities in a choice block use.
+USES_FROM = {"archetypeLists", "archetypePowerList"}
+USES_KINDS = {"power", "quality"}
+RESTRICTION_KEYS = {"rule", "usesFrom", "requireAtLeast", "minDifferentPowers", "differentFromGreen", "sameUsePattern"}
 MAX_PAGE = 450  # fallback upper bound for files with no registered span
 BASIC_ACTIONS = {"attack", "defend", "boost", "hinder", "overcome"}
 IF_ALREADY_HAVE = {"skip", "swap", "addDifferentFromCategory"}
@@ -181,7 +187,7 @@ def check_node(node, where, known, approaches, books, spans):
     # Choice blocks: count must be valid and not exceed the options offered.
     if "count" in keys and isinstance(node.get("options"), list):
         count = node["count"]
-        if isinstance(count, int):
+        if is_int(count):
             if count > len(node["options"]):
                 err(where, f"count {count} exceeds {len(node['options'])} options")
         elif count not in WORD_COUNTS:
@@ -190,6 +196,7 @@ def check_node(node, where, known, approaches, books, spans):
         err(where, f"unknown rule '{node['rule']}'")
     if node.get("fromGreenList") and "options" in keys:
         err(where, "fromGreenList blocks should not have their own options")
+    check_restrictions(node, where)
 
     # Dice.
     for k in SINGLE_DIE_KEYS & keys:
@@ -232,6 +239,65 @@ def check_node(node, where, known, approaches, books, spans):
     for a in node.get("suggestedApproaches", []):
         if a not in approaches:
             err(where, f"unknown approach '{a}'")
+
+
+def is_int(v):
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+def is_ref_list(v):
+    """A non-empty list of bare option references (one reference key, nothing else)."""
+    return isinstance(v, list) and bool(v) and all(
+        isinstance(o, dict) and len(o) == 1 and is_ref(o) for o in v)
+
+
+def check_restrictions(node, where):
+    """Restriction keys on a choice block: well formed, and consistent with its count."""
+    count = node.get("count")
+    # Every prose constraint needs a machine-readable form the app can check.
+    if "constraint" in node and not (RESTRICTION_KEYS & node.keys() or node.get("fromGreenList") or (
+            isinstance(node.get("options"), list) and node["options"]
+            and all(isinstance(o, dict) and "requires" in o for o in node["options"]))):
+        err(where, f"constraint has no machine-readable form (one of {sorted(RESTRICTION_KEYS)}, "
+                   "fromGreenList, or 'requires' on every option)")
+    if "usesFrom" in node:
+        v = node["usesFrom"]
+        if not (v in USES_FROM if isinstance(v, str) else is_ref_list(v)):
+            err(where, f"usesFrom must be one of {sorted(USES_FROM)} or a non-empty list of option references")
+    if "requireAtLeast" in node:
+        clauses = node["requireAtLeast"]
+        if not (isinstance(clauses, list) and clauses):
+            err(where, "requireAtLeast must be a non-empty list")
+            clauses = []
+        for i, c in enumerate(clauses):
+            cw = f"{where}.requireAtLeast[{i}]"
+            if not isinstance(c, dict):
+                err(cw, "must be an object")
+                continue
+            if set(c) != {"count", "uses"}:
+                err(cw, f"must have exactly the keys count and uses, got {sorted(c)}")
+            if not (is_int(c.get("count")) and c["count"] >= 1):
+                err(cw, "count must be a positive integer")
+            u = c.get("uses")
+            if not (u in USES_KINDS if isinstance(u, str) else is_ref_list(u)):
+                err(cw, f"uses must be one of {sorted(USES_KINDS)} or a non-empty list of option references")
+        total = sum(c["count"] for c in clauses if isinstance(c, dict) and is_int(c.get("count")))
+        if is_int(count) and total > count:
+            err(where, f"requireAtLeast needs {total} abilities but the block takes {count}")
+    if "minDifferentPowers" in node:
+        m = node["minDifferentPowers"]
+        if not (is_int(m) and m >= 2 and (not is_int(count) or m <= count)):
+            err(where, f"minDifferentPowers must be an integer from 2 to the block's count, got {m!r}")
+    if "differentFromGreen" in node and not (node["differentFromGreen"] is True and node.get("fromGreenList")):
+        err(where, "differentFromGreen must be true and only appear on a fromGreenList block")
+    if "sameUsePattern" in node:
+        p = node["sameUsePattern"]
+        groups = p.get("groups") if isinstance(p, dict) else None
+        if not (isinstance(p, dict) and set(p) == {"uses", "groups"} and p.get("uses") in USES_KINDS
+                and isinstance(groups, list) and groups and all(is_int(g) and g >= 1 for g in groups)):
+            err(where, f"sameUsePattern needs 'uses' in {sorted(USES_KINDS)} and a list of positive 'groups'")
+        elif is_int(count) and sum(groups) != count:
+            err(where, f"sameUsePattern groups add up to {sum(groups)}, not the block's count {count}")
 
 
 def check_books(entries):
