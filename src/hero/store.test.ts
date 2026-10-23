@@ -1,5 +1,5 @@
 import { IDBFactory } from 'fake-indexeddb'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createHero } from './model'
 import { HERO_FORMAT } from './serialize'
 import { createDefaultStore, IndexedDbHeroStore, MemoryHeroStore, type HeroStore } from './store'
@@ -174,5 +174,23 @@ describe('IndexedDbHeroStore errors', () => {
     db.onclose?.call(db, new Event('close'))
     db.close()
     expect(await store.get('a')).toMatchObject({ status: 'found' })
+  })
+
+  it('rejects when blocked, and closes the connection if it opens anyway', async () => {
+    let request: IDBOpenDBRequest | undefined
+    const close = vi.fn()
+    const factory = {
+      open() {
+        request = {} as IDBOpenDBRequest
+        return request
+      },
+    } as unknown as IDBFactory
+    const store = new IndexedDbHeroStore(factory)
+    const listing = store.list()
+    request!.onblocked?.(new Event('blocked') as IDBVersionChangeEvent)
+    await expect(listing).rejects.toThrow('close other tabs')
+    Object.defineProperty(request, 'result', { value: { close } })
+    request!.onsuccess?.(new Event('success'))
+    expect(close).toHaveBeenCalledOnce()
   })
 })

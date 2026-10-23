@@ -55,6 +55,8 @@ describe('serialize', () => {
       [{ powerSource: { id: 'x', powers: [], abilities: [{ source: 'a', name: 'b', uses: [{ kind: 'trait', id: 'x' }] }], bonus: [] } }, 'hero.powerSource.abilities[0].uses[0].kind has an unknown value'],
       [{ personality: { id: 'x', bonus: [], outBlanks: { a: 3 } } }, 'hero.personality.outBlanks.a is malformed'],
       [{ retcon: { id: 'x', kind: 'nope' } }, 'hero.retcon.kind has an unknown value'],
+      [{ retcon: { id: 'x', kind: 'swapDice', traits: [] } }, 'hero.retcon.traits should name exactly two traits'],
+      [{ retcon: { id: 'x', kind: 'swapDice', traits: [{ kind: 'power' }] } }, 'hero.retcon.traits[0].id is missing'],
       [{ retcon: { id: 'x', kind: 'gainPowerOrQuality' } }, 'hero.retcon.gained should be an object'],
       [{ health: { mode: 'average' } }, 'hero.health.mode has an unknown value'],
       [{ currentHealth: 'full' }, 'hero.currentHealth should be a whole number'],
@@ -79,6 +81,8 @@ describe('serialize', () => {
       notes: 'n',
     }
     expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: full })).toEqual({ ok: true, hero: full })
+    const swap = { ...hero(), retcon: { id: 'swap-power-dice', kind: 'swapDice', traits: [t, { kind: 'quality', id: 'finesse' }] } }
+    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: swap })).toEqual({ ok: true, hero: swap })
   })
 
   it('migrates old versions forward, one version at a time', () => {

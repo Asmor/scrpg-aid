@@ -70,6 +70,8 @@ const traitRef = object({ kind: oneOf('power', 'quality'), id: nonEmptyString })
 const rollRecord = object({ dice: arrayOf(die), results: arrayOf(integer), manual: boolean, 'rerolled?': boolean })
 const assignment = object({ trait: traitRef, die, 'replaces?': oneOf(true) })
 const blanks = recordOf(either(string, arrayOf(string)))
+// Ability sources accept any text, not just today's AbilitySource values, so heroes
+// saved by a newer app with new sources still open; unknown sources show as warnings.
 const abilityId = object({ source: nonEmptyString, name: nonEmptyString })
 const abilityPick = object({
   source: nonEmptyString,
@@ -81,7 +83,9 @@ const abilityPick = object({
 const principle = object({ id: nonEmptyString, 'customization?': string })
 
 const retconByKind: Record<string, Check> = {
-  swapDice: object({ traits: arrayOf(traitRef) }),
+  swapDice: object({
+    traits: (v, path) => arrayOf(traitRef)(v, path) ?? ((v as unknown[]).length === 2 ? undefined : `${path} should name exactly two traits`),
+  }),
   changeAbilityTrait: object({ ability: abilityId, uses: arrayOf(traitRef) }),
   gainPowerOrQuality: object({ gained: assignment }),
   upgradeStatusDie: object({}),

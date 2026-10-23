@@ -97,7 +97,9 @@ export class IndexedDbHeroStore implements HeroStore {
   }
 
   private open(): Promise<IDBDatabase> {
-    this.db ??= new Promise<IDBDatabase>((resolve, reject) => {
+    if (this.db) return this.db
+    let settled = false
+    const attempt: Promise<IDBDatabase> = new Promise<IDBDatabase>((resolve, reject) => {
       const request = this.factory.open(this.dbName, DB_VERSION)
       request.onupgradeneeded = () => {
         if (!request.result.objectStoreNames.contains(STORE)) {
@@ -106,24 +108,38 @@ export class IndexedDbHeroStore implements HeroStore {
       }
       request.onsuccess = () => {
         const db = request.result
+        if (settled) {
+          // We already gave up on this attempt (it was blocked), so don't leak the connection.
+          db.close()
+          return
+        }
+        settled = true
         // Let a newer tab upgrade the database, and recover if the browser closes the connection.
+        // Only forget the cached connection if it's still this one.
         db.onversionchange = () => {
           db.close()
-          this.db = undefined
+          if (this.db === attempt) this.db = undefined
         }
         db.onclose = () => {
-          this.db = undefined
+          if (this.db === attempt) this.db = undefined
         }
         resolve(db)
       }
-      request.onerror = () => reject(request.error)
-      request.onblocked = () => reject(new Error('the hero database is in use by an older copy of the app; close other tabs and reload'))
+      request.onerror = () => {
+        settled = true
+        reject(request.error)
+      }
+      request.onblocked = () => {
+        settled = true
+        reject(new Error('the hero database is in use by an older copy of the app; close other tabs and reload'))
+      }
     }).catch((error: unknown) => {
       // Forget the failed attempt so the next call tries again.
-      this.db = undefined
+      if (this.db === attempt) this.db = undefined
       throw error
     })
-    return this.db
+    this.db = attempt
+    return attempt
   }
 
   private async request<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
