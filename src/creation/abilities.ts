@@ -344,11 +344,12 @@ export function checkAbilities(hero: Hero, traits: readonly HeroTrait[]): RuleWa
  * Checks the "change which power or quality one of your abilities uses" retcon: it must
  * point at an ability the hero took, and the new traits must fit that ability's slots.
  * The user ruled that the ability's Red category and block restrictions no longer apply,
- * and that the Out ability can be its target.
+ * and that the Out ability and Form-Changer form abilities can be its target.
  */
 export function checkAbilityRetcon(hero: Hero, traits: readonly HeroTrait[]): RuleWarning[] {
   const retcon = hero.retcon
-  if (retcon?.kind !== 'changeAbilityTrait') return []
+  // A form ability's retcon is checked against that form's dice, in ./forms.ts.
+  if (retcon?.kind !== 'changeAbilityTrait' || retcon.ability.source === 'archetype.form') return []
   const out = outPick(hero)
   const picks = [...(hero.powerSource?.abilities ?? []), ...(hero.archetype?.abilities ?? []), ...hero.redAbilities, ...(out ? [out] : [])]
   const pick = picks.find((p) => p.source === retcon.ability.source && p.name === retcon.ability.name)

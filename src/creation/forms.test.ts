@@ -72,7 +72,34 @@ describe('Form-Changer forms', () => {
   it('form abilities are recorded as form abilities', () => {
     const hero = formChangerHero()
     hero.archetype!.forms![0]!.ability!.source = 'archetype.green'
-    expect(messages(hero)).toEqual(["Brute's ability should be recorded as a form ability."])
+    expect(check(hero)).toEqual([
+      { step: 'archetype', code: 'form-ability-source', message: "Brute's ability should be recorded as a form ability." },
+    ])
+  })
+
+  it('the ability retcon can change a form ability, checked against that form’s dice (the user’s ruling)', () => {
+    const hero = formChangerHero()
+    hero.retcon = { id: 'change-ability-trait', kind: 'changeAbilityTrait', ability: { source: 'archetype.form', name: 'Strong Form' }, uses: [P('agility')] }
+    expect(check(hero)).toEqual([])
+    expect(buildSheet(hero).forms[0]?.ability?.text).toBe('Attack using Agility. Use your Max die.')
+    // Speed isn't one of Brute's powers.
+    hero.retcon.uses = [P('speed')]
+    expect(codes(hero)).toEqual(['slot-not-held'])
+    hero.retcon.uses = [P('strength')]
+    expect(codes(hero)).toEqual(['retcon-no-change'])
+    hero.retcon.ability.name = 'Tricky Form'
+    expect(messages(hero)).toEqual(['This retcon changes Tricky Form, which none of your forms has.'])
+    // The general ability retcon check leaves form abilities to this module.
+    expect(buildSheet(hero).warnings.filter((w) => w.code === 'retcon-ability-missing')).toHaveLength(1)
+  })
+
+  it('a form-ability retcon on a hero without forms is flagged', () => {
+    const hero = completeHero()
+    hero.retcon = { id: 'change-ability-trait', kind: 'changeAbilityTrait', ability: { source: 'archetype.form', name: 'Strong Form' }, uses: [P('agility')] }
+    expect(codes(hero)).toEqual(['retcon-ability-missing'])
+    // Recorded forms on a non-Form-Changer are flagged too, independently.
+    hero.archetype!.forms = formChangerHero().archetype!.forms
+    expect(codes(hero)).toEqual(['retcon-ability-missing', 'unexpected-forms'])
   })
 
   it('Yellow form may take an unused Green form ability, but not a Green form’s', () => {

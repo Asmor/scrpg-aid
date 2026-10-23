@@ -108,7 +108,7 @@ function checkFormChanger(hero: Hero, traits: readonly HeroTrait[], ar: Archetyp
         ? spec.greenFormAbilities
         : [...spec.yellowFormAbilities, ...spec.greenFormAbilities.filter((a) => !greenAbilityNames.includes(a.name))]
     if (form.ability.source !== 'archetype.form') {
-      warn('unknown-ability', `${label}'s ability should be recorded as a form ability.`)
+      warn('form-ability-source', `${label}'s ability should be recorded as a form ability.`)
     }
     const ability = options.find((a) => a.name === form.ability!.name)
     if (!ability) {
@@ -120,6 +120,36 @@ function checkFormChanger(hero: Hero, traits: readonly HeroTrait[], ar: Archetyp
     }
     warnings.push(...checkAbilityPick(hero, formTraits(hero, traits, form), ability, form.ability, 'archetype'))
   })
+
+  checkFormRetcon(hero, traits, forms, [...spec.greenFormAbilities, ...spec.yellowFormAbilities], warnings)
+}
+
+/**
+ * The retcon that changes which trait an ability uses may target a form ability (the
+ * user's ruling). Only the bracket has to fit, using that form's dice.
+ */
+function checkFormRetcon(hero: Hero, traits: readonly HeroTrait[], forms: readonly FormChoice[], abilities: readonly Ability[], warnings: RuleWarning[]): void {
+  const retcon = hero.retcon
+  if (retcon?.kind !== 'changeAbilityTrait' || retcon.ability.source !== 'archetype.form') return
+  const form = forms.find((f) => f.ability?.name === retcon.ability.name)
+  const ability = abilities.find((a) => a.name === retcon.ability.name)
+  if (!form || !form.ability || !ability) {
+    warnings.push(warning('retcon', 'retcon-ability-missing', `This retcon changes ${retcon.ability.name}, which none of your forms has.`))
+    return
+  }
+  warnings.push(...checkAbilityPick(hero, formTraits(hero, traits, form), ability, { ...form.ability, uses: retcon.uses }, 'retcon'))
+  if ((form.ability.uses ?? []).map(traitKey).join() === retcon.uses.map(traitKey).join()) {
+    warnings.push(warning('retcon', 'retcon-no-change', `This retcon should change what ${ability.name} uses; it's the same as before.`))
+  }
+}
+
+/** A form's ability pick with the ability retcon applied, if it targets this form's ability. */
+export function formAbilityPick(hero: Hero, form: FormChoice): FormChoice['ability'] {
+  const retcon = hero.retcon
+  if (form.ability && retcon?.kind === 'changeAbilityTrait' && retcon.ability.source === 'archetype.form' && retcon.ability.name === form.ability.name) {
+    return { ...form.ability, uses: retcon.uses }
+  }
+  return form.ability
 }
 
 function checkMinionForms(hero: Hero, traits: readonly HeroTrait[], ar: Archetype, warnings: RuleWarning[]): void {
@@ -152,8 +182,14 @@ export function checkForms(hero: Hero, traits: readonly HeroTrait[]): RuleWarnin
   const warnings: RuleWarning[] = []
   const ar = hero.archetype && archetypesById.get(hero.archetype.id)
   if (!ar) return warnings
-  if (ar.forms) checkFormChanger(hero, traits, ar, warnings)
-  else if (hero.archetype!.forms?.length) warnings.push(warning('archetype', 'unexpected-forms', `${ar.name} doesn't have forms.`))
+  if (ar.forms) {
+    checkFormChanger(hero, traits, ar, warnings)
+  } else {
+    if (hero.retcon?.kind === 'changeAbilityTrait' && hero.retcon.ability.source === 'archetype.form') {
+      warnings.push(warning('retcon', 'retcon-ability-missing', `This retcon changes ${hero.retcon.ability.name}, which none of your forms has.`))
+    }
+    if (hero.archetype!.forms?.length) warnings.push(warning('archetype', 'unexpected-forms', `${ar.name} doesn't have forms.`))
+  }
   if (ar.minionForms) checkMinionForms(hero, traits, ar, warnings)
   else if (hero.archetype!.minionForms) warnings.push(warning('archetype', 'unexpected-forms', `${ar.name} doesn't have minion forms.`))
   return warnings

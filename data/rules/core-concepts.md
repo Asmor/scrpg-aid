@@ -66,6 +66,18 @@ A short, paraphrased reference to the game terms that show up on character sheet
 - **Exclusive** mods: a roll can use at most one exclusive bonus and one exclusive penalty.
 - A mod can be removed with an Overcome, or by creating an opposing mod.
 
+#### How mods are applied (the user's rulings)
+
+The book leaves some of this open, especially for actions with more than one effect (e.g. Attack with your Max die and Hinder with your Min die). The user ruled:
+
+- **Order:** choose which mods to use, roll, then assign each chosen mod to one of the action's effects.
+- **One die each:** every mod applies to exactly one effect die.
+- **Who assigns:** whoever created the mod decides where it goes. In the app, the user assigns mods and is expected to agree with the table when the choice isn't theirs.
+- **Exclusive limit:** at most one exclusive bonus and one exclusive penalty for the whole roll, not per effect.
+- **Choosing among exclusive mods:** the largest exclusive penalty applies by default (it can be changed). Which exclusive bonus applies is the player's choice.
+- **Using mods up:** a mod is used up once it has modified one effect. A persistent mod isn't used up, but it still modifies only one effect die per roll.
+- **Stacking:** all mods that apply to a die add together, exclusive and non-exclusive alike.
+
 ## Twists (p. 29–30)
 
 - A twist is a complication the player accepts in exchange for success, or that comes from the environment.

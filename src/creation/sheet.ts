@@ -18,7 +18,7 @@ import { checkAbilities, checkAbilityPick, checkAbilityRetcon } from './abilitie
 import { computeHealth, statusDice } from './health'
 import { findAbility, outPick } from './lookup'
 import { checkPrinciples, heroPrinciples } from './principles'
-import { checkForms, formLabel, formTraits } from './forms'
+import { checkForms, formAbilityPick, formLabel, formTraits } from './forms'
 import { checkRedAbilities } from './red'
 import { checkRetcon } from './retcons'
 import { deriveTraits, traitLabel, type HeroTrait } from './traits'
@@ -198,16 +198,17 @@ export function buildSheet(hero: Hero): HeroSheet {
   const formSpec = ar?.forms
   const recordedForms = hero.archetype?.forms ?? []
   const forms: SheetForm[] = recordedForms.map((form) => {
-    const entry = form.ability && [...(formSpec?.greenFormAbilities ?? []), ...(formSpec?.yellowFormAbilities ?? [])].find((a) => a.name === form.ability!.name)
+    const pick = formAbilityPick(hero, form)
+    const entry = pick && [...(formSpec?.greenFormAbilities ?? []), ...(formSpec?.yellowFormAbilities ?? [])].find((a) => a.name === pick.name)
     const inForm = formTraits(hero, traits, form)
     return {
       zone: form.zone,
       name: formLabel(recordedForms, form),
       traits: inForm,
-      ability: entry && {
-        name: form.ability!.customName?.trim() || entry.name,
+      ability: pick && entry && {
+        name: pick.customName?.trim() || entry.name,
         type: entry.type,
-        text: fillText(hero, entry.text, form.ability!.uses, form.ability!.blanks),
+        text: fillText(hero, entry.text, pick.uses, pick.blanks),
       },
     }
   })
