@@ -12,12 +12,22 @@ A progressive web app for creating, editing, saving, sharing, and exporting (PDF
 - `data/`: rules data extracted from the PDFs (Phase 0). The app reads its rules from here, and it is the **source of truth** for game rules. See `data/README.md` for file layout and conventions.
 - `scripts/validate_data.py`: validates everything in `data/` (stdlib Python 3, no dependencies).
 - `GOAL.md`: project goals and phases.
-
-No tech stack has been chosen for the app yet. Once one is, record it here along with the commands to install, run, test, lint, and build.
+- `src/`: the app. React 19 + TypeScript (strict) + Vite, with `vite-plugin-pwa` for offline support. Rules logic lives in `src/rules/` (pure, UI-independent); tests sit next to the code as `*.test.ts(x)` and run in Vitest with jsdom and Testing Library.
+- Storage: heroes are saved in the browser only (IndexedDB) for Phase 1, behind a storage interface so cloud storage (Drive, OneDrive, Dropbox) can be added later.
+- `.github/workflows/deploy.yml`: runs `npm run check` on every push and PR, and deploys `main` to GitHub Pages. `BASE_PATH` sets the URL prefix (`/<repo>/` on Pages, `/` locally).
 
 ## Commands
 
-- Validate rules data: `python3 scripts/validate_data.py` (must pass before any change to `data/` is done)
+Node 22+ and Python 3 are required.
+
+- Install: `npm install`
+- Run locally: `npm run dev`
+- Tests: `npm test` (watch mode: `npm run test:watch`, coverage: `npm run coverage`)
+- Lint: `npm run lint` (oxlint)
+- Typecheck: `npm run typecheck`
+- Build: `npm run build` (output in `dist/`), preview with `npm run preview`
+- Validate rules data: `npm run validate:data` (runs `python3 scripts/validate_data.py`; must pass before any change to `data/` is done)
+- Everything CI runs: `npm run check`
 
 ## Rules data (`data/`)
 

@@ -6,7 +6,7 @@ Mechanical content extracted from *Sentinel Comics: The Roleplaying Game — Cor
 
 | Path | Contents |
 | --- | --- |
-| `books.json` | Source books that page references point to (currently only the Core Rules) |
+| `books.json` | Source books that page references point to (currently only the Core Rules): `id`, full `title`, and the `shortTitle` shown in page references |
 | `rules/` | Paraphrased process documents (Markdown): core concepts, hero creation, villain creation, minion/lieutenant/environment creation |
 | `heroes/powers-qualities.json` | Power and quality categories and entries (p. 47, 115–121) |
 | `heroes/backgrounds.json` | Step 1: backgrounds (p. 48–54) |

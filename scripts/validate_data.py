@@ -303,7 +303,7 @@ def check_restrictions(node, where):
 def check_books(entries):
     seen = set()
     for b in entries:
-        require(b, ["id", "title"], f"{BOOKS_FILE}[{b.get('id', '?')}]")
+        require(b, ["id", "title", "shortTitle"], f"{BOOKS_FILE}[{b.get('id', '?')}]")
         if b.get("id") in seen:
             err(BOOKS_FILE, f"duplicate id '{b.get('id')}'")
         seen.add(b.get("id"))

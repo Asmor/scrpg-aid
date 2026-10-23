@@ -2,7 +2,8 @@
   "books": [
     {
       "id": "core-rules",
-      "title": "Sentinel Comics: The Roleplaying Game — Core Rules"
+      "title": "Sentinel Comics: The Roleplaying Game — Core Rules",
+      "shortTitle": "Core Rules"
     }
   ]
 }
