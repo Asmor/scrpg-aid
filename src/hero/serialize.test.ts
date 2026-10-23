@@ -1,0 +1,144 @@
+import { describe, expect, it } from 'vitest'
+import { createHero } from './model'
+import { CURRENT_VERSION, HERO_FORMAT, parseSaved, parseSavedJson, toSaved } from './serialize'
+
+const hero = () => createHero('guided', { id: 'h1', now: new Date('2026-10-23T12:00:00Z') })
+
+describe('serialize', () => {
+  it('wraps a hero in a versioned envelope', () => {
+    expect(toSaved(hero())).toEqual({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: hero() })
+  })
+
+  it('round-trips through JSON', () => {
+    const result = parseSavedJson(JSON.stringify(toSaved(hero())))
+    expect(result).toEqual({ ok: true, hero: hero() })
+  })
+
+  it('rejects things that are not saved heroes', () => {
+    expect(parseSavedJson('{nope')).toEqual({ ok: false, error: 'not valid JSON' })
+    expect(parseSaved(null)).toMatchObject({ ok: false, error: 'not a saved hero' })
+    expect(parseSaved([])).toMatchObject({ ok: false, error: 'not a saved hero' })
+    expect(parseSaved({ format: 'other', version: 1, hero: hero() })).toMatchObject({ ok: false })
+    expect(parseSaved({ format: HERO_FORMAT, version: 1 })).toEqual({ ok: false, error: 'missing hero' })
+  })
+
+  it('rejects bad versions, including ones newer than the app', () => {
+    for (const version of [undefined, 0, 1.5, '1']) {
+      expect(parseSaved({ format: HERO_FORMAT, version, hero: hero() })).toEqual({
+        ok: false,
+        error: 'missing or invalid version',
+      })
+    }
+    expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION + 1, hero: hero() })).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('newer version'),
+    })
+  })
+
+  it('rejects heroes with missing or malformed fields', () => {
+    const t = { kind: 'power', id: 'flight' }
+    const cases: [Record<string, unknown>, string][] = [
+      [{ id: '' }, 'hero.id is missing'],
+      [{ createdAt: 5 }, 'hero.createdAt is missing'],
+      [{ method: 'freeform' }, 'hero.method has an unknown value'],
+      [{ details: null }, 'hero.details should be an object'],
+      [{ details: {} }, 'hero.details.name should be text'],
+      [{ traitNames: { x: 1 } }, 'hero.traitNames.x should be text'],
+      [{ traitNames: [] }, 'hero.traitNames should be an object'],
+      [{ background: { id: 'x', qualities: [], roll: { dice: [], results: [], manual: 'yes' } } }, 'hero.background.roll.manual should be true or false'],
+      [{ redAbilities: {} }, 'hero.redAbilities should be a list'],
+      [{ redAbilities: [{ source: 'red' }] }, 'hero.redAbilities[0].name is missing'],
+      [{ archetype: 'modular' }, 'hero.archetype should be an object'],
+      [{ background: { id: 'x' } }, 'hero.background.qualities should be a list'],
+      [{ background: { id: 'x', qualities: [{ trait: t, die: 'd7' }] } }, 'hero.background.qualities[0].die has an unknown value'],
+      [{ background: { id: 'x', qualities: [], roll: { dice: ['d10'], results: [1.5], manual: false } } }, 'hero.background.roll.results[0] should be a whole number'],
+      [{ powerSource: { id: 'x', powers: [], abilities: [{ source: 'a', name: 'b', uses: [{ kind: 'trait', id: 'x' }] }], bonus: [] } }, 'hero.powerSource.abilities[0].uses[0].kind has an unknown value'],
+      [{ personality: { id: 'x', bonus: [], outBlanks: { a: 3 } } }, 'hero.personality.outBlanks.a is malformed'],
+      [{ retcon: { id: 'x', kind: 'nope' } }, 'hero.retcon.kind has an unknown value'],
+      [{ retcon: { id: 'x', kind: 'gainPowerOrQuality' } }, 'hero.retcon.gained should be an object'],
+      [{ health: { mode: 'average' } }, 'hero.health.mode has an unknown value'],
+      [{ currentHealth: 'full' }, 'hero.currentHealth should be a whole number'],
+    ]
+    for (const [patch, error] of cases) {
+      expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: { ...hero(), ...patch } })).toEqual({ ok: false, error })
+    }
+  })
+
+  it('accepts fully filled-in heroes', () => {
+    const t = { kind: 'quality', id: 'fitness' } as const
+    const full = {
+      ...hero(),
+      traitNames: { 'quality:roleplaying-quality': 'Lucky' },
+      background: { id: 'upper-class', roll: { dice: ['d10', 'd10'], results: [1, 4], manual: true, rerolled: true }, qualities: [{ trait: t, die: 'd10' }], principle: { id: 'destiny' } },
+      powerSource: { id: 'accident', powers: [], abilities: [{ source: 'powerSource.yellow', name: 'X', uses: [t], blanks: { a: 'b', c: ['d', 'e'] }, customName: 'Y' }], bonus: [] },
+      archetype: { id: 'speedster', traits: [{ trait: t, die: 'd8', replaces: true }], abilities: [], bonus: [], principle: { id: 'energy-element', customization: 'Fire' } },
+      personality: { id: 'impulsive', outBlanks: { x: 'y' }, bonus: [] },
+      retcon: { id: 'change-principle', kind: 'changePrinciple', replace: 'archetype', with: { id: 'destiny' } },
+      health: { trait: t, mode: 'roll', rollResult: 5, manual: true },
+      currentHealth: 20,
+      notes: 'n',
+    }
+    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: full })).toEqual({ ok: true, hero: full })
+  })
+
+  it('migrates old versions forward, one version at a time', () => {
+    const migrations = {
+      1: (h: Record<string, unknown>) => ({ ...h, notes: 'from v1' }),
+      2: (h: Record<string, unknown>) => ({ ...h, notes: `${String(h.notes)}, then v2` }),
+    }
+    const result = parseSaved({ format: HERO_FORMAT, version: 1, hero: hero() }, migrations, 3)
+    expect(result).toEqual({ ok: true, hero: { ...hero(), notes: 'from v1, then v2' }, migratedFrom: 1 })
+  })
+
+  it('reports a missing migration', () => {
+    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: hero() }, {}, 2)).toEqual({
+      ok: false,
+      error: 'no migration from format 1',
+    })
+  })
+
+  it('checks the migrated result too', () => {
+    const broken = { 1: (h: Record<string, unknown>) => ({ ...h, method: 'oops' }) }
+    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: hero() }, broken, 2)).toEqual({
+      ok: false,
+      error: 'hero.method has an unknown value',
+    })
+  })
+
+  it('reports a migration that throws instead of throwing', () => {
+    const throwing = {
+      1: () => {
+        throw new Error('boom')
+      },
+    }
+    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: hero() }, throwing, 2)).toEqual({
+      ok: false,
+      error: 'migration from format 1 failed: boom',
+    })
+    const throwsText = {
+      1: () => {
+        throw 'plain text'
+      },
+    }
+    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: hero() }, throwsText, 2)).toEqual({
+      ok: false,
+      error: 'migration from format 1 failed: plain text',
+    })
+  })
+
+  it('never lets migrations or callers change the input', () => {
+    const input = { format: HERO_FORMAT, version: 1, hero: hero() }
+    const mutating = {
+      1: (h: Record<string, unknown>) => {
+        ;(h.details as Record<string, string>).name = 'changed by migration'
+        return h
+      },
+    }
+    const result = parseSaved(input, mutating, 2)
+    expect(result.ok && result.hero.details.name).toBe('changed by migration')
+    expect(input.hero.details.name).toBe('')
+    const plain = parseSaved(input)
+    if (plain.ok) plain.hero.details.name = 'changed by caller'
+    expect(input.hero.details.name).toBe('')
+  })
+})
