@@ -18,9 +18,10 @@
 import { describeRef, getCategory, getTrait, refsMatch, traitKey, type TraitRef } from '../rules/catalog'
 import { archetypesById, powerSourcesById } from '../rules/data'
 import { parseSlots, type TraitSlot } from '../rules/slots'
-import type { Ability, AbilityChoice, Archetype, DistinctRule, OptionRef, RequireAtLeast } from '../rules/types'
+import type { Ability, AbilityChoice, Archetype, DistinctRule, OptionRef, RequireAtLeast, TraitKind } from '../rules/types'
 import type { AbilityPick, AbilitySource, Hero } from '../hero/model'
 import type { HeroTrait } from './traits'
+import { findAbility } from './lookup'
 import { traitLabel } from './traits'
 import { warning, type RuleWarning, type StepId } from './warnings'
 
@@ -31,6 +32,11 @@ interface Context {
   traits: ReadonlyMap<string, HeroTrait>
   /** Traits given dice in the archetype step, for "[a power gained from your archetype]". */
   archetypeTraits: ReadonlySet<string>
+  /**
+   * Extra limit on the first trait slot of `kind`, e.g. a Red ability's category: the
+   * ability needs one trait from that category to use with it, and other slots are free.
+   */
+  slotLimit?: { kind: TraitKind; refs: readonly OptionRef[]; what: string }
   warnings: RuleWarning[]
 }
 
@@ -40,10 +46,7 @@ const label = (ctx: Context, t: TraitRef) => traitLabel(ctx.hero, t)
 /** The trait an ability pick uses for restrictions (see the module doc). */
 export function primaryUse(ability: Ability, pick: AbilityPick): TraitRef | undefined {
   if (parseSlots(ability.text).some((s) => s.type === 'trait')) return pick.uses?.[0]
-  const req = ability.requires
-  if (req && 'power' in req) return { kind: 'power', id: req.power }
-  if (req && 'quality' in req) return { kind: 'quality', id: req.quality }
-  return undefined
+  return namedTrait(ability)
 }
 
 function slotAccepts(ctx: Context, slot: TraitSlot, trait: TraitRef): boolean {
@@ -51,6 +54,14 @@ function slotAccepts(ctx: Context, slot: TraitSlot, trait: TraitRef): boolean {
   if (slot.only && !refsMatch(slot.only, trait)) return false
   if (slot.fromStep === 'archetype' && !ctx.archetypeTraits.has(traitKey(trait))) return false
   return true
+}
+
+/** The trait a no-slot ability names through `requires`, if it names exactly one. */
+function namedTrait(ability: Ability): TraitRef | undefined {
+  const req = ability.requires
+  if (req && 'power' in req) return { kind: 'power', id: req.power }
+  if (req && 'quality' in req) return { kind: 'quality', id: req.quality }
+  return undefined
 }
 
 function hasMatching(ctx: Context, refs: readonly OptionRef[]): boolean {
@@ -61,6 +72,7 @@ function hasMatching(ctx: Context, refs: readonly OptionRef[]): boolean {
 function checkPick(ctx: Context, ability: Ability, pick: AbilityPick): void {
   const name = pick.customName?.trim() || ability.name
   let traitIndex = 0
+  let limited = false
   for (const slot of parseSlots(ability.text)) {
     if (slot.type === 'trait') {
       const use = pick.uses?.[traitIndex++]
@@ -70,7 +82,10 @@ function checkPick(ctx: Context, ability: Ability, pick: AbilityPick): void {
         warn(ctx, 'slot-not-held', `${name} uses ${label(ctx, use)}, which you don't have.`)
       } else if (!slotAccepts(ctx, slot, use)) {
         warn(ctx, 'slot-wrong-trait', `[${slot.label}] for ${name} can't be ${label(ctx, use)}.`)
+      } else if (ctx.slotLimit && !limited && slot.kinds.includes(ctx.slotLimit.kind) && !refsMatch(ctx.slotLimit.refs, use)) {
+        warn(ctx, 'slot-wrong-trait', `${name} must use ${ctx.slotLimit.what}, not ${label(ctx, use)}.`)
       }
+      if (ctx.slotLimit && slot.kinds.includes(ctx.slotLimit.kind)) limited = true
     } else {
       const value = pick.blanks?.[slot.label]
       const values = value === undefined ? [] : Array.isArray(value) ? value : [value]
@@ -85,8 +100,15 @@ function checkPick(ctx: Context, ability: Ability, pick: AbilityPick): void {
       }
     }
   }
-  if ((pick.uses?.length ?? 0) > traitIndex) {
-    const has = traitIndex === 0 ? "doesn't use a power or quality" : `only uses ${traitIndex === 1 ? 'one power or quality' : `${traitIndex} powers or qualities`}`
+  const named = traitIndex === 0 ? namedTrait(ability) : undefined
+  const extra = (pick.uses ?? []).slice(traitIndex)
+  // An ability that names its trait may record it; anything else is extra.
+  if (extra.length && !(named && extra.length === 1 && traitKey(extra[0]!) === traitKey(named))) {
+    const has = named
+      ? `always uses ${label(ctx, named)}`
+      : traitIndex === 0
+        ? "doesn't use a power or quality"
+        : `only uses ${traitIndex === 1 ? 'one power or quality' : `${traitIndex} powers or qualities`}`
     warn(ctx, 'slot-extra', `${name} ${has}; remove the extra.`)
   }
   if (ability.requires && !hasMatching(ctx, [ability.requires])) {
@@ -287,10 +309,20 @@ function checkArchetype(ctx: Context, ar: Archetype): void {
   }
 }
 
-/** Checks one ability pick on its own (used by the UI while a player fills in an ability). */
-export function checkAbilityPick(hero: Hero, traits: readonly HeroTrait[], ability: Ability, pick: AbilityPick, step: StepId): RuleWarning[] {
+/**
+ * Checks one ability pick on its own: used for Red abilities and retcons, and by the UI
+ * while a player fills in an ability. `slotLimit` adds a limit to every trait slot.
+ */
+export function checkAbilityPick(
+  hero: Hero,
+  traits: readonly HeroTrait[],
+  ability: Ability,
+  pick: AbilityPick,
+  step: StepId,
+  slotLimit?: Context['slotLimit'],
+): RuleWarning[] {
   const warnings: RuleWarning[] = []
-  checkPick(contextFor(hero, traits, step, warnings), ability, pick)
+  checkPick({ ...contextFor(hero, traits, step, warnings), slotLimit }, ability, pick)
   return warnings
 }
 
@@ -306,4 +338,25 @@ export function checkAbilities(hero: Hero, traits: readonly HeroTrait[]): RuleWa
   const ar = hero.archetype && archetypesById.get(hero.archetype.id)
   if (ar) checkArchetype(contextFor(hero, traits, 'archetype', warnings), ar)
   return warnings
+}
+
+/**
+ * Checks the "change which power or quality one of your abilities uses" retcon: it must
+ * point at an ability the hero took, and the new traits must fit that ability's slots.
+ * The user ruled that the ability's Red category and block restrictions no longer apply.
+ */
+export function checkAbilityRetcon(hero: Hero, traits: readonly HeroTrait[]): RuleWarning[] {
+  const retcon = hero.retcon
+  if (retcon?.kind !== 'changeAbilityTrait') return []
+  const picks = [...(hero.powerSource?.abilities ?? []), ...(hero.archetype?.abilities ?? []), ...hero.redAbilities]
+  const pick = picks.find((p) => p.source === retcon.ability.source && p.name === retcon.ability.name)
+  const ability = pick && findAbility(hero, pick)
+  if (!pick || !ability) {
+    return [warning('retcon', 'retcon-ability-missing', `This retcon changes ${retcon.ability.name}, which you haven't taken.`)]
+  }
+  const same = (pick.uses ?? []).map(traitKey).join() === retcon.uses.map(traitKey).join()
+  return [
+    ...checkAbilityPick(hero, traits, ability, { ...pick, uses: retcon.uses }, 'retcon'),
+    ...(same ? [warning('retcon', 'retcon-no-change', `This retcon should change what ${ability.name} uses; it's the same as before.`)] : []),
+  ]
 }

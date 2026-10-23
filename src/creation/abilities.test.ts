@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Hero } from '../hero/model'
 import { A, heroWithAbilities, P, Q } from '../test/heroes'
-import { checkAbilities, checkAbilityPick, primaryUse } from './abilities'
+import { checkAbilities, checkAbilityPick, checkAbilityRetcon, primaryUse } from './abilities'
 import { deriveTraits } from './traits'
 
 const check = (hero: Hero) => checkAbilities(hero, deriveTraits(hero).traits)
@@ -363,6 +363,48 @@ describe('checkAbilities', () => {
       const named = { name: 'Q', type: 'A' as const, text: 'Use History.', requires: { quality: 'history' } }
       expect(primaryUse(named, { source: 'red', name: 'Q' })).toEqual(Q('history'))
       expect(primaryUse({ name: 'D', type: 'R' as const, text: 'Deflect.' }, { source: 'red', name: 'D' })).toBeUndefined()
+    })
+  })
+
+  describe('named-trait abilities', () => {
+    it('may record the trait they name, but nothing else', () => {
+      const hero = heroWithAbilities()
+      const onboard = { name: 'Onboard Upgrade', type: 'A' as const, text: 'Boost yourself using Power Suit.', requires: { power: 'power-suit' } }
+      hero.powerSource!.powers[0] = A(P('power-suit'), 'd10')
+      const t = deriveTraits(hero).traits
+      expect(checkAbilityPick(hero, t, onboard, { source: 'powerSource.yellow', name: 'Onboard Upgrade', uses: [P('power-suit')] }, 'powerSource')).toEqual([])
+      expect(checkAbilityPick(hero, t, onboard, { source: 'powerSource.yellow', name: 'Onboard Upgrade', uses: [P('fire')] }, 'powerSource')).toEqual([
+        { step: 'powerSource', code: 'slot-extra', message: 'Onboard Upgrade always uses Power Suit; remove the extra.' },
+      ])
+    })
+  })
+
+  describe('ability retcon', () => {
+    it('changes which trait an ability the hero took uses', () => {
+      const hero = heroWithAbilities()
+      const traits = () => deriveTraits(hero).traits
+      hero.retcon = { id: 'change-ability-trait', kind: 'changeAbilityTrait', ability: { source: 'powerSource.yellow', name: 'Inflict' }, uses: [P('awareness')] }
+      expect(checkAbilityRetcon(hero, traits())).toEqual([])
+      hero.retcon.uses = [Q('fitness')]
+      expect(checkAbilityRetcon(hero, traits()).map((w) => w.code)).toEqual(['slot-wrong-trait'])
+      hero.retcon.uses = [P('fire')]
+      expect(checkAbilityRetcon(hero, traits()).map((w) => w.code)).toEqual(['retcon-no-change'])
+      hero.retcon.ability = { source: 'powerSource.yellow', name: 'Reflexive Burst' }
+      expect(checkAbilityRetcon(hero, traits()).map((w) => w.message)).toEqual([
+        "This retcon changes Reflexive Burst, which you haven't taken.",
+      ])
+    })
+
+    it('works for Red abilities, and does nothing for other retcons', () => {
+      const hero = heroWithAbilities()
+      hero.redAbilities = [{ source: 'red', name: 'Paragon Feat', category: 'power:athletic', uses: [P('agility')] }]
+      hero.retcon = { id: 'change-ability-trait', kind: 'changeAbilityTrait', ability: { source: 'red', name: 'Paragon Feat' }, uses: [P('speed')] }
+      expect(checkAbilityRetcon(hero, deriveTraits(hero).traits)).toEqual([])
+      // Only the bracket matters after the retcon (the user's ruling): Fire isn't Athletic, but that's fine.
+      hero.retcon.uses = [P('fire')]
+      expect(checkAbilityRetcon(hero, deriveTraits(hero).traits)).toEqual([])
+      hero.retcon = { id: 'upgrade-red-status', kind: 'upgradeStatusDie' }
+      expect(checkAbilityRetcon(hero, deriveTraits(hero).traits)).toEqual([])
     })
   })
 })
