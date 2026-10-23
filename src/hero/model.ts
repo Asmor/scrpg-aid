@@ -108,7 +108,9 @@ export interface ArchetypeChoice {
 export interface PersonalityChoice {
   id: string
   roll?: RollRecord
-  /** Bracketed choices in the Out ability. */
+  /** The powers/qualities filling the Out ability's trait slots, in order. */
+  outUses?: TraitRef[]
+  /** Other bracketed choices in the Out ability. */
   outBlanks?: Record<string, string | string[]>
   /** Bonus die changes (Impulsive, for example). */
   bonus: TraitAssignment[]

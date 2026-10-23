@@ -121,7 +121,7 @@ const heroShape = object({
       'principle?': principle,
     }),
   ),
-  personality: nullable(object({ id: nonEmptyString, 'roll?': rollRecord, 'outBlanks?': blanks, bonus: arrayOf(assignment) })),
+  personality: nullable(object({ id: nonEmptyString, 'roll?': rollRecord, 'outUses?': arrayOf(traitRef), 'outBlanks?': blanks, bonus: arrayOf(assignment) })),
   redAbilities: arrayOf(abilityPick),
   retcon: nullable(retcon),
   health: nullable(

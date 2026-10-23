@@ -42,7 +42,7 @@ export function heroWithAbilities(): Hero {
   return hero
 }
 
-/** heroWithAbilities plus legal Red abilities and principles: a complete, rules-legal hero through step 5. */
+/** heroWithAbilities plus legal Red abilities, principles, Out ability, and Health: a complete, rules-legal hero. */
 export function completeHero(): Hero {
   const hero = heroWithAbilities()
   hero.background!.principle = { id: 'business' }
@@ -51,5 +51,7 @@ export function completeHero(): Hero {
     { source: 'red', name: 'Paragon Feat', category: 'power:athletic', uses: [P('agility')] },
     { source: 'red', name: 'Push Your Limits', category: 'power:athletic' },
   ]
+  hero.personality!.outUses = [Q('fitness')]
+  hero.health = { trait: P('agility'), mode: 'fixed' }
   return hero
 }
