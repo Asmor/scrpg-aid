@@ -37,4 +37,7 @@ Output should be kept in `data/`.
 
 - Create, save, edit, and view a hero
 - All options in core rules are implemented
-  - Note that the Modular archetype is particularly complicated and unique
+  - Note that some archetypes can be particularly complicated and/or work fundamentally differently than others.
+  - Notably, the Divided and Modular archetypes.
+  - The Minion Maker also has some unique requirements.
+  - This list may not be exhaustive.
