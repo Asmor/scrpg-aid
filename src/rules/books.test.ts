@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { books, findBook, formatPageRef } from './books'
+import { books, findBook, formatEntryRef, formatPageRef } from './books'
 
 describe('books', () => {
   it('loads the book registry from data/', () => {
@@ -19,5 +19,13 @@ describe('books', () => {
 
   it('falls back to the id for an unknown book', () => {
     expect(formatPageRef('mystery', 3)).toBe('mystery, p. 3')
+  })
+
+  it('formats a data entry by its pages, or its page, or just the book', () => {
+    expect(formatEntryRef({ book: 'core-rules', page: 86, pages: [86, 87, 88] })).toBe('Core Rules, pp. 86, 87, 88')
+    expect(formatEntryRef({ book: 'core-rules', page: 49 })).toBe('Core Rules, p. 49')
+    expect(formatEntryRef({ book: 'core-rules', page: 49, pages: [] })).toBe('Core Rules, p. 49')
+    expect(formatEntryRef({ book: 'core-rules' })).toBe('Core Rules')
+    expect(formatEntryRef({ book: 'mystery' })).toBe('mystery')
   })
 })

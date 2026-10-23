@@ -1,4 +1,5 @@
 import booksData from '../../data/books.json'
+import type { PageRef } from './types'
 
 export interface Book {
   id: string
@@ -19,4 +20,11 @@ export function formatPageRef(bookId: string, page: number | readonly [number, .
   const list = typeof page === 'number' ? [page] : page
   const pages = list.length === 1 ? `p. ${list[0]}` : `pp. ${list.join(', ')}`
   return `${short}, ${pages}`
+}
+
+/** Formats a data entry's page reference, preferring its full `pages` list when it has one. */
+export function formatEntryRef(ref: PageRef): string {
+  const [first, ...rest] = ref.pages?.length ? ref.pages : ref.page !== undefined ? [ref.page] : []
+  if (first === undefined) return findBook(ref.book)?.shortTitle ?? ref.book
+  return formatPageRef(ref.book, [first, ...rest])
 }
