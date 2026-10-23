@@ -1,83 +1,84 @@
 {
   "step": 1,
+  "book": "core-rules",
   "page": 49,
   "chartPage": 48,
   "startingDice": ["d10", "d10"],
   "backgrounds": [
     {
-      "id": "upper-class", "roll": 1, "name": "Upper Class", "page": 49,
+      "id": "upper-class", "roll": 1, "name": "Upper Class", "book": "core-rules", "page": 49,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "quality": "fitness" }, { "quality": "persuasion" }, { "qualityCategory": "mental" }] },
       "principleCategory": "responsibility",
       "powerSourceDice": ["d10", "d8", "d8"]
     },
     {
-      "id": "blank-slate", "roll": 2, "name": "Blank Slate", "page": 49,
+      "id": "blank-slate", "roll": 2, "name": "Blank Slate", "book": "core-rules", "page": 49,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "qualityCategory": "mental" }, { "qualityCategory": "physical" }] },
       "principleCategory": "identity",
       "powerSourceDice": ["d10", "d8", "d8"]
     },
     {
-      "id": "struggling", "roll": 3, "name": "Struggling", "page": 50,
+      "id": "struggling", "roll": 3, "name": "Struggling", "book": "core-rules", "page": 50,
       "qualities": { "dice": ["d8", "d6", "d6"], "options": [{ "quality": "banter" }, { "quality": "criminal-underworld-info" }, { "qualityCategory": "physical" }] },
       "principleCategory": "responsibility",
       "powerSourceDice": ["d8", "d8", "d6"]
     },
     {
-      "id": "adventurer", "roll": 4, "name": "Adventurer", "page": 50,
+      "id": "adventurer", "roll": 4, "name": "Adventurer", "book": "core-rules", "page": 50,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "quality": "history" }, { "quality": "leadership" }, { "qualityCategory": "physical" }] },
       "principleCategory": "expertise",
       "powerSourceDice": ["d8", "d8", "d8"]
     },
     {
-      "id": "unremarkable", "roll": 5, "name": "Unremarkable", "page": 50,
+      "id": "unremarkable", "roll": 5, "name": "Unremarkable", "book": "core-rules", "page": 50,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "quality": "close-combat" }, { "qualityCategory": "mental" }, { "qualityCategory": "social" }] },
       "principleCategory": "identity",
       "powerSourceDice": ["d10", "d8", "d6"]
     },
     {
-      "id": "law-enforcement", "roll": 6, "name": "Law Enforcement", "page": 50,
+      "id": "law-enforcement", "roll": 6, "name": "Law Enforcement", "book": "core-rules", "page": 50,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "quality": "close-combat" }, { "quality": "criminal-underworld-info" }, { "quality": "ranged-combat" }, { "qualityCategory": "mental" }, { "qualityCategory": "social" }] },
       "principleCategory": "responsibility",
       "powerSourceDice": ["d10", "d8", "d6"]
     },
     {
-      "id": "academic", "roll": 7, "name": "Academic", "page": 51,
+      "id": "academic", "roll": 7, "name": "Academic", "book": "core-rules", "page": 51,
       "qualities": { "dice": ["d12", "d8"], "options": [{ "quality": "leadership" }, { "quality": "self-discipline" }, { "qualityCategory": "information" }] },
       "principleCategory": "expertise",
       "powerSourceDice": ["d10", "d8"]
     },
     {
-      "id": "tragic", "roll": 8, "name": "Tragic", "page": 51,
+      "id": "tragic", "roll": 8, "name": "Tragic", "book": "core-rules", "page": 51,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "quality": "banter" }, { "quality": "close-combat" }, { "quality": "imposing" }, { "qualityCategory": "mental" }] },
       "principleCategory": "ideals",
       "powerSourceDice": ["d10", "d10", "d6"]
     },
     {
-      "id": "performer", "roll": 9, "name": "Performer", "page": 51,
+      "id": "performer", "roll": 9, "name": "Performer", "book": "core-rules", "page": 51,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "quality": "acrobatics" }, { "quality": "creativity" }, { "quality": "finesse" }, { "qualityCategory": "social" }] },
       "principleCategory": "responsibility",
       "powerSourceDice": ["d10", "d8", "d6"]
     },
     {
-      "id": "military", "roll": 10, "name": "Military", "page": 52,
+      "id": "military", "roll": 10, "name": "Military", "book": "core-rules", "page": 52,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "quality": "leadership" }, { "quality": "self-discipline" }, { "qualityCategory": "physical" }] },
       "principleCategory": "ideals",
       "powerSourceDice": ["d10", "d8", "d8"]
     },
     {
-      "id": "retired", "roll": 11, "name": "Retired", "page": 52,
+      "id": "retired", "roll": 11, "name": "Retired", "book": "core-rules", "page": 52,
       "qualities": { "dice": ["d10", "d10"], "options": [{ "qualityCategory": "information" }, { "qualityCategory": "social" }] },
       "principleCategory": "identity",
       "powerSourceDice": ["d12", "d6", "d6"]
     },
     {
-      "id": "criminal", "roll": 12, "name": "Criminal", "page": 52,
+      "id": "criminal", "roll": 12, "name": "Criminal", "book": "core-rules", "page": 52,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "quality": "criminal-underworld-info" }, { "quality": "imposing" }, { "qualityCategory": "physical" }] },
       "principleCategory": "expertise",
       "powerSourceDice": ["d8", "d8", "d8"]
     },
     {
-      "id": "medical", "roll": 13, "name": "Medical", "page": 52,
+      "id": "medical", "roll": 13, "name": "Medical", "book": "core-rules", "page": 52,
       "qualities": {
         "dice": ["d10", "d8", "d6"],
         "required": [{ "quality": "medicine", "dieCount": 1 }],
@@ -88,43 +89,43 @@
       "powerSourceDice": ["d10", "d8", "d8"]
     },
     {
-      "id": "anachronistic", "roll": 14, "name": "Anachronistic", "page": 53,
+      "id": "anachronistic", "roll": 14, "name": "Anachronistic", "book": "core-rules", "page": 53,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "quality": "history" }, { "quality": "magical-lore" }, { "quality": "technology" }, { "qualityCategory": "physical" }] },
       "principleCategory": "esoteric",
       "powerSourceDice": ["d10", "d8", "d6"]
     },
     {
-      "id": "exile", "roll": 15, "name": "Exile", "page": 53,
+      "id": "exile", "roll": 15, "name": "Exile", "book": "core-rules", "page": 53,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "quality": "conviction" }, { "quality": "insight" }, { "qualityCategory": "information" }] },
       "principleCategory": "ideals",
       "powerSourceDice": ["d8", "d8", "d8"]
     },
     {
-      "id": "former-villain", "roll": 16, "name": "Former Villain", "page": 53,
+      "id": "former-villain", "roll": 16, "name": "Former Villain", "book": "core-rules", "page": 53,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "quality": "conviction" }, { "qualityCategory": "information" }, { "qualityCategory": "social" }] },
       "principleCategory": "expertise",
       "powerSourceDice": ["d10", "d8", "d8"]
     },
     {
-      "id": "interstellar", "roll": 17, "name": "Interstellar", "page": 53,
+      "id": "interstellar", "roll": 17, "name": "Interstellar", "book": "core-rules", "page": 53,
       "qualities": { "dice": ["d12", "d6"], "options": [{ "qualityCategory": "information" }, { "qualityCategory": "mental" }] },
       "principleCategory": "esoteric",
       "powerSourceDice": ["d10", "d8", "d6"]
     },
     {
-      "id": "dynasty", "roll": 18, "name": "Dynasty", "page": 54,
+      "id": "dynasty", "roll": 18, "name": "Dynasty", "book": "core-rules", "page": 54,
       "qualities": { "dice": ["d10", "d10"], "options": [{ "quality": "close-combat" }, { "quality": "fitness" }, { "quality": "history" }, { "qualityCategory": "social" }] },
       "principleCategory": "ideals",
       "powerSourceDice": ["d8", "d8", "d6"]
     },
     {
-      "id": "otherworldly", "roll": 19, "name": "Otherworldly", "page": 54,
+      "id": "otherworldly", "roll": 19, "name": "Otherworldly", "book": "core-rules", "page": 54,
       "qualities": { "dice": ["d10", "d8"], "options": [{ "quality": "magical-lore" }, { "quality": "otherworldly-mythos" }, { "qualityCategory": "mental" }] },
       "principleCategory": "esoteric",
       "powerSourceDice": ["d10", "d6", "d6"]
     },
     {
-      "id": "created", "roll": 20, "name": "Created", "page": 54,
+      "id": "created", "roll": 20, "name": "Created", "book": "core-rules", "page": 54,
       "qualities": { "dice": ["d12", "d6"], "options": [{ "quality": "alertness" }, { "quality": "science" }, { "quality": "technology" }, { "qualityCategory": "physical" }] },
       "principleCategory": "expertise",
       "powerSourceDice": ["d10", "d10", "d6"]

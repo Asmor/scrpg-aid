@@ -1,11 +1,12 @@
 {
   "step": 5,
+  "book": "core-rules",
   "page": 106,
   "count": 2,
   "rules": "Red abilities are grouped by power or quality category. To take one, you must have a power or quality in that category to use with it. If the ability does not use a power or quality (most Inherent abilities), you need a power or quality of d6 or higher in that category. Some abilities name a specific power or quality that must be used.",
   "categories": [
     {
-      "powerCategory": "athletic", "page": 106,
+      "powerCategory": "athletic", "book": "core-rules", "page": 106,
       "abilities": [
         { "name": "Major Regeneration", "type": "A", "requires": { "power": "vitality" }, "text": "Hinder yourself using Vitality. Use your Min die. Recover health equal to your Max+Mid dice." },
         { "name": "Paragon Feat", "type": "A", "text": "Overcome using [power] in a situation that requires you to be more than humanly capable, like an extreme feat of strength or speed. Use your Max+Min dice. Boost all nearby allies with your Mid die." },
@@ -14,7 +15,7 @@
       ]
     },
     {
-      "powerCategory": "elemental-energy", "page": 106,
+      "powerCategory": "elemental-energy", "book": "core-rules", "page": 106,
       "abilities": [
         { "name": "Charged Up Blast", "type": "A", "text": "Attack using [power] and at least one bonus. Use your Max+Mid+Min dice. Destroy all of your bonuses, adding each of them to this Attack first, even if they are exclusive." },
         { "name": "Eruption", "type": "A", "text": "Attack up to three targets, one of which must be you, using [power]. Assign your Min, Mid, and Max dice as you choose among those targets." },
@@ -25,7 +26,7 @@
       ]
     },
     {
-      "powerCategory": "hallmark", "page": 107,
+      "powerCategory": "hallmark", "book": "core-rules", "page": 107,
       "abilities": [
         { "name": "Charged Up Blast", "type": "A", "requires": { "power": "signature-weaponry" }, "text": "Attack using [Signature Weaponry] and at least one bonus. Use your Max+Mid+Min dice. Destroy all of your bonuses, adding each of them to this Attack first, even if they are exclusive." },
         { "name": "Quick Exit", "type": "A", "requires": { "power": "signature-vehicle" }, "text": "Attack using [Signature Vehicle]. Use your Max die. Hinder each nearby opponent with your Mid die. After using this ability, you and up to 2 allies may end up anywhere in the scene, even outside of the action." },
@@ -34,7 +35,7 @@
       ]
     },
     {
-      "powerCategory": "intellectual", "page": 107,
+      "powerCategory": "intellectual", "book": "core-rules", "page": 107,
       "abilities": [
         { "name": "Calculated Dodge", "type": "R", "text": "You may take 1 irreducible damage to reroll the dice pool of a target that is Attacking or Hindering you." },
         { "name": "Give Time", "type": "A", "text": "Boost another hero using [power]. If that hero has already acted for the turn, use your Max die, and that hero loses Health equal to your Min die. That hero acts next in the turn order." },
@@ -43,7 +44,7 @@
       ]
     },
     {
-      "powerCategory": "materials", "page": 107,
+      "powerCategory": "materials", "book": "core-rules", "page": 107,
       "abilities": [
         { "name": "Field of Hazards", "type": "A", "text": "Hinder any number of targets in the scene using [power]. Use your Max+Min dice. If you roll doubles, also Attack each target using your Mid die." },
         { "name": "Impenetrable Defense", "type": "A", "text": "Defend using [power] against all Attacks against you until your next turn using your Max+Mid dice." },
@@ -53,7 +54,7 @@
       ]
     },
     {
-      "powerCategory": "mobility", "page": 108,
+      "powerCategory": "mobility", "book": "core-rules", "page": 108,
       "abilities": [
         { "name": "Calculated Dodge", "type": "R", "text": "You may take 1 irreducible damage to reroll the dice pool of a target that is Attacking or Hindering you." },
         { "name": "Heroic Interruption", "type": "R", "text": "When an Attack deals damage to a nearby hero in the Red zone, you may take d6 irreducible damage to redirect that Attack to a target of your choice, other than the source of the Attack." },
@@ -63,7 +64,7 @@
       ]
     },
     {
-      "powerCategory": "psychic", "page": 108,
+      "powerCategory": "psychic", "book": "core-rules", "page": 108,
       "abilities": [
         { "name": "Dangerous Hinder", "type": "A", "text": "Hinder using [power]. Use your Max+Mid dice. If you roll doubles, also Attack the target using your Mid+Min dice and take damage equal to your Min die." },
         { "name": "Dire Control", "type": "A", "text": "Select a minion. That minion is now entirely under your control and acts at the start of your turn. If you are incapacitated, you lose control of this minion. You may also choose to release control of this minion at any time. At the end of the scene, this minion is defeated." },
@@ -75,7 +76,7 @@
       ]
     },
     {
-      "powerCategory": "self-control", "page": 109,
+      "powerCategory": "self-control", "book": "core-rules", "page": 109,
       "abilities": [
         { "name": "Change Self", "type": "I", "text": "At the start of your turn, swap two of your power dice. They stay swapped until changed again or the scene ends." },
         { "name": "Empowerment", "type": "R", "text": "When you are Attacked, roll your single [power] die as a Defend against that Attack. Also Boost yourself with that same roll." },
@@ -89,7 +90,7 @@
       ]
     },
     {
-      "powerCategory": "technological", "page": 109,
+      "powerCategory": "technological", "book": "core-rules", "page": 109,
       "abilities": [
         { "name": "Combustion", "type": "A", "text": "Attack multiple nearby targets using [power]. Use your Max+Mid dice. Take irreducible damage equal to your Min die." },
         { "name": "Final Wrath", "type": "A", "text": "Attack using [power]. Use your Max+Mid+Min dice. Take a major twist." },
@@ -99,7 +100,7 @@
       ]
     },
     {
-      "qualityCategory": "information", "page": 110,
+      "qualityCategory": "information", "book": "core-rules", "page": 110,
       "abilities": [
         { "name": "Critical Eye", "type": "A", "text": "Select a target. Boost using [quality]. Use your Max+Mid+Min dice. That bonus must be used against that target before the end of your next turn, or it is wasted." },
         { "name": "Discern Weakness", "type": "A", "text": "Remove a bonus on a target. Hinder that target using [quality]. Use your Max die, and that penalty is persistent and exclusive." },
@@ -108,7 +109,7 @@
       ]
     },
     {
-      "qualityCategory": "mental", "page": 110,
+      "qualityCategory": "mental", "book": "core-rules", "page": 110,
       "abilities": [
         { "name": "Aware Response", "type": "R", "text": "After an opponent Attacks or Hinders you or a nearby ally, Attack the opponent by rolling your single [quality] die." },
         { "name": "Canny Awareness", "type": "A", "text": "Overcome using [quality]. Use your Max+Min dice. Hinder all nearby opponents with your Mid die." },
@@ -119,7 +120,7 @@
       ]
     },
     {
-      "qualityCategory": "physical", "page": 110,
+      "qualityCategory": "physical", "book": "core-rules", "page": 110,
       "abilities": [
         { "name": "Book It", "type": "A", "text": "Hinder any number of close targets using [quality]. Use your Max die. End your turn elsewhere in the scene." },
         { "name": "Endurance Fighting", "type": "I", "text": "Whenever you Attack a target with an action, you may also Hinder that target with your Min die." },
@@ -128,7 +129,7 @@
       ]
     },
     {
-      "qualityCategory": "social", "page": 111,
+      "qualityCategory": "social", "book": "core-rules", "page": 111,
       "abilities": [
         { "name": "Heroic Sacrifice", "type": "R", "text": "When an opponent Attacks, you may become the target of that Attack and Defend by rolling your single Red zone die." },
         { "name": "Inspiring Totem", "type": "I", "text": "When you use an ability action, you may also perform any one basic action using your Mid die on the same roll." },

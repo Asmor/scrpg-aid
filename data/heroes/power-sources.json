@@ -1,5 +1,6 @@
 {
   "step": 2,
+  "book": "core-rules",
   "page": 57,
   "chartPage": 56,
   "powerSources": [
@@ -7,6 +8,7 @@
       "id": "accident",
       "roll": 1,
       "name": "Accident",
+      "book": "core-rules",
       "page": 57,
       "powers": {
         "dice": "fromBackground",
@@ -82,6 +84,7 @@
       "id": "training",
       "roll": 2,
       "name": "Training",
+      "book": "core-rules",
       "page": 58,
       "powers": {
         "dice": "fromBackground",
@@ -142,6 +145,7 @@
       "id": "genetic",
       "roll": 3,
       "name": "Genetic",
+      "book": "core-rules",
       "page": 58,
       "powers": {
         "dice": "fromBackground",
@@ -216,6 +220,7 @@
       "id": "experimentation",
       "roll": 4,
       "name": "Experimentation",
+      "book": "core-rules",
       "page": 59,
       "powers": {
         "dice": "fromBackground",
@@ -287,6 +292,7 @@
       "id": "mystical",
       "roll": 5,
       "name": "Mystical",
+      "book": "core-rules",
       "page": 59,
       "powers": {
         "dice": "fromBackground",
@@ -364,6 +370,7 @@
       "id": "nature",
       "roll": 6,
       "name": "Nature",
+      "book": "core-rules",
       "page": 60,
       "powers": {
         "dice": "fromBackground",
@@ -454,6 +461,7 @@
       "id": "relic",
       "roll": 7,
       "name": "Relic",
+      "book": "core-rules",
       "page": 61,
       "powers": {
         "dice": "fromBackground",
@@ -539,6 +547,7 @@
       "id": "powered-suit",
       "roll": 8,
       "name": "Powered Suit",
+      "book": "core-rules",
       "page": 62,
       "powers": {
         "dice": "fromBackground",
@@ -635,6 +644,7 @@
       "id": "radiation",
       "roll": 9,
       "name": "Radiation",
+      "book": "core-rules",
       "page": 63,
       "powers": {
         "dice": "fromBackground",
@@ -711,6 +721,7 @@
       "id": "tech-upgrades",
       "roll": 10,
       "name": "Tech Upgrades",
+      "book": "core-rules",
       "page": 64,
       "powers": {
         "dice": "fromBackground",
@@ -790,6 +801,7 @@
       "id": "supernatural",
       "roll": 11,
       "name": "Supernatural",
+      "book": "core-rules",
       "page": 65,
       "powers": {
         "dice": "fromBackground",
@@ -886,6 +898,7 @@
       "id": "artificial-being",
       "roll": 12,
       "name": "Artificial Being",
+      "book": "core-rules",
       "page": 66,
       "powers": {
         "dice": "fromBackground",
@@ -966,6 +979,7 @@
       "id": "cursed",
       "roll": 13,
       "name": "Cursed",
+      "book": "core-rules",
       "page": 67,
       "powers": {
         "dice": "fromBackground",
@@ -1033,6 +1047,7 @@
       "id": "alien",
       "roll": 14,
       "name": "Alien",
+      "book": "core-rules",
       "page": 67,
       "powers": {
         "dice": "fromBackground",
@@ -1114,6 +1129,7 @@
       "id": "genius",
       "roll": 15,
       "name": "Genius",
+      "book": "core-rules",
       "page": 68,
       "powers": {
         "dice": "fromBackground",
@@ -1182,6 +1198,7 @@
       "id": "cosmos",
       "roll": 16,
       "name": "Cosmos",
+      "book": "core-rules",
       "page": 68,
       "powers": {
         "dice": "fromBackground",
@@ -1272,6 +1289,7 @@
       "id": "extradimensional",
       "roll": 17,
       "name": "Extradimensional",
+      "book": "core-rules",
       "page": 69,
       "powers": {
         "dice": "fromBackground",
@@ -1360,6 +1378,7 @@
       "id": "unknown",
       "roll": 18,
       "name": "Unknown",
+      "book": "core-rules",
       "page": 69,
       "powers": {
         "dice": "fromBackground",
@@ -1425,6 +1444,7 @@
       "id": "higher-power",
       "roll": 19,
       "name": "Higher Power",
+      "book": "core-rules",
       "page": 70,
       "powers": {
         "dice": "fromBackground",
@@ -1498,6 +1518,7 @@
       "id": "the-multiverse",
       "roll": 20,
       "name": "The Multiverse",
+      "book": "core-rules",
       "page": 70,
       "powers": {
         "dice": "fromBackground",

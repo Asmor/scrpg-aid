@@ -1,9 +1,10 @@
 {
+  "book": "core-rules",
   "page": 220,
   "notes": "A villain archetype sets how the villain's status die is determined, adds to Health, and offers abilities. Unlike heroes, villains can always use all of their abilities regardless of zone.",
   "archetypes": [
     {
-      "id": "bruiser", "number": 1, "name": "Bruiser", "page": 221, "healthModifier": 20,
+      "id": "bruiser", "number": 1, "name": "Bruiser", "book": "core-rules", "page": 221, "healthModifier": 20,
       "suggestedApproaches": ["bully", "disruptive", "generalist", "prideful"],
       "status": { "basis": "healthZone", "summary": "Tracks status by its own Health zone, like a hero (zones from the villain Health chart).", "zones": { "green": "d6", "yellow": "d8", "red": "d10" } },
       "abilities": {
@@ -19,7 +20,7 @@
       }
     },
     {
-      "id": "domain", "number": 2, "name": "Domain", "page": 222, "healthModifier": 30,
+      "id": "domain", "number": 2, "name": "Domain", "book": "core-rules", "page": 222, "healthModifier": 30,
       "suggestedApproaches": ["dampening", "overpowered"],
       "status": { "basis": "count", "counts": "environment minions, lieutenants, and/or challenges in the scene", "tiers": [
         { "min": 3, "die": "d10" }, { "min": 1, "max": 2, "die": "d8" }, { "min": 0, "max": 0, "die": "d6" }
@@ -37,7 +38,7 @@
       }
     },
     {
-      "id": "formidable", "number": 3, "name": "Formidable", "page": 223, "healthModifier": 25,
+      "id": "formidable", "number": 3, "name": "Formidable", "book": "core-rules", "page": 223, "healthModifier": 25,
       "suggestedApproaches": ["ancient", "disruptive", "overpowered"],
       "status": { "basis": "weakness", "summary": "Has a critical weakness; status depends on penalties related to that weakness.", "tiers": [
         { "condition": "Has penalties related to its weakness and no bonuses", "die": "d4" },
@@ -57,7 +58,7 @@
       }
     },
     {
-      "id": "fragile", "number": 4, "name": "Fragile", "page": 224, "healthModifier": -5,
+      "id": "fragile", "number": 4, "name": "Fragile", "book": "core-rules", "page": 224, "healthModifier": -5,
       "suggestedApproaches": ["focused", "underpowered"],
       "status": { "basis": "healthZone", "summary": "Tracks status by its own Health zone, like a hero (zones from the villain Health chart).", "zones": { "green": "d10", "yellow": "d8", "red": "d6" } },
       "abilities": {
@@ -73,7 +74,7 @@
       }
     },
     {
-      "id": "guerrilla", "number": 5, "name": "Guerrilla", "page": 225, "healthModifier": 20,
+      "id": "guerrilla", "number": 5, "name": "Guerrilla", "book": "core-rules", "page": 225, "healthModifier": 20,
       "suggestedApproaches": ["ninja", "prideful"],
       "status": { "basis": "count", "counts": "opponents engaged with the villain", "tiers": [
         { "min": 4, "die": "d10" }, { "min": 2, "max": 3, "die": "d8" }, { "min": 0, "max": 1, "die": "d6" }
@@ -91,7 +92,7 @@
       }
     },
     {
-      "id": "indomitable", "number": 6, "name": "Indomitable", "page": 226, "healthModifier": 20,
+      "id": "indomitable", "number": 6, "name": "Indomitable", "book": "core-rules", "page": 226, "healthModifier": 20,
       "suggestedApproaches": ["generalist", "relentless"],
       "status": { "basis": "fixed", "die": "d8", "summary": "Status never changes." },
       "abilities": {
@@ -107,7 +108,7 @@
       }
     },
     {
-      "id": "inhibitor", "number": 7, "name": "Inhibitor", "page": 227, "healthModifier": 10,
+      "id": "inhibitor", "number": 7, "name": "Inhibitor", "book": "core-rules", "page": 227, "healthModifier": 10,
       "suggestedApproaches": ["dampening", "focused"],
       "status": { "basis": "count", "counts": "heroes with at least one penalty", "tiers": [
         { "min": 3, "die": "d10" }, { "min": 1, "max": 2, "die": "d8" }, { "min": 0, "max": 0, "die": "d6" }
@@ -125,7 +126,7 @@
       }
     },
     {
-      "id": "inventor", "number": 8, "name": "Inventor", "page": 228, "healthModifier": 10,
+      "id": "inventor", "number": 8, "name": "Inventor", "book": "core-rules", "page": 228, "healthModifier": 10,
       "suggestedApproaches": ["mastermind", "underpowered"],
       "status": { "basis": "count", "counts": "bonuses and penalties the villain created with Inventions and/or Science, plus inventions deployed in the scene (including ones created by its minions, lieutenants, and twists)", "tiers": [
         { "min": 4, "die": "d12" }, { "min": 2, "max": 3, "die": "d10" }, { "min": 1, "max": 1, "die": "d8" }, { "min": 0, "max": 0, "die": "d6" }
@@ -143,7 +144,7 @@
       }
     },
     {
-      "id": "legion", "number": 9, "name": "Legion", "page": 229, "healthModifier": -5,
+      "id": "legion", "number": 9, "name": "Legion", "book": "core-rules", "page": 229, "healthModifier": -5,
       "suggestedApproaches": ["adaptive", "creator", "tactician"],
       "pairingNote": "If pairing with Creator, avoid overlapping abilities. A Legion villain needs some way to create more minions (from an approach ability, archetype ability, or upgrade).",
       "status": { "basis": "count", "counts": "minions in the scene allied with the villain", "tiers": [
@@ -165,7 +166,7 @@
       ]
     },
     {
-      "id": "loner", "number": 10, "name": "Loner", "page": 230, "healthModifier": 10,
+      "id": "loner", "number": 10, "name": "Loner", "book": "core-rules", "page": 230, "healthModifier": 10,
       "suggestedApproaches": ["leech", "relentless", "skilled"],
       "status": { "basis": "count", "counts": "other villains in the scene allied with the villain", "tiers": [
         { "min": 0, "max": 0, "die": "d10" }, { "min": 1, "max": 2, "die": "d8" }, { "min": 3, "die": "d6" }
@@ -183,7 +184,7 @@
       }
     },
     {
-      "id": "overlord", "number": 11, "name": "Overlord", "page": 231, "healthModifier": 15,
+      "id": "overlord", "number": 11, "name": "Overlord", "book": "core-rules", "page": 231, "healthModifier": 15,
       "suggestedApproaches": ["creator", "mastermind", "tactician"],
       "pairingNote": "If pairing with Creator, avoid overlapping abilities.",
       "status": { "basis": "count", "counts": "minions and lieutenants loyal to the villain in the scene", "tiers": [
@@ -202,7 +203,7 @@
       }
     },
     {
-      "id": "predator", "number": 12, "name": "Predator", "page": 232, "healthModifier": 15,
+      "id": "predator", "number": 12, "name": "Predator", "book": "core-rules", "page": 232, "healthModifier": 15,
       "suggestedApproaches": ["leech", "relentless", "specialized"],
       "status": { "basis": "count", "counts": "heroes engaged with the villain", "tiers": [
         { "min": 0, "max": 1, "die": "d10" }, { "min": 2, "max": 3, "die": "d8" }, { "min": 4, "die": "d6" }
@@ -220,7 +221,7 @@
       }
     },
     {
-      "id": "squad", "number": 13, "name": "Squad", "page": 233, "healthModifier": 5,
+      "id": "squad", "number": 13, "name": "Squad", "book": "core-rules", "page": 233, "healthModifier": 5,
       "suggestedApproaches": ["bully", "focused", "specialized"],
       "status": { "basis": "count", "counts": "other villains in the scene", "tiers": [
         { "min": 0, "max": 0, "die": "d6" }, { "min": 1, "max": 2, "die": "d8" }, { "min": 3, "die": "d10" }
@@ -238,7 +239,7 @@
       }
     },
     {
-      "id": "titan", "number": 14, "name": "Titan", "page": 234, "healthModifier": 30,
+      "id": "titan", "number": 14, "name": "Titan", "book": "core-rules", "page": 234, "healthModifier": 30,
       "suggestedApproaches": ["ancient", "overpowered"],
       "status": {
         "basis": "challenge", "startingDie": "d12",

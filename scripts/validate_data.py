@@ -5,7 +5,8 @@ Checks that every JSON file parses; that entries have their required fields;
 that ids are unique; that references to powers, qualities, categories, and
 approaches resolve; that option references are well formed; that abilities
 have a name, type, and text; that choice counts don't exceed their options;
-and that dice, page numbers, roll tables, and Health tables are well formed.
+that every page reference names a book from books.json; and that dice, page
+numbers, roll tables, and Health tables are well formed.
 
 Usage: python3 scripts/validate_data.py   (exits non-zero on any error)
 Set SCRPG_DATA to validate a different data directory.
@@ -31,28 +32,30 @@ DIE_LIST_KEYS = {"dice", "powerDice", "qualityDice", "powerSourceDice", "archety
 SINGLE_DIE_KEYS = {"die", "fallbackDie", "startingDie", "fillerPowerDie"}
 OPTION_LIST_KEYS = {"options", "powerOptions", "required", "suggestedPowers",
                     "suggestedQualities", "extraOptions"}
-MAX_PAGE = 450  # the Core Rules has fewer printed pages than this
+MAX_PAGE = 450  # fallback upper bound for files with no registered span
 BASIC_ACTIONS = {"attack", "defend", "boost", "hinder", "overcome"}
 IF_ALREADY_HAVE = {"skip", "swap", "addDifferentFromCategory"}
 ZONES = {"green", "yellow", "red"}
-# Printed page span of the book section each file was extracted from. Catches
-# PDF page indexes (printed + 8) and other stray page numbers.
+PAGE_KEYS = {"page", "pages", "chartPage"}
+BOOKS_FILE = "books.json"
+# For each file, the printed page span of each book section it was extracted
+# from. Catches PDF page indexes (printed + 8) and other stray page numbers.
 PAGE_SPANS = {
-    "heroes/powers-qualities.json": (47, 121),
-    "heroes/backgrounds.json": (48, 54),
-    "heroes/power-sources.json": (56, 70),
-    "heroes/archetypes.json": (72, 98),
-    "heroes/personalities.json": (100, 121),
-    "heroes/red-abilities.json": (106, 111),
-    "heroes/retcons.json": (112, 112),
-    "heroes/health.json": (113, 113),
-    "heroes/principles.json": (122, 141),
-    "villains/approaches.json": (121, 219),
-    "villains/archetypes.json": (220, 234),
-    "villains/upgrades.json": (235, 238),
-    "villains/health.json": (239, 239),
-    "minions/minions.json": (186, 207),
-    "environments/environments.json": (157, 245),
+    "heroes/powers-qualities.json": {"core-rules": (47, 121)},
+    "heroes/backgrounds.json": {"core-rules": (48, 54)},
+    "heroes/power-sources.json": {"core-rules": (56, 70)},
+    "heroes/archetypes.json": {"core-rules": (72, 98)},
+    "heroes/personalities.json": {"core-rules": (100, 121)},
+    "heroes/red-abilities.json": {"core-rules": (106, 111)},
+    "heroes/retcons.json": {"core-rules": (112, 112)},
+    "heroes/health.json": {"core-rules": (113, 113)},
+    "heroes/principles.json": {"core-rules": (122, 141)},
+    "villains/approaches.json": {"core-rules": (121, 219)},
+    "villains/archetypes.json": {"core-rules": (220, 234)},
+    "villains/upgrades.json": {"core-rules": (235, 238)},
+    "villains/health.json": {"core-rules": (239, 239)},
+    "minions/minions.json": {"core-rules": (186, 207)},
+    "environments/environments.json": {"core-rules": (157, 245)},
 }
 
 errors = []
@@ -129,7 +132,7 @@ def is_ref(node):
     return bool(REF_KEYS & node.keys())
 
 
-def check_node(node, where, known, approaches, span):
+def check_node(node, where, known, approaches, books, spans):
     """Checks applied to every object in every file."""
     keys = node.keys()
 
@@ -203,14 +206,24 @@ def check_node(node, where, known, approaches, span):
         elif not (k == "dice" and v == "fromBackground"):
             err(where, f"'{k}' should be a list of dice")
 
-    # Pages.
-    lo, hi = span
-    if "page" in keys and not (isinstance(node["page"], int) and lo <= node["page"] <= hi):
-        err(where, f"page {node['page']!r} outside this file's span {lo}-{hi}")
-    if "pages" in keys:
-        v = node["pages"]
-        if not (isinstance(v, list) and v and all(isinstance(p, int) and lo <= p <= hi for p in v)):
-            err(where, f"pages {v!r} outside this file's span {lo}-{hi}")
+    # Pages: every page reference names its book, and falls in that book's span for this file.
+    if PAGE_KEYS & keys:
+        book = node.get("book")
+        if book not in books:
+            err(where, f"page reference needs a 'book' from {BOOKS_FILE}, got {book!r}")
+        elif spans is not None and book not in spans:
+            err(where, f"no page span registered for book '{book}' in this file")
+        else:
+            lo, hi = spans[book] if spans is not None else (1, MAX_PAGE)
+            for k in ("page", "chartPage"):
+                if k in keys and not (isinstance(node[k], int) and lo <= node[k] <= hi):
+                    err(where, f"{k} {node[k]!r} outside this file's span {lo}-{hi} for '{book}'")
+            if "pages" in keys:
+                v = node["pages"]
+                if not (isinstance(v, list) and v and all(isinstance(p, int) and lo <= p <= hi for p in v)):
+                    err(where, f"pages {v!r} outside this file's span {lo}-{hi} for '{book}'")
+    elif "book" in keys:
+        err(where, "'book' without a page reference")
 
     # Category and approach references.
     pc = node.get("principleCategory")
@@ -219,6 +232,19 @@ def check_node(node, where, known, approaches, span):
     for a in node.get("suggestedApproaches", []):
         if a not in approaches:
             err(where, f"unknown approach '{a}'")
+
+
+def check_books(entries):
+    seen = set()
+    for b in entries:
+        require(b, ["id", "title"], f"{BOOKS_FILE}[{b.get('id', '?')}]")
+        if b.get("id") in seen:
+            err(BOOKS_FILE, f"duplicate id '{b.get('id')}'")
+        seen.add(b.get("id"))
+    for rel, spans in PAGE_SPANS.items():
+        for book in spans:
+            if book not in seen:
+                err(rel, f"PAGE_SPANS names unknown book '{book}'")
 
 
 def check_heroes(docs):
@@ -381,13 +407,16 @@ def main():
     va = docs.get("villains/approaches.json")
     approaches = {a.get("id") for a in va.get("approaches", []) if isinstance(a, dict)} if isinstance(va, dict) else set()
 
+    book_entries = items(docs.get(BOOKS_FILE), "books", BOOKS_FILE)
+    check_books(book_entries)
+    books = {b.get("id") for b in book_entries}
+
     for rel, doc in docs.items():
-        if doc is not None:
-            span = PAGE_SPANS.get(rel)
-            if span is None:
+        if doc is not None and rel != BOOKS_FILE:
+            spans = PAGE_SPANS.get(rel)
+            if spans is None:
                 err(rel, "no page span registered in PAGE_SPANS")
-                span = (1, MAX_PAGE)
-            walk(doc, rel, lambda node, where, span=span: check_node(node, where, known, approaches, span))
+            walk(doc, rel, lambda node, where, spans=spans: check_node(node, where, known, approaches, books, spans))
 
     check_heroes(docs)
     check_villains(docs)

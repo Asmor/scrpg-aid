@@ -1,10 +1,12 @@
 {
+  "book": "core-rules",
   "page": 47,
   "powerCategories": [
     {
       "id": "athletic",
       "name": "Athletic",
       "usedForHealth": true,
+      "book": "core-rules",
       "page": 115,
       "powers": [
         { "id": "agility", "name": "Agility", "summary": "Sharp reflexes." },
@@ -16,6 +18,7 @@
     {
       "id": "elemental-energy",
       "name": "Elemental/Energy",
+      "book": "core-rules",
       "page": 115,
       "powers": [
         { "id": "cold", "name": "Cold", "summary": "Drops temperatures and shapes ice." },
@@ -33,16 +36,18 @@
       "id": "hallmark",
       "name": "Hallmark",
       "requiresCustomization": true,
+      "book": "core-rules",
       "page": 115,
       "powers": [
         { "id": "signature-vehicle", "name": "Signature Vehicle", "rename": true, "summary": "A custom vehicle that is almost always available. Rename it to the specific vehicle." },
         { "id": "signature-weaponry", "name": "Signature Weaponry", "rename": true, "summary": "A weapon (or arsenal) closely tied to the hero. Rename it to the specific weapon." },
-        { "id": "invented-power", "name": "Invented Power", "requiresGmPermission": true, "rename": true, "summary": "A new power not covered by the list; requires GM approval.", "page": 116 }
+        { "id": "invented-power", "name": "Invented Power", "requiresGmPermission": true, "rename": true, "summary": "A new power not covered by the list; requires GM approval.", "book": "core-rules", "page": 116 }
       ]
     },
     {
       "id": "intellectual",
       "name": "Intellectual",
+      "book": "core-rules",
       "page": 116,
       "powers": [
         { "id": "awareness", "name": "Awareness", "summary": "Heightened senses, from danger sense to keen sight and hearing." },
@@ -55,6 +60,7 @@
     {
       "id": "materials",
       "name": "Materials",
+      "book": "core-rules",
       "page": 116,
       "powers": [
         { "id": "metal", "name": "Metal", "summary": "Controls and shapes metal." },
@@ -67,6 +73,7 @@
     {
       "id": "mobility",
       "name": "Mobility",
+      "book": "core-rules",
       "page": 117,
       "powers": [
         { "id": "flight", "name": "Flight", "summary": "Flies." },
@@ -81,6 +88,7 @@
     {
       "id": "psychic",
       "name": "Psychic",
+      "book": "core-rules",
       "page": 117,
       "powers": [
         { "id": "animal-control", "name": "Animal Control", "summary": "Communicates with and commands non-sentient animals." },
@@ -96,6 +104,7 @@
     {
       "id": "self-control",
       "name": "Self Control",
+      "book": "core-rules",
       "page": 118,
       "powers": [
         { "id": "absorption", "name": "Absorption", "summary": "Absorbs incoming energy and redirects it in other forms." },
@@ -112,6 +121,7 @@
     {
       "id": "technological",
       "name": "Technological",
+      "book": "core-rules",
       "page": 118,
       "powers": [
         { "id": "gadgets", "name": "Gadgets", "summary": "A variety of useful tech tools, usually made by someone else." },
@@ -125,6 +135,7 @@
     {
       "id": "information",
       "name": "Information",
+      "book": "core-rules",
       "page": 119,
       "qualities": [
         { "id": "criminal-underworld-info", "name": "Criminal Underworld Info", "summary": "Connections in organized crime." },
@@ -141,6 +152,7 @@
       "id": "mental",
       "name": "Mental",
       "usedForHealth": true,
+      "book": "core-rules",
       "page": 119,
       "qualities": [
         { "id": "alertness", "name": "Alertness", "summary": "Senses trained to stay alert." },
@@ -153,6 +165,7 @@
     {
       "id": "physical",
       "name": "Physical",
+      "book": "core-rules",
       "page": 120,
       "qualities": [
         { "id": "acrobatics", "name": "Acrobatics", "summary": "Gymnastic and aerial maneuvers." },
@@ -166,6 +179,7 @@
     {
       "id": "social",
       "name": "Social",
+      "book": "core-rules",
       "page": 120,
       "qualities": [
         { "id": "banter", "name": "Banter", "summary": "Quick, often needling talk." },
@@ -179,6 +193,7 @@
       "id": "special",
       "name": "Special",
       "requiresCustomization": true,
+      "book": "core-rules",
       "page": 121,
       "qualities": [
         { "id": "roleplaying-quality", "name": "Roleplaying Quality", "rename": true, "summary": "A quality you write yourself that sums up the hero's core concept, broader than a single skill. Gained during the personality step." }

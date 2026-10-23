@@ -6,6 +6,7 @@ Mechanical content extracted from *Sentinel Comics: The Roleplaying Game — Cor
 
 | Path | Contents |
 | --- | --- |
+| `books.json` | Source books that page references point to (currently only the Core Rules) |
 | `rules/` | Paraphrased process documents (Markdown): core concepts, hero creation, villain creation, minion/lieutenant/environment creation |
 | `heroes/powers-qualities.json` | Power and quality categories and entries (p. 47, 115–121) |
 | `heroes/backgrounds.json` | Step 1: backgrounds (p. 48–54) |
@@ -27,7 +28,7 @@ Pre-made heroes, villains, minions, and environments (Chapter 7, adventure issue
 
 ## Conventions
 
-- **Page numbers** (`page`, `pages`, `chartPage`) are the numbers printed in the Core Rules, so players can look things up in a physical book. (The PDF page index is the printed page + 8.)
+- **Page references:** every object with a `page`, `pages`, or `chartPage` also has a `book`, an id from `books.json` (currently always `"core-rules"`). Page numbers are the numbers printed in that book, so players can look things up in a physical copy. (For the Core Rules PDF, the PDF page index is the printed page + 8.) The Markdown documents in `rules/` cite Core Rules pages.
 - **Ids** are kebab-case and unique within their list. Cross-references use these ids.
 - **Dice** are strings: `"d4"`, `"d6"`, `"d8"`, `"d10"`, `"d12"`.
 - **Option references** use one key: `{ "power": id }`, `{ "quality": id }`, `{ "powerCategory": id }`, or `{ "qualityCategory": id }`. Ids come from `heroes/powers-qualities.json`.
@@ -46,7 +47,7 @@ Pre-made heroes, villains, minions, and environments (Chapter 7, adventure issue
 python3 scripts/validate_data.py
 ```
 
-This checks that every file parses; that entries have their required fields; that ids are unique; that cross-references and option references resolve; that abilities have a name, type, and text; that choice counts don't exceed their options; that dice, ability types, and enumerated values are valid; that page numbers fall within the book section each file covers (`PAGE_SPANS`, which also catches PDF page indexes); that roll tables cover 1–20; and that Health tables are contiguous. When you add a data file, register its page span in the script.
+This checks that every file parses; that entries have their required fields; that ids are unique; that cross-references and option references resolve; that abilities have a name, type, and text; that choice counts don't exceed their options; that dice, ability types, and enumerated values are valid; that every page reference names a book from `books.json`; that page numbers fall within the book section each file covers (`PAGE_SPANS`, per file and per book, which also catches PDF page indexes); that roll tables cover 1–20; and that Health tables are contiguous. When you add a data file, or cite a new book in an existing file, register the page span in the script.
 
 ## How it was extracted
 

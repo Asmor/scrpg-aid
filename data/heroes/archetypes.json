@@ -1,5 +1,6 @@
 {
   "step": 3,
+  "book": "core-rules",
   "page": 73,
   "chartPage": 72,
   "notes": "Powers and qualities in an archetype are assigned from the dice rolled at the end of the power source step. Abilities are taken at the zone listed. When an entry says to assign a die to something you already have, you may skip it or swap the die (and, where noted, add a different power from the same category instead).",
@@ -8,6 +9,7 @@
       "id": "speedster",
       "roll": 1,
       "name": "Speedster",
+      "book": "core-rules",
       "page": 73,
       "required": {
         "options": [
@@ -107,6 +109,7 @@
       "id": "shadow",
       "roll": 2,
       "name": "Shadow",
+      "book": "core-rules",
       "page": 74,
       "required": {
         "options": [
@@ -190,6 +193,7 @@
       "id": "physical-powerhouse",
       "roll": 3,
       "name": "Physical Powerhouse",
+      "book": "core-rules",
       "page": 75,
       "required": {
         "options": [
@@ -279,6 +283,7 @@
       "id": "marksman",
       "roll": 4,
       "name": "Marksman",
+      "book": "core-rules",
       "page": 76,
       "required": {
         "options": [
@@ -393,6 +398,7 @@
       "id": "blaster",
       "roll": 5,
       "name": "Blaster",
+      "book": "core-rules",
       "page": 77,
       "required": {
         "options": [
@@ -492,6 +498,7 @@
       "id": "close-quarters-combatant",
       "roll": 6,
       "name": "Close Quarters Combatant",
+      "book": "core-rules",
       "page": 78,
       "required": {
         "options": [
@@ -583,6 +590,7 @@
       "id": "armored",
       "roll": 7,
       "name": "Armored",
+      "book": "core-rules",
       "page": 79,
       "powers": {
         "count": "oneOrMore",
@@ -680,6 +688,7 @@
       "id": "flyer",
       "roll": 8,
       "name": "Flyer",
+      "book": "core-rules",
       "page": 80,
       "required": {
         "options": [
@@ -777,6 +786,7 @@
       "id": "elemental-manipulator",
       "roll": 9,
       "name": "Elemental Manipulator",
+      "book": "core-rules",
       "page": 81,
       "required": {
         "options": [
@@ -898,6 +908,7 @@
       "id": "robot-cyborg",
       "roll": 10,
       "name": "Robot/Cyborg",
+      "book": "core-rules",
       "page": 82,
       "powers": {
         "count": "oneOrMore",
@@ -1004,6 +1015,7 @@
       "id": "sorcerer",
       "roll": 11,
       "name": "Sorcerer",
+      "book": "core-rules",
       "page": 83,
       "powers": {
         "count": "oneOrMore",
@@ -1093,6 +1105,7 @@
       "id": "psychic",
       "roll": 12,
       "name": "Psychic",
+      "book": "core-rules",
       "page": 84,
       "powers": {
         "count": "atLeastTwo",
@@ -1237,6 +1250,7 @@
       "id": "transporter",
       "roll": 13,
       "name": "Transporter",
+      "book": "core-rules",
       "page": 85,
       "required": {
         "options": [
@@ -1330,6 +1344,7 @@
       "id": "minion-maker",
       "roll": 14,
       "name": "Minion-Maker",
+      "book": "core-rules",
       "page": 86,
       "pages": [
         86,
@@ -1421,6 +1436,7 @@
         }
       ],
       "minionRules": {
+        "book": "core-rules",
         "page": 87,
         "summary": "Minions you create pick one basic action they can take (Attack, Overcome, Defend, Boost, or Hinder), act at the start of your turn under your control, and last only for the current scene. Their die size depends on your roll result.",
         "sizeByResult": [
@@ -1455,6 +1471,7 @@
         ]
       },
       "minionForms": {
+        "book": "core-rules",
         "page": 88,
         "selection": "At hero creation, choose a number of minion forms equal to the maximum value of a related quality (such as Creativity, Magical Lore, Otherworldly Mythos, Science, or Technology). Record them on your auxiliary sheet.",
         "usage": "When creating a minion, you may discard one bonus you have access to (on you or a willing ally) to add one of your forms whose bonus requirement it meets.",
@@ -1531,6 +1548,7 @@
       "id": "wild-card",
       "roll": 15,
       "name": "Wild Card",
+      "book": "core-rules",
       "page": 89,
       "powers": {
         "count": "oneOrMore",
@@ -1633,6 +1651,7 @@
       "id": "form-changer",
       "roll": 16,
       "name": "Form-Changer",
+      "book": "core-rules",
       "page": 90,
       "pages": [
         90,
@@ -1777,6 +1796,7 @@
       "id": "gadgeteer",
       "roll": 17,
       "name": "Gadgeteer",
+      "book": "core-rules",
       "page": 92,
       "required": {
         "options": [
@@ -1881,6 +1901,7 @@
       "id": "reality-shaper",
       "roll": 18,
       "name": "Reality Shaper",
+      "book": "core-rules",
       "page": 93,
       "powers": {
         "count": "oneOrMore",
@@ -1987,6 +2008,7 @@
       "id": "divided",
       "roll": 19,
       "name": "Divided",
+      "book": "core-rules",
       "page": 94,
       "pages": [
         94,
@@ -2099,6 +2121,7 @@
       "id": "modular",
       "roll": 20,
       "name": "Modular",
+      "book": "core-rules",
       "page": 96,
       "pages": [
         96,
@@ -2274,6 +2297,7 @@
                 "defend",
                 "overcome"
               ],
+              "book": "core-rules",
               "page": 98,
               "ability": {
                 "name": "Skirmish",
@@ -2292,6 +2316,7 @@
                 "hinder",
                 "overcome"
               ],
+              "book": "core-rules",
               "page": 98,
               "ability": {
                 "name": "Stalwart",

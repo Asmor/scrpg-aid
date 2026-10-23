@@ -8,8 +8,8 @@ A progressive web app for creating, editing, saving, sharing, and exporting (PDF
 
 ## Layout
 
-- `sources/`: the rulebook PDFs (Core Rules, Creating Heroes Quick Reference). Gitignored because they're copyrighted. Never commit them or copy them into the repo.
-- `data/`: rules data extracted from the PDFs (Phase 0). The app reads its rules from here. See `data/README.md` for file layout and conventions.
+- `sources/`: the rulebook PDFs (Core Rules, Creating Heroes Quick Reference). Gitignored because they're copyrighted. Never commit them or copy them into the repo. **Don't open, read, render, or extract from them in any way without explicit approval from the user.**
+- `data/`: rules data extracted from the PDFs (Phase 0). The app reads its rules from here, and it is the **source of truth** for game rules. See `data/README.md` for file layout and conventions.
 - `scripts/validate_data.py`: validates everything in `data/` (stdlib Python 3, no dependencies).
 - `GOAL.md`: project goals and phases.
 
@@ -21,11 +21,15 @@ No tech stack has been chosen for the app yet. Once one is, record it here along
 
 ## Rules data (`data/`)
 
+Phase 0 is complete (the user has declared it done), so `data/` is now the source of truth for the rules. If anything in it seems missing, wrong, or suspect, **stop and ask the user**. Don't go looking for the answer yourself, whether in the PDFs, on the web, or from memory of the game, and don't fill gaps with guesses. The user decides how to fix the data, and when you are asked to change it, the guidelines below apply. Being asked to change the data does **not** mean you're approved to open the PDFs; that needs its own explicit approval.
+
+The Core Rules is currently the only source book. More sources may be added later, so don't build anything (data structures, page references, UI) that assumes there will only ever be one book. Don't add support for other books until asked, though.
+
 - Capture **mechanics**: processes (character creation flow, HP calculation, etc.) and content (archetypes, origins, powers, qualities, abilities, principles, etc.).
 - Scope is the whole Core Rules, but only what's needed to **make** things: heroes, villains, lieutenants & minions, environments. Do not capture pre-made characters, villains, or environments from the book.
 - Format: **JSON** for game content (checked by `scripts/validate_data.py`; extend it when you add new structures or files); **Markdown** in `data/rules/` for distilled processes (creation flow, HP, etc.).
-- Every entry gets a **page reference** using the **printed page number** in the Core Rules, not the PDF page index, so players can find it in the physical book.
-- `Creating_Heroes_Quick_Reference.pdf` is pages copied out of the Core Rules. Use it as a guide only; always cite the Core Rules page.
+- Every entry gets a **page reference**: a `book` id from `data/books.json` plus the **printed page number** in that book (not the PDF page index), so players can find it in the physical book.
+- If the user approves consulting the PDFs: `Creating_Heroes_Quick_Reference.pdf` is pages copied out of the Core Rules. Use it as a guide only and always cite the Core Rules page.
 - Copy text verbatim only if it would appear verbatim on a character sheet (e.g. ability text). Rewrite explanations of how to play in your own words. Leave out flavor text and prose.
 - Use one structure and one naming convention across all data files, and make sure every file parses.
 

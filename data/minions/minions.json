@@ -1,6 +1,8 @@
 {
+  "book": "core-rules",
   "page": 204,
   "minions": {
+    "book": "core-rules",
     "page": 204,
     "steps": [
       "Name the minion and settle its concept.",
@@ -12,6 +14,7 @@
     "fields": ["name", "die", "count", "description", "abilities", "tactics"],
     "countNote": "Published minions note how many appear, typically per hero (for example, \"1 per hero\").",
     "dieSizes": {
+      "book": "core-rules",
       "page": 205,
       "examples": [
         { "die": "d4", "examples": ["damaged bots", "panicked mob", "rat swarms", "untrained humans", "ravenous guppies"] },
@@ -23,6 +26,7 @@
       "advice": "Large groups of high-die minions get dangerous quickly. To make minions more capable without that risk, give them situational bonuses through abilities instead of a bigger die."
     },
     "abilityGuidelines": {
+      "book": "core-rules",
       "page": 206,
       "count": "Usually none; one, or at most two, if they need to stand out.",
       "modRange": { "min": 1, "max": 3, "typical": 2 },
@@ -40,6 +44,7 @@
     }
   },
   "lieutenants": {
+    "book": "core-rules",
     "page": 207,
     "summary": "Built like minions, but tougher (a successful save doesn't reduce their die) and with more and better abilities. They can be elite followers, superpowered underlings, monsters, or war machines.",
     "naming": "Usually unique or special; individuals often get a full name and a title.",
@@ -68,6 +73,7 @@
     "massiveFoes": "For truly colossal threats, the book suggests combining an environment (for its actions), challenges (to defeat it), and threats (that protect it) rather than a single lieutenant."
   },
   "sceneDifficulty": {
+    "book": "core-rules",
     "page": 186,
     "summary": "H = number of heroes in the scene; ½H rounds up. In a group of minions, two minions can be traded for one lieutenant one die size larger.",
     "tiers": [

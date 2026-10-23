@@ -1,4 +1,5 @@
 {
+  "book": "core-rules",
   "page": 240,
   "steps": [
     "Name the environment, which also sets its scale (from a single building up to a city, region, or dimension).",
@@ -15,10 +16,12 @@
   ],
   "traits": {
     "count": 3,
+    "book": "core-rules",
     "page": 240,
     "guidance": "Traits work mostly in the background when twists come into play, so keep them general (a characteristic of the place, not a single gadget or monster)."
   },
   "traitDice": {
+    "book": "core-rules",
     "page": 241,
     "default": "d8, or d10 for a trait that matters more",
     "noBalancingRequired": true,
@@ -46,6 +49,7 @@
     ]
   },
   "twists": {
+    "book": "core-rules",
     "page": 241,
     "perZone": {
       "minor": "2-3",
@@ -88,6 +92,7 @@
       }
     ],
     "strengthGuidelines": {
+      "book": "core-rules",
       "page": 244,
       "basicActions": {
         "green": {
@@ -171,6 +176,7 @@
         }
       },
       "addThreats": {
+        "book": "core-rules",
         "page": 245,
         "green": {
           "minor": [
@@ -208,6 +214,7 @@
         }
       },
       "createChallenge": {
+        "book": "core-rules",
         "page": 245,
         "green": {
           "minor": [
@@ -235,6 +242,7 @@
         }
       },
       "advanceSceneTracker": {
+        "book": "core-rules",
         "page": 245,
         "green": {
           "minor": [],
@@ -258,6 +266,7 @@
     }
   },
   "turn": {
+    "book": "core-rules",
     "pages": [
       157,
       158
@@ -269,6 +278,7 @@
     ]
   },
   "challenges": {
+    "book": "core-rules",
     "page": 189,
     "summary": "A challenge is an obstacle described in a few words, with one or more checkboxes, each cleared by a successful Overcome. Aim for about three successes and at most five. A challenge can also have a timer, conditional or mutually exclusive approaches, an outcome when it's resolved, a consequence when it's triggered, an ability it uses when it takes a turn, and suggested twists.",
     "fields": [
@@ -282,6 +292,7 @@
       "twists"
     ],
     "timerGuide": {
+      "book": "core-rules",
       "page": 191,
       "tiers": [
         {
@@ -299,6 +310,7 @@
       ]
     },
     "doomsdayDevices": {
+      "book": "core-rules",
       "page": 197,
       "summary": "A multi-success challenge with catastrophic consequences if triggered. It takes its own turns, advancing the scene tracker by a set amount each turn (one or two spaces, or to the start or end of the next zone). It may also have abilities and twists."
     }

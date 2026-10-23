@@ -15,7 +15,7 @@ A progressive web app for creating characters for the Sentinel Comics RPG
 
 ## Phases
 
-### Phase 0: Data extration
+### Phase 0: Data extration **(Complete)**
 
 First, let's get all of the relevant data out of the PDF and into another format which is easier to work with. Markdown, json, yaml, whatever.
 

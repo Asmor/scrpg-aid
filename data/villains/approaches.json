@@ -1,8 +1,10 @@
 {
+  "book": "core-rules",
   "page": 208,
   "notes": "An approach gives a villain its power and quality dice (assign them to powers and qualities from the hero list on page 47; the suggestions are not requirements), a d8 roleplaying quality, base Health, and abilities.",
   "roleplayingQuality": {
     "die": "d8",
+    "book": "core-rules",
     "page": 121
   },
   "approaches": [
@@ -10,6 +12,7 @@
       "id": "adaptive",
       "number": 1,
       "name": "Adaptive",
+      "book": "core-rules",
       "page": 210,
       "baseHealth": 15,
       "powerDice": [
@@ -91,6 +94,7 @@
       "id": "ancient",
       "number": 2,
       "name": "Ancient",
+      "book": "core-rules",
       "page": 210,
       "baseHealth": 30,
       "powerDice": [
@@ -173,6 +177,7 @@
       "id": "bully",
       "number": 3,
       "name": "Bully",
+      "book": "core-rules",
       "page": 211,
       "baseHealth": 25,
       "powerDice": [
@@ -252,6 +257,7 @@
       "id": "creator",
       "number": 4,
       "name": "Creator",
+      "book": "core-rules",
       "page": 212,
       "baseHealth": 15,
       "powerDice": [
@@ -331,6 +337,7 @@
       "id": "dampening",
       "number": 5,
       "name": "Dampening",
+      "book": "core-rules",
       "page": 212,
       "baseHealth": 25,
       "powerDice": [
@@ -408,6 +415,7 @@
       "id": "disruptive",
       "number": 6,
       "name": "Disruptive",
+      "book": "core-rules",
       "page": 213,
       "baseHealth": 20,
       "powerDice": [
@@ -489,6 +497,7 @@
       "id": "focused",
       "number": 7,
       "name": "Focused",
+      "book": "core-rules",
       "page": 213,
       "baseHealth": 15,
       "powerDice": [
@@ -559,6 +568,7 @@
       "id": "generalist",
       "number": 8,
       "name": "Generalist",
+      "book": "core-rules",
       "page": 214,
       "baseHealth": 25,
       "powerDice": [
@@ -640,6 +650,7 @@
       "id": "leech",
       "number": 9,
       "name": "Leech",
+      "book": "core-rules",
       "page": 214,
       "baseHealth": 15,
       "powerDice": [
@@ -717,6 +728,7 @@
       "id": "mastermind",
       "number": 10,
       "name": "Mastermind",
+      "book": "core-rules",
       "page": 215,
       "baseHealth": 20,
       "powerDice": [
@@ -802,6 +814,7 @@
       "id": "ninja",
       "number": 11,
       "name": "Ninja",
+      "book": "core-rules",
       "page": 216,
       "baseHealth": 20,
       "powerDice": [
@@ -885,6 +898,7 @@
       "id": "overpowered",
       "number": 12,
       "name": "Overpowered",
+      "book": "core-rules",
       "page": 216,
       "baseHealth": 35,
       "powerDice": [
@@ -961,6 +975,7 @@
       "id": "prideful",
       "number": 13,
       "name": "Prideful",
+      "book": "core-rules",
       "page": 217,
       "baseHealth": 25,
       "powerDice": [
@@ -1045,6 +1060,7 @@
       "id": "relentless",
       "number": 14,
       "name": "Relentless",
+      "book": "core-rules",
       "page": 217,
       "baseHealth": 20,
       "powerDice": [
@@ -1125,6 +1141,7 @@
       "id": "skilled",
       "number": 15,
       "name": "Skilled",
+      "book": "core-rules",
       "page": 218,
       "baseHealth": 15,
       "powerDice": [
@@ -1195,6 +1212,7 @@
       "id": "specialized",
       "number": 16,
       "name": "Specialized",
+      "book": "core-rules",
       "page": 218,
       "baseHealth": 20,
       "powerDice": [
@@ -1262,6 +1280,7 @@
       "id": "tactician",
       "number": 17,
       "name": "Tactician",
+      "book": "core-rules",
       "page": 219,
       "baseHealth": 20,
       "powerDice": [
@@ -1343,6 +1362,7 @@
       "id": "underpowered",
       "number": 18,
       "name": "Underpowered",
+      "book": "core-rules",
       "page": 219,
       "baseHealth": 10,
       "powerDice": [

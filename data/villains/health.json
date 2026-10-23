@@ -1,4 +1,5 @@
 {
+  "book": "core-rules",
   "page": 239,
   "formula": {
     "summary": "Villain Health = approach base Health + archetype Health modifier + 5 × number of heroes + Health from each upgrade.",
