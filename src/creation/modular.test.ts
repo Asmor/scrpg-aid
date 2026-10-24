@@ -138,9 +138,10 @@ describe('Modular', () => {
     // From the power source's list (any Athletic power, for example) is fine too.
     hero.archetype!.traits = [A(P('strength'), 'd6')]
     expect(warnings()).toEqual([])
-    // Not on Speedster's or Accident's lists.
+    // Flight is on Speedster's list (a Mobility power).
     hero.archetype!.traits = [A(P('flight'), 'd6')]
     expect(warnings().map((w) => w.code)).toEqual([])
+    // Robotics is on neither Speedster's nor Accident's list.
     hero.archetype!.traits = [A(P('robotics'), 'd6')]
     expect(warnings().map((w) => w.message)).toEqual(["Robotics isn't on the Speedster or Accident power list."])
     hero.archetype!.traits = [A(P('leaping'), 'd8')]
@@ -160,8 +161,9 @@ describe('Modular', () => {
     stray.archetype!.abilities.push({ source: 'archetype.green', name: 'Debilitator', uses: [P('fire')] })
     expect(codes(stray)).toEqual(['unknown-ability'])
     const plain = completeHero()
-    plain.archetype!.modular = { modes: [] }
+    plain.archetype!.modular = { modes: [], powerless: [A(P('fire'), 'd6'), A(P('awareness'), 'd10')] }
     expect(codes(plain)).toEqual(['unexpected-modular'])
+    expect(buildSheet(plain).powerlessMode).toBeUndefined()
     const nested = modularHero()
     nested.archetype!.secondary!.modular = { modes: [] }
     expect(codes(nested)).toEqual(['unexpected-modular'])

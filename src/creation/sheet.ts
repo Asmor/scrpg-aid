@@ -19,7 +19,7 @@ import { findAbility, outPick, recordedPicks, type PlacedPick } from './lookup'
 import { checkPrinciples, heroPrinciples } from './principles'
 import { checkForms, formAbilityPick, formLabel, formTraits } from './forms'
 import { checkDivided, heroicTraits, outTraits, splitNames } from './divided'
-import { archetypeName, checkSecondary, dividedChoice, layers, traitLayer } from './layers'
+import { archetypeName, checkSecondary, dividedChoice, layers, outerLayer, traitLayer } from './layers'
 import { checkModular, findMode, modeAbilityPick, modeTraits } from './modular'
 import { checkRedAbilities } from './red'
 import { checkRetcon } from './retcons'
@@ -275,7 +275,8 @@ export function buildSheet(hero: Hero): HeroSheet {
       },
     ]
   })
-  const powerlessMode = modularChoice?.powerless && modeTraits(hero, traits, modularChoice.powerless)
+  // Only a Modular hero has modes (choices left on another archetype are warned about, not shown).
+  const powerlessMode = outerLayer(hero)?.archetype.modes && modularChoice?.powerless ? modeTraits(hero, traits, modularChoice.powerless) : undefined
 
   const divided = dividedChoice(hero)
   const health = computeHealth(hero, traits)

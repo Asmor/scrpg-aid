@@ -207,6 +207,7 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 - **Basis:** Fiat.
 
 ### 40. Raising a d12 or lowering a d4 in a mode
+- **Pages:** Modular (p. 96–98).
 - **Question:** Modes say "die sizes cannot go below d4 or above d12." If a mode raises a power that's already d12, or lowers one that's already d4, what happens?
 - **Decision:** It's allowed, and the die just stays at d12 or d4.
 - **Basis:** Fiat.
