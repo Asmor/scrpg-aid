@@ -1,11 +1,10 @@
 /** Step 1, Background (p. 49–54): choose a background, assign its quality dice, take its principle. */
-import { useState } from 'react'
 import { expandRefs } from '../rules/catalog'
 import { backgrounds, backgroundsById, backgroundStep, principleCategories } from '../rules/data'
 import { formatEntryRef } from '../rules/books'
 import type { Background } from '../rules/types'
 import { describeOptions } from '../components/format'
-import type { RollRecord } from '../rules/rolling'
+import { setStepRoll, stepRoll, takePendingRoll } from '../creation/rolls'
 import type { Hero } from '../hero/model'
 import { DiceAssigner } from './DiceAssigner'
 import { PrinciplePicker } from './PrinciplePicker'
@@ -24,11 +23,9 @@ function BackgroundSummary({ bg }: { bg: Background }) {
 }
 
 export function BackgroundStep({ hero, update }: { hero: Hero; update: (change: (draft: Hero) => void) => void }) {
-  // A roll made before a background is chosen; it's saved with the choice.
-  const [pendingRoll, setPendingRoll] = useState<RollRecord | undefined>()
   const choice = hero.background
   const bg = choice ? backgroundsById.get(choice.id) : undefined
-  const roll = choice?.roll ?? pendingRoll
+  const roll = stepRoll(hero, 'background')
 
   return (
     <div className="step-form">
@@ -39,19 +36,13 @@ export function BackgroundStep({ hero, update }: { hero: Hero; update: (change: 
         table={backgrounds}
         roll={roll}
         selectedId={choice?.id}
-        onRoll={(r) => {
-          if (choice) {
-            update((h) => {
-              h.background!.roll = r
-            })
-          } else {
-            setPendingRoll(r)
-          }
-        }}
+        onRoll={(r) => update((h) => setStepRoll(h, 'background', r))}
         onSelect={(entry) =>
           update((h) => {
+            const pending = takePendingRoll(h, 'background')
+            const kept = h.background?.roll ?? pending
             // Keep earlier choices that may still fit; the checks flag the ones that don't.
-            h.background = { qualities: [], ...h.background, id: entry.id, ...(roll ? { roll } : {}) }
+            h.background = { qualities: [], ...h.background, id: entry.id, ...(kept ? { roll: kept } : {}) }
           })
         }
         describe={(entry) => <BackgroundSummary bg={entry} />}

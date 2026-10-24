@@ -242,6 +242,9 @@ export const DETAIL_FIELDS: readonly (keyof HeroDetails)[] = [
   'costume',
 ]
 
+/** The steps whose entry is chosen from a rolled table. */
+export type TableStep = 'background' | 'powerSource' | 'archetype' | 'personality'
+
 export interface Hero {
   id: string
   createdAt: string
@@ -260,6 +263,12 @@ export interface Hero {
   redAbilities: AbilityPick[]
   retcon: RetconChoice | null
   health: HealthChoice | null
+  /**
+   * Guided rolls made before the step's entry was chosen. Saving them keeps leaving the step
+   * or reloading from giving a fresh roll (each step gets one reroll); choosing an entry
+   * moves the roll onto the choice.
+   */
+  pendingRolls?: Partial<Record<TableStep, RollRecord>>
   /** Current Health on the sheet, tracked during play. */
   currentHealth?: number
   notes?: string

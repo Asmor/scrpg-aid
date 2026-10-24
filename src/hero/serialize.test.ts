@@ -66,6 +66,8 @@ describe('serialize', () => {
       [{ retcon: { id: 'x', kind: 'gainPowerOrQuality' } }, 'hero.retcon.gained should be an object'],
       [{ health: { mode: 'average' } }, 'hero.health.mode has an unknown value'],
       [{ currentHealth: 'full' }, 'hero.currentHealth should be a whole number'],
+      [{ pendingRolls: [] }, 'hero.pendingRolls should be an object'],
+      [{ pendingRolls: { archetype: { dice: ['d8'], results: [2] } } }, 'hero.pendingRolls.archetype.manual should be true or false'],
     ]
     for (const [patch, error] of cases) {
       expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: { ...hero(), ...patch } })).toEqual({ ok: false, error })
@@ -83,6 +85,7 @@ describe('serialize', () => {
       personality: { id: 'impulsive', outBlanks: { x: 'y' }, bonus: [] },
       retcon: { id: 'change-principle', kind: 'changePrinciple', replace: 'archetype', with: { id: 'destiny' } },
       health: { trait: t, mode: 'roll', rollResult: 5, manual: true },
+      pendingRolls: { personality: { dice: ['d10', 'd10'], results: [3, 7], manual: false } },
       currentHealth: 20,
       notes: 'n',
     }

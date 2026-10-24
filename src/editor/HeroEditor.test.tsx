@@ -200,6 +200,26 @@ describe('HeroEditor', () => {
     expect(screen.getByLabelText('d6 #1')).not.toBe(screen.getByLabelText('d6 #2'))
   })
 
+  it('keeps a roll made before choosing, so leaving the step doesn’t give a fresh one', async () => {
+    const store = await storeWith()
+    const view = renderEditor(store, 'background')
+    await userEvent.click(await screen.findByRole('button', { name: 'Roll d10 and d10' }))
+    await waitFor(async () => expect((await saved(store)).pendingRolls?.background).toMatchObject({ dice: ['d10', 'd10'], manual: false }))
+    const { results } = (await saved(store)).pendingRolls!.background!
+    view.unmount()
+
+    renderEditor(store, 'background')
+    expect(await screen.findByText(/You rolled/)).toHaveTextContent(`You rolled ${results[0]} and ${results[1]}`)
+    expect(screen.queryByRole('button', { name: 'Roll d10 and d10' })).not.toBeInTheDocument()
+    // Choosing moves the roll onto the choice.
+    await userEvent.click(screen.getAllByRole('radio')[0]!)
+    await waitFor(async () => {
+      const hero = await saved(store)
+      expect(hero.background?.roll?.results).toEqual(results)
+      expect(hero.pendingRolls).toBeUndefined()
+    })
+  })
+
   it('rolls in the app too', async () => {
     const store = await storeWith()
     renderEditor(store, 'background')
