@@ -37,6 +37,12 @@ export function traitKey(ref: TraitRef): string {
   return `${ref.kind}:${ref.id}`
 }
 
+/** The reverse of traitKey: "power:flight" → { kind: 'power', id: 'flight' }. */
+export function parseTraitKey(key: string): TraitRef {
+  const at = key.indexOf(':')
+  return { kind: key.slice(0, at) as TraitKind, id: key.slice(at + 1) }
+}
+
 export function getTrait(ref: TraitRef): CatalogTrait | undefined {
   return traitIndex.get(traitKey(ref))
 }

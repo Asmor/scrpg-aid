@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { backgrounds } from './data'
 import {
+  rolledOn,
   canReroll,
   checkManualResults,
   newRoll,
@@ -73,5 +74,12 @@ describe('rolling', () => {
     expect(second).toEqual({ dice: ['d10', 'd10'], results: [7, 8], manual: true, rerolled: true })
     expect(canReroll(second)).toBe(false)
     expect(() => reroll(second, [1, 1], false)).toThrow('already used its reroll')
+  })
+
+  it('tells whether a roll was made on the given dice', () => {
+    const roll = newRoll(['d10', 'd8', 'd8'], [3, 2, 7], false)
+    expect(rolledOn(roll, ['d10', 'd8', 'd8'])).toBe(true)
+    expect(rolledOn(roll, ['d10', 'd10', 'd6'])).toBe(false)
+    expect(rolledOn(roll, ['d10', 'd8'])).toBe(false)
   })
 })

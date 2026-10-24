@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createHero, type Hero } from '../hero/model'
 import { A, P, Q, validHero } from '../test/heroes'
-import { deriveTraits, ROLEPLAYING_QUALITY, traitLabel } from './traits'
+import { deriveTraits, ROLEPLAYING_QUALITY, traitLabel, traitsBefore } from './traits'
 
 const codes = (hero: Hero) => deriveTraits(hero).warnings.map((w) => w.code)
 const dice = (hero: Hero) => Object.fromEntries(deriveTraits(hero).traits.map((t) => [t.trait.id, t.die]))
@@ -390,5 +390,21 @@ describe('deriveTraits', () => {
       hero.retcon = { id: 'upgrade-red-status', kind: 'upgradeStatusDie' }
       expect(codes(hero)).toEqual([])
     })
+  })
+})
+
+describe('traitsBefore', () => {
+  it('gives the traits as they stood before a step', () => {
+    const hero = validHero()
+    expect(traitsBefore(hero, 'powerSource').map((t) => t.trait.id)).toEqual(['fitness', 'alertness'])
+    expect(traitsBefore(hero, 'powerSourceBonus').map((t) => t.trait.id)).toEqual(['fitness', 'alertness', 'agility', 'fire', 'awareness'])
+  })
+
+  it('leaves out the power source bonus it comes before', () => {
+    const hero = validHero()
+    hero.powerSource = { id: 'mystical', powers: [A(P('flight'), 'd10')], abilities: [], bonus: [A(Q('history'), 'd10')] }
+    expect(traitsBefore(hero, 'powerSourceBonus').map((t) => t.trait.id)).toEqual(['fitness', 'alertness', 'flight'])
+    hero.powerSource = null
+    expect(traitsBefore(hero, 'powerSourceBonus').map((t) => t.trait.id)).toEqual(['fitness', 'alertness'])
   })
 })

@@ -5,6 +5,7 @@ import {
   expandRefs,
   getCategory,
   getTrait,
+  parseTraitKey,
   refMatches,
   refsMatch,
   traitKey,
@@ -16,6 +17,10 @@ describe('catalog', () => {
     expect(getTrait({ kind: 'power', id: 'flight' })).toMatchObject({ name: 'Flight', categoryId: 'mobility' })
     expect(getTrait({ kind: 'quality', id: 'close-combat' })).toMatchObject({ categoryId: 'physical' })
     expect(getTrait({ kind: 'quality', id: 'flight' })).toBeUndefined()
+  })
+
+  it('reads trait keys back', () => {
+    expect(parseTraitKey(traitKey({ kind: 'quality', id: 'close-combat' }))).toEqual({ kind: 'quality', id: 'close-combat' })
   })
 
   it('keeps powers and qualities apart', () => {

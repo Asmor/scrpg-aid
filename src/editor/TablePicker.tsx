@@ -4,7 +4,7 @@
  * the sum of two reaches, with one reroll per step. Constructed: pick any entry.
  */
 import { useId, useState, type ReactNode } from 'react'
-import { canReroll, checkManualResults, newRoll, reroll, rollDice, tableOptions, type RollRecord, type RollSource } from '../rules/rolling'
+import { canReroll, checkManualResults, newRoll, reroll, rollDice, rolledOn, tableOptions, type RollRecord, type RollSource } from '../rules/rolling'
 import type { Die } from '../rules/types'
 import type { CreationMethod } from '../hero/model'
 
@@ -101,31 +101,39 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
   const [manual, setManual] = useState<'roll' | 'reroll' | null>(null)
   const diceText = `${listAnd(dice)}`
 
+  // A roll made on other dice (an earlier step changed them) doesn't count: roll afresh.
+  const current = roll && rolledOn(roll, dice) ? roll : undefined
+  const stale = roll && !current ? roll : undefined
   const doRoll = (again: boolean) => {
-    const results = rollDice(dice, random)
-    onRoll(again && roll ? reroll(roll, results, false) : newRoll(dice, results, false))
+    // A reroll uses the same dice as the roll it replaces.
+    if (again && current) onRoll(reroll(current, rollDice(current.dice, random), false))
+    else onRoll(newRoll(dice, rollDice(dice, random), false))
   }
 
   let options: { entry: T; note?: string }[] = []
   if (method === 'constructed') {
     options = [...table].sort((a, b) => a.roll - b.roll).map((entry) => ({ entry }))
-  } else if (roll) {
-    options = tableOptions(table, roll.results).map(({ entry, sources }) => ({ entry, note: `rolled ${sources.map((s) => sourceText(roll, s)).join(' or ')}` }))
+  } else if (current) {
+    options = tableOptions(table, current.results).map(({ entry, sources }) => ({ entry, note: `rolled ${sources.map((s) => sourceText(current, s)).join(' or ')}` }))
   }
   const selected = table.find((t) => t.id === selectedId)
   if (selected && !options.some((o) => o.entry.id === selected.id)) {
-    options.unshift({ entry: selected, note: method === 'guided' ? (roll ? 'your current choice; not reached by this roll' : 'your current choice') : undefined })
+    options.unshift({ entry: selected, note: method === 'guided' ? (current ? 'your current choice; not reached by this roll' : 'your current choice') : undefined })
   }
 
   return (
     <div className="table-picker">
       {method === 'guided' && (
         <div className="table-picker__roll">
-          {roll ? (
+          {current ? (
             <p>
-              You rolled <strong>{listAnd(roll.results)}</strong> on {listAnd(roll.dice)}
-              {roll.manual ? ' (typed in)' : ''}
-              {roll.rerolled ? ', after using your reroll' : ''}. Pick a {what} matching one die or the sum of two.
+              You rolled <strong>{listAnd(current.results)}</strong> on {listAnd(current.dice)}
+              {current.manual ? ' (typed in)' : ''}
+              {current.rerolled ? ', after using your reroll' : ''}. Pick a {what} matching one die or the sum of two.
+            </p>
+          ) : stale ? (
+            <p role="alert">
+              You rolled {listAnd(stale.results)} on {listAnd(stale.dice)}, but this step's dice are now {diceText}, because an earlier choice changed. Roll again; this doesn't use your reroll.
             </p>
           ) : (
             <p>
@@ -134,15 +142,15 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
           )}
           {manual ? (
             <ManualRoll
-              dice={roll?.dice ?? dice}
+              dice={manual === 'reroll' && current ? current.dice : dice}
               label={manual === 'reroll' ? 'Your reroll' : 'Your roll'}
               onCancel={() => setManual(null)}
               onDone={(results) => {
-                onRoll(manual === 'reroll' && roll ? reroll(roll, results, true) : newRoll(dice, results, true))
+                onRoll(manual === 'reroll' && current ? reroll(current, results, true) : newRoll(dice, results, true))
                 setManual(null)
               }}
             />
-          ) : !roll ? (
+          ) : !current ? (
             <div className="button-row">
               <button type="button" className="button button--primary" onClick={() => doRoll(false)}>
                 Roll {diceText}
@@ -151,7 +159,7 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
                 Enter my own roll
               </button>
             </div>
-          ) : canReroll(roll) ? (
+          ) : canReroll(current) ? (
             <div className="button-row">
               <span>Don't like these? You can reroll once:</span>
               <button type="button" className="button" onClick={() => doRoll(true)}>
@@ -182,10 +190,10 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
           ))}
         </fieldset>
       )}
-      {method === 'guided' && roll && options.length === 0 && (
+      {method === 'guided' && current && options.length === 0 && (
         <p>
           That roll doesn't reach any {what}.{' '}
-          {canReroll(roll) ? 'Use your reroll.' : 'Switch this hero to Constructed (in Details) to pick any.'}
+          {canReroll(current) ? 'Use your reroll.' : 'Switch this hero to Constructed (in Details) to pick any.'}
         </p>
       )}
     </div>

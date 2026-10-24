@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Hero } from '../hero/model'
-import { A, heroWithAbilities, P, Q } from '../test/heroes'
-import { checkAbilities, checkAbilityPick, checkAbilityRetcon, primaryUse } from './abilities'
+import { A, heroWithAbilities, P, Q, validHero } from '../test/heroes'
+import { parseSlots, type TraitSlot } from '../rules/slots'
+import { checkAbilities, checkAbilityPick, checkAbilityRetcon, primaryUse, slotCandidates } from './abilities'
 import { deriveTraits } from './traits'
 
 const check = (hero: Hero) => checkAbilities(hero, deriveTraits(hero).traits)
@@ -415,5 +416,19 @@ describe('checkAbilities', () => {
       hero.retcon = { id: 'upgrade-red-status', kind: 'upgradeStatusDie' }
       expect(checkAbilityRetcon(hero, deriveTraits(hero).traits)).toEqual([])
     })
+  })
+})
+
+describe('slotCandidates', () => {
+  const slot = (text: string) => parseSlots(text)[0] as TraitSlot
+  it('offers the hero’s traits that fit a trait slot', () => {
+    const hero = validHero()
+    const traits = deriveTraits(hero).traits
+    const ids = (text: string) => slotCandidates(hero, traits, slot(text), 'powerSource').map((t) => t.trait.id)
+    expect(ids('[power]')).toEqual(['agility', 'fire', 'awareness', 'speed', 'flight'])
+    expect(ids('[quality]')).toEqual(['fitness', 'alertness', 'roleplaying-quality'])
+    expect(ids('[element/energy you have a related power for]')).toEqual(['fire'])
+    // Only powers given dice in the archetype step.
+    expect(ids('[a power gained from your archetype]')).toEqual(['speed', 'flight'])
   })
 })

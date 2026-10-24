@@ -510,3 +510,23 @@ export function deriveTraits(hero: Hero): TraitDerivation {
 
   return { traits: [...state.traits.values()], warnings: state.warnings }
 }
+
+/** A point in creation: before the power source step, or after its powers but before its bonus. */
+export type TraitPoint = 'powerSource' | 'powerSourceBonus'
+
+/**
+ * The hero's powers and qualities as they stood at `point`, e.g. to offer upgrades of
+ * traits from earlier steps, or the traits a bonus may change.
+ */
+export function traitsBefore(hero: Hero, point: TraitPoint): HeroTrait[] {
+  const ps = hero.powerSource
+  const earlier: Hero = {
+    ...hero,
+    powerSource: point === 'powerSource' || !ps ? null : { ...ps, bonus: [] },
+    archetype: null,
+    personality: null,
+    redAbilities: [],
+    retcon: null,
+  }
+  return deriveTraits(earlier).traits
+}

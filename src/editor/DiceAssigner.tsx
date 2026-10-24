@@ -4,7 +4,7 @@
  * (p. 44); the rules checks warn about anything that doesn't fit.
  */
 import { useId } from 'react'
-import { getCategory, getTrait, traitKey, type CatalogTrait, type TraitRef } from '../rules/catalog'
+import { getCategory, getTrait, parseTraitKey, traitKey, type CatalogTrait } from '../rules/catalog'
 import type { Die } from '../rules/types'
 import type { Hero, TraitAssignment } from '../hero/model'
 import { assignRow, dieRows } from '../creation/assign'
@@ -35,11 +35,6 @@ function byCategory(traits: readonly CatalogTrait[]): { label: string; traits: C
   return [...groups.values()]
 }
 
-const fromKey = (key: string): TraitRef => {
-  const [kind, id] = key.split(':') as [TraitRef['kind'], string]
-  return { kind, id }
-}
-
 export function DiceAssigner({ hero, legend, dice, assignments, options, earlier, onChange }: DiceAssignerProps) {
   const baseId = useId()
   const rows = dieRows(dice, assignments)
@@ -63,7 +58,7 @@ export function DiceAssigner({ hero, legend, dice, assignments, options, earlier
             <select
               id={selectId}
               value={current ? traitKey(current.trait) : ''}
-              onChange={(e) => onChange(assignRow(dice, assignments, i, e.target.value ? fromKey(e.target.value) : undefined))}
+              onChange={(e) => onChange(assignRow(dice, assignments, i, e.target.value ? parseTraitKey(e.target.value) : undefined))}
             >
               <option value="">Choose…</option>
               {offList && <option value={traitKey(current.trait)}>{traitLabel(hero, current.trait)} (not on this list)</option>}

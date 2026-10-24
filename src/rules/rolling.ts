@@ -85,6 +85,15 @@ export function newRoll(dice: readonly Die[], results: readonly number[], manual
 }
 
 /**
+ * Whether a roll was made on these dice. A step's dice can depend on an earlier choice (the
+ * power source rolls the background's dice), so changing that choice can leave a roll made
+ * on the old dice: it no longer says which entries can be chosen.
+ */
+export function rolledOn(roll: RollRecord, dice: readonly Die[]): boolean {
+  return roll.dice.length === dice.length && roll.dice.every((d, i) => d === dice[i])
+}
+
+/**
  * A step allows one reroll if nothing fits (data/rules/hero-creation.md, "Methods", p. 46).
  * The user ruled that "nothing fits" means the player doesn't like the options, so the
  * reroll is available whether or not the roll reached any entry.

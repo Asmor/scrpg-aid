@@ -841,6 +841,55 @@ select {
   margin: 0.25rem 0;
 }
 
+.ability-picker,
+.bonus-picker {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ability-picker > .hint,
+.bonus-picker > p {
+  margin: 0;
+}
+
+.ability-pick__fields {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.25rem 1.75rem;
+}
+
+.ability-pick__preview {
+  margin: 0;
+  padding: 0.5rem;
+  border-left: 3px solid var(--color-primary);
+  background: var(--color-surface);
+}
+
+.step-form .ability-pick__multi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+.checkbox input {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+@media (max-width: 30rem) {
+  .ability-pick__fields {
+    margin-left: 0;
+  }
+}
+
 .step-ok {
   margin: var(--space) 0 0;
   color: var(--zone-green-strong);

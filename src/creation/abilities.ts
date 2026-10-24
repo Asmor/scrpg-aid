@@ -51,6 +51,12 @@ export function primaryUse(ability: Ability, pick: AbilityPick): TraitRef | unde
   return namedTrait(ability)
 }
 
+/** The hero's traits that can fill a trait slot, for the UI. */
+export function slotCandidates(hero: Hero, traits: readonly HeroTrait[], slot: TraitSlot, step: StepId): HeroTrait[] {
+  const ctx = contextFor(hero, traits, step, [])
+  return traits.filter((t) => slotAccepts(ctx, slot, t.trait))
+}
+
 function slotAccepts(ctx: Context, slot: TraitSlot, trait: TraitRef): boolean {
   if (!slot.kinds.includes(trait.kind)) return false
   if (slot.only && !refsMatch(slot.only, trait)) return false

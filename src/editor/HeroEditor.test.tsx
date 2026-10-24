@@ -228,6 +228,99 @@ describe('HeroEditor', () => {
     expect(screen.getByRole('button', { name: 'Reroll' })).toBeInTheDocument()
   })
 
+  it('asks for a background before rolling for a power source', async () => {
+    renderEditor(await storeWith(), 'power-source')
+    expect(await screen.findByText(/Choose a background first/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Roll/ })).not.toBeInTheDocument()
+    expect(screen.queryAllByRole('radio')).toHaveLength(0)
+  })
+
+  it('builds a power source the constructed way: powers, abilities, and bonus, with no issues left', async () => {
+    const store = await storeWith((h) => {
+      h.method = 'constructed'
+      h.background = { id: 'upper-class', qualities: [{ trait: { kind: 'quality', id: 'fitness' }, die: 'd10' }, { trait: { kind: 'quality', id: 'persuasion' }, die: 'd8' }], principle: { id: 'business' } }
+    })
+    renderEditor(store, 'power-source')
+    await userEvent.click(await screen.findByRole('radio', { name: /Mystical/ }))
+    await userEvent.selectOptions(screen.getByLabelText('d10'), 'Flight')
+    await userEvent.selectOptions(screen.getByLabelText('d8 #1'), 'Awareness')
+    await userEvent.selectOptions(screen.getByLabelText('d8 #2'), 'Teleportation')
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /Modification Wave/ }))
+    await userEvent.click(screen.getByRole('checkbox', { name: /Sever Link/ }))
+    const [first, second] = screen.getAllByRole('combobox', { name: '[power]' })
+    await userEvent.selectOptions(first!, 'Flight (d10)')
+    await userEvent.selectOptions(second!, 'Teleportation (d8)')
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Quality' }), 'History at d10')
+    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    await waitFor(async () =>
+      expect((await saved(store)).powerSource).toEqual({
+        id: 'mystical',
+        powers: [
+          { trait: { kind: 'power', id: 'flight' }, die: 'd10' },
+          { trait: { kind: 'power', id: 'awareness' }, die: 'd8' },
+          { trait: { kind: 'power', id: 'teleportation' }, die: 'd8' },
+        ],
+        abilities: [
+          { source: 'powerSource.yellow', name: 'Modification Wave', uses: [{ kind: 'power', id: 'flight' }] },
+          { source: 'powerSource.yellow', name: 'Sever Link', uses: [{ kind: 'power', id: 'teleportation' }] },
+        ],
+        bonus: [{ trait: { kind: 'quality', id: 'history' }, die: 'd10' }],
+      }),
+    )
+  })
+
+  it('takes Green abilities apart from Yellow ones, and flags rule issues', async () => {
+    const store = await storeWith((h) => {
+      h.method = 'constructed'
+      h.background = { id: 'upper-class', qualities: [] }
+      h.powerSource = { id: 'accident', powers: [{ trait: { kind: 'power', id: 'fire' }, die: 'd10' }], abilities: [{ source: 'powerSource.yellow', name: 'Inflict', uses: [{ kind: 'power', id: 'fire' }] }], bonus: [] }
+    })
+    renderEditor(store, 'power-source')
+    const green = await screen.findByRole('group', { name: 'Green abilities: choose 1' })
+    await userEvent.click(within(green).getByRole('checkbox', { name: /Immunity/ }))
+    await userEvent.type(within(green).getByRole('textbox', { name: '[energy/element]' }), 'Fire')
+    await waitFor(async () =>
+      expect((await saved(store)).powerSource?.abilities).toEqual([
+        { source: 'powerSource.yellow', name: 'Inflict', uses: [{ kind: 'power', id: 'fire' }] },
+        { source: 'powerSource.green', name: 'Immunity', blanks: { 'energy/element': 'Fire' } },
+      ]),
+    )
+    // Only one Yellow ability so far, and dice are missing.
+    expect(screen.getByRole('region', { name: 'Rule issues in this step' })).toBeInTheDocument()
+  })
+
+  it('rolls for a power source with the background’s dice, keeping the roll', async () => {
+    const store = await storeWith((h) => {
+      h.background = { id: 'upper-class', qualities: [] }
+    })
+    renderEditor(store, 'power-source')
+    await userEvent.click(await screen.findByRole('button', { name: 'Roll d10, d8 and d8' }))
+    await waitFor(async () => expect((await saved(store)).pendingRolls?.powerSource?.dice).toEqual(['d10', 'd8', 'd8']))
+  })
+
+  it('asks for a fresh power source roll when the background’s dice changed, without using the reroll', async () => {
+    const store = await storeWith((h) => {
+      // Rolled (and rerolled) with Upper Class's d10, d8, d8, then switched to Academic's d10, d8.
+      h.background = { id: 'academic', qualities: [] }
+      h.pendingRolls = { powerSource: { dice: ['d10', 'd8', 'd8'], results: [1, 2, 3], manual: false, rerolled: true } }
+    })
+    renderEditor(store, 'power-source')
+    expect(await screen.findByRole('alert')).toHaveTextContent("You rolled 1, 2 and 3 on d10, d8 and d8, but this step's dice are now d10 and d8")
+    // The old roll no longer offers entries.
+    expect(screen.queryAllByRole('radio')).toHaveLength(0)
+    await userEvent.click(screen.getByRole('button', { name: 'Enter my own roll' }))
+    const inputs = screen.getAllByRole('spinbutton')
+    expect(inputs).toHaveLength(2)
+    await userEvent.type(inputs[0]!, '4')
+    await userEvent.type(inputs[1]!, '5')
+    await userEvent.click(screen.getByRole('button', { name: 'Use these results' }))
+    expect(screen.getByText(/You rolled/)).toHaveTextContent('You rolled 4 and 5 on d10 and d8 (typed in).')
+    expect(screen.getByRole('button', { name: 'Reroll' })).toBeInTheDocument()
+    await waitFor(async () => expect((await saved(store)).pendingRolls?.powerSource).toEqual({ dice: ['d10', 'd8'], results: [4, 5], manual: true }))
+  })
+
   it('reports a failed save', async () => {
     const store = await storeWith()
     store.save = async () => {

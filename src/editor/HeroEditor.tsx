@@ -10,6 +10,7 @@ import type { StepId } from '../creation/warnings'
 import { heroDisplayName, type Hero } from '../hero/model'
 import { BackgroundStep } from './BackgroundStep'
 import { DetailsStep } from './DetailsStep'
+import { PowerSourceStep } from './PowerSourceStep'
 import { StepWarnings } from './StepWarnings'
 import { useHeroEditor } from './useHeroEditor'
 
@@ -26,7 +27,7 @@ interface EditorStep {
 const EDITOR_STEPS: readonly EditorStep[] = [
   { id: 'details', label: 'Details', warns: [], render: (hero, update) => <DetailsStep hero={hero} update={update} /> },
   { id: 'background', label: 'Background', warns: ['background'], render: (hero, update) => <BackgroundStep hero={hero} update={update} /> },
-  { id: 'power-source', label: 'Power source', warns: ['powerSource'] },
+  { id: 'power-source', label: 'Power source', warns: ['powerSource'], render: (hero, update) => <PowerSourceStep hero={hero} update={update} /> },
   { id: 'archetype', label: 'Archetype', warns: ['archetype'] },
   { id: 'personality', label: 'Personality', warns: ['personality'] },
   { id: 'red-abilities', label: 'Red abilities', warns: ['redAbilities'] },
