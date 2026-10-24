@@ -45,6 +45,8 @@ export type AbilitySource =
   | 'archetype.fixedYellow'
   | 'archetype.yellow'
   | 'archetype.fixedRed'
+  /** Divided's transition method ability. */
+  | 'archetype.transition'
   /** A Form-Changer form's ability. */
   | 'archetype.form'
   | 'red'
@@ -120,6 +122,20 @@ export interface MinionFormsChoice {
   forms: string[]
 }
 
+/** Divided's own choices (Core Rules p. 94–95). */
+export interface DividedChoice {
+  /** The transition method's id. */
+  transitionMethod?: string
+  /** The transition method's ability (source 'archetype.transition'). */
+  transitionAbility?: AbilityPick
+  /** An optional second personality for the heroic form; Hero.personality is then the civilian form's. */
+  heroicPersonality?: PersonalityChoice
+  /** With two personalities, whose Out ability the hero uses (the user's ruling: player's choice). */
+  outFrom?: 'civilian' | 'heroic'
+  /** Split Form: which traits are always available, and which belong to each form. */
+  split?: { always: TraitRef[]; civilian: TraitRef[]; heroic: TraitRef[] }
+}
+
 export interface ArchetypeChoice {
   id: string
   roll?: RollRecord
@@ -132,6 +148,13 @@ export interface ArchetypeChoice {
   forms?: FormChoice[]
   /** Minion-Maker's minion forms. */
   minionForms?: MinionFormsChoice
+  /**
+   * Divided and Modular: the second archetype they build on. Its powers, qualities,
+   * bonuses, and (for Divided) abilities are recorded here, not on the outer choice.
+   */
+  secondary?: ArchetypeChoice
+  /** Divided's own choices. */
+  divided?: DividedChoice
 }
 
 export interface PersonalityChoice {
@@ -150,7 +173,8 @@ export type RetconChoice =
   | { id: string; kind: 'swapDice'; traits: [TraitRef, TraitRef] }
   | { id: string; kind: 'changeAbilityTrait'; ability: AbilityId; uses: TraitRef[] }
   | { id: string; kind: 'gainPowerOrQuality'; gained: TraitAssignment }
-  | { id: string; kind: 'upgradeStatusDie' }
+  /** `form`: for a Divided hero with two personalities, whose status die goes up (the player picks; the user's ruling). */
+  | { id: string; kind: 'upgradeStatusDie'; form?: 'civilian' | 'heroic' }
   | { id: string; kind: 'changePrinciple'; replace: 'background' | 'archetype'; with: PrincipleChoice }
   | { id: string; kind: 'gainRedAbility'; ability: AbilityPick }
 

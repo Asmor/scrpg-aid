@@ -316,6 +316,15 @@ describe('checkAbilities', () => {
       expect(codes(armored)).not.toContain('too-few-powers')
     })
 
+    it('Modular skips its base archetype’s abilities', () => {
+      const hero = heroWithAbilities()
+      const speedster = hero.archetype!
+      hero.archetype = { id: 'modular', traits: [], abilities: [], bonus: [], secondary: speedster }
+      expect(messages(hero)).toContain("Modular skips Speedster's abilities; remove them.")
+      speedster.abilities = []
+      expect(codes(hero)).not.toContain('skipped-abilities')
+    })
+
     it('skips the archetype’s own blocks for Divided and Modular', () => {
       const hero = heroWithAbilities()
       hero.archetype = { id: 'modular', traits: [A(P('leaping'), 'd12'), A(P('flight'), 'd6')], abilities: [{ source: 'archetype.green', name: 'Whatever' }], bonus: [] }

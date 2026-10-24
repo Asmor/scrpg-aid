@@ -89,7 +89,7 @@ const retconByKind: Record<string, Check> = {
   }),
   changeAbilityTrait: object({ ability: abilityId, uses: arrayOf(traitRef) }),
   gainPowerOrQuality: object({ gained: assignment }),
-  upgradeStatusDie: object({}),
+  upgradeStatusDie: object({ 'form?': oneOf('civilian', 'heroic') }),
   changePrinciple: object({ replace: oneOf('background', 'archetype'), with: principle }),
   gainRedAbility: object({ ability: abilityPick }),
 }
@@ -99,6 +99,33 @@ const retcon: Check = (v, path) => {
   if (base) return base
   return retconByKind[(v as { kind: string }).kind]!(v, path)
 }
+
+const personalityChoice = object({ id: nonEmptyString, 'roll?': rollRecord, 'outUses?': arrayOf(traitRef), 'outBlanks?': blanks, bonus: arrayOf(assignment) })
+
+const dividedChoice = object({
+  'transitionMethod?': nonEmptyString,
+  'transitionAbility?': abilityPick,
+  'heroicPersonality?': personalityChoice,
+  'outFrom?': oneOf('civilian', 'heroic'),
+  'split?': object({ always: arrayOf(traitRef), civilian: arrayOf(traitRef), heroic: arrayOf(traitRef) }),
+})
+
+/** An archetype choice; Divided and Modular nest a second one in `secondary`. */
+const archetypeChoice: Check = (v, path) =>
+  object({
+    id: nonEmptyString,
+    'roll?': rollRecord,
+    traits: arrayOf(assignment),
+    abilities: arrayOf(abilityPick),
+    bonus: arrayOf(assignment),
+    'principle?': principle,
+    'forms?': arrayOf(
+      object({ zone: oneOf('green', 'yellow'), 'name?': string, powers: arrayOf(assignment), 'upgrades?': arrayOf(traitRef), 'ability?': abilityPick }),
+    ),
+    'minionForms?': object({ 'quality?': traitRef, forms: arrayOf(nonEmptyString) }),
+    'secondary?': archetypeChoice,
+    'divided?': dividedChoice,
+  })(v, path)
 
 const heroShape = object({
   id: nonEmptyString,
@@ -111,21 +138,8 @@ const heroShape = object({
   powerSource: nullable(
     object({ id: nonEmptyString, 'roll?': rollRecord, powers: arrayOf(assignment), abilities: arrayOf(abilityPick), bonus: arrayOf(assignment) }),
   ),
-  archetype: nullable(
-    object({
-      id: nonEmptyString,
-      'roll?': rollRecord,
-      traits: arrayOf(assignment),
-      abilities: arrayOf(abilityPick),
-      bonus: arrayOf(assignment),
-      'principle?': principle,
-      'forms?': arrayOf(
-        object({ zone: oneOf('green', 'yellow'), 'name?': string, powers: arrayOf(assignment), 'upgrades?': arrayOf(traitRef), 'ability?': abilityPick }),
-      ),
-      'minionForms?': object({ 'quality?': traitRef, forms: arrayOf(nonEmptyString) }),
-    }),
-  ),
-  personality: nullable(object({ id: nonEmptyString, 'roll?': rollRecord, 'outUses?': arrayOf(traitRef), 'outBlanks?': blanks, bonus: arrayOf(assignment) })),
+  archetype: nullable(archetypeChoice),
+  personality: nullable(personalityChoice),
   redAbilities: arrayOf(abilityPick),
   retcon: nullable(retcon),
   health: nullable(

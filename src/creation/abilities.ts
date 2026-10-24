@@ -10,18 +10,20 @@
  *
  * `sameUsePattern` only appears in villain data, so it isn't checked here.
  *
- * Divided and Modular's chosen abilities aren't modelled yet; for those archetypes only
- * the parts shared with other archetypes are checked here. Form-Changer and Minion-Maker
- * forms are checked in ./forms.ts. (When Divided is built, confirm with the user what
- * "[a power gained from your archetype]" means for a Divided hero.)
+ * Divided and Modular build on a second archetype (./layers.ts): the outer archetype's fixed
+ * abilities are checked here, then the second archetype's abilities, unless Modular skips
+ * them. Divided's own choices are checked in ./divided.ts, and Form-Changer and Minion-Maker
+ * forms in ./forms.ts. "[a power gained from your archetype]" means a power from the second
+ * archetype, which gives the hero their archetype dice (the user's ruling).
  */
 import { describeRef, getCategory, getTrait, refsMatch, traitKey, type TraitRef } from '../rules/catalog'
-import { archetypesById, powerSourcesById } from '../rules/data'
+import { powerSourcesById } from '../rules/data'
 import { parseSlots, type TraitSlot } from '../rules/slots'
 import type { Ability, AbilityChoice, Archetype, DistinctRule, OptionRef, RequireAtLeast, TraitKind } from '../rules/types'
 import type { AbilityPick, AbilitySource, Hero } from '../hero/model'
 import type { HeroTrait } from './traits'
-import { findAbility, outPick } from './lookup'
+import { layers, traitLayer, type ArchetypeLayer } from './layers'
+import { findAbility, outPick, recordedPicks } from './lookup'
 import { traitLabel } from './traits'
 import { warning, type RuleWarning, type StepId } from './warnings'
 
@@ -280,8 +282,15 @@ function checkPowerSource(ctx: Context): void {
   }
 }
 
-function checkArchetype(ctx: Context, ar: Archetype): void {
-  const picks = ctx.hero.archetype!.abilities
+/**
+ * Checks one archetype layer's abilities. For Divided and Modular, this runs on both the
+ * outer archetype (its fixed abilities) and the second one (Divided only; Modular skips
+ * the second archetype's abilities). Their own special choices are checked in
+ * ./divided.ts and ./modular.ts.
+ */
+function checkArchetype(ctx: Context, layer: ArchetypeLayer): void {
+  const { choice, archetype: ar } = layer
+  const picks = choice.abilities
   const fixedGreen = checkFixed(ctx, ar.fixedGreenAbilities ?? [], picks, 'archetype.fixedGreen')
   if (ar.fixedGreenRule) {
     checkDistinct(ctx, ar.fixedGreenRule, fixedGreen.flatMap(({ ability, pick }) => primaryUse(ability, pick) ?? []), `${ar.name} fixed Green abilities`)
@@ -309,6 +318,20 @@ function checkArchetype(ctx: Context, ar: Archetype): void {
   }
 }
 
+/** Checks a choice block outside the usual power source/archetype flow (e.g. Divided's own Green ability). */
+export function checkAbilityBlock(
+  hero: Hero,
+  traits: readonly HeroTrait[],
+  block: AbilityChoice,
+  picks: readonly AbilityPick[],
+  source: string,
+  archetype: Archetype | undefined,
+): RuleWarning[] {
+  const warnings: RuleWarning[] = []
+  checkBlock(contextFor(hero, traits, 'archetype', warnings), block, block.options ?? [], picks, source, archetype)
+  return warnings
+}
+
 /**
  * Checks one ability pick on its own: used for Red abilities and retcons, and by the UI
  * while a player fills in an ability. `slotLimit` limits the first trait slot of its kind.
@@ -327,7 +350,10 @@ export function checkAbilityPick(
 }
 
 function contextFor(hero: Hero, traits: readonly HeroTrait[], step: StepId, warnings: RuleWarning[]): Context {
-  const archetypeTraits = new Set((hero.archetype?.traits ?? []).concat(hero.archetype?.bonus ?? []).map((a) => traitKey(a.trait)))
+  // "Gained from your archetype" means the archetype that gave the hero their dice: for
+  // Divided, the second archetype (the user's ruling).
+  const layer = traitLayer(hero)?.choice
+  const archetypeTraits = new Set((layer?.traits ?? []).concat(layer?.bonus ?? []).map((a) => traitKey(a.trait)))
   return { hero, step, traits: new Map(traits.map((t) => [traitKey(t.trait), t])), archetypeTraits, warnings }
 }
 
@@ -335,8 +361,18 @@ function contextFor(hero: Hero, traits: readonly HeroTrait[], step: StepId, warn
 export function checkAbilities(hero: Hero, traits: readonly HeroTrait[]): RuleWarning[] {
   const warnings: RuleWarning[] = []
   checkPowerSource(contextFor(hero, traits, 'powerSource', warnings))
-  const ar = hero.archetype && archetypesById.get(hero.archetype.id)
-  if (ar) checkArchetype(contextFor(hero, traits, 'archetype', warnings), ar)
+  const ctx = contextFor(hero, traits, 'archetype', warnings)
+  const [outer, second] = layers(hero)
+  if (outer) checkArchetype(ctx, outer)
+  if (second) {
+    if (outer!.archetype.secondaryArchetype?.skipAbilities) {
+      if (second.choice.abilities.length) {
+        warn(ctx, 'skipped-abilities', `${outer!.archetype.name} skips ${second.archetype.name}'s abilities; remove them.`)
+      }
+    } else {
+      checkArchetype(ctx, second)
+    }
+  }
   return warnings
 }
 
@@ -346,20 +382,21 @@ export function checkAbilities(hero: Hero, traits: readonly HeroTrait[]): RuleWa
  * The user ruled that the ability's Red category and block restrictions no longer apply,
  * and that the Out ability and Form-Changer form abilities can be its target.
  */
-export function checkAbilityRetcon(hero: Hero, traits: readonly HeroTrait[]): RuleWarning[] {
+export function checkAbilityRetcon(hero: Hero, traits: readonly HeroTrait[], outTraits: readonly HeroTrait[] = traits): RuleWarning[] {
   const retcon = hero.retcon
   // A form ability's retcon is checked against that form's dice, in ./forms.ts.
   if (retcon?.kind !== 'changeAbilityTrait' || retcon.ability.source === 'archetype.form') return []
   const out = outPick(hero)
-  const picks = [...(hero.powerSource?.abilities ?? []), ...(hero.archetype?.abilities ?? []), ...hero.redAbilities, ...(out ? [out] : [])]
-  const pick = picks.find((p) => p.source === retcon.ability.source && p.name === retcon.ability.name)
-  const ability = pick && findAbility(hero, pick)
+  const placed = [...recordedPicks(hero), ...(out ? [{ pick: out }] : [])]
+  const found = placed.find(({ pick: p }) => p.source === retcon.ability.source && p.name === retcon.ability.name)
+  const pick = found?.pick
+  const ability = found && findAbility(hero, found.pick, found.archetype)
   if (!pick || !ability) {
     return [warning('retcon', 'retcon-ability-missing', `This retcon changes ${retcon.ability.name}, which you haven't taken.`)]
   }
   const same = (pick.uses ?? []).map(traitKey).join() === retcon.uses.map(traitKey).join()
   return [
-    ...checkAbilityPick(hero, traits, ability, { ...pick, uses: retcon.uses }, 'retcon'),
+    ...checkAbilityPick(hero, pick.source === 'out' ? outTraits : traits, ability, { ...pick, uses: retcon.uses }, 'retcon'),
     ...(same ? [warning('retcon', 'retcon-no-change', `This retcon should change what ${ability.name} uses; it's the same as before.`)] : []),
   ]
 }

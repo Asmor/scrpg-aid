@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createHero } from './model'
-import { formChangerHero, minionMakerHero } from '../test/heroes'
+import { dividedHero, formChangerHero, minionMakerHero } from '../test/heroes'
 import { CURRENT_VERSION, HERO_FORMAT, parseSaved, parseSavedJson, toSaved } from './serialize'
 
 const hero = () => createHero('guided', { id: 'h1', now: new Date('2026-10-23T12:00:00Z') })
@@ -91,10 +91,29 @@ describe('serialize', () => {
     expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: swap })).toEqual({ ok: true, hero: swap })
   })
 
-  it('round-trips Form-Changer and Minion-Maker heroes', () => {
-    for (const h of [formChangerHero(), minionMakerHero()]) {
+  it('round-trips Form-Changer, Minion-Maker, and Divided heroes', () => {
+    const divided = dividedHero()
+    divided.archetype!.divided!.heroicPersonality = { id: 'stoic', bonus: [], outUses: [{ kind: 'quality', id: 'alertness' }] }
+    divided.archetype!.divided!.outFrom = 'heroic'
+    divided.archetype!.divided!.split = { always: [], civilian: [{ kind: 'power', id: 'fire' }], heroic: [] }
+    divided.retcon = { id: 'upgrade-red-status', kind: 'upgradeStatusDie', form: 'heroic' }
+    for (const h of [formChangerHero(), minionMakerHero(), divided]) {
       expect(parseSavedJson(JSON.stringify(toSaved(h)))).toEqual({ ok: true, hero: h })
     }
+  })
+
+  it('rejects malformed Divided choices, however deep they are', () => {
+    const bad = (change: (h: ReturnType<typeof dividedHero>) => void) => {
+      const h = dividedHero()
+      change(h)
+      return parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: h }).ok
+    }
+    expect(bad(() => {})).toBe(true)
+    expect(bad((h) => Object.assign(h.archetype!.divided!, { outFrom: 'secret' }))).toBe(false)
+    expect(bad((h) => Object.assign(h.archetype!.divided!, { split: { always: [], civilian: 'fire', heroic: [] } }))).toBe(false)
+    expect(bad((h) => Object.assign(h.archetype!.secondary!, { traits: 'speed' }))).toBe(false)
+    expect(bad((h) => Object.assign(h.archetype!.secondary!, { secondary: { id: '' } }))).toBe(false)
+    expect(bad((h) => (h.retcon = { id: 'upgrade-red-status', kind: 'upgradeStatusDie', form: 'both' as 'heroic' }))).toBe(false)
   })
 
   it('migrates old versions forward, one version at a time', () => {

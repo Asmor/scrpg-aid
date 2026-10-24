@@ -106,3 +106,23 @@ export function minionMakerHero(): Hero {
   }
   return hero
 }
+
+/**
+ * completeHero as a "Divided Speedster": the Speedster choices move to `secondary`, Divided
+ * takes the Controllable transition, Divided Psyche, and a Responsibility principle.
+ */
+export function dividedHero(): Hero {
+  const hero = completeHero()
+  const speedster = hero.archetype!
+  delete speedster.principle
+  hero.archetype = {
+    id: 'divided',
+    traits: [],
+    abilities: [{ source: 'archetype.green', name: 'Divided Psyche' }],
+    bonus: [],
+    principle: { id: 'detective' },
+    secondary: speedster,
+    divided: { transitionMethod: 'controllable', transitionAbility: { source: 'archetype.transition', name: 'Transform' } },
+  }
+  return hero
+}

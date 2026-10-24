@@ -12,11 +12,11 @@
  * player picks.
  */
 import { getTrait, refsMatch, traitKey, type TraitRef } from '../rules/catalog'
-import { archetypesById } from '../rules/data'
 import { compareDice, dieSize, sortDice, stepDie } from '../rules/dice'
-import type { Ability, Archetype, Die } from '../rules/types'
+import type { Ability, Die } from '../rules/types'
 import type { FormChoice, Hero } from '../hero/model'
 import { checkAbilityPick } from './abilities'
+import { layers, traitLayer, type ArchetypeLayer } from './layers'
 import { traitLabel, type HeroTrait } from './traits'
 import { warning, type RuleWarning } from './warnings'
 
@@ -49,9 +49,10 @@ export function formLabel(forms: readonly FormChoice[], form: FormChoice): strin
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
-function checkFormChanger(hero: Hero, traits: readonly HeroTrait[], ar: Archetype, warnings: RuleWarning[]): void {
+function checkFormChanger(hero: Hero, traits: readonly HeroTrait[], layer: ArchetypeLayer, warnings: RuleWarning[]): void {
+  const ar = layer.archetype
   const spec = ar.forms!
-  const forms = hero.archetype!.forms ?? []
+  const forms = layer.choice.forms ?? []
   const warn = (code: string, message: string) => warnings.push(warning('archetype', code, message))
   const green = forms.filter((f) => f.zone === 'green')
   const yellow = forms.filter((f) => f.zone === 'yellow')
@@ -152,9 +153,9 @@ export function formAbilityPick(hero: Hero, form: FormChoice): FormChoice['abili
   return form.ability
 }
 
-function checkMinionForms(hero: Hero, traits: readonly HeroTrait[], ar: Archetype, warnings: RuleWarning[]): void {
-  const spec = ar.minionForms!
-  const choice = hero.archetype!.minionForms
+function checkMinionForms(hero: Hero, traits: readonly HeroTrait[], layer: ArchetypeLayer, warnings: RuleWarning[]): void {
+  const spec = layer.archetype.minionForms!
+  const choice = layer.choice.minionForms
   const warn = (code: string, message: string) => warnings.push(warning('archetype', code, message))
   if (!choice?.quality) {
     warn('minion-forms-quality', 'Choose the quality that sets how many minion forms you have.')
@@ -177,20 +178,30 @@ function checkMinionForms(hero: Hero, traits: readonly HeroTrait[], ar: Archetyp
   }
 }
 
-/** Checks Form-Changer forms and Minion-Maker minion forms. */
+/**
+ * Checks Form-Changer forms and Minion-Maker minion forms. They belong to the archetype
+ * that gives the hero their dice, so a Divided or Modular hero built on Form-Changer or
+ * Minion-Maker records them on that second archetype (the user's ruling).
+ */
 export function checkForms(hero: Hero, traits: readonly HeroTrait[]): RuleWarning[] {
   const warnings: RuleWarning[] = []
-  const ar = hero.archetype && archetypesById.get(hero.archetype.id)
-  if (!ar) return warnings
+  const layer = traitLayer(hero)
+  for (const other of layers(hero)) {
+    if (other.choice !== layer?.choice && (other.choice.forms?.length || other.choice.minionForms)) {
+      warnings.push(warning('archetype', 'unexpected-forms', `Record forms on ${layer?.archetype.name ?? 'the archetype you build on'}, not ${other.archetype.name}.`))
+    }
+  }
+  if (!layer) return warnings
+  const ar = layer.archetype
   if (ar.forms) {
-    checkFormChanger(hero, traits, ar, warnings)
+    checkFormChanger(hero, traits, layer, warnings)
   } else {
     if (hero.retcon?.kind === 'changeAbilityTrait' && hero.retcon.ability.source === 'archetype.form') {
       warnings.push(warning('retcon', 'retcon-ability-missing', `This retcon changes ${hero.retcon.ability.name}, which none of your forms has.`))
     }
-    if (hero.archetype!.forms?.length) warnings.push(warning('archetype', 'unexpected-forms', `${ar.name} doesn't have forms.`))
+    if (layer.choice.forms?.length) warnings.push(warning('archetype', 'unexpected-forms', `${ar.name} doesn't have forms.`))
   }
-  if (ar.minionForms) checkMinionForms(hero, traits, ar, warnings)
-  else if (hero.archetype!.minionForms) warnings.push(warning('archetype', 'unexpected-forms', `${ar.name} doesn't have minion forms.`))
+  if (ar.minionForms) checkMinionForms(hero, traits, layer, warnings)
+  else if (layer.choice.minionForms) warnings.push(warning('archetype', 'unexpected-forms', `${ar.name} doesn't have minion forms.`))
   return warnings
 }

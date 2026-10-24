@@ -3,7 +3,8 @@
  * archetype step, each from that entry's principle category. A retcon may replace
  * either with any principle (data/heroes/retcons.json).
  */
-import { archetypesById, backgroundsById, principleCategories, principlesById } from '../rules/data'
+import { backgroundsById, principleCategories, principlesById } from '../rules/data'
+import { outerLayer, secondaryLayer } from './layers'
 import type { PrincipleCategoryId } from '../rules/types'
 import type { Hero, PrincipleChoice } from '../hero/model'
 import { warning, type RuleWarning, type StepId } from './warnings'
@@ -48,12 +49,23 @@ export function checkPrinciples(hero: Hero): RuleWarning[] {
     if (hero.background!.principle) checkChoice(hero.background!.principle, bg.principleCategory, 'background', warnings)
     else warnings.push(warning('background', 'principle-missing', `Choose a principle of ${categoryName(bg.principleCategory)}.`))
   }
-  const ar = hero.archetype && archetypesById.get(hero.archetype.id)
-  if (ar) {
-    // Modular takes its principle from the archetype it modularizes; that isn't modelled yet.
-    const category = ar.principleCategory === 'fromSecondaryArchetype' ? undefined : ar.principleCategory
-    if (hero.archetype!.principle) checkChoice(hero.archetype!.principle, category, 'archetype', warnings)
+  const outer = outerLayer(hero)
+  if (outer) {
+    // Modular takes its principle category from the archetype it builds on; Divided takes a
+    // Responsibility principle in place of that archetype's (both recorded on the outer choice).
+    const second = secondaryLayer(hero)
+    const fromSecond = second?.archetype.principleCategory
+    const category =
+      outer.archetype.principleCategory === 'fromSecondaryArchetype'
+        ? fromSecond === 'fromSecondaryArchetype'
+          ? undefined
+          : fromSecond
+        : outer.archetype.principleCategory
+    if (outer.choice.principle) checkChoice(outer.choice.principle, category, 'archetype', warnings)
     else if (category) warnings.push(warning('archetype', 'principle-missing', `Choose a principle of ${categoryName(category)}.`))
+    if (second?.choice.principle) {
+      warnings.push(warning('archetype', 'secondary-principle', `Record your archetype principle on ${outer.archetype.name}, not ${second.archetype.name}.`))
+    }
   }
   if (hero.retcon?.kind === 'changePrinciple') {
     // The retcon allows any principle, from any category, but it has to be a different one.

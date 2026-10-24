@@ -8,8 +8,8 @@
  * either upgrades it with the bigger new die (the old die then joins this step's dice to
  * assign elsewhere) or should put the new die on something else.
  *
- * Divided and Modular build on a second archetype. Their extra structure isn't modelled
- * yet, so for them only the archetype step's dice are checked here.
+ * Divided and Modular build on a second archetype, whose powers, qualities, and bonuses
+ * the hero takes (see ./layers.ts); their own dice are recorded on that second archetype.
  */
 import { describeRef, getCategory, getTrait, refsMatch, traitKey, type TraitRef } from '../rules/catalog'
 import {
@@ -22,7 +22,8 @@ import {
 } from '../rules/data'
 import { compareDice, sortDice, stepDie } from '../rules/dice'
 import type { Archetype, Bonus, Die, OptionRef, PowerSource, RequiredRef } from '../rules/types'
-import type { Hero, TraitAssignment } from '../hero/model'
+import type { ArchetypeChoice, Hero, TraitAssignment } from '../hero/model'
+import { traitLayer } from './layers'
 import { warning, type RuleWarning, type StepId } from './warnings'
 
 export interface HeroTrait {
@@ -338,13 +339,11 @@ function powerSourceStep(state: TraitState, hero: Hero, ps: PowerSource): void {
   if (bg) state.checkPool('powerSource', bg.powerSourceDice, freed, choice.powers)
 }
 
-function archetypeStep(state: TraitState, hero: Hero, ar: Archetype): void {
-  const choice = hero.archetype!
+function archetypeStep(state: TraitState, hero: Hero, choice: ArchetypeChoice, ar: Archetype): void {
   const before = state.snapshot()
   const freed = state.assign('archetype', choice.traits)
   const ps = hero.powerSource ? powerSourcesById.get(hero.powerSource.id) : undefined
   if (ps) state.checkPool('archetype', ps.archetypeDice, freed, choice.traits)
-  if (ar.complex) return
 
   // The required trait: assigned now, or (if the archetype allows skipping) already held.
   let rest = [...choice.traits]
@@ -434,8 +433,14 @@ export function deriveTraits(hero: Hero): TraitDerivation {
 
   const ps = hero.powerSource ? powerSourcesById.get(hero.powerSource.id) : undefined
   if (hero.powerSource && !ps) state.warn('powerSource', 'unknown-entry', `Unknown power source "${hero.powerSource.id}".`)
-  const ar = hero.archetype ? archetypesById.get(hero.archetype.id) : undefined
-  if (hero.archetype && !ar) state.warn('archetype', 'unknown-entry', `Unknown archetype "${hero.archetype.id}".`)
+  const outer = hero.archetype ? archetypesById.get(hero.archetype.id) : undefined
+  if (hero.archetype && !outer) state.warn('archetype', 'unknown-entry', `Unknown archetype "${hero.archetype.id}".`)
+  // Divided and Modular take their dice from the second archetype they build on.
+  const layer = traitLayer(hero)
+  const ar = layer?.archetype
+  if (outer?.complex && (hero.archetype!.traits.length || hero.archetype!.bonus.length)) {
+    state.warn('archetype', 'complex-traits', `${outer.name}'s powers and qualities come from the archetype it builds on; record them there.`)
+  }
 
   // A power source bonus applies after its powers, except Training's extra archetype quality,
   // which is taken during the archetype step.
@@ -447,9 +452,9 @@ export function deriveTraits(hero: Hero): TraitDerivation {
       applyBonuses(state, psBonuses, hero.powerSource!.bonus, { step: 'powerSource', source: ps.name, listed: ps.powers.options, archetype: ar })
     }
   }
-  if (ar) {
-    archetypeStep(state, hero, ar)
-    applyBonuses(state, ar.bonuses ?? [], hero.archetype!.bonus, { step: 'archetype', source: ar.name, listed: [], archetype: ar })
+  if (layer && ar) {
+    archetypeStep(state, hero, layer.choice, ar)
+    applyBonuses(state, ar.bonuses ?? [], layer.choice.bonus, { step: 'archetype', source: ar.name, listed: [], archetype: ar })
   }
   if (ps && deferred && ar) {
     applyBonuses(state, psBonuses, hero.powerSource!.bonus, { step: 'archetype', source: ps.name, listed: ps.powers.options, archetype: ar })

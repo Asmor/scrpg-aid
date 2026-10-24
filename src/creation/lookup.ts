@@ -1,7 +1,8 @@
 /** Finds the rules entry behind an ability a hero took. */
 import { archetypesById, personalitiesById, powerSourcesById, redAbilityCategories } from '../rules/data'
-import type { Ability, OptionRef, RedAbilityCategory } from '../rules/types'
-import type { AbilityPick, Hero } from '../hero/model'
+import type { Ability, Archetype, OptionRef, RedAbilityCategory } from '../rules/types'
+import type { AbilityPick, Hero, PersonalityChoice } from '../hero/model'
+import { dividedChoice, layers } from './layers'
 
 /** A Red ability category's key, as stored in AbilityPick.category: "power:athletic" or "quality:mental". */
 export function redCategoryKey(category: RedAbilityCategory): string {
@@ -19,10 +20,12 @@ export type RedLookup =
   | { found: true; ability: Ability; category: undefined }
   | { found: false; reason: 'unknown' | 'ambiguous' }
 
-/** Minion-Maker's extra Red options, if the hero's archetype has them (the user's ruling: always available to it). */
+/**
+ * Minion-Maker's extra Red options, if the hero's archetype (or the one a Divided or
+ * Modular hero builds on) has them; the user ruled they're always available to it.
+ */
 export function extraRedOptions(hero: Hero): readonly Ability[] {
-  const ar = hero.archetype && archetypesById.get(hero.archetype.id)
-  return ar?.extraRedAbilityOptions ?? []
+  return layers(hero).flatMap((l) => l.archetype.extraRedAbilityOptions ?? [])
 }
 
 /**
@@ -45,10 +48,14 @@ export function findRedAbility(hero: Hero, pick: AbilityPick): RedLookup {
     : { found: false, reason: 'unknown' }
 }
 
-/** Every ability a power source or archetype offers for a given pick source. */
-function optionsFor(hero: Hero, pick: AbilityPick): readonly Ability[] {
+/**
+ * Every ability a power source or archetype offers for a given pick source. Archetype
+ * sources are relative to `ar` (default: the hero's archetype), so a Divided hero's second
+ * archetype's abilities are looked up by passing that archetype.
+ */
+function optionsFor(hero: Hero, pick: AbilityPick, archetype?: Archetype): readonly Ability[] {
   const ps = hero.powerSource && powerSourcesById.get(hero.powerSource.id)
-  const ar = hero.archetype && archetypesById.get(hero.archetype.id)
+  const ar = archetype ?? (hero.archetype ? archetypesById.get(hero.archetype.id) : undefined)
   switch (pick.source) {
     case 'powerSource.green':
       return ps?.greenAbilities?.options ?? []
@@ -64,6 +71,8 @@ function optionsFor(hero: Hero, pick: AbilityPick): readonly Ability[] {
       return ar?.yellowAbilities?.fromGreenList ? (ar.greenAbilities?.options ?? []) : (ar?.yellowAbilities?.options ?? [])
     case 'archetype.fixedRed':
       return ar?.fixedRedAbilities ?? []
+    case 'archetype.transition':
+      return (ar?.transitionMethods ?? []).flatMap((m) => m.greenAbilities.options ?? [])
     default:
       return []
   }
@@ -71,21 +80,61 @@ function optionsFor(hero: Hero, pick: AbilityPick): readonly Ability[] {
 
 /** The Out ability as a pick, carrying the personality's Out choices, or undefined before a personality is chosen. */
 export function outPick(hero: Hero): AbilityPick | undefined {
-  if (!hero.personality || !personalitiesById.has(hero.personality.id)) return undefined
-  return { source: 'out', name: OUT_ABILITY_NAME, uses: hero.personality.outUses, blanks: hero.personality.outBlanks }
+  const choice = outPersonality(hero)
+  if (!choice || !personalitiesById.has(choice.id)) return undefined
+  return { source: 'out', name: OUT_ABILITY_NAME, uses: choice.outUses, blanks: choice.outBlanks }
+}
+
+/**
+ * The personality whose Out ability the hero uses: a Divided hero with two personalities
+ * picks one (the user's ruling); otherwise it's the hero's personality.
+ */
+export function outPersonality(hero: Hero): PersonalityChoice | null | undefined {
+  const divided = dividedChoice(hero)
+  return divided?.heroicPersonality && divided.outFrom === 'heroic' ? divided.heroicPersonality : hero.personality
 }
 
 export const OUT_ABILITY_NAME = 'Out ability'
 
-/** The rules entry for any ability the hero took, or undefined if it can't be found. */
-export function findAbility(hero: Hero, pick: AbilityPick): Ability | undefined {
+/**
+ * The rules entry for any ability the hero took, or undefined if it can't be found.
+ * Pass `archetype` for picks recorded on a Divided hero's second archetype.
+ */
+export function findAbility(hero: Hero, pick: AbilityPick, archetype?: Archetype): Ability | undefined {
   if (pick.source === 'out') {
-    const personality = hero.personality && personalitiesById.get(hero.personality.id)
+    const choice = outPersonality(hero)
+    const personality = choice && personalitiesById.get(choice.id)
     return personality ? { name: OUT_ABILITY_NAME, type: 'A', text: personality.outAbility } : undefined
   }
   if (pick.source === 'red' || pick.source === 'retcon') {
     const red = findRedAbility(hero, pick)
     return red.found ? red.ability : undefined
   }
-  return optionsFor(hero, pick).find((a) => a.name === pick.name)
+  return optionsFor(hero, pick, archetype).find((a) => a.name === pick.name)
+}
+
+/** A recorded ability pick, with the archetype its source is relative to (for archetype picks). */
+export interface PlacedPick {
+  pick: AbilityPick
+  archetype?: Archetype
+}
+
+/**
+ * Every ability pick the hero recorded for their power source, archetype(s), and Red
+ * abilities (not the Out ability, forms, or retcons): Divided's transition ability and its
+ * second archetype's abilities included, Modular's skipped second-archetype abilities not.
+ */
+export function recordedPicks(hero: Hero): PlacedPick[] {
+  const [outer, second] = layers(hero)
+  const result: PlacedPick[] = (hero.powerSource?.abilities ?? []).map((pick) => ({ pick }))
+  if (outer) {
+    result.push(...outer.choice.abilities.map((pick) => ({ pick, archetype: outer.archetype })))
+    const transition = outer.choice.divided?.transitionAbility
+    if (transition) result.push({ pick: transition, archetype: outer.archetype })
+  }
+  if (second && !outer?.archetype.secondaryArchetype?.skipAbilities) {
+    result.push(...second.choice.abilities.map((pick) => ({ pick, archetype: second.archetype })))
+  }
+  result.push(...hero.redAbilities.map((pick) => ({ pick })))
+  return result
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { A, completeHero, P } from '../test/heroes'
+import { completeHero } from '../test/heroes'
 import { checkPrinciples, heroPrinciples } from './principles'
 
 const messages = (hero: Parameters<typeof checkPrinciples>[0]) => checkPrinciples(hero).map((w) => w.message)
@@ -26,9 +26,17 @@ describe('principles', () => {
     expect(checkPrinciples(hero).map((w) => w.code)).toContain('principle-blank')
   })
 
-  it('skips the category check for Modular, whose principle comes from another archetype', () => {
+  it('takes Modular’s principle category from the archetype it builds on', () => {
     const hero = completeHero()
-    hero.archetype = { id: 'modular', traits: [A(P('flight'), 'd12')], abilities: [], bonus: [], principle: { id: 'destiny' } }
+    const speedster = hero.archetype!
+    delete speedster.principle
+    hero.archetype = { id: 'modular', traits: [], abilities: [], bonus: [], principle: { id: 'gearhead' }, secondary: speedster }
+    // Speedster's category is Expertise.
+    expect(checkPrinciples(hero)).toEqual([])
+    hero.archetype.principle = { id: 'destiny' }
+    expect(messages(hero)).toEqual(["This step's principle comes from Expertise, but Principle of Destiny is Esoteric."])
+    // Without a known second archetype there's no category to check against.
+    delete hero.archetype.secondary
     expect(checkPrinciples(hero)).toEqual([])
     delete hero.archetype.principle
     expect(checkPrinciples(hero)).toEqual([])

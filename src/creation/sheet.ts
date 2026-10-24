@@ -5,7 +5,6 @@
  */
 import type { TraitRef } from '../rules/catalog'
 import {
-  archetypesById,
   backgroundsById,
   personalitiesById,
   powerSourcesById,
@@ -16,9 +15,11 @@ import type { Ability, AbilityType, Die, HealthRange, MinionForm, Zone } from '.
 import type { AbilityPick, AbilitySource, Hero, PrincipleChoice } from '../hero/model'
 import { checkAbilities, checkAbilityPick, checkAbilityRetcon } from './abilities'
 import { computeHealth, statusDice } from './health'
-import { findAbility, outPick } from './lookup'
+import { findAbility, outPick, recordedPicks, type PlacedPick } from './lookup'
 import { checkPrinciples, heroPrinciples } from './principles'
 import { checkForms, formAbilityPick, formLabel, formTraits } from './forms'
+import { checkDivided, heroicTraits, outTraits, splitNames } from './divided'
+import { archetypeName, checkSecondary, dividedChoice, layers, traitLayer } from './layers'
 import { checkRedAbilities } from './red'
 import { checkRetcon } from './retcons'
 import { deriveTraits, traitLabel, type HeroTrait } from './traits'
@@ -57,11 +58,19 @@ export interface HeroSheet {
   powers: HeroTrait[]
   qualities: HeroTrait[]
   statusDice?: Record<Zone, Die>
+  /** A Divided hero's heroic-form status dice, when they have a second personality. */
+  heroicStatusDice?: Record<Zone, Die>
   maxHealth?: number
   healthRanges?: HealthRange
   principles: SheetPrinciple[]
   abilities: SheetAbility[]
   outAbility?: string
+  /** Divided: the heroic form's personality and traits (when it has its own personality), and Split Form's lists. */
+  divided?: {
+    heroicPersonality?: string
+    heroicTraits?: HeroTrait[]
+    split?: { always: string[]; civilian: string[]; heroic: string[] }
+  }
   /** Form-Changer forms. */
   forms: SheetForm[]
   /** Minion-Maker's chosen minion forms. */
@@ -103,6 +112,7 @@ const ZONE_OF: Record<ZoneSource, Zone> = {
   'archetype.fixedYellow': 'yellow',
   'archetype.yellow': 'yellow',
   'archetype.fixedRed': 'red',
+  'archetype.transition': 'green',
   red: 'red',
   retcon: 'red',
 }
@@ -121,42 +131,54 @@ function sheetAbility(hero: Hero, ability: Ability, pick: AbilityPick & { source
 export function buildSheet(hero: Hero): HeroSheet {
   const derived = deriveTraits(hero)
   const traits = derived.traits
+  // The Out ability uses the powers and qualities of the form whose personality gives it.
+  const forOut = outTraits(hero, traits)
   const warnings: RuleWarning[] = [
     ...derived.warnings,
     ...checkAbilities(hero, traits),
     ...checkRedAbilities(hero, traits),
-    ...checkAbilityRetcon(hero, traits),
+    ...checkAbilityRetcon(hero, traits, forOut),
     ...checkPrinciples(hero),
     ...checkRetcon(hero),
     ...checkForms(hero, traits),
+    ...checkSecondary(hero),
+    ...checkDivided(hero, traits),
   ]
 
   // Ability picks, with the ability retcon's new traits applied.
   const retcon = hero.retcon?.kind === 'changeAbilityTrait' ? hero.retcon : undefined
-  const picks = [
-    ...(hero.powerSource?.abilities ?? []),
-    ...(hero.archetype?.abilities ?? []),
-    ...hero.redAbilities,
-    ...(hero.retcon?.kind === 'gainRedAbility' ? [{ ...hero.retcon.ability, source: 'retcon' as const }] : []),
-  ].map((p) => (retcon && p.source === retcon.ability.source && p.name === retcon.ability.name ? { ...p, uses: retcon.uses } : p))
+  const placed: PlacedPick[] = [
+    ...recordedPicks(hero),
+    ...(hero.retcon?.kind === 'gainRedAbility' ? [{ pick: { ...hero.retcon.ability, source: 'retcon' as const } }] : []),
+  ].map(({ pick, archetype }) => ({
+    archetype,
+    pick: retcon && pick.source === retcon.ability.source && pick.name === retcon.ability.name ? { ...pick, uses: retcon.uses } : pick,
+  }))
 
   const abilities: SheetAbility[] = []
   const inZone = (p: AbilityPick): p is AbilityPick & { source: ZoneSource } => p.source !== 'out' && p.source !== 'archetype.form'
-  for (const pick of picks.filter(inZone)) {
-    const ability = findAbility(hero, pick)
+  for (const { pick, archetype } of placed) {
+    if (!inZone(pick)) continue
+    const ability = findAbility(hero, pick, archetype)
     if (ability) abilities.push(sheetAbility(hero, ability, pick))
   }
-  // Fixed abilities come with the archetype even if no pick was recorded; unfilled blanks stay in brackets.
-  const ar = hero.archetype && archetypesById.get(hero.archetype.id)
-  const fixed: [Ability[] | undefined, ZoneSource][] = [
-    [ar?.fixedGreenAbilities, 'archetype.fixedGreen'],
-    [ar?.fixedYellowAbilities, 'archetype.fixedYellow'],
-    [ar?.fixedRedAbilities, 'archetype.fixedRed'],
-  ]
-  for (const [list, source] of fixed) {
-    for (const ability of list ?? []) {
-      if (!picks.some((p) => p.source === source && p.name === ability.name)) {
-        abilities.push(sheetAbility(hero, ability, { source, name: ability.name }))
+  // Fixed abilities come with each archetype layer even if no pick was recorded (Modular
+  // skips its base archetype's); unfilled blanks stay in brackets.
+  const [outer, ...rest] = layers(hero)
+  const withAbilities = outer?.archetype.secondaryArchetype?.skipAbilities ? [outer] : [outer, ...rest]
+  for (const layer of withAbilities) {
+    if (!layer) continue
+    const ar = layer.archetype
+    const fixed: [Ability[] | undefined, ZoneSource][] = [
+      [ar.fixedGreenAbilities, 'archetype.fixedGreen'],
+      [ar.fixedYellowAbilities, 'archetype.fixedYellow'],
+      [ar.fixedRedAbilities, 'archetype.fixedRed'],
+    ]
+    for (const [list, source] of fixed) {
+      for (const ability of list ?? []) {
+        if (!placed.some((p) => p.archetype === ar && p.pick.source === source && p.pick.name === ability.name)) {
+          abilities.push(sheetAbility(hero, ability, { source, name: ability.name }))
+        }
       }
     }
   }
@@ -189,14 +211,15 @@ export function buildSheet(hero: Hero): HeroSheet {
   const outEntry = recorded && findAbility(hero, recorded)
   if (recorded && outEntry) {
     const ability = outEntry
-    warnings.push(...checkAbilityPick(hero, traits, ability, recorded, 'personality'))
+    warnings.push(...checkAbilityPick(hero, forOut, ability, recorded, 'personality'))
     const pick = retcon?.ability.source === 'out' ? { ...recorded, uses: retcon.uses } : recorded
     out = fillText(hero, ability.text, pick.uses, pick.blanks)
   }
 
   // Form-Changer forms and Minion-Maker minion forms.
-  const formSpec = ar?.forms
-  const recordedForms = hero.archetype?.forms ?? []
+  const formLayer = traitLayer(hero)
+  const formSpec = formLayer?.archetype.forms
+  const recordedForms = formLayer?.choice.forms ?? []
   const forms: SheetForm[] = recordedForms.map((form) => {
     const pick = formAbilityPick(hero, form)
     const entry = pick && [...(formSpec?.greenFormAbilities ?? []), ...(formSpec?.yellowFormAbilities ?? [])].find((a) => a.name === pick.name)
@@ -212,8 +235,9 @@ export function buildSheet(hero: Hero): HeroSheet {
       },
     }
   })
-  const minionForms = (hero.archetype?.minionForms?.forms ?? []).flatMap((name) => ar?.minionForms?.forms.find((f) => f.name === name) ?? [])
+  const minionForms = (formLayer?.choice.minionForms?.forms ?? []).flatMap((name) => formLayer?.archetype.minionForms?.forms.find((f) => f.name === name) ?? [])
 
+  const divided = dividedChoice(hero)
   const health = computeHealth(hero, traits)
   warnings.push(...health.warnings)
 
@@ -221,15 +245,21 @@ export function buildSheet(hero: Hero): HeroSheet {
   const ps = hero.powerSource && powerSourcesById.get(hero.powerSource.id)
   const byDie = (a: HeroTrait, b: HeroTrait) => Number(b.die.slice(1)) - Number(a.die.slice(1)) || a.name.localeCompare(b.name)
   return {
-    characteristics: { background: bg?.name, powerSource: ps?.name, archetype: ar?.name, personality: personality?.name },
+    characteristics: { background: bg?.name, powerSource: ps?.name, archetype: archetypeName(hero), personality: personality?.name },
     powers: traits.filter((t) => t.trait.kind === 'power').sort(byDie),
     qualities: traits.filter((t) => t.trait.kind === 'quality').sort(byDie),
     statusDice: statusDice(hero),
+    heroicStatusDice: statusDice(hero, 'heroic'),
     maxHealth: health.max,
     healthRanges: health.ranges,
     principles,
     abilities,
     outAbility: out,
+    divided: divided && {
+      heroicPersonality: divided.heroicPersonality && personalitiesById.get(divided.heroicPersonality.id)?.name,
+      heroicTraits: heroicTraits(hero),
+      split: splitNames(hero),
+    },
     forms,
     minionForms,
     warnings,

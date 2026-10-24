@@ -71,6 +71,10 @@ describe('Health', () => {
     const armored = completeHero()
     armored.archetype = { id: 'armored', traits: [A(P('power-suit'), 'd12'), A(Q('banter'), 'd6')], abilities: [], bonus: [] }
     expect(healthTraitOptions(armored, deriveTraits(armored).traits).map((t) => t.trait.id)).toContain('power-suit')
+    // Modular keeps its base archetype's Health options (the user's ruling).
+    const modular = completeHero()
+    modular.archetype = { id: 'modular', traits: [], abilities: [], bonus: [], secondary: armored.archetype! }
+    expect(healthTraitOptions(modular, deriveTraits(modular).traits).map((t) => t.trait.id)).toContain('power-suit')
   })
 
   it('uses the fallback d4 when the hero has no eligible trait', () => {

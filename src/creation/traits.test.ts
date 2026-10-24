@@ -170,12 +170,19 @@ describe('deriveTraits', () => {
       expect(codes(hero)).toEqual(['not-on-list', 'power-count'])
     })
 
-    it('only checks the dice for Divided and Modular', () => {
+    it('Divided and Modular take their dice from the archetype they build on', () => {
       const hero = validHero()
-      hero.archetype = { id: 'modular', traits: [A(Q('banter'), 'd12'), A(P('telepathy'), 'd6')], abilities: [], bonus: [] }
+      const speedster = hero.archetype!
+      hero.archetype = { id: 'divided', traits: [], abilities: [], bonus: [], secondary: speedster }
       expect(codes(hero)).toEqual([])
-      hero.archetype.traits = [A(Q('banter'), 'd12')]
-      expect(codes(hero)).toEqual(['dice-mismatch'])
+      expect(dice(hero)).toMatchObject({ speed: 'd12', flight: 'd6' })
+      // The second archetype's lists and dice are checked as usual.
+      speedster.traits = [A(P('flight'), 'd12'), A(P('leaping'), 'd6')]
+      expect(codes(hero)).toEqual(['missing-required'])
+      // Dice recorded on the outer archetype are flagged.
+      speedster.traits = [A(P('speed'), 'd12'), A(P('flight'), 'd6')]
+      hero.archetype.traits = [A(Q('banter'), 'd6')]
+      expect(codes(hero)).toEqual(['complex-traits'])
     })
   })
 

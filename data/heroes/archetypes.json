@@ -2196,6 +2196,7 @@
       "secondaryArchetype": {
         "reroll": "optional",
         "exclude": [
+          "divided",
           "modular"
         ],
         "skipAbilities": true,
