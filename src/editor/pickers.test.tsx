@@ -2,10 +2,10 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
-import { expandRefs } from '../rules/catalog'
+import { expandRefs, type TraitRef } from '../rules/catalog'
 import type { AbilityPick, PrincipleChoice, TraitAssignment } from '../hero/model'
 import type { Ability, Bonus } from '../rules/types'
-import { powerSourcesById } from '../rules/data'
+import { archetypesById, powerSourcesById } from '../rules/data'
 import { deriveTraits, type HeroTrait } from '../creation/traits'
 import { A, P, Q, validHero } from '../test/heroes'
 import { describeOptions } from '../components/format'
@@ -14,7 +14,7 @@ import { PrinciplePicker } from './PrinciplePicker'
 import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
 
-function Assigner({ initial, earlierHero = false }: { initial: TraitAssignment[]; earlierHero?: boolean }) {
+function Assigner({ initial, earlierHero = false, earlier, canSwap }: { initial: TraitAssignment[]; earlierHero?: boolean; earlier?: HeroTrait[]; canSwap?: (t: TraitRef) => boolean }) {
   const [assignments, setAssignments] = useState(initial)
   const hero = validHero()
   return (
@@ -25,7 +25,8 @@ function Assigner({ initial, earlierHero = false }: { initial: TraitAssignment[]
         dice={['d12', 'd6']}
         assignments={assignments}
         options={expandRefs([{ power: 'speed' }, { powerCategory: 'mobility' }])}
-        earlier={earlierHero ? deriveTraits(hero).traits.filter((t) => t.step !== 'archetype') : []}
+        earlier={earlier ?? (earlierHero ? deriveTraits(hero).traits.filter((t) => t.step !== 'archetype') : [])}
+        canSwap={canSwap}
         onChange={setAssignments}
       />
       <output>{JSON.stringify(assignments)}</output>
@@ -53,6 +54,24 @@ describe('DiceAssigner', () => {
     const upgrade = screen.getByRole('checkbox', { name: 'Upgrade my Agility (d10)' })
     await userEvent.click(upgrade)
     expect(JSON.parse(screen.getByRole('status').textContent!)).toContainEqual({ trait: P('agility'), die: 'd6', upgrades: true })
+  })
+
+  it('offers swapping instead of upgrading for a trait that allows it', async () => {
+    render(<Assigner initial={[A(P('speed'), 'd6')]} earlier={[held(P('speed'), 'd8', 'Speed')]} canSwap={(t) => t.id === 'speed'} />)
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Swap this die onto my Speed (d8)' }))
+    expect(screen.getByRole('combobox', { name: "d8 (was Speed's)" })).toBeInTheDocument()
+  })
+
+  it('adds a row for the die an upgrade frees, and takes it away when the upgrade is undone', async () => {
+    render(<Assigner initial={[]} earlier={[held(P('speed'), 'd8', 'Speed')]} />)
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'd12' }), 'Speed')
+    expect(screen.getAllByRole('combobox')).toHaveLength(2)
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Upgrade my Speed (d8)' }))
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: "d8 (was Speed's)" }), 'Flight')
+    expect(output()).toEqual([{ trait: P('speed'), die: 'd12', upgrades: true }, A(P('flight'), 'd8')])
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Upgrade my Speed (d8)' }))
+    expect(screen.queryByRole('combobox', { name: "d8 (was Speed's)" })).not.toBeInTheDocument()
+    expect(output()).toEqual([A(P('speed'), 'd12')])
   })
 })
 
@@ -95,7 +114,7 @@ describe('describeOptions', () => {
 const HARMONY: Ability = { name: 'Harmony', type: 'I', text: 'As long as you have at least one bonus created from [quality], treat [power] as one size higher (max d12).' }
 const EMBOLDEN = powerSourcesById.get('higher-power')!.yellowAbilities.options!.find((a) => a.name === 'Embolden')!
 
-function Abilities({ initial = [], options }: { initial?: AbilityPick[]; options: Ability[] }) {
+function Abilities({ initial = [], options, fixed = false }: { initial?: AbilityPick[]; options: Ability[]; fixed?: boolean }) {
   const [picks, setPicks] = useState(initial)
   const hero = validHero()
   return (
@@ -110,6 +129,7 @@ function Abilities({ initial = [], options }: { initial?: AbilityPick[]; options
         step="powerSource"
         picks={picks}
         onChange={setPicks}
+        fixed={fixed}
       />
       <output>{JSON.stringify(picks)}</output>
     </>
@@ -174,6 +194,23 @@ describe('AbilityPicker', () => {
     expect(output()).toEqual([{ source: 'powerSource.yellow', name: 'Inflict', uses: [P('cold')] }])
   })
 
+  it('shows fixed abilities without a choice, filling in the blanks of those that have them', async () => {
+    const sprint: Ability = { name: 'Sprint', type: 'A', text: 'Overcome using [power].' }
+    render(<Abilities options={[sprint, { name: 'Steady', type: 'I', text: 'You can’t be knocked down.' }]} fixed />)
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.getByText('Steady')).toBeInTheDocument()
+    // Each can be named; only the one with blanks has a preview of its filled-in text.
+    const names = screen.getAllByLabelText('Your name for it (optional)')
+    expect(names).toHaveLength(2)
+    expect(screen.queryByText('You can’t be knocked down.', { selector: '.ability-pick__preview' })).not.toBeInTheDocument()
+    await userEvent.selectOptions(screen.getAllByRole('combobox')[0]!, 'Speed (d12)')
+    await userEvent.type(names[1]!, 'Rooted')
+    expect(output()).toEqual([
+      { source: 'powerSource.yellow', name: 'Sprint', uses: [P('speed')] },
+      { source: 'powerSource.yellow', name: 'Steady', customName: 'Rooted' },
+    ])
+  })
+
   it('says when no trait fits a slot', async () => {
     render(<Abilities options={[{ name: 'Mind Trick', type: 'A', text: 'Attack using [psychic power].' }]} />)
     await userEvent.click(screen.getByRole('checkbox', { name: /Mind Trick/ }))
@@ -183,11 +220,13 @@ describe('AbilityPicker', () => {
 
 const held = (trait: HeroTrait['trait'], die: HeroTrait['die'], name: string): HeroTrait => ({ trait, die, step: 'powerSource', name })
 
-function Bonuses({ bonus, before, initial = [], listed = [] }: { bonus: Bonus; before: HeroTrait[]; initial?: TraitAssignment[]; listed?: Parameters<typeof BonusPicker>[0]['listed'] }) {
+type BonusProps = Parameters<typeof BonusPicker>[0]
+
+function Bonuses({ bonus, before, initial = [], listed = [], archetypeQualities }: { bonus: Bonus; before: HeroTrait[]; initial?: TraitAssignment[]; listed?: BonusProps['listed']; archetypeQualities?: BonusProps['archetypeQualities'] }) {
   const [assignments, setAssignments] = useState(initial)
   return (
     <>
-      <BonusPicker hero={validHero()} legend="The bonus" bonus={bonus} listed={listed} before={before} assignments={assignments} onChange={setAssignments} />
+      <BonusPicker hero={validHero()} legend="The bonus" bonus={bonus} listed={listed} before={before} archetypeQualities={archetypeQualities} assignments={assignments} onChange={setAssignments} />
       <output>{JSON.stringify(assignments)}</output>
     </>
   )
@@ -247,5 +286,14 @@ describe('BonusPicker', () => {
     unmount()
     render(<Bonuses bonus={bonusOf('mystical')} before={[]} initial={[A(Q('banter'), 'd8')]} />)
     expect(screen.getByRole('combobox', { name: 'Quality' })).toHaveDisplayValue("Banter at d8 (doesn't fit)")
+  })
+
+  it('takes Training’s extra quality from the archetype’s list in the archetype step', async () => {
+    render(<Bonuses bonus={bonusOf('training')} before={[]} archetypeQualities={archetypesById.get('speedster')!.qualities!.options} />)
+    const quality = screen.getByRole('combobox', { name: 'Quality' })
+    expect(within(quality).getByRole('option', { name: 'Acrobatics at d8' })).toBeInTheDocument()
+    expect(within(quality).queryByRole('option', { name: 'Banter at d8' })).not.toBeInTheDocument()
+    await userEvent.selectOptions(quality, 'Acrobatics at d8')
+    expect(output()).toEqual([A(Q('acrobatics'), 'd8')])
   })
 })

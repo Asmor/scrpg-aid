@@ -9,7 +9,8 @@
  * personality, retcon). A step's assignments give each trait its die. When a step assigns
  * a trait the hero already has, the assignment says what the player meant:
  * - `upgrades: true`: the new, bigger die upgrades the old one, and the old die joins this
- *   step's pool to be assigned elsewhere in the same step ("Assigning dice", p. 44).
+ *   step's pool to be assigned elsewhere in the same step ("Assigning dice", p. 44). An
+ *   archetype's required trait that allows swapping takes any die this way (ruling 43).
  * - otherwise it's a duplicate, which is reported as a warning.
  * Bonuses that grant a die follow the same upgrade rule, but don't free the old die.
  *
@@ -32,7 +33,7 @@ export type CreationMethod = 'guided' | 'constructed'
 export interface TraitAssignment {
   trait: TraitRef
   die: Die
-  /** The hero already has this trait and the player chose to upgrade it with this bigger die (see the module doc). */
+  /** The hero already has this trait and the player chose to replace its die with this one, a bigger die or a swap (see the module doc). */
   upgrades?: true
 }
 

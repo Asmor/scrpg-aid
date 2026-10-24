@@ -75,6 +75,12 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 - **Decision:** No. The new dice get a fresh roll, and the step still has its one reroll.
 - **Basis:** Interpretation.
 
+### 43. Swapping the die on a required trait the hero already has
+- **Pages:** Archetype step notes (p. 73); Assigning dice (p. 44).
+- **Question:** An archetype whose required power or quality the hero already has may "swap the die" (`ifAlreadyHave: "swap"`). Elsewhere a die only replaces an existing one if it's bigger. Does swapping allow a smaller (or equal) die?
+- **Decision:** Yes. For the required trait, the archetype die replaces the old die whatever its size, and the old die joins the archetype step's dice to assign elsewhere.
+- **Basis:** Interpretation.
+
 ## Red abilities
 
 ### 10. Minion-Maker's extra Red abilities

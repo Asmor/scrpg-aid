@@ -143,6 +143,19 @@ describe('deriveTraits', () => {
       expect(codes(hero)).toEqual([])
     })
 
+    it('lets the required trait swap in any die, freeing the old one (ruling 43), but nothing else', () => {
+      const hero = validHero()
+      hero.powerSource!.powers[0] = A(P('speed'), 'd10')
+      hero.archetype!.traits = [A(P('speed'), 'd6', true), A(P('flight'), 'd12'), A(P('leaping'), 'd10')]
+      const result = deriveTraits(hero)
+      expect(result.warnings).toEqual([])
+      expect(result.traits.find((t) => t.trait.id === 'speed')?.die).toBe('d6')
+      // Agility isn't Speedster's required trait, so only a bigger die can replace it.
+      hero.powerSource!.powers[0] = A(P('agility'), 'd10')
+      hero.archetype!.traits = [A(P('agility'), 'd6', true), A(P('speed'), 'd12'), A(P('leaping'), 'd10')]
+      expect(codes(hero)).toEqual(['not-an-upgrade'])
+    })
+
     it('checks the number of powers from the list', () => {
       const hero = validHero()
       hero.archetype = { id: 'physical-powerhouse', traits: [A(P('strength'), 'd12'), A(P('leaping'), 'd6')], abilities: [], bonus: [] }
@@ -406,5 +419,36 @@ describe('traitsBefore', () => {
     expect(traitsBefore(hero, 'powerSourceBonus').map((t) => t.trait.id)).toEqual(['fitness', 'alertness', 'flight'])
     hero.powerSource = null
     expect(traitsBefore(hero, 'powerSourceBonus').map((t) => t.trait.id)).toEqual(['fitness', 'alertness'])
+  })
+
+  it('gives the traits before the archetype step, its bonus, and a power source bonus taken there', () => {
+    const hero = validHero()
+    hero.powerSource = { id: 'training', powers: [A(P('agility'), 'd10'), A(P('gadgets'), 'd8'), A(P('deduction'), 'd8')], abilities: [], bonus: [A(Q('acrobatics'), 'd8')] }
+    hero.archetype = { id: 'robot-cyborg', traits: [A(P('strength'), 'd10'), A(Q('investigation'), 'd8'), A(Q('self-discipline'), 'd8')], abilities: [], bonus: [A(P('robotics'), 'd10')] }
+    const ids = (point: Parameters<typeof traitsBefore>[1]) => traitsBefore(hero, point).map((t) => t.trait.id)
+    expect(ids('archetype')).toEqual(['fitness', 'alertness', 'agility', 'gadgets', 'deduction'])
+    expect(ids('archetypeBonus')).toEqual(['fitness', 'alertness', 'agility', 'gadgets', 'deduction', 'strength', 'investigation', 'self-discipline'])
+    expect(ids('deferredBonus')).toEqual(['fitness', 'alertness', 'agility', 'gadgets', 'deduction', 'strength', 'investigation', 'self-discipline', 'robotics'])
+    // A bonus that isn't deferred is part of the traits before the archetype.
+    hero.powerSource = { id: 'mystical', powers: [A(P('flight'), 'd10')], abilities: [], bonus: [A(Q('history'), 'd10')] }
+    expect(ids('archetype')).toEqual(['fitness', 'alertness', 'flight', 'history'])
+    hero.archetype = null
+    expect(ids('archetypeBonus')).toEqual(['fitness', 'alertness', 'flight', 'history'])
+  })
+
+  it('leaves out Modular’s filler powers, and the second archetype’s bonus before it applies', () => {
+    const hero = validHero()
+    hero.archetype = {
+      id: 'modular',
+      traits: [A(P('flight'), 'd6')],
+      abilities: [],
+      bonus: [],
+      secondary: { id: 'robot-cyborg', traits: [A(P('strength'), 'd12'), A(Q('deduction'), 'd6')], abilities: [], bonus: [A(P('robotics'), 'd10')] },
+    }
+    expect(traitsBefore(hero, 'archetypeBonus').map((t) => t.trait.id)).toEqual(['fitness', 'alertness', 'agility', 'fire', 'awareness', 'strength', 'deduction'])
+    // Training's extra quality comes after the bonus, but still before the fillers.
+    hero.powerSource = { id: 'training', powers: [A(P('agility'), 'd10'), A(P('gadgets'), 'd8'), A(P('deduction'), 'd8')], abilities: [], bonus: [A(Q('alertness'), 'd8')] }
+    // ('deduction' twice: Training's power, then the second archetype's quality.)
+    expect(traitsBefore(hero, 'deferredBonus').map((t) => t.trait.id)).toEqual(['fitness', 'alertness', 'agility', 'gadgets', 'deduction', 'strength', 'deduction', 'robotics'])
   })
 })

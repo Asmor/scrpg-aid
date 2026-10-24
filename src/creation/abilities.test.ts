@@ -24,6 +24,13 @@ describe('checkAbilities', () => {
     expect(messages(other)).toContain("Inflict isn't a power source ability.")
   })
 
+  it('warns about archetype picks for a block the archetype doesn’t have', () => {
+    const hero = heroWithAbilities()
+    // Armored has fixed Green abilities and Green choices, but no Yellow ones.
+    hero.archetype!.id = 'armored'
+    expect(messages(hero)).toContain('Armored has no Yellow abilities to choose.')
+  })
+
   it('describes category requirements', () => {
     const hero = heroWithAbilities()
     hero.archetype = { id: 'psychic', traits: [A(P('telepathy'), 'd12'), A(P('suggestion'), 'd6')], abilities: [{ source: 'archetype.yellow', name: 'Psychic Analysis', uses: [Q('alertness')] }], bonus: [] }

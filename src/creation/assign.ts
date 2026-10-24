@@ -3,7 +3,7 @@
  * assignments don't record which die they came from (only sizes matter, p. 44), so each
  * die is paired with the first unused assignment of the same size, in order.
  */
-import type { TraitRef } from '../rules/catalog'
+import { traitKey, type TraitRef } from '../rules/catalog'
 import type { Die } from '../rules/types'
 import type { TraitAssignment } from '../hero/model'
 
@@ -49,4 +49,48 @@ export function assignRow(
     if (!trait) return []
     return [upgrades ? { trait, die: row.die, upgrades: true as const } : { trait, die: row.die }]
   })
+}
+
+/** A die freed by an upgrade, and the trait it came from. */
+export interface FreedDie {
+  die: Die
+  from: TraitRef
+}
+
+/**
+ * The dice freed by upgrades in a step (p. 44): putting a bigger die on a trait from an
+ * earlier step frees its old die, which joins the step's dice to assign elsewhere.
+ * `earlier` is the hero's traits before the step.
+ */
+export function freedDice(assignments: readonly TraitAssignment[], earlier: readonly { trait: TraitRef; die: Die }[]): FreedDie[] {
+  return assignments.flatMap((a) => {
+    const old = a.upgrades && earlier.find((t) => traitKey(t.trait) === traitKey(a.trait))
+    return old ? [{ die: old.die, from: old.trait }] : []
+  })
+}
+
+/** The step's dice followed by the dice its upgrades free. */
+export function stepDice(pool: readonly Die[], assignments: readonly TraitAssignment[], earlier: readonly { trait: TraitRef; die: Die }[]): Die[] {
+  return [...pool, ...freedDice(assignments, earlier).map((f) => f.die)]
+}
+
+/**
+ * assignRow over the step's dice and the dice its upgrades free. Undoing an upgrade takes
+ * away the die it freed, so whatever was on that die is dropped too.
+ */
+export function assignStepRow(
+  pool: readonly Die[],
+  earlier: readonly { trait: TraitRef; die: Die }[],
+  assignments: readonly TraitAssignment[],
+  index: number,
+  trait: TraitRef | undefined,
+  upgrades = false,
+): TraitAssignment[] {
+  let next = assignRow(stepDice(pool, assignments, earlier), assignments, index, trait, upgrades)
+  // Dropping one assignment may undo another upgrade, so repeat until nothing is left over.
+  for (;;) {
+    const stray = strayAssignments(stepDice(pool, next, earlier), next)
+    if (stray.length === 0) return next
+    next = next.filter((a) => !stray.includes(a))
+  }
 }

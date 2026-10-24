@@ -305,6 +305,10 @@ function checkArchetype(ctx: Context, layer: ArchetypeLayer): void {
   checkFixed(ctx, ar.fixedRedAbilities ?? [], picks, 'archetype.fixedRed')
   if (ar.complex) return
 
+  // Picks left from another archetype (e.g. Yellow picks on an archetype with no Yellow choices).
+  for (const [source, block, zone] of [['archetype.green', ar.greenAbilities, 'Green'], ['archetype.yellow', ar.yellowAbilities, 'Yellow']] as const) {
+    if (!block && picksFrom(picks, source).length) warn(ctx, 'unknown-ability', `${ar.name} has no ${zone} abilities to choose.`)
+  }
   const green = ar.greenAbilities
     ? checkBlock(ctx, ar.greenAbilities, ar.greenAbilities.options ?? [], picksFrom(picks, 'archetype.green'), `${ar.name} Green abilities`, ar)
     : []

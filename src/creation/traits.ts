@@ -108,9 +108,10 @@ class TraitState {
   /**
    * Applies one step's main assignments and returns the dice freed by replacements.
    * Warns about unknown traits, traits assigned twice in the step, and traits the hero
-   * already had without `upgrades`.
+   * already had without `upgrades`. A trait `canSwap` allows may take any die in place of
+   * its old one, not just a bigger one (an archetype's required trait, ruling 43).
    */
-  assign(step: StepId, assignments: readonly TraitAssignment[]): Die[] {
+  assign(step: StepId, assignments: readonly TraitAssignment[], canSwap: (trait: TraitRef) => boolean = () => false): Die[] {
     const freed: Die[] = []
     const inStep = new Set<string>()
     for (const a of assignments) {
@@ -124,7 +125,7 @@ class TraitState {
       if (existing && existing.step !== step) {
         if (a.upgrades) {
           freed.push(existing.die)
-          if (compareDice(a.die, existing.die) <= 0) {
+          if (compareDice(a.die, existing.die) <= 0 && !canSwap(a.trait)) {
             this.warn(step, 'not-an-upgrade', `Only a bigger die can upgrade ${this.label(a.trait)}, which is already ${existing.die}.`)
           }
         } else {
@@ -339,9 +340,14 @@ function powerSourceStep(state: TraitState, hero: Hero, ps: PowerSource): void {
   if (bg) state.checkPool('powerSource', bg.powerSourceDice, freed, choice.powers)
 }
 
+/** Whether the archetype lets a die be swapped onto this trait, whatever its size (its required trait, ruling 43). */
+export function canSwapRequired(ar: Archetype, trait: TraitRef): boolean {
+  return Boolean(ar.required?.ifAlreadyHave.includes('swap') && refsMatch(ar.required.options, trait))
+}
+
 function archetypeStep(state: TraitState, hero: Hero, choice: ArchetypeChoice, ar: Archetype): void {
   const before = state.snapshot()
-  const freed = state.assign('archetype', choice.traits)
+  const freed = state.assign('archetype', choice.traits, (t) => canSwapRequired(ar, t))
   const ps = hero.powerSource ? powerSourcesById.get(hero.powerSource.id) : undefined
   if (ps) state.checkPool('archetype', ps.archetypeDice, freed, choice.traits)
 
@@ -511,8 +517,30 @@ export function deriveTraits(hero: Hero): TraitDerivation {
   return { traits: [...state.traits.values()], warnings: state.warnings }
 }
 
-/** A point in creation: before the power source step, or after its powers but before its bonus. */
-export type TraitPoint = 'powerSource' | 'powerSourceBonus'
+/**
+ * A point in creation: before the power source step, after its powers but before its
+ * bonus, before the archetype step, before the archetype's bonus, or before a power source
+ * bonus that's taken in the archetype step (Training's extra quality).
+ */
+export type TraitPoint = 'powerSource' | 'powerSourceBonus' | 'archetype' | 'archetypeBonus' | 'deferredBonus'
+
+/** Whether the power source's bonus is taken during the archetype step (Training's extra quality). */
+export function defersBonus(hero: Hero): boolean {
+  const ps = hero.powerSource ? powerSourcesById.get(hero.powerSource.id) : undefined
+  return (ps?.bonuses ?? []).some((b) => b.kind === 'extraArchetypeQuality')
+}
+
+/** The archetype choice without Modular's filler powers, which apply after every bonus. */
+function withoutFillers(choice: ArchetypeChoice): ArchetypeChoice {
+  return archetypesById.get(choice.id)?.secondaryArchetype?.minimumPowers !== undefined ? { ...choice, traits: [] } : choice
+}
+
+/** The archetype choice without its bonus (on the second archetype, for Divided and Modular) or Modular's fillers. */
+function withoutArchetypeBonus(choice: ArchetypeChoice): ArchetypeChoice {
+  const rest = withoutFillers(choice)
+  if (archetypesById.get(choice.id)?.complex) return choice.secondary ? { ...rest, secondary: { ...choice.secondary, bonus: [] } } : rest
+  return { ...rest, bonus: [] }
+}
 
 /**
  * The hero's powers and qualities as they stood at `point`, e.g. to offer upgrades of
@@ -520,10 +548,14 @@ export type TraitPoint = 'powerSource' | 'powerSourceBonus'
  */
 export function traitsBefore(hero: Hero, point: TraitPoint): HeroTrait[] {
   const ps = hero.powerSource
+  const inPowerSource = point === 'powerSource' || point === 'powerSourceBonus'
+  // The power source's bonus is left out before it applies: in the power source step, or
+  // in the archetype step for a bonus taken there.
+  const dropBonus = point === 'powerSourceBonus' || (!inPowerSource && defersBonus(hero))
   const earlier: Hero = {
     ...hero,
-    powerSource: point === 'powerSource' || !ps ? null : { ...ps, bonus: [] },
-    archetype: null,
+    powerSource: point === 'powerSource' || !ps ? null : dropBonus ? { ...ps, bonus: [] } : ps,
+    archetype: inPowerSource || point === 'archetype' || !hero.archetype ? null : point === 'archetypeBonus' ? withoutArchetypeBonus(hero.archetype) : withoutFillers(hero.archetype),
     personality: null,
     redAbilities: [],
     retcon: null,

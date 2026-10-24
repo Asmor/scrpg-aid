@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { StoreContext } from '../app/store-context'
 import { createHero, type Hero } from '../hero/model'
+import { A, P, Q, heroWithAbilities } from '../test/heroes'
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { backgrounds } from '../rules/data'
 import { tableOptions } from '../rules/rolling'
@@ -197,7 +198,8 @@ describe('HeroEditor', () => {
       'background',
     )
     expect(await screen.findByLabelText('d8')).toBeInTheDocument()
-    expect(screen.getByLabelText('d6 #1')).not.toBe(screen.getByLabelText('d6 #2'))
+    // The number is part of what a screen reader announces, with its space.
+    expect(screen.getByRole('combobox', { name: 'd6 #1' })).not.toBe(screen.getByRole('combobox', { name: 'd6 #2' }))
   })
 
   it('keeps a roll made before choosing, so leaving the step doesn’t give a fresh one', async () => {
@@ -319,6 +321,123 @@ describe('HeroEditor', () => {
     expect(screen.getByText(/You rolled/)).toHaveTextContent('You rolled 4 and 5 on d10 and d8 (typed in).')
     expect(screen.getByRole('button', { name: 'Reroll' })).toBeInTheDocument()
     await waitFor(async () => expect((await saved(store)).pendingRolls?.powerSource).toEqual({ dice: ['d10', 'd8'], results: [4, 5], manual: true }))
+  })
+
+  it('asks for a power source before rolling for an archetype', async () => {
+    renderEditor(await storeWith((h) => (h.background = { id: 'upper-class', qualities: [] })), 'archetype')
+    expect(await screen.findByText(/Choose a power source first/)).toBeInTheDocument()
+    expect(screen.queryAllByRole('radio')).toHaveLength(0)
+  })
+
+  it('rolls for an archetype with the power source’s dice', async () => {
+    const store = await storeWith((h) => {
+      h.background = { id: 'upper-class', qualities: [] }
+      h.powerSource = { id: 'accident', powers: [], abilities: [], bonus: [] }
+    })
+    renderEditor(store, 'archetype')
+    await userEvent.click(await screen.findByRole('button', { name: 'Roll d12 and d6' }))
+    await waitFor(async () => expect((await saved(store)).pendingRolls?.archetype?.dice).toEqual(['d12', 'd6']))
+  })
+
+  it('builds an archetype the constructed way: dice, abilities, and principle, with no issues left', async () => {
+    const store = await storeWith((h) => {
+      const legal = heroWithAbilities()
+      h.method = 'constructed'
+      h.background = { ...legal.background!, principle: { id: 'business' } }
+      h.powerSource = legal.powerSource
+    })
+    renderEditor(store, 'archetype')
+    await userEvent.click(await screen.findByRole('radio', { name: /Speedster/ }))
+    expect(screen.getByText('Speedster needs a die on Speed. If you already have it, you may skip it, or swap one of this step’s dice onto it and assign the old die elsewhere.')).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'd12' }), 'Speed')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'd6' }), 'Flight')
+
+    const green = screen.getByRole('group', { name: 'Green abilities: choose 2' })
+    await userEvent.click(within(green).getByRole('checkbox', { name: /Always on the Move/ }))
+    await userEvent.selectOptions(within(green).getByRole('combobox', { name: '[power/quality]' }), 'Speed (d12)')
+    await userEvent.click(within(green).getByRole('checkbox', { name: /Non-stop Assault/ }))
+    await userEvent.selectOptions(within(green).getByRole('combobox', { name: '[quality]' }), 'Alertness (d8)')
+    const yellow = screen.getByRole('group', { name: 'Yellow abilities: choose 1' })
+    await userEvent.click(within(yellow).getByRole('checkbox', { name: /Speedy Analysis/ }))
+    await userEvent.selectOptions(within(yellow).getByRole('combobox', { name: '[power]' }), 'Flight (d6)')
+    await userEvent.selectOptions(screen.getByLabelText('Principle of Expertise'), 'Principle of the Gearhead')
+
+    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    await waitFor(async () =>
+      expect((await saved(store)).archetype).toEqual({
+        id: 'speedster',
+        traits: [A(P('speed'), 'd12'), A(P('flight'), 'd6')],
+        abilities: [
+          { source: 'archetype.green', name: 'Always on the Move', uses: [P('speed')] },
+          { source: 'archetype.green', name: 'Non-stop Assault', uses: [Q('alertness')] },
+          { source: 'archetype.yellow', name: 'Speedy Analysis', uses: [P('flight')] },
+        ],
+        bonus: [],
+        principle: { id: 'gearhead' },
+      }),
+    )
+  })
+
+  it('takes Training’s extra quality, and an archetype’s bonus', async () => {
+    const store = await storeWith((h) => {
+      h.method = 'constructed'
+      h.background = { id: 'upper-class', qualities: [A(Q('fitness'), 'd10'), A(Q('alertness'), 'd8')] }
+      h.powerSource = { id: 'training', powers: [A(P('agility'), 'd10'), A(P('gadgets'), 'd8'), A(P('deduction'), 'd8')], abilities: [], bonus: [] }
+      h.archetype = { id: 'robot-cyborg', traits: [A(P('strength'), 'd10'), A(Q('investigation'), 'd8'), A(Q('self-discipline'), 'd8')], abilities: [], bonus: [] }
+    })
+    renderEditor(store, 'archetype')
+    const extra = await screen.findByRole('group', { name: "Training's extra quality" })
+    await userEvent.selectOptions(within(extra).getByRole('combobox', { name: 'Quality' }), 'Science at d8')
+    const bonus = screen.getByRole('group', { name: "Robot/Cyborg's bonus" })
+    await userEvent.selectOptions(within(bonus).getByRole('combobox', { name: 'Power' }), 'Robotics at d10')
+    await waitFor(async () => {
+      const hero = await saved(store)
+      expect(hero.powerSource?.bonus).toEqual([A(Q('science'), 'd8')])
+      expect(hero.archetype?.bonus).toEqual([A(P('robotics'), 'd10')])
+    })
+  })
+
+  it('lets choices left from another archetype be removed', async () => {
+    const store = await storeWith((h) => {
+      h.method = 'constructed'
+      h.archetype = {
+        id: 'robot-cyborg',
+        traits: [],
+        abilities: [{ source: 'archetype.yellow', name: 'Metal Skin' }],
+        bonus: [A(P('robotics'), 'd10')],
+      }
+    })
+    renderEditor(store, 'archetype')
+    // Robot/Cyborg's Yellow ability comes from its Green list.
+    const yellow = await screen.findByRole('group', { name: 'Yellow abilities: choose 1' })
+    expect(within(yellow).getByRole('checkbox', { name: /Metal Skin/ })).toBeChecked()
+
+    await userEvent.click(screen.getByRole('radio', { name: /Speedster/ }))
+    expect(screen.getByText("You have a bonus from another archetype, which Speedster doesn't use.")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Remove them' }))
+    expect(screen.queryByRole('button', { name: 'Remove them' })).not.toBeInTheDocument()
+
+    // Armored has no Yellow choices, so the Yellow pick shows on its own, to be removed.
+    await userEvent.click(screen.getByRole('radio', { name: /Armored/ }))
+    expect(within(screen.getByRole('group', { name: 'Green abilities you always have' })).getByText('Armored', { selector: '.choice__title *, .choice__title' })).toBeInTheDocument()
+    const stray = screen.getByRole('group', { name: 'Yellow abilities from another archetype' })
+    await userEvent.click(within(stray).getByRole('checkbox', { name: /Metal Skin/ }))
+    expect(screen.queryByRole('group', { name: 'Yellow abilities from another archetype' })).not.toBeInTheDocument()
+    await waitFor(async () => {
+      const hero = await saved(store)
+      expect(hero.archetype?.bonus).toEqual([])
+      expect(hero.archetype?.abilities).toEqual([])
+    })
+  })
+
+  it('says forms aren’t in the editor yet', async () => {
+    renderEditor(await storeWith((h) => (h.archetype = { id: 'minion-maker', traits: [], abilities: [], bonus: [] })), 'archetype')
+    expect(await screen.findByText("Minion-Maker's forms aren't in the editor yet. They're coming in a later update.")).toBeInTheDocument()
+  })
+
+  it('says the archetypes that build on a second archetype aren’t in the editor yet', async () => {
+    renderEditor(await storeWith((h) => (h.archetype = { id: 'divided', traits: [], abilities: [], bonus: [] })), 'archetype')
+    expect(await screen.findByText(/Building on a second archetype isn't in the editor yet/)).toBeInTheDocument()
   })
 
   it('reports a failed save', async () => {

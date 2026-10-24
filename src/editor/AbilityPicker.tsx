@@ -1,7 +1,8 @@
 /**
  * Taking abilities from a list (e.g. a power source's Yellow abilities) and filling in their
  * blanks: trait slots with the hero's powers and qualities, other blanks with words. The
- * rules checks warn about the count, restrictions, and anything left unfilled.
+ * rules checks warn about the count, restrictions, and anything left unfilled. Fixed
+ * abilities (an archetype's "always taken" ones) are shown the same way, without a choice.
  */
 import { useId } from 'react'
 import { parseTraitKey, traitKey, type TraitRef } from '../rules/catalog'
@@ -30,6 +31,8 @@ interface AbilityPickerProps {
   /** The picks from this list. */
   picks: readonly AbilityPick[]
   onChange: (picks: AbilityPick[]) => void
+  /** The hero has every ability in `options`; only their blanks are chosen. */
+  fixed?: boolean
 }
 
 interface TraitSlotFieldProps {
@@ -109,10 +112,11 @@ function ChoiceSlotField({ slot, value, onChange }: { slot: ChoiceSlot; value: s
 
 function PickFields({ hero, traits, step, ability, pick, onChange }: { hero: Hero; traits: readonly HeroTrait[]; step: StepId; ability: Ability; pick: AbilityPick; onChange: (p: AbilityPick) => void }) {
   const id = useId()
+  const slots = parseSlots(ability.text)
   let traitIndex = 0
   return (
     <div className="ability-pick__fields">
-      {parseSlots(ability.text).map((slot, i) => {
+      {slots.map((slot, i) => {
         if (slot.type === 'trait') {
           const index = traitIndex++
           return (
@@ -146,12 +150,13 @@ function PickFields({ hero, traits, step, ability, pick, onChange }: { hero: Her
           onChange={(e) => onChange(setCustomName(pick, e.target.value))}
         />
       </label>
-      <p className="ability-pick__preview">{fillText(hero, ability.text, pick.uses, pick.blanks)}</p>
+      {/* With no blanks, the text above already says it all. */}
+      {slots.length > 0 && <p className="ability-pick__preview">{fillText(hero, ability.text, pick.uses, pick.blanks)}</p>}
     </div>
   )
 }
 
-export function AbilityPicker({ hero, traits, legend, hint, options, source, step, picks, onChange }: AbilityPickerProps) {
+export function AbilityPicker({ hero, traits, legend, hint, options, source, step, picks, onChange, fixed = false }: AbilityPickerProps) {
   // Keep picks that aren't on this list (e.g. after changing power source) so they can be removed; the checks flag them.
   const stray = picks.filter((p) => !options.some((o) => o.name === p.name))
   const replace = (name: string, next: AbilityPick | undefined) => onChange(replacePick(picks, name, next))
@@ -161,6 +166,20 @@ export function AbilityPicker({ hero, traits, legend, hint, options, source, ste
       {hint && <p className="hint">{hint}</p>}
       {options.map((ability) => {
         const pick = picks.find((p) => p.name === ability.name)
+        if (fixed) {
+          // The hero has it either way; a pick is saved once a blank is filled or it's given a name.
+          return (
+            <div key={ability.name} className="ability-pick">
+              <p className="ability-pick__fixed">
+                <span className="choice__title">
+                  {ability.name} <span className="choice__note">({TYPE_NAME[ability.type]})</span>
+                </span>
+                <span className="choice__detail">{ability.text}</span>
+              </p>
+              <PickFields hero={hero} traits={traits} step={step} ability={ability} pick={pick ?? { source, name: ability.name }} onChange={(p) => replace(ability.name, p)} />
+            </div>
+          )
+        }
         return (
           <div key={ability.name} className="ability-pick">
             <label className="choice">

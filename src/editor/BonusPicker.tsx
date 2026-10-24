@@ -3,7 +3,7 @@
  * records its result as assignments: the trait and the die it ends up with.
  */
 import { useId } from 'react'
-import { traitKey, type CatalogTrait, type TraitRef } from '../rules/catalog'
+import { expandRefs, traitKey, type CatalogTrait, type TraitRef } from '../rules/catalog'
 import type { Bonus, Die, OptionRef } from '../rules/types'
 import type { Hero, TraitAssignment } from '../hero/model'
 import { fallbackOptions, gainOptions, shiftTargets, splitShift, upgradeTargets, usesFallback, type BonusTarget } from '../creation/bonus'
@@ -18,6 +18,8 @@ interface BonusPickerProps {
   listed: readonly OptionRef[]
   /** The hero's traits before the bonus applies. */
   before: readonly HeroTrait[]
+  /** In the archetype step, the archetype's quality list, for Training's extra quality. */
+  archetypeQualities?: readonly OptionRef[]
   assignments: readonly TraitAssignment[]
   onChange: (assignments: TraitAssignment[]) => void
 }
@@ -84,12 +86,16 @@ function TraitSelect({ hero, label, options, value, onChange }: { hero: Hero; la
 const gained = (hero: Hero, traits: readonly CatalogTrait[], die: Die): PickOption[] => traits.map((t) => ({ trait: { kind: t.kind, id: t.id }, die, label: `${traitLabel(hero, t)} at ${die}` }))
 const changed = (targets: readonly BonusTarget[]): PickOption[] => targets.map((t) => ({ trait: t.trait.trait, die: t.die, label: `${t.trait.name}: ${t.trait.die} → ${t.die}` }))
 
-export function BonusPicker({ hero, legend, bonus, listed, before, assignments, onChange }: BonusPickerProps) {
+export function BonusPicker({ hero, legend, bonus, listed, before, archetypeQualities, assignments, onChange }: BonusPickerProps) {
   const single = (a: TraitAssignment | undefined) => onChange(a ? [a] : [])
   let body
   switch (bonus.kind) {
     case 'extraArchetypeQuality':
-      body = <p>You take this in the archetype step.</p>
+      body = archetypeQualities ? (
+        <TraitSelect hero={hero} label="Quality" options={gained(hero, expandRefs(archetypeQualities), bonus.die)} value={assignments[0]} onChange={single} />
+      ) : (
+        <p>You take this in the archetype step.</p>
+      )
       break
     case 'gainQuality':
     case 'gainPower':
