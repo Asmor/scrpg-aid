@@ -1,6 +1,6 @@
 /** One saved hero, loaded by id and shown as a sheet. Give it `key={id}` so a new id starts fresh. */
 import { useEffect, useState } from 'react'
-import { listPath } from '../app/route'
+import { editPath, listPath } from '../app/route'
 import { useStore } from '../app/store-context'
 import type { GetResult } from '../hero/store'
 import { HeroSheetView } from './HeroSheetView'
@@ -24,8 +24,9 @@ export function HeroPage({ id }: { id: string }) {
 
   return (
     <div className="hero-page">
-      <p>
+      <p className="hero-page__links">
         <a href={listPath}>← All heroes</a>
+        {state.status === 'found' && <a href={editPath(id)}>Edit hero</a>}
       </p>
       {state.status === 'loading' && <p>Loading…</p>}
       {state.status === 'missing' && <p role="alert">There's no saved hero with that link. It may have been deleted.</p>}

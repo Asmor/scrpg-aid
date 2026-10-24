@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import { StoreContext } from '../app/store-context'
@@ -39,10 +39,13 @@ describe('HeroList', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'New hero' }))
     const [created] = (await store.list()).heroes
     expect(created?.method).toBe('guided')
-    expect(window.location.hash).toBe(`#/hero/${created!.id}`)
+    // A new hero opens in the editor…
+    expect(window.location.hash).toBe(`#/hero/${created!.id}/edit/details`)
 
+    // …and the example hero as a finished sheet.
     await userEvent.click(screen.getByRole('button', { name: 'Add example hero' }))
-    expect((await store.list()).heroes.map((h) => h.details.name)).toContain('Maya Reyes')
+    const example = (await store.list()).heroes.find((h) => h.details.name === 'Maya Reyes')
+    expect(window.location.hash).toBe(`#/hero/${example!.id}`)
   })
 
   it('asks before deleting, keeping keyboard focus in place', async () => {
@@ -65,6 +68,26 @@ describe('HeroList', () => {
     expect((await store.list()).heroes).toHaveLength(0)
     // After deleting, focus goes to the list heading.
     expect(screen.getByRole('heading', { name: 'Your heroes' })).toHaveFocus()
+  })
+
+  it('reports a failed delete, disabling the choices while it runs and refocusing Keep after', async () => {
+    const store = new MemoryHeroStore()
+    await store.save(exampleHero({ id: 'maya' }))
+    let fail!: (e: Error) => void
+    store.remove = () =>
+      new Promise((_, reject) => {
+        fail = reject
+      })
+    renderList(store)
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete Maya Reyes' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, delete' }))
+    const confirm = screen.getByRole('group', { name: 'Delete Maya Reyes?' })
+    expect(within(confirm).getByRole('button', { name: 'Yes, delete' })).toBeDisabled()
+    expect(within(confirm).getByRole('button', { name: 'Keep' })).toBeDisabled()
+    await act(async () => fail(new Error('locked')))
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't delete it: locked")
+    await waitFor(() => expect(within(confirm).getByRole('button', { name: 'Keep' })).toHaveFocus())
+    expect((await store.list()).heroes).toHaveLength(1)
   })
 
   it('shows saved heroes it can’t read, and deletes one only after confirming', async () => {

@@ -1,29 +1,35 @@
 /**
  * Hash-based routes, so the app works from any URL prefix on GitHub Pages and offline
- * without server rewrites: "#/" is the hero list and "#/hero/<id>" one hero's sheet.
+ * without server rewrites: "#/" is the hero list, "#/hero/<id>" one hero's sheet, and
+ * "#/hero/<id>/edit/<step>" a step of its editor.
  */
 import { useEffect, useState } from 'react'
 
-export type Route = { name: 'list' } | { name: 'hero'; id: string } | { name: 'notFound' }
+export type Route = { name: 'list' } | { name: 'hero'; id: string } | { name: 'edit'; id: string; step?: string } | { name: 'notFound' }
 
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#/, '') || '/'
   if (path === '/') return { name: 'list' }
-  const hero = /^\/hero\/([^/]+)$/.exec(path)
-  if (hero) {
-    try {
-      return { name: 'hero', id: decodeURIComponent(hero[1]!) }
-    } catch {
-      return { name: 'notFound' }
-    }
+  const match = /^\/hero\/([^/]+)(\/edit(?:\/([^/]+))?)?$/.exec(path)
+  if (!match) return { name: 'notFound' }
+  let id: string
+  try {
+    id = decodeURIComponent(match[1]!)
+  } catch {
+    return { name: 'notFound' }
   }
-  return { name: 'notFound' }
+  if (!match[2]) return { name: 'hero', id }
+  return match[3] ? { name: 'edit', id, step: match[3] } : { name: 'edit', id }
 }
 
 export const listPath = '#/'
 
 export function heroPath(id: string): string {
   return `#/hero/${encodeURIComponent(id)}`
+}
+
+export function editPath(id: string, step?: string): string {
+  return `${heroPath(id)}/edit${step ? `/${step}` : ''}`
 }
 
 export function navigate(path: string): void {

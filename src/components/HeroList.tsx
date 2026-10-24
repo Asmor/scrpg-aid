@@ -1,6 +1,6 @@
 /** The saved heroes: open, create, or delete one, or add the example hero. */
 import { useEffect, useRef, useState, type Ref } from 'react'
-import { heroPath, navigate } from '../app/route'
+import { editPath, heroPath, navigate } from '../app/route'
 import { useStore } from '../app/store-context'
 import { archetypeName } from '../creation/layers'
 import { exampleHero } from '../hero/example'
@@ -31,7 +31,7 @@ interface DeleteControlProps {
 function DeleteControl({ id, label, confirming, busy, onAsk, onKeep, onDelete, deleteRef, keepRef }: DeleteControlProps) {
   if (!confirming) {
     return (
-      <button type="button" className="button" ref={(el) => deleteRef(id, el)} onClick={onAsk} aria-label={`Delete ${label}`}>
+      <button type="button" className="button" ref={(el) => deleteRef(id, el)} disabled={busy} onClick={onAsk} aria-label={`Delete ${label}`}>
         Delete
       </button>
     )
@@ -42,7 +42,7 @@ function DeleteControl({ id, label, confirming, busy, onAsk, onKeep, onDelete, d
       <button type="button" className="button button--danger" disabled={busy} onClick={onDelete}>
         Yes, delete
       </button>
-      <button type="button" className="button" ref={keepRef} onClick={onKeep}>
+      <button type="button" className="button" ref={keepRef} disabled={busy} onClick={onKeep}>
         Keep
       </button>
     </span>
@@ -93,12 +93,13 @@ export function HeroList() {
     }
   })
 
-  const add = async (hero: Hero) => {
+  /** Saves a new hero and opens it: a blank one in the editor, the example as a sheet. */
+  const add = async (hero: Hero, path: string) => {
     setBusy(true)
     setActionError(null)
     try {
       await store.save(hero)
-      navigate(heroPath(hero.id))
+      navigate(path)
     } catch (e) {
       setActionError(`Couldn't save the hero: ${errorText(e)}`)
     } finally {
@@ -116,6 +117,8 @@ export function HeroList() {
       setVersion((v) => v + 1)
     } catch (e) {
       setActionError(`Couldn't delete it: ${errorText(e)}`)
+      // The confirmation is still open; put focus back on its safe choice.
+      setFocus({ to: 'keep' })
     } finally {
       setBusy(false)
     }
@@ -149,10 +152,16 @@ export function HeroList() {
           Your heroes
         </h2>
         <div className="button-row">
-          <button type="button" className="button button--primary" disabled={busy || loading} onClick={() => void add(createHero('guided'))}>
+          <button type="button" className="button button--primary" disabled={busy || loading} onClick={() => {
+              const hero = createHero('guided')
+              void add(hero, editPath(hero.id, 'details'))
+            }}>
             New hero
           </button>
-          <button type="button" className="button" disabled={busy || loading} onClick={() => void add(exampleHero())}>
+          <button type="button" className="button" disabled={busy || loading} onClick={() => {
+              const hero = exampleHero()
+              void add(hero, heroPath(hero.id))
+            }}>
             Add example hero
           </button>
         </div>
