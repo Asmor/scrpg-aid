@@ -49,6 +49,8 @@ export type AbilitySource =
   | 'archetype.transition'
   /** A Form-Changer form's ability. */
   | 'archetype.form'
+  /** A Modular mode's ability. */
+  | 'archetype.mode'
   | 'red'
   | 'retcon'
   /** The personality's Out ability (only used to point the ability-trait retcon at it). */
@@ -136,10 +138,32 @@ export interface DividedChoice {
   split?: { always: TraitRef[]; civilian: TraitRef[]; heroic: TraitRef[] }
 }
 
+/** A Modular mode (Core Rules p. 96–98), recorded on the auxiliary sheet. Its zone comes from the mode's list. */
+export interface ModeChoice {
+  /** The mode's id in the data, e.g. "debilitator". */
+  id: string
+  /** The player's name for the mode. */
+  name?: string
+  /** The default-mode powers the mode uses, at their adjusted dice. */
+  powers: TraitAssignment[]
+  /** The mode's ability (source 'archetype.mode'). */
+  ability?: AbilityPick
+}
+
+/** Modular's own choices. The default Green mode is the hero's dice as derived. */
+export interface ModularChoice {
+  modes: ModeChoice[]
+  /** The optional Powerless mode: two default-mode powers at its dice (d6 and d10). */
+  powerless?: TraitAssignment[]
+}
+
 export interface ArchetypeChoice {
   id: string
   roll?: RollRecord
-  /** Powers and qualities, including the archetype's required one. */
+  /**
+   * Powers and qualities, including the archetype's required one. On Modular itself, the d6
+   * powers added to bring the hero up to four powers.
+   */
   traits: TraitAssignment[]
   abilities: AbilityPick[]
   bonus: TraitAssignment[]
@@ -155,6 +179,8 @@ export interface ArchetypeChoice {
   secondary?: ArchetypeChoice
   /** Divided's own choices. */
   divided?: DividedChoice
+  /** Modular's modes. */
+  modular?: ModularChoice
 }
 
 export interface PersonalityChoice {

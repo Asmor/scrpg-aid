@@ -126,3 +126,51 @@ export function dividedHero(): Hero {
   }
   return hero
 }
+
+/**
+ * completeHero as a "Modular Speedster" with legal modes. Default-mode powers: Speed d12,
+ * Agility d10, Fire d8, Awareness d8, Flight d6 (five, so no filler powers are needed).
+ */
+export function modularHero(): Hero {
+  const hero = completeHero()
+  const speedster = hero.archetype!
+  const principle = speedster.principle
+  delete speedster.principle
+  speedster.abilities = []
+  hero.archetype = {
+    id: 'modular',
+    traits: [],
+    abilities: [{ source: 'archetype.fixedGreen', name: 'Switch', uses: [Q('fitness')] }],
+    bonus: [],
+    principle,
+    secondary: speedster,
+    modular: {
+      modes: [
+        {
+          id: 'improvement',
+          powers: [A(P('speed'), 'd12'), A(P('agility'), 'd10'), A(P('fire'), 'd10'), A(P('awareness'), 'd10')],
+          ability: { source: 'archetype.mode', name: 'Improvement', uses: [P('fire')] },
+        },
+        {
+          id: 'analysis',
+          powers: [A(P('agility'), 'd10'), A(P('fire'), 'd8'), A(P('awareness'), 'd10'), A(P('flight'), 'd8')],
+          ability: { source: 'archetype.mode', name: 'Analysis', uses: [P('awareness')] },
+        },
+        {
+          id: 'regeneration',
+          name: 'Patch Job',
+          powers: [A(P('speed'), 'd12'), A(P('flight'), 'd10')],
+          ability: { source: 'archetype.mode', name: 'Regeneration', uses: [P('flight')] },
+        },
+        {
+          // Raising Speed past d12 leaves it at d12 (the user's ruling).
+          id: 'hunter-killer',
+          powers: [A(P('speed'), 'd12'), A(P('agility'), 'd12')],
+          ability: { source: 'archetype.mode', name: 'Hunter/Killer', uses: [P('agility')] },
+        },
+      ],
+      powerless: [A(P('fire'), 'd6'), A(P('awareness'), 'd10')],
+    },
+  }
+  return hero
+}

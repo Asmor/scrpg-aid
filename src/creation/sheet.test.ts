@@ -106,6 +106,8 @@ describe('buildSheet', () => {
       outAbility: undefined,
       forms: [],
       minionForms: [],
+      modes: [],
+      powerlessMode: undefined,
       warnings: [],
     })
   })

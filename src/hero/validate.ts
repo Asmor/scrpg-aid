@@ -110,6 +110,11 @@ const dividedChoice = object({
   'split?': object({ always: arrayOf(traitRef), civilian: arrayOf(traitRef), heroic: arrayOf(traitRef) }),
 })
 
+const modularChoice = object({
+  modes: arrayOf(object({ id: nonEmptyString, 'name?': string, powers: arrayOf(assignment), 'ability?': abilityPick })),
+  'powerless?': arrayOf(assignment),
+})
+
 /** An archetype choice; Divided and Modular nest a second one in `secondary`. */
 const archetypeChoice: Check = (v, path) =>
   object({
@@ -125,6 +130,7 @@ const archetypeChoice: Check = (v, path) =>
     'minionForms?': object({ 'quality?': traitRef, forms: arrayOf(nonEmptyString) }),
     'secondary?': archetypeChoice,
     'divided?': dividedChoice,
+    'modular?': modularChoice,
   })(v, path)
 
 const heroShape = object({

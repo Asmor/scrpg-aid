@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createHero } from './model'
-import { dividedHero, formChangerHero, minionMakerHero } from '../test/heroes'
+import { dividedHero, formChangerHero, minionMakerHero, modularHero } from '../test/heroes'
 import { CURRENT_VERSION, HERO_FORMAT, parseSaved, parseSavedJson, toSaved } from './serialize'
 
 const hero = () => createHero('guided', { id: 'h1', now: new Date('2026-10-23T12:00:00Z') })
@@ -97,7 +97,7 @@ describe('serialize', () => {
     divided.archetype!.divided!.outFrom = 'heroic'
     divided.archetype!.divided!.split = { always: [], civilian: [{ kind: 'power', id: 'fire' }], heroic: [] }
     divided.retcon = { id: 'upgrade-red-status', kind: 'upgradeStatusDie', form: 'heroic' }
-    for (const h of [formChangerHero(), minionMakerHero(), divided]) {
+    for (const h of [formChangerHero(), minionMakerHero(), divided, modularHero()]) {
       expect(parseSavedJson(JSON.stringify(toSaved(h)))).toEqual({ ok: true, hero: h })
     }
   })
@@ -114,6 +114,16 @@ describe('serialize', () => {
     expect(bad((h) => Object.assign(h.archetype!.secondary!, { traits: 'speed' }))).toBe(false)
     expect(bad((h) => Object.assign(h.archetype!.secondary!, { secondary: { id: '' } }))).toBe(false)
     expect(bad((h) => (h.retcon = { id: 'upgrade-red-status', kind: 'upgradeStatusDie', form: 'both' as 'heroic' }))).toBe(false)
+    // Modular's modes.
+    const badModular = (change: (h: ReturnType<typeof modularHero>) => void) => {
+      const h = modularHero()
+      change(h)
+      return parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: h }).ok
+    }
+    expect(badModular(() => {})).toBe(true)
+    expect(badModular((h) => Object.assign(h.archetype!.modular!, { modes: 'all' }))).toBe(false)
+    expect(badModular((h) => Object.assign(h.archetype!.modular!.modes[0]!, { powers: [{ trait: { kind: 'power', id: 'fire' }, die: 'd7' }] }))).toBe(false)
+    expect(badModular((h) => Object.assign(h.archetype!.modular!, { powerless: [{}] }))).toBe(false)
   })
 
   it('migrates old versions forward, one version at a time', () => {

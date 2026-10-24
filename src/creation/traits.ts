@@ -376,6 +376,49 @@ function archetypeStep(state: TraitState, hero: Hero, choice: ArchetypeChoice, a
   }
 }
 
+/**
+ * Modular's filler powers (p. 96): if the base archetype leaves the hero with fewer than
+ * four powers, they add d6 powers until they have four. They're recorded on Modular's own
+ * choice, and the user ruled they come from the base archetype's or the power source's lists.
+ */
+function modularFillers(state: TraitState, hero: Hero, outer: Archetype, base: Archetype | undefined, ps: PowerSource | undefined): void {
+  const spec = outer.secondaryArchetype!
+  const fillers = hero.archetype!.traits
+  const minimum = spec.minimumPowers!
+  const have = [...state.traits.values()].filter((t) => t.trait.kind === 'power').length
+  const wanted = Math.max(0, minimum - have)
+  const seen = new Set<string>()
+  for (const a of fillers) {
+    if (!getTrait(a.trait)) state.warn('archetype', 'unknown-trait', `"${a.trait.id}" isn't a known ${a.trait.kind}.`)
+    if (a.trait.kind !== 'power') state.warn('archetype', 'wrong-kind', `${outer.name} adds powers, but ${state.label(a.trait)} is a quality.`)
+    else if (state.get(a.trait) || seen.has(traitKey(a.trait))) state.warn('archetype', 'already-have', `You already have ${state.label(a.trait)}; add a different power.`)
+    seen.add(traitKey(a.trait))
+    if (spec.fillerPowerDie && a.die !== spec.fillerPowerDie) {
+      state.warn('archetype', 'filler-die', `${outer.name} adds powers at ${spec.fillerPowerDie}, not ${a.die}.`)
+    }
+  }
+  if (fillers.length !== wanted) {
+    const die = spec.fillerPowerDie ?? ''
+    state.warn(
+      'archetype',
+      'filler-count',
+      wanted
+        ? `${outer.name} needs ${minimum} powers: add ${wanted} ${die} power${wanted === 1 ? '' : 's'}; you've added ${fillers.length}.`
+        : `You already have ${have} powers, so ${outer.name} doesn't add any.`,
+    )
+  }
+  const lists = [
+    ...(base?.powers?.options ?? []),
+    ...(base?.qualities?.powerOptions ?? []),
+    ...(base?.required?.options ?? []),
+    ...(ps?.powers.options ?? []),
+    ...(ps?.powers.required ?? []).map(requiredRef),
+  ]
+  const names = [base?.name, ps?.name].filter(Boolean).join(' or ')
+  state.checkOnList('archetype', fillers.filter((a) => a.trait.kind === 'power'), lists, `${names} power`)
+  for (const a of fillers) if (a.trait.kind === 'power') state.set(a.trait, a.die, 'archetype')
+}
+
 /** Names what an option reference allows, e.g. "Speed" or "an Elemental/Energy power". */
 function describeOption(ref: OptionRef): string {
   const { kind, scope, id } = describeRef(ref)
@@ -438,7 +481,9 @@ export function deriveTraits(hero: Hero): TraitDerivation {
   // Divided and Modular take their dice from the second archetype they build on.
   const layer = traitLayer(hero)
   const ar = layer?.archetype
-  if (outer?.complex && (hero.archetype!.traits.length || hero.archetype!.bonus.length)) {
+  // (Modular records its filler powers in its own `traits`.)
+  const fillsPowers = outer?.secondaryArchetype?.minimumPowers !== undefined
+  if (outer?.complex && ((hero.archetype!.traits.length && !fillsPowers) || hero.archetype!.bonus.length)) {
     state.warn('archetype', 'complex-traits', `${outer.name}'s powers and qualities come from the archetype it builds on; record them there.`)
   }
 
@@ -459,6 +504,7 @@ export function deriveTraits(hero: Hero): TraitDerivation {
   if (ps && deferred && ar) {
     applyBonuses(state, psBonuses, hero.powerSource!.bonus, { step: 'archetype', source: ps.name, listed: ps.powers.options, archetype: ar })
   }
+  if (outer && fillsPowers && layer) modularFillers(state, hero, outer, ar, ps)
   personalityStepTraits(state, hero)
   retconStepTraits(state, hero)
 

@@ -7,6 +7,8 @@ This file records the decisions the user has made where the rules data (and the 
 
 The decisions are also applied in the data and code. Where a ruling shapes the data, `data/README.md` describes how it's encoded. Page numbers are printed Core Rules pages (`core-rules` in `books.json`).
 
+Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling takes the next number, whichever section it's filed in.
+
 > **Draft:** each basis below marked "(guess)" is Claude's guess and still needs the user to confirm it.
 
 ## Abilities and restrictions
@@ -197,6 +199,23 @@ The decisions are also applied in the data and code. Where a ruling shapes the d
 - **Question:** Each mode "adjusts some of your default-mode power dice" (e.g. Debilitator: pick 4 powers, 1 same, 1 down, 2 up). What happens to default-mode powers the mode doesn't pick?
 - **Decision:** They're unavailable in that mode. The user first answered "Kept unchanged", then corrected it: "only the 4 selected powers are available in that mode".
 - **Basis:** Interpretation (guess).
+
+### 39. Which powers the d6 filler powers can be
+- **Page:** p. 96.
+- **Question:** "If you then have fewer than four powers, add d6 powers of your choice until you have four." Which powers can those d6 powers be?
+- **Decision:** Powers from the base archetype's lists or the power source's list.
+- **Basis:** Fiat.
+
+### 40. Raising a d12 or lowering a d4 in a mode
+- **Question:** Modes say "die sizes cannot go below d4 or above d12." If a mode raises a power that's already d12, or lowers one that's already d4, what happens?
+- **Decision:** It's allowed, and the die just stays at d12 or d4.
+- **Basis:** Fiat.
+
+### 41. The ability retcon on a mode ability
+- **Page:** Retcons (p. 112).
+- **Question:** Can the retcon "change which power or quality one of your abilities uses" target a Modular mode's ability (e.g. Debilitator)? (Ruling 15 lets it target Form-Changer form abilities.)
+- **Decision:** Yes. The new power must be one of that mode's powers.
+- **Basis:** Fiat.
 
 ## Mods (p. 20–22, 26–27)
 

@@ -384,8 +384,8 @@ export function checkAbilities(hero: Hero, traits: readonly HeroTrait[]): RuleWa
  */
 export function checkAbilityRetcon(hero: Hero, traits: readonly HeroTrait[], outTraits: readonly HeroTrait[] = traits): RuleWarning[] {
   const retcon = hero.retcon
-  // A form ability's retcon is checked against that form's dice, in ./forms.ts.
-  if (retcon?.kind !== 'changeAbilityTrait' || retcon.ability.source === 'archetype.form') return []
+  // A form or mode ability's retcon is checked against that form's or mode's dice, in ./forms.ts and ./modular.ts.
+  if (retcon?.kind !== 'changeAbilityTrait' || retcon.ability.source === 'archetype.form' || retcon.ability.source === 'archetype.mode') return []
   const out = outPick(hero)
   const placed = [...recordedPicks(hero), ...(out ? [{ pick: out }] : [])]
   const found = placed.find(({ pick: p }) => p.source === retcon.ability.source && p.name === retcon.ability.name)

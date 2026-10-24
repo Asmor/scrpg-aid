@@ -11,7 +11,7 @@ import {
   principlesById,
 } from '../rules/data'
 import { parseSlots } from '../rules/slots'
-import type { Ability, AbilityType, Die, HealthRange, MinionForm, Zone } from '../rules/types'
+import type { Ability, AbilityType, BasicAction, Die, HealthRange, MinionForm, Zone } from '../rules/types'
 import type { AbilityPick, AbilitySource, Hero, PrincipleChoice } from '../hero/model'
 import { checkAbilities, checkAbilityPick, checkAbilityRetcon } from './abilities'
 import { computeHealth, statusDice } from './health'
@@ -20,6 +20,7 @@ import { checkPrinciples, heroPrinciples } from './principles'
 import { checkForms, formAbilityPick, formLabel, formTraits } from './forms'
 import { checkDivided, heroicTraits, outTraits, splitNames } from './divided'
 import { archetypeName, checkSecondary, dividedChoice, layers, traitLayer } from './layers'
+import { checkModular, findMode, modeAbilityPick, modeTraits } from './modular'
 import { checkRedAbilities } from './red'
 import { checkRetcon } from './retcons'
 import { deriveTraits, traitLabel, type HeroTrait } from './traits'
@@ -53,6 +54,18 @@ export interface SheetForm {
   ability?: { name: string; type: AbilityType; text: string }
 }
 
+/** A Modular mode as shown on the auxiliary sheet. */
+export interface SheetMode {
+  zone: Zone
+  name: string
+  /** The mode's powers at their mode dice, plus the hero's qualities. */
+  traits: HeroTrait[]
+  /** Basic actions the hero can't take in this mode. */
+  cannot: BasicAction[]
+  immobile: boolean
+  ability?: { name: string; type: AbilityType; text: string }
+}
+
 export interface HeroSheet {
   characteristics: { background?: string; powerSource?: string; archetype?: string; personality?: string }
   powers: HeroTrait[]
@@ -75,6 +88,9 @@ export interface HeroSheet {
   forms: SheetForm[]
   /** Minion-Maker's chosen minion forms. */
   minionForms: MinionForm[]
+  /** Modular's modes besides the default one (the hero's own dice), and its Powerless mode. */
+  modes: SheetMode[]
+  powerlessMode?: HeroTrait[]
   warnings: RuleWarning[]
 }
 
@@ -102,7 +118,7 @@ function fillPrinciple(text: string, choice: PrincipleChoice): string {
 }
 
 /** Sources whose abilities go in a zone on the sheet (the Out ability and form abilities are shown separately). */
-type ZoneSource = Exclude<AbilitySource, 'out' | 'archetype.form'>
+type ZoneSource = Exclude<AbilitySource, 'out' | 'archetype.form' | 'archetype.mode'>
 
 const ZONE_OF: Record<ZoneSource, Zone> = {
   'powerSource.green': 'green',
@@ -143,6 +159,7 @@ export function buildSheet(hero: Hero): HeroSheet {
     ...checkForms(hero, traits),
     ...checkSecondary(hero),
     ...checkDivided(hero, traits),
+    ...checkModular(hero, traits),
   ]
 
   // Ability picks, with the ability retcon's new traits applied.
@@ -156,7 +173,8 @@ export function buildSheet(hero: Hero): HeroSheet {
   }))
 
   const abilities: SheetAbility[] = []
-  const inZone = (p: AbilityPick): p is AbilityPick & { source: ZoneSource } => p.source !== 'out' && p.source !== 'archetype.form'
+  const inZone = (p: AbilityPick): p is AbilityPick & { source: ZoneSource } =>
+    p.source !== 'out' && p.source !== 'archetype.form' && p.source !== 'archetype.mode'
   for (const { pick, archetype } of placed) {
     if (!inZone(pick)) continue
     const ability = findAbility(hero, pick, archetype)
@@ -237,6 +255,28 @@ export function buildSheet(hero: Hero): HeroSheet {
   })
   const minionForms = (formLayer?.choice.minionForms?.forms ?? []).flatMap((name) => formLayer?.archetype.minionForms?.forms.find((f) => f.name === name) ?? [])
 
+  // Modular's modes.
+  const modularChoice = hero.archetype?.modular
+  const modes: SheetMode[] = (modularChoice?.modes ?? []).flatMap((m) => {
+    const found = findMode(hero, m.id)
+    if (!found) return []
+    const pick = modeAbilityPick(hero, m)
+    const { mode, zone } = found
+    return [
+      {
+        zone,
+        name: m.name?.trim() || mode.name,
+        traits: modeTraits(hero, traits, m.powers),
+        cannot: mode.cannot,
+        immobile: Boolean(mode.immobile),
+        ability: pick && pick.name === mode.ability.name
+          ? { name: pick.customName?.trim() || mode.ability.name, type: mode.ability.type, text: fillText(hero, mode.ability.text, pick.uses, pick.blanks) }
+          : undefined,
+      },
+    ]
+  })
+  const powerlessMode = modularChoice?.powerless && modeTraits(hero, traits, modularChoice.powerless)
+
   const divided = dividedChoice(hero)
   const health = computeHealth(hero, traits)
   warnings.push(...health.warnings)
@@ -262,6 +302,8 @@ export function buildSheet(hero: Hero): HeroSheet {
     },
     forms,
     minionForms,
+    modes,
+    powerlessMode,
     warnings,
   }
 }

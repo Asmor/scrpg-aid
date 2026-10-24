@@ -328,7 +328,7 @@ describe('checkAbilities', () => {
     it('skips the archetype’s own blocks for Divided and Modular', () => {
       const hero = heroWithAbilities()
       hero.archetype = { id: 'modular', traits: [A(P('leaping'), 'd12'), A(P('flight'), 'd6')], abilities: [{ source: 'archetype.green', name: 'Whatever' }], bonus: [] }
-      // Modular's own Green/Yellow choices aren't modelled yet, so they aren't counted or checked.
+      // Modular has no Green/Yellow choice blocks; stray picks are flagged in ./modular.ts.
       expect(codes(hero)).not.toContain('ability-count')
       expect(codes(hero)).not.toContain('unknown-ability')
     })
