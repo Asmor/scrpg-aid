@@ -69,6 +69,12 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 - **Decision:** Either option: upgrade the d6 quality, or take the new d6 power.
 - **Basis:** Interpretation (guess).
 
+### 42. A power source roll after the background's dice change
+- **Pages:** Power source (p. 56–57); Methods (p. 46).
+- **Question:** The power source step rolls the dice the background gives. If a Guided player rolls for a power source and then changes to a background with different power source dice, the old roll no longer fits. Does the new roll count against the step's one reroll?
+- **Decision:** No. The new dice get a fresh roll, and the step still has its one reroll.
+- **Basis:** Interpretation.
+
 ## Red abilities
 
 ### 10. Minion-Maker's extra Red abilities

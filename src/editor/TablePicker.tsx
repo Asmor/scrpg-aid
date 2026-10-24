@@ -101,7 +101,8 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
   const [manual, setManual] = useState<'roll' | 'reroll' | null>(null)
   const diceText = `${listAnd(dice)}`
 
-  // A roll made on other dice (an earlier step changed them) doesn't count: roll afresh.
+  // A roll made on other dice (an earlier step changed them) doesn't count: roll afresh,
+  // keeping the step's reroll (the user's ruling 42 in data/rulings.md).
   const current = roll && rolledOn(roll, dice) ? roll : undefined
   const stale = roll && !current ? roll : undefined
   const doRoll = (again: boolean) => {
