@@ -159,13 +159,10 @@ export function checkDivided(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
 
   // The Divided ability (Divided Psyche or Split Form).
   const dividedPicks = outer.choice.abilities.filter((p) => p.source === 'archetype.green')
-  const fixed = [
-    ...(ar.fixedGreenAbilities ?? []).map((a) => `archetype.fixedGreen:${a.name}`),
-    ...(ar.fixedYellowAbilities ?? []).map((a) => `archetype.fixedYellow:${a.name}`),
-    ...(ar.fixedRedAbilities ?? []).map((a) => `archetype.fixedRed:${a.name}`),
-  ]
+  // Fixed-ability picks that don't match are already flagged by checkFixed (./abilities.ts).
+  const fixedSources: readonly string[] = ['archetype.fixedGreen', 'archetype.fixedYellow', 'archetype.fixedRed']
   for (const p of outer.choice.abilities) {
-    if (p.source !== 'archetype.green' && !fixed.includes(`${p.source}:${p.name}`)) {
+    if (p.source !== 'archetype.green' && !fixedSources.includes(p.source)) {
       warn('unknown-ability', `${p.name} isn't one of ${ar.name}'s abilities; record your second archetype's abilities on that archetype.`)
     }
   }

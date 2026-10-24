@@ -305,6 +305,10 @@ describe('Divided', () => {
     const hero = dividedHero()
     hero.archetype!.abilities.push({ source: 'archetype.yellow', name: 'Speedy Analysis', uses: [P('flight')] })
     expect(codes(hero)).toEqual(['unknown-ability'])
+    // A wrong fixed-ability pick is flagged once, by the fixed-ability check.
+    const fixed = dividedHero()
+    fixed.archetype!.abilities.push({ source: 'archetype.fixedGreen', name: 'Divided Psyche' })
+    expect(buildSheet(fixed).warnings.filter((w) => w.code === 'unknown-ability')).toHaveLength(1)
     const nested = dividedHero()
     nested.archetype!.secondary!.divided = { transitionMethod: 'device' }
     expect(codes(nested)).toEqual(['unexpected-divided'])

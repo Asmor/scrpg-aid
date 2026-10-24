@@ -7,6 +7,7 @@ Mechanical content extracted from *Sentinel Comics: The Roleplaying Game — Cor
 | Path | Contents |
 | --- | --- |
 | `books.json` | Source books that page references point to (currently only the Core Rules): `id`, full `title`, and the `shortTitle` shown in page references |
+| `rulings.md` | Every ruling the user has made on an ambiguity, with the original question and whether it was interpretation or fiat; the bullets below describe those that shape the data |
 | `rules/` | Paraphrased process documents (Markdown): core concepts, hero creation, villain creation, minion/lieutenant/environment creation |
 | `heroes/powers-qualities.json` | Power and quality categories and entries (p. 47, 115–121) |
 | `heroes/backgrounds.json` | Step 1: backgrounds (p. 48–54) |
@@ -53,10 +54,9 @@ Pre-made heroes, villains, minions, and environments (Chapter 7, adventure issue
 - **Form-Changer forms:** each Green form rearranges the hero's power dice (the same set of dice, on the hero's powers or powers from the archetype's lists). The Yellow form does the same and also raises two *different* dice one size each, powers or qualities (the user's ruling).
 - **Form-Changer, more rulings:** a form doesn't have to keep the powers the archetype's other abilities use. If a form lacks a power or quality an ability names, that ability uses a d4 for it in that form. The retcon that changes which trait an ability uses can target a form ability. A Form-Changer or Minion-Maker taken as Divided's or Modular's second archetype still gets its forms or minion forms, recorded on that second archetype. (The user's rulings.)
 - **Divided and Modular** (p. 94–98) build on a second archetype, which gives the hero their powers, qualities, archetype bonuses, forms, and Health options. Neither can build on Divided or Modular (Modular's `exclude` lists Divided by the user's ruling). "[a power gained from your archetype]" (e.g. Possess Person) means a power from the second archetype. (The user's rulings.)
+- **Divided, from its own text** (p. 94–95): Split Form's two "always" qualities can't include the roleplaying quality, since both forms have it anyway, and the two personalities must be different (Divided's `personalityNote`).
 - **Divided with two personalities** (p. 94–95), the user's rulings:
   - Each personality's bonus applies only to its own form. A power or quality a bonus creates exists only in that form, so Split Form doesn't place it.
-  - Split Form's two "always" qualities can't include the roleplaying quality, which both forms have anyway.
-  - The two personalities must be different.
   - The player chooses whose Out ability the hero uses. It must use powers and qualities that form has.
   - Health may add a power or quality from either form, and uses the larger of the two Red status dice.
   - The retcon that raises a status die raises one form's die; the player picks which.
