@@ -867,6 +867,7 @@ select {
   margin: 0.5rem 0 0.25rem 1.75rem;
 }
 
+.heroic-personality,
 .modes-editor,
 .mode-card,
 .second-archetype,
@@ -880,6 +881,8 @@ select {
   gap: 0.5rem;
 }
 
+.heroic-personality h4,
+.heroic-personality > .hint,
 .modes-editor h4,
 .modes-editor > .hint,
 .mode-card > .hint,
@@ -889,6 +892,7 @@ select {
   margin: 0;
 }
 
+.heroic-personality,
 .second-archetype,
 .outer-archetype {
   padding-top: 0.75rem;

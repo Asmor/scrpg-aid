@@ -33,6 +33,8 @@ interface AbilityPickerProps {
   onChange: (picks: AbilityPick[]) => void
   /** The hero has every ability in `options`; only their blanks are chosen. */
   fixed?: boolean
+  /** Whether the player can give the abilities their own names (the Out ability can't be renamed). */
+  nameable?: boolean
 }
 
 interface TraitSlotFieldProps {
@@ -110,7 +112,7 @@ function ChoiceSlotField({ slot, value, onChange }: { slot: ChoiceSlot; value: s
   )
 }
 
-function PickFields({ hero, traits, step, ability, pick, onChange }: { hero: Hero; traits: readonly HeroTrait[]; step: StepId; ability: Ability; pick: AbilityPick; onChange: (p: AbilityPick) => void }) {
+function PickFields({ hero, traits, step, ability, pick, nameable, onChange }: { hero: Hero; traits: readonly HeroTrait[]; step: StepId; ability: Ability; pick: AbilityPick; nameable: boolean; onChange: (p: AbilityPick) => void }) {
   const id = useId()
   const slots = parseSlots(ability.text)
   let traitIndex = 0
@@ -141,22 +143,24 @@ function PickFields({ hero, traits, step, ability, pick, onChange }: { hero: Her
           />
         )
       })}
-      <label className="field" htmlFor={`${id}-name`}>
-        <span>Your name for it (optional)</span>
-        <input
-          id={`${id}-name`}
-          type="text"
-          value={pick.customName ?? ''}
-          onChange={(e) => onChange(setCustomName(pick, e.target.value))}
-        />
-      </label>
+      {nameable && (
+        <label className="field" htmlFor={`${id}-name`}>
+          <span>Your name for it (optional)</span>
+          <input
+            id={`${id}-name`}
+            type="text"
+            value={pick.customName ?? ''}
+            onChange={(e) => onChange(setCustomName(pick, e.target.value))}
+          />
+        </label>
+      )}
       {/* With no blanks, the text above already says it all. */}
       {slots.length > 0 && <p className="ability-pick__preview">{fillText(hero, ability.text, pick.uses, pick.blanks)}</p>}
     </div>
   )
 }
 
-export function AbilityPicker({ hero, traits, legend, hint, options, source, step, picks, onChange, fixed = false }: AbilityPickerProps) {
+export function AbilityPicker({ hero, traits, legend, hint, options, source, step, picks, onChange, fixed = false, nameable = true }: AbilityPickerProps) {
   // Keep picks that aren't on this list (e.g. after changing power source) so they can be removed; the checks flag them.
   const stray = picks.filter((p) => !options.some((o) => o.name === p.name))
   const replace = (name: string, next: AbilityPick | undefined) => onChange(replacePick(picks, name, next))
@@ -176,7 +180,7 @@ export function AbilityPicker({ hero, traits, legend, hint, options, source, ste
                 </span>
                 <span className="choice__detail">{ability.text}</span>
               </p>
-              <PickFields hero={hero} traits={traits} step={step} ability={ability} pick={pick ?? { source, name: ability.name }} onChange={(p) => replace(ability.name, p)} />
+              <PickFields hero={hero} traits={traits} step={step} ability={ability} pick={pick ?? { source, name: ability.name }} nameable={nameable} onChange={(p) => replace(ability.name, p)} />
             </div>
           )
         }
@@ -191,7 +195,7 @@ export function AbilityPicker({ hero, traits, legend, hint, options, source, ste
                 <span className="choice__detail">{ability.text}</span>
               </span>
             </label>
-            {pick && <PickFields hero={hero} traits={traits} step={step} ability={ability} pick={pick} onChange={(p) => replace(ability.name, p)} />}
+            {pick && <PickFields hero={hero} traits={traits} step={step} ability={ability} pick={pick} nameable={nameable} onChange={(p) => replace(ability.name, p)} />}
           </div>
         )
       })}

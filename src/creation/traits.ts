@@ -524,10 +524,11 @@ export function deriveTraits(hero: Hero): TraitDerivation {
 
 /**
  * A point in creation: before the power source step, after its powers but before its
- * bonus, before the archetype step, before the archetype's bonus, or before a power source
- * bonus that's taken in the archetype step (Training's extra quality).
+ * bonus, before the archetype step, before the archetype's bonus, before a power source
+ * bonus that's taken in the archetype step (Training's extra quality), or before the
+ * personality's bonus (after the roleplaying quality).
  */
-export type TraitPoint = 'powerSource' | 'powerSourceBonus' | 'archetype' | 'archetypeBonus' | 'deferredBonus'
+export type TraitPoint = 'powerSource' | 'powerSourceBonus' | 'archetype' | 'archetypeBonus' | 'deferredBonus' | 'personalityBonus'
 
 /** Whether the power source's bonus is taken during the archetype step (Training's extra quality). */
 export function defersBonus(hero: Hero): boolean {
@@ -552,6 +553,10 @@ function withoutArchetypeBonus(choice: ArchetypeChoice): ArchetypeChoice {
  * traits from earlier steps, or the traits a bonus may change.
  */
 export function traitsBefore(hero: Hero, point: TraitPoint): HeroTrait[] {
+  if (point === 'personalityBonus') {
+    const p = hero.personality
+    return deriveTraits({ ...hero, personality: p ? { ...p, bonus: [] } : null, redAbilities: [], retcon: null }).traits
+  }
   const ps = hero.powerSource
   const inPowerSource = point === 'powerSource' || point === 'powerSourceBonus'
   // The power source's bonus is left out before it applies: in the power source step, or

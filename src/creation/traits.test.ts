@@ -459,6 +459,18 @@ describe('traitsBefore', () => {
   })
 })
 
+describe('traitsBefore the personality bonus', () => {
+  it('includes the roleplaying quality but not the bonus, or anything after it', () => {
+    const hero = validHero()
+    hero.personality = { id: 'impulsive', bonus: [A(P('flight'), 'd8')] }
+    hero.retcon = { id: 'gain-power-or-quality', kind: 'gainPowerOrQuality', gained: A(P('leaping'), 'd6') }
+    const before = traitsBefore(hero, 'personalityBonus')
+    expect(before.find((t) => t.trait.id === 'flight')?.die).toBe('d6')
+    expect(before.some((t) => t.trait.id === 'roleplaying-quality')).toBe(true)
+    expect(before.some((t) => t.trait.id === 'leaping')).toBe(false)
+  })
+})
+
 describe('fillerLists', () => {
   it('takes the base archetype’s and the power source’s lists, including required ones', () => {
     const lists = fillerLists(archetypesById.get('speedster'), powerSourcesById.get('accident'))

@@ -1,9 +1,10 @@
 # Rulings
 
-This file records the decisions the user has made where the rules data (and the book behind it) was ambiguous, silent, or needed correcting. Each entry gives the page, the original question, the decision, and its **basis**:
+This file records the decisions made (by the user, or by the permissive default the user set) where the rules data (and the book behind it) was ambiguous, silent, or needed correcting. Each entry gives the page, the original question, the decision, and its **basis**:
 
 - **Interpretation:** the user's reading of what the book means.
 - **Fiat:** a house rule, where the book doesn't settle it.
+- **Default:** not asked. For niche creation cases the user asked Claude not to ask and to take the permissive reading; these are open to review.
 
 The decisions are also applied in the data and code. Where a ruling shapes the data, `data/README.md` describes how it's encoded. Page numbers are printed Core Rules pages (`core-rules` in `books.json`).
 
@@ -104,6 +105,12 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 - **Question:** Modular's base archetype is "another option from your archetype roll, or reroll". After rolling fresh, may the player still pick an option from the original roll?
 - **Decision:** No. The fresh roll replaces the original one for choosing the base archetype.
 - **Basis:** Interpretation.
+
+### 48. Choosing Divided's second personality
+- **Pages:** Divided (p. 94); Personality (p. 100–101).
+- **Question:** A Divided hero may take a second personality for the heroic form. Is it rolled for?
+- **Decision:** No. The player chooses it freely, as long as it differs from the civilian form's personality.
+- **Basis:** Default (permissive; not asked).
 
 ## Red abilities
 

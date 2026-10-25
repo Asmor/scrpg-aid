@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { StoreContext } from '../app/store-context'
 import { createHero, type Hero } from '../hero/model'
-import { A, P, Q, dividedHero, formChangerHero, heroWithAbilities, minionMakerHero, modularHero } from '../test/heroes'
+import { A, P, Q, completeHero, dividedHero, formChangerHero, heroWithAbilities, minionMakerHero, modularHero, validHero } from '../test/heroes'
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { backgrounds } from '../rules/data'
 import { tableOptions } from '../rules/rolling'
@@ -653,6 +653,81 @@ describe('HeroEditor', () => {
     renderEditor(await storeWith((h) => Object.assign(h, { ...modularHero(), id: 'h1' })), 'archetype')
     expect(await screen.findByRole('group', { name: 'Patch Job' })).toBeInTheDocument()
     expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
+  })
+
+  it('asks for an archetype before rolling for a personality, then rolls its dice', async () => {
+    const { unmount } = renderEditor(await storeWith(), 'personality')
+    expect(await screen.findByText(/Choose an archetype first/)).toBeInTheDocument()
+    unmount()
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...validHero(), id: 'h1' })
+      h.method = 'guided'
+      h.personality = null
+    })
+    renderEditor(store, 'personality')
+    await userEvent.click(await screen.findByRole('button', { name: 'Roll d10 and d10' }))
+    await waitFor(async () => expect((await saved(store)).pendingRolls?.personality?.dice).toEqual(['d10', 'd10']))
+  })
+
+  it('builds a personality the constructed way: roleplaying quality and Out ability, with no issues left', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...completeHero(), id: 'h1' })
+      h.personality = null
+      h.traitNames = {}
+    })
+    renderEditor(store, 'personality')
+    await userEvent.click(await screen.findByRole('radio', { name: /Lone Wolf/ }))
+    await userEvent.type(screen.getByLabelText('Roleplaying quality (d8)'), 'Old Money')
+    const out = screen.getByRole('group', { name: 'Out ability' })
+    expect(within(out).queryByLabelText('Your name for it (optional)')).not.toBeInTheDocument()
+    await userEvent.selectOptions(within(out).getByRole('combobox', { name: '[quality]' }), 'Fitness (d10)')
+    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    await waitFor(async () => {
+      const hero = await saved(store)
+      expect(hero.personality).toEqual({ id: 'lone-wolf', bonus: [], outUses: [Q('fitness')] })
+      expect(hero.traitNames).toEqual({ 'quality:roleplaying-quality': 'Old Money' })
+    })
+  })
+
+  it('takes a personality’s bonus', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...completeHero(), id: 'h1' })
+      h.personality = { id: 'impulsive', bonus: [] }
+    })
+    renderEditor(store, 'personality')
+    await userEvent.selectOptions(within(await screen.findByRole('group', { name: "Impulsive's bonus" })).getByRole('combobox', { name: 'Upgrade' }), 'Flight: d6 → d8')
+    await waitFor(async () => expect((await saved(store)).personality?.bonus).toEqual([A(P('flight'), 'd8')]))
+  })
+
+  it('gives a Divided hero a second personality for the heroic form, and whose Out ability to use', async () => {
+    const store = await storeWith((h) => Object.assign(h, { ...dividedHero(), id: 'h1' }))
+    renderEditor(store, 'personality')
+    const heroic = await screen.findByRole('region', { name: 'Heroic form personality' })
+    // Not the civilian form's personality.
+    expect(within(heroic).queryByRole('radio', { name: /Lone Wolf/ })).not.toBeInTheDocument()
+    await userEvent.click(within(heroic).getByRole('radio', { name: /Natural Leader/ }))
+    await userEvent.click(within(heroic).getByRole('radio', { name: /Heroic form \(Natural Leader\)/ }))
+    const out = screen.getByRole('group', { name: 'Out ability (heroic form)' })
+    await userEvent.selectOptions(within(out).getByRole('combobox', { name: '[quality]' }), 'Alertness (d8)')
+    await waitFor(async () =>
+      expect((await saved(store)).archetype?.divided).toMatchObject({ heroicPersonality: { id: 'natural-leader', bonus: [], outUses: [Q('alertness')] }, outFrom: 'heroic' }),
+    )
+    await userEvent.click(within(heroic).getByRole('button', { name: 'Use one personality for both forms' }))
+    await waitFor(async () => {
+      const divided = (await saved(store)).archetype?.divided
+      expect(divided?.heroicPersonality).toBeUndefined()
+      expect(divided?.outFrom).toBeUndefined()
+    })
+  })
+
+  it('offers the heroic form personality before any of Divided’s own choices are recorded', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...dividedHero(), id: 'h1' })
+      delete h.archetype!.divided
+    })
+    renderEditor(store, 'personality')
+    await userEvent.click(within(await screen.findByRole('region', { name: 'Heroic form personality' })).getByRole('radio', { name: /Natural Leader/ }))
+    await waitFor(async () => expect((await saved(store)).archetype?.divided).toEqual({ heroicPersonality: { id: 'natural-leader', bonus: [] } }))
   })
 
   it('reports a failed save', async () => {
