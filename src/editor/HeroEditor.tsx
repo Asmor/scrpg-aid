@@ -31,7 +31,6 @@ interface EditorStep {
 }
 
 const EDITOR_STEPS: readonly EditorStep[] = [
-  { id: 'details', label: 'Details', warns: [], render: (hero, update) => <DetailsStep hero={hero} update={update} /> },
   { id: 'background', label: 'Background', warns: ['background'], render: (hero, update) => <BackgroundStep hero={hero} update={update} /> },
   { id: 'power-source', label: 'Power source', warns: ['powerSource'], render: (hero, update) => <PowerSourceStep hero={hero} update={update} /> },
   { id: 'archetype', label: 'Archetype', warns: ['archetype'], render: (hero, update) => <ArchetypeStep hero={hero} update={update} /> },
@@ -39,6 +38,7 @@ const EDITOR_STEPS: readonly EditorStep[] = [
   { id: 'red-abilities', label: 'Red abilities', warns: ['redAbilities'], render: (hero, update) => <RedAbilitiesStep hero={hero} update={update} /> },
   { id: 'retcon', label: 'Retcon', warns: ['retcon'], render: (hero, update) => <RetconStep hero={hero} update={update} /> },
   { id: 'health', label: 'Health', warns: ['health', 'principles'], render: (hero, update) => <HealthStep hero={hero} update={update} /> },
+  { id: 'details', label: 'Details', warns: [], render: (hero, update) => <DetailsStep hero={hero} update={update} /> },
   { id: 'advancement', label: 'Advancement', warns: ['advancement'], render: (hero, update) => <AdvancementStep hero={hero} update={update} /> },
 ]
 
@@ -102,7 +102,7 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
             return (
               <li key={s.id}>
                 <a href={editPath(hero.id, s.id)} aria-current={i === index ? 'step' : undefined}>
-                  <span className="step-nav__number">{i}</span> {s.label}
+                  <span className="step-nav__number">{i + 1}</span> {s.label}
                   {count > 0 && (
                     <span className="step-nav__count">
                       <span aria-hidden="true">{count}</span>

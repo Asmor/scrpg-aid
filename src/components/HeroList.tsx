@@ -154,7 +154,7 @@ export function HeroList() {
         <div className="button-row">
           <button type="button" className="button button--primary" disabled={busy || loading} onClick={() => {
               const hero = createHero('guided')
-              void add(hero, editPath(hero.id, 'details'))
+              void add(hero, editPath(hero.id, 'background'))
             }}>
             New hero
           </button>

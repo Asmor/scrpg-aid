@@ -27,6 +27,16 @@ import { findAbility, outPick, recordedPicks } from './lookup'
 import { traitLabel } from './traits'
 import { warning, type RuleWarning, type StepId } from './warnings'
 
+/**
+ * Extra limit on the first trait slot of `kind`, e.g. a Red ability's category: the
+ * ability needs one trait from that category to use with it, and other slots are free.
+ */
+export interface SlotLimit {
+  kind: TraitKind
+  refs: readonly OptionRef[]
+  what: string
+}
+
 interface Context {
   hero: Hero
   step: StepId
@@ -34,11 +44,7 @@ interface Context {
   traits: ReadonlyMap<string, HeroTrait>
   /** Traits given dice in the archetype step, for "[a power gained from your archetype]". */
   archetypeTraits: ReadonlySet<string>
-  /**
-   * Extra limit on the first trait slot of `kind`, e.g. a Red ability's category: the
-   * ability needs one trait from that category to use with it, and other slots are free.
-   */
-  slotLimit?: { kind: TraitKind; refs: readonly OptionRef[]; what: string }
+  slotLimit?: SlotLimit
   warnings: RuleWarning[]
 }
 
@@ -51,10 +57,20 @@ export function primaryUse(ability: Ability, pick: AbilityPick): TraitRef | unde
   return namedTrait(ability)
 }
 
-/** The hero's traits that can fill a trait slot, for the UI. */
-export function slotCandidates(hero: Hero, traits: readonly HeroTrait[], slot: TraitSlot, step: StepId): HeroTrait[] {
+/**
+ * The hero's traits that can fill a trait slot, for the UI. Pass `limit` for the slot that
+ * `limitedSlotIndex` says the limit applies to.
+ */
+export function slotCandidates(hero: Hero, traits: readonly HeroTrait[], slot: TraitSlot, step: StepId, limit?: SlotLimit): HeroTrait[] {
   const ctx = contextFor(hero, traits, step, [])
-  return traits.filter((t) => slotAccepts(ctx, slot, t.trait))
+  return traits.filter((t) => slotAccepts(ctx, slot, t.trait) && (!limit || !slot.kinds.includes(limit.kind) || refsMatch(limit.refs, t.trait)))
+}
+
+/** Which trait slot (counting trait slots only) a slot limit applies to: the first of its kind. */
+export function limitedSlotIndex(ability: Ability, limit: SlotLimit): number {
+  return parseSlots(ability.text)
+    .filter((s): s is TraitSlot => s.type === 'trait')
+    .findIndex((s) => s.kinds.includes(limit.kind))
 }
 
 function slotAccepts(ctx: Context, slot: TraitSlot, trait: TraitRef): boolean {
@@ -352,7 +368,7 @@ export function checkAbilityPick(
   ability: Ability,
   pick: AbilityPick,
   step: StepId,
-  slotLimit?: Context['slotLimit'],
+  slotLimit?: SlotLimit,
 ): RuleWarning[] {
   const warnings: RuleWarning[] = []
   checkPick({ ...contextFor(hero, traits, step, warnings), slotLimit }, ability, pick)

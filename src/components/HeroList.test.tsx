@@ -40,7 +40,7 @@ describe('HeroList', () => {
     const [created] = (await store.list()).heroes
     expect(created?.method).toBe('guided')
     // A new hero opens in the editor…
-    expect(window.location.hash).toBe(`#/hero/${created!.id}/edit/details`)
+    expect(window.location.hash).toBe(`#/hero/${created!.id}/edit/background`)
 
     // …and the example hero as a finished sheet.
     await userEvent.click(screen.getByRole('button', { name: 'Add example hero' }))

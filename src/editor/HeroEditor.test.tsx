@@ -32,6 +32,9 @@ async function storeWith(change: (h: Hero) => void = () => {}) {
   return store
 }
 
+/** The background choices, without the creation method's radios above them. */
+const backgroundRadios = () => within(screen.getByRole('group', { name: 'Choose a background' })).getAllByRole('radio')
+
 const saved = async (store: HeroStore) => {
   const result = await store.get('h1')
   if (result.status !== 'found') throw new Error('not saved')
@@ -44,19 +47,24 @@ describe('HeroEditor', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("There's no saved hero with that link.")
   })
 
-  it('edits details and the creation method, saving each change', async () => {
+  it('edits details, saving each change', async () => {
     const store = await storeWith()
     renderEditor(store, 'details')
     await userEvent.type(await screen.findByLabelText('Hero name'), 'Nova')
     expect(screen.getByRole('heading', { level: 2, name: 'Nova' })).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Costume / equipment'), 'Star cape')
-    await userEvent.click(screen.getByRole('radio', { name: /Constructed/ }))
     await waitFor(async () => {
       const hero = await saved(store)
       expect(hero.details.name).toBe('Nova')
       expect(hero.details.costume).toBe('Star cape')
-      expect(hero.method).toBe('constructed')
     })
+  })
+
+  it('chooses the creation method on the first step', async () => {
+    const store = await storeWith()
+    renderEditor(store, 'background')
+    await userEvent.click(await screen.findByRole('radio', { name: /Constructed/ }))
+    await waitFor(async () => expect((await saved(store)).method).toBe('constructed'))
   })
 
   it('navigates between steps, with each step’s issue count', async () => {
@@ -68,9 +76,17 @@ describe('HeroEditor', () => {
     const current = within(nav).getByRole('link', { current: 'step' })
     expect(current).toHaveTextContent('Background')
     expect(current).toHaveTextContent(/issues?/)
+    expect(current).toHaveTextContent(/^1 Background/)
     expect(within(nav).getByRole('link', { name: /Details/ })).toHaveAttribute('href', '#/hero/h1/edit/details')
     expect(screen.getByRole('link', { name: 'Power source →' })).toHaveAttribute('href', '#/hero/h1/edit/power-source')
-    expect(screen.getByRole('link', { name: '← Details' })).toBeInTheDocument()
+    // Background is the first step.
+    expect(screen.queryByRole('link', { name: /^← (?!All heroes)/ })).not.toBeInTheDocument()
+  })
+
+  it('has Details after Health, then Advancement', async () => {
+    renderEditor(await storeWith(), 'details')
+    expect(await screen.findByRole('link', { name: '← Health' })).toHaveAttribute('href', '#/hero/h1/edit/health')
+    expect(screen.getByRole('link', { name: 'Advancement →' })).toHaveAttribute('href', '#/hero/h1/edit/advancement')
   })
 
   it('ends with the Advancement step, which leads to the sheet', async () => {
@@ -82,8 +98,8 @@ describe('HeroEditor', () => {
   it('falls back to the first step for an unknown step, fixing the address', async () => {
     window.location.hash = '#/hero/h1/edit/nope'
     renderEditor(await storeWith(), 'nope')
-    expect(await screen.findByRole('heading', { level: 3, name: 'Details' })).toBeInTheDocument()
-    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1/edit/details'))
+    expect(await screen.findByRole('heading', { level: 3, name: 'Background' })).toBeInTheDocument()
+    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1/edit/background'))
   })
 
   it('builds a background the constructed way, with no issues left', async () => {
@@ -121,7 +137,7 @@ describe('HeroEditor', () => {
     expect(screen.getByText(/You rolled/)).toHaveTextContent('You rolled 1 and 10 on d10 and d10 (typed in).')
 
     const reachable = tableOptions(backgrounds, [1, 10]).map((o) => o.entry.name)
-    const radios = screen.getAllByRole('radio').map((r) => r.closest('label')!.textContent)
+    const radios = backgroundRadios().map((r) => r.closest('label')!.textContent)
     expect(radios).toHaveLength(reachable.length)
     reachable.forEach((name, i) => expect(radios[i]).toContain(name))
 
@@ -139,7 +155,7 @@ describe('HeroEditor', () => {
     expect(screen.queryByRole('button', { name: 'Reroll' })).not.toBeInTheDocument()
 
     // The roll is saved with the chosen background.
-    await userEvent.click(screen.getAllByRole('radio')[0]!)
+    await userEvent.click(backgroundRadios()[0]!)
     await waitFor(async () => expect((await saved(store)).background?.roll).toEqual({ dice: ['d10', 'd10'], results: [3, 2], manual: true, rerolled: true }))
   })
 
@@ -195,7 +211,7 @@ describe('HeroEditor', () => {
       }),
       'background',
     )
-    const label = (await screen.findByRole('radio', { checked: true })).closest('label')!
+    const label = (await screen.findByRole('radio', { name: /Upper Class/, checked: true })).closest('label')!
     expect(label).toHaveTextContent('Upper Class (your current choice)')
     expect(label).not.toHaveTextContent('not reached')
   })
@@ -224,7 +240,7 @@ describe('HeroEditor', () => {
     expect(await screen.findByText(/You rolled/)).toHaveTextContent(`You rolled ${results[0]} and ${results[1]}`)
     expect(screen.queryByRole('button', { name: 'Roll d10 and d10' })).not.toBeInTheDocument()
     // Choosing moves the roll onto the choice.
-    await userEvent.click(screen.getAllByRole('radio')[0]!)
+    await userEvent.click(backgroundRadios()[0]!)
     await waitFor(async () => {
       const hero = await saved(store)
       expect(hero.background?.roll?.results).toEqual(results)
@@ -750,7 +766,11 @@ describe('HeroEditor', () => {
     await userEvent.click(within(await screen.findByRole('group', { name: 'Red abilities not on any list' })).getByRole('checkbox', { name: /Gone/ }))
     const athletic = screen.getByRole('group', { name: 'Athletic power Red abilities' })
     await userEvent.click(within(athletic).getByRole('checkbox', { name: /Paragon Feat/ }))
-    await userEvent.selectOptions(within(athletic).getByRole('combobox', { name: '[power]' }), 'Agility (d10)')
+    // Only Athletic powers are offered; Fire isn't one.
+    const power = within(athletic).getByRole('combobox', { name: '[power]' })
+    expect(within(power).getByRole('option', { name: 'Agility (d10)' })).toBeInTheDocument()
+    expect(within(power).queryByRole('option', { name: 'Fire (d8)' })).not.toBeInTheDocument()
+    await userEvent.selectOptions(power, 'Agility (d10)')
     await userEvent.click(within(athletic).getByRole('checkbox', { name: /Push Your Limits/ }))
     // Categories the hero has nothing in are tucked away.
     expect(screen.getByText('Categories you have no power or quality in')).toBeInTheDocument()

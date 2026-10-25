@@ -13,7 +13,7 @@ import { compareDice } from '../rules/dice'
 import { parseSlots } from '../rules/slots'
 import type { Ability, RedAbilityCategory, TraitKind } from '../rules/types'
 import type { AbilityPick, Hero } from '../hero/model'
-import { checkAbilityPick, primaryUse } from './abilities'
+import { checkAbilityPick, primaryUse, type SlotLimit } from './abilities'
 import { findRedAbility, redCategoryKey, redCategoryRef } from './lookup'
 import type { HeroTrait } from './traits'
 import { warning, type RuleWarning, type StepId } from './warnings'
@@ -29,6 +29,11 @@ export function categoryName(category: RedAbilityCategory): string {
 }
 
 const article = (word: string) => (/^[aeiou]/i.test(word) ? 'an' : 'a')
+
+/** The limit a Red ability category puts on the ability's first slot of that kind. */
+export function redSlotLimit(category: RedAbilityCategory): SlotLimit {
+  return { kind: categoryKind(category), refs: [redCategoryRef(category)], what: `${article(categoryName(category))} ${categoryName(category)}` }
+}
 
 /**
  * Where the editor lists a Red ability pick: under its category's key ("power:athletic"),
@@ -61,12 +66,12 @@ function checkRedPick(hero: Hero, traits: readonly HeroTrait[], pick: AbilityPic
     warnings.push(...checkAbilityPick(hero, traits, ability, pick, step))
     return ability.name
   }
-  const what = `${article(categoryName(category))} ${categoryName(category)}`
-  warnings.push(...checkAbilityPick(hero, traits, ability, pick, step, { kind: categoryKind(category), refs: [redCategoryRef(category)], what }))
+  const limit = redSlotLimit(category)
+  warnings.push(...checkAbilityPick(hero, traits, ability, pick, step, limit))
   if (!usesATrait(ability, pick)) {
     // An ability that uses nothing needs a trait in its category at d6 or higher.
     const ok = traits.some((t) => refsMatch([redCategoryRef(category)], t.trait) && compareDice(t.die, 'd6') >= 0)
-    if (!ok) warnings.push(warning(step, 'red-category-missing', `To take ${ability.name}, you need ${what} at d6 or higher.`))
+    if (!ok) warnings.push(warning(step, 'red-category-missing', `To take ${ability.name}, you need ${limit.what} at d6 or higher.`))
   }
   // The user ruled that two Red abilities can't share a name, even from different lists;
   // only the name in the data counts, not the player's own name for it.

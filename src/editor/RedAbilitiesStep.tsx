@@ -8,8 +8,9 @@ import { redAbilityCategories, redAbilityStep } from '../rules/data'
 import { formatEntryRef } from '../rules/books'
 import type { Ability } from '../rules/types'
 import type { AbilityPick, AbilitySource, Hero } from '../hero/model'
+import type { SlotLimit } from '../creation/abilities'
 import { extraRedOptions, redCategoryKey } from '../creation/lookup'
-import { categoryName, hasRedCategory, redPickSection } from '../creation/red'
+import { categoryName, hasRedCategory, redPickSection, redSlotLimit } from '../creation/red'
 import { deriveTraits } from '../creation/traits'
 import type { StepId } from '../creation/warnings'
 import { AbilityPicker } from './AbilityPicker'
@@ -31,7 +32,7 @@ export function RedAbilityLists({ hero, picks, source, step, onChange }: RedAbil
   // Picks are saved with their category, since names repeat across categories.
   const setSection = (key: string, next: AbilityPick[], category?: string) =>
     onChange([...picks.filter((p) => redPickSection(hero, p) !== key), ...next.map((p) => (category ? { ...p, category } : p))])
-  const picker = (key: string, legend: string, options: readonly Ability[], category?: string, hint?: string) => (
+  const picker = (key: string, legend: string, options: readonly Ability[], category?: string, hint?: string, slotLimit?: SlotLimit) => (
     <AbilityPicker
       key={key}
       hero={hero}
@@ -42,13 +43,14 @@ export function RedAbilityLists({ hero, picks, source, step, onChange }: RedAbil
       source={source}
       step={step}
       picks={inSection(key)}
+      slotLimit={slotLimit}
       onChange={(next) => setSection(key, next, category)}
     />
   )
   const yours = redAbilityCategories.filter((c) => hasRedCategory(traits, c))
   const others = redAbilityCategories.filter((c) => !hasRedCategory(traits, c))
   const extras = extraRedOptions(hero)
-  const categoryPicker = (c: (typeof redAbilityCategories)[number]) => picker(redCategoryKey(c), `${categoryName(c)} Red abilities`, c.abilities, redCategoryKey(c), formatEntryRef(c))
+  const categoryPicker = (c: (typeof redAbilityCategories)[number]) => picker(redCategoryKey(c), `${categoryName(c)} Red abilities`, c.abilities, redCategoryKey(c), formatEntryRef(c), redSlotLimit(c))
   return (
     <>
       {inSection('stray').length > 0 && picker('stray', 'Red abilities not on any list', [], undefined, 'Untick these to remove them.')}

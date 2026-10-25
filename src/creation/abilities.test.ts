@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Hero } from '../hero/model'
 import { A, heroWithAbilities, P, Q, validHero } from '../test/heroes'
 import { parseSlots, type TraitSlot } from '../rules/slots'
-import { checkAbilities, checkAbilityPick, checkAbilityRetcon, primaryUse, slotCandidates } from './abilities'
+import { checkAbilities, checkAbilityPick, checkAbilityRetcon, limitedSlotIndex, primaryUse, slotCandidates } from './abilities'
 import { deriveTraits } from './traits'
 
 const check = (hero: Hero) => checkAbilities(hero, deriveTraits(hero).traits)
@@ -437,5 +437,26 @@ describe('slotCandidates', () => {
     expect(ids('[element/energy you have a related power for]')).toEqual(['fire'])
     // Only powers given dice in the archetype step.
     expect(ids('[a power gained from your archetype]')).toEqual(['speed', 'flight'])
+  })
+
+  it('applies a slot limit, such as a Red ability’s category, to slots of its kind', () => {
+    const hero = validHero()
+    const traits = deriveTraits(hero).traits
+    const limit = { kind: 'power' as const, refs: [{ powerCategory: 'athletic' }], what: 'an Athletic power' }
+    const ids = (text: string) => slotCandidates(hero, traits, slot(text), 'redAbilities', limit).map((t) => t.trait.id)
+    expect(ids('[power]')).toContain('agility')
+    expect(ids('[power]')).not.toContain('fire')
+    // A quality slot isn't limited by a power category.
+    expect(ids('[quality]')).toEqual(['fitness', 'alertness', 'roleplaying-quality'])
+  })
+})
+
+describe('limitedSlotIndex', () => {
+  const ability = (text: string) => ({ name: 'Test', type: 'A' as const, text })
+  it('finds the first trait slot of the limit’s kind', () => {
+    const limit = { kind: 'power' as const, refs: [], what: '' }
+    expect(limitedSlotIndex(ability('Boost using [quality], then Attack using [power].'), limit)).toBe(1)
+    expect(limitedSlotIndex(ability('Attack using [power] and [power].'), limit)).toBe(0)
+    expect(limitedSlotIndex(ability('Boost using [quality].'), limit)).toBe(-1)
   })
 })

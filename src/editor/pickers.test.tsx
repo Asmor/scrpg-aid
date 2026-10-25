@@ -343,4 +343,12 @@ describe('TablePicker', () => {
     render(<TablePicker {...props} inherited={{ roll: { dice: ['d6'], results: [5], manual: false }, from: 'first' }} />)
     expect(screen.getByText("That roll doesn't reach any thing. Roll d6 for a fresh one.")).toBeInTheDocument()
   })
+
+  it('points to the method choice when a roll reaches nothing and the reroll is used', () => {
+    const table = [{ id: 'high', roll: 20, name: 'High' }]
+    render(
+      <TablePicker what="thing" method="guided" dice={['d6']} table={table} roll={{ dice: ['d6'], results: [5], manual: false, rerolled: true }} selectedId={undefined} onRoll={() => {}} onSelect={() => {}} />,
+    )
+    expect(screen.getByText(/That roll doesn't reach any thing/)).toHaveTextContent('Switch this hero to Constructed (at the top of the Background step) to pick any.')
+  })
 })

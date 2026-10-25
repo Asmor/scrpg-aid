@@ -9,7 +9,7 @@ import { parseTraitKey, traitKey, type TraitRef } from '../rules/catalog'
 import { parseSlots, type ChoiceSlot, type TraitSlot } from '../rules/slots'
 import type { Ability } from '../rules/types'
 import type { AbilityPick, AbilitySource, Hero } from '../hero/model'
-import { slotCandidates } from '../creation/abilities'
+import { limitedSlotIndex, slotCandidates, type SlotLimit } from '../creation/abilities'
 import { canSetUse, replacePick, setBlank, setCustomName, setUse } from '../creation/picks'
 import { fillText } from '../creation/sheet'
 import { traitLabel, type HeroTrait } from '../creation/traits'
@@ -35,6 +35,8 @@ interface AbilityPickerProps {
   fixed?: boolean
   /** Whether the player can give the abilities their own names (the Out ability can't be renamed). */
   nameable?: boolean
+  /** A limit on one slot, e.g. a Red ability's category; only traits within it are offered there. */
+  slotLimit?: SlotLimit
 }
 
 interface TraitSlotFieldProps {
@@ -42,15 +44,16 @@ interface TraitSlotFieldProps {
   traits: readonly HeroTrait[]
   slot: TraitSlot
   step: StepId
+  limit?: SlotLimit
   value: TraitRef | undefined
   /** Until the slots before it are filled (see ../creation/picks.ts). */
   disabled: boolean
   onChange: (t: TraitRef | undefined) => void
 }
 
-function TraitSlotField({ hero, traits, slot, step, value, disabled, onChange }: TraitSlotFieldProps) {
+function TraitSlotField({ hero, traits, slot, step, limit, value, disabled, onChange }: TraitSlotFieldProps) {
   const id = useId()
-  const candidates = slotCandidates(hero, traits, slot, step)
+  const candidates = slotCandidates(hero, traits, slot, step, limit)
   // Keep the current choice selectable even if it no longer fits (the checks warn about it).
   const offList = value && !candidates.some((c) => traitKey(c.trait) === traitKey(value))
   return (
@@ -112,9 +115,21 @@ function ChoiceSlotField({ slot, value, onChange }: { slot: ChoiceSlot; value: s
   )
 }
 
-function PickFields({ hero, traits, step, ability, pick, nameable, onChange }: { hero: Hero; traits: readonly HeroTrait[]; step: StepId; ability: Ability; pick: AbilityPick; nameable: boolean; onChange: (p: AbilityPick) => void }) {
+interface PickFieldsProps {
+  hero: Hero
+  traits: readonly HeroTrait[]
+  step: StepId
+  ability: Ability
+  pick: AbilityPick
+  nameable: boolean
+  slotLimit?: SlotLimit
+  onChange: (p: AbilityPick) => void
+}
+
+function PickFields({ hero, traits, step, ability, pick, nameable, slotLimit, onChange }: PickFieldsProps) {
   const id = useId()
   const slots = parseSlots(ability.text)
+  const limited = slotLimit ? limitedSlotIndex(ability, slotLimit) : -1
   let traitIndex = 0
   return (
     <div className="ability-pick__fields">
@@ -128,6 +143,7 @@ function PickFields({ hero, traits, step, ability, pick, nameable, onChange }: {
               traits={traits}
               slot={slot}
               step={step}
+              limit={index === limited ? slotLimit : undefined}
               value={pick.uses?.[index]}
               disabled={!canSetUse(pick, index)}
               onChange={(t) => onChange(setUse(pick, index, t))}
@@ -160,7 +176,7 @@ function PickFields({ hero, traits, step, ability, pick, nameable, onChange }: {
   )
 }
 
-export function AbilityPicker({ hero, traits, legend, hint, options, source, step, picks, onChange, fixed = false, nameable = true }: AbilityPickerProps) {
+export function AbilityPicker({ hero, traits, legend, hint, options, source, step, picks, onChange, fixed = false, nameable = true, slotLimit }: AbilityPickerProps) {
   // Keep picks that aren't on this list (e.g. after changing power source) so they can be removed; the checks flag them.
   const stray = picks.filter((p) => !options.some((o) => o.name === p.name))
   const replace = (name: string, next: AbilityPick | undefined) => onChange(replacePick(picks, name, next))
@@ -180,7 +196,7 @@ export function AbilityPicker({ hero, traits, legend, hint, options, source, ste
                 </span>
                 <span className="choice__detail">{ability.text}</span>
               </p>
-              <PickFields hero={hero} traits={traits} step={step} ability={ability} pick={pick ?? { source, name: ability.name }} nameable={nameable} onChange={(p) => replace(ability.name, p)} />
+              <PickFields hero={hero} traits={traits} step={step} ability={ability} pick={pick ?? { source, name: ability.name }} nameable={nameable} slotLimit={slotLimit} onChange={(p) => replace(ability.name, p)} />
             </div>
           )
         }
@@ -195,7 +211,7 @@ export function AbilityPicker({ hero, traits, legend, hint, options, source, ste
                 <span className="choice__detail">{ability.text}</span>
               </span>
             </label>
-            {pick && <PickFields hero={hero} traits={traits} step={step} ability={ability} pick={pick} nameable={nameable} onChange={(p) => replace(ability.name, p)} />}
+            {pick && <PickFields hero={hero} traits={traits} step={step} ability={ability} pick={pick} nameable={nameable} slotLimit={slotLimit} onChange={(p) => replace(ability.name, p)} />}
           </div>
         )
       })}
