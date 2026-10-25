@@ -8,6 +8,14 @@ import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { backgrounds } from '../rules/data'
 import { tableOptions } from '../rules/rolling'
 import { HeroEditor } from './HeroEditor'
+import { HealthStep } from './HealthStep'
+import { useHeroEditor } from './useHeroEditor'
+
+/** The Health step with a fixed random number (the top of the die), for the in-app roll. */
+function HealthHarness() {
+  const { state, update } = useHeroEditor('h1')
+  return state.status === 'ready' ? <HealthStep hero={state.hero} update={update} random={() => 0.999} /> : null
+}
 
 const renderEditor = (store: HeroStore, step?: string, id = 'h1') =>
   render(
@@ -65,9 +73,9 @@ describe('HeroEditor', () => {
     expect(screen.getByRole('link', { name: '← Details' })).toBeInTheDocument()
   })
 
-  it('shows unbuilt steps as coming later, and the last step leads to the sheet', async () => {
+  it('ends with the Health step, which leads to the sheet', async () => {
     renderEditor(await storeWith(), 'health')
-    expect(await screen.findByText(/This step isn't built yet/)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 3, name: 'Health' })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: 'View sheet' }).at(-1)).toHaveAttribute('href', '#/hero/h1')
   })
 
@@ -840,6 +848,80 @@ describe('HeroEditor', () => {
       renderEditor(await complete((h) => (h.personality = { id: 'nurturing', bonus: [], outUses: [Q('fitness')] })), 'retcon')
       await screen.findByRole('radio', { name: /Swap any two of your power dice/ })
       expect(screen.queryByRole('radio', { name: /Raise your Red status die/ })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Health', () => {
+    const noHealth = async () =>
+      storeWith((h) => {
+        Object.assign(h, { ...completeHero(), id: 'h1' })
+        h.health = null
+      })
+
+    it('takes a trait and the flat value, showing Max Health with no issues left', async () => {
+      const store = await noHealth()
+      renderEditor(store, 'health')
+      await userEvent.selectOptions(await screen.findByLabelText('Power or quality for Health'), 'Agility (d10)')
+      await userEvent.click(screen.getByRole('radio', { name: 'Take 4' }))
+      // 8 + Lone Wolf's d8 Red status die + Agility's d10 + 4.
+      expect(await screen.findByText(/Max Health/, { selector: '.health-result' })).toHaveTextContent('Max Health 30')
+      expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
+      await waitFor(async () => expect((await saved(store)).health).toEqual({ mode: 'fixed', trait: P('agility') }))
+    })
+
+    it('uses the fallback die with no eligible trait, and a trait left from before can be cleared', async () => {
+      const store = await storeWith((h) => {
+        Object.assign(h, { ...completeHero(), id: 'h1' })
+        // No Athletic power or Mental quality left.
+        h.background!.qualities = [A(Q('fitness'), 'd10'), A(Q('banter'), 'd8')]
+        h.powerSource!.powers[0] = A(P('cold'), 'd10')
+        h.archetype!.traits = [A(P('leaping'), 'd12'), A(P('flight'), 'd6')]
+        h.health = { trait: P('agility'), mode: 'fixed' }
+      })
+      renderEditor(store, 'health')
+      expect(await screen.findByText(/You have no power or quality that can add to Health, so you use d4/)).toBeInTheDocument()
+      const select = screen.getByLabelText('Power or quality for Health')
+      expect(select).toHaveDisplayValue("Agility (can't be used)")
+      await userEvent.selectOptions(select, 'Choose…')
+      await waitFor(async () => expect((await saved(store)).health).toEqual({ mode: 'fixed' }))
+      expect(screen.queryByLabelText('Power or quality for Health')).not.toBeInTheDocument()
+      expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
+    })
+
+    it('rolls once in the app, after which the flat value is off the table', async () => {
+      const store = await noHealth()
+      render(
+        <StoreContext.Provider value={store}>
+          <HealthHarness />
+        </StoreContext.Provider>,
+      )
+      await userEvent.click(await screen.findByRole('radio', { name: 'Roll d8' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Roll d8' }))
+      expect(screen.getByText(/You rolled/)).toHaveTextContent('You rolled 8.')
+      expect(screen.getByRole('radio', { name: /Take 4/ })).toBeDisabled()
+      await waitFor(async () => expect((await saved(store)).health).toEqual({ mode: 'roll', rollResult: 8 }))
+    })
+
+    it('takes a typed-in roll, checking it, and lets it be corrected', async () => {
+      const store = await noHealth()
+      renderEditor(store, 'health')
+      await userEvent.click(await screen.findByRole('radio', { name: 'Roll d8' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Enter my own roll' }))
+      await userEvent.type(screen.getByLabelText('Your d8 roll'), '9')
+      await userEvent.click(screen.getByRole('button', { name: 'Use this result' }))
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+      await userEvent.clear(screen.getByLabelText('Your d8 roll'))
+      await userEvent.type(screen.getByLabelText('Your d8 roll'), '5')
+      await userEvent.click(screen.getByRole('button', { name: 'Use this result' }))
+      expect(screen.getByText(/You rolled/)).toHaveTextContent('You rolled 5 (typed in).')
+      expect(screen.getByRole('radio', { name: /Take 4/ })).toBeEnabled()
+      await userEvent.click(screen.getByRole('button', { name: 'Correct it' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(screen.getByText(/You rolled/)).toHaveTextContent('You rolled 5 (typed in).')
+      await waitFor(async () => expect((await saved(store)).health).toEqual({ mode: 'roll', rollResult: 5, manual: true }))
+      // A typed-in roll can still give way to the flat value, which drops it.
+      await userEvent.click(screen.getByRole('radio', { name: /Take 4/ }))
+      await waitFor(async () => expect((await saved(store)).health).toEqual({ mode: 'fixed' }))
     })
   })
 

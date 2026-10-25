@@ -11,6 +11,7 @@ import { heroDisplayName, type Hero } from '../hero/model'
 import { ArchetypeStep } from './ArchetypeStep'
 import { BackgroundStep } from './BackgroundStep'
 import { DetailsStep } from './DetailsStep'
+import { HealthStep } from './HealthStep'
 import { PersonalityStep } from './PersonalityStep'
 import { PowerSourceStep } from './PowerSourceStep'
 import { RedAbilitiesStep } from './RedAbilitiesStep'
@@ -25,7 +26,7 @@ interface EditorStep {
   label: string
   /** The warning steps shown with this step. */
   warns: readonly StepId[]
-  render?: (hero: Hero, update: Update) => ReactNode
+  render: (hero: Hero, update: Update) => ReactNode
 }
 
 const EDITOR_STEPS: readonly EditorStep[] = [
@@ -36,7 +37,7 @@ const EDITOR_STEPS: readonly EditorStep[] = [
   { id: 'personality', label: 'Personality', warns: ['personality'], render: (hero, update) => <PersonalityStep hero={hero} update={update} /> },
   { id: 'red-abilities', label: 'Red abilities', warns: ['redAbilities'], render: (hero, update) => <RedAbilitiesStep hero={hero} update={update} /> },
   { id: 'retcon', label: 'Retcon', warns: ['retcon'], render: (hero, update) => <RetconStep hero={hero} update={update} /> },
-  { id: 'health', label: 'Health', warns: ['health', 'principles'] },
+  { id: 'health', label: 'Health', warns: ['health', 'principles'], render: (hero, update) => <HealthStep hero={hero} update={update} /> },
 ]
 
 export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) {
@@ -105,7 +106,7 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
 
       <section className="editor-step" aria-labelledby="editor-step-title">
         <h3 id="editor-step-title">{step.label}</h3>
-        {step.render ? step.render(hero, update) : <p className="sheet-empty">This step isn't built yet. It's coming in a later update.</p>}
+        {step.render(hero, update)}
         {step.warns.length > 0 && <StepWarnings warnings={warnings.filter((w) => step.warns.includes(w.step))} />}
       </section>
 

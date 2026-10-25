@@ -11,7 +11,7 @@
 import { refsMatch, traitKey, type TraitRef } from '../rules/catalog'
 import { healthFormula, healthRanges, personalitiesById, retconsById } from '../rules/data'
 import { dieSize, stepDie } from '../rules/dice'
-import type { Die, HealthRange, OptionRef, Personality, Zone } from '../rules/types'
+import type { Die, HealthFormula, HealthRange, OptionRef, Personality, Zone } from '../rules/types'
 import type { Hero } from '../hero/model'
 import { traitsInAnyForm } from './divided'
 import { dividedChoice, layers } from './layers'
@@ -55,13 +55,19 @@ export function personalitiesOf(hero: Hero): Personality[] {
   return choices.flatMap((c) => (c && personalitiesById.get(c.id)) || [])
 }
 
+/** The formula's power-or-quality term (its allowed list and fallback die). */
+export function healthTraitTerm(): Extract<HealthFormula['addMaxOf'][number], { bestOf: OptionRef[] }> | undefined {
+  for (const term of healthFormula.addMaxOf) if ('bestOf' in term) return term
+  return undefined
+}
+
 /**
  * The traits a hero may use for Health: the formula's list, widened by archetype and
  * personality options. Pass every trait the hero has in any form (traitsInAnyForm).
  */
 export function healthTraitOptions(hero: Hero, traits: readonly HeroTrait[]): HeroTrait[] {
-  const term = healthFormula.addMaxOf.find((t) => 'bestOf' in t)
-  const refs: OptionRef[] = term && 'bestOf' in term ? [...term.bestOf] : []
+  const term = healthTraitTerm()
+  const refs: OptionRef[] = term ? [...term.bestOf] : []
   // Options from every archetype layer (Modular keeps its base archetype's, the user's ruling)
   // and every personality (a Divided hero may have two).
   const sources = [

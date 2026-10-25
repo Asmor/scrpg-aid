@@ -931,6 +931,11 @@ select {
   font-weight: 600;
 }
 
+.health-result {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
 .leftovers {
   display: flex;
   flex-wrap: wrap;
