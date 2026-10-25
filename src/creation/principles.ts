@@ -8,6 +8,7 @@ import { backgroundsById, principleCategories, principlesById } from '../rules/d
 import { outerLayer, secondaryLayer } from './layers'
 import type { EntryRef, Principle, PrincipleCategoryId } from '../rules/types'
 import { CUSTOM_PRINCIPLE_ID, type Hero, type PrincipleChoice } from '../hero/model'
+import { warning, type RuleWarning, type StepId } from './warnings'
 
 /** A principle as the sheet and checks use it: from the data, or one the player made (which has no page). */
 export type PrincipleEntry = Omit<Principle, keyof EntryRef> & Partial<EntryRef>
@@ -28,7 +29,6 @@ export function principleOf(choice: PrincipleChoice): PrincipleEntry | undefined
     greenAbility: { name: custom.greenAbility.name.trim() || name, type: 'A', text: custom.greenAbility.text },
   }
 }
-import { warning, type RuleWarning, type StepId } from './warnings'
 
 export interface HeroPrinciples {
   background?: PrincipleChoice

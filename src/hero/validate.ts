@@ -91,6 +91,13 @@ const customPrinciple = object({
 })
 const principle = object({ id: nonEmptyString, 'customization?': string, 'custom?': customPrinciple })
 
+const advancementByKind: Record<string, Check> = {
+  swapPower: object({ from: traitRef, to: traitRef }),
+  swapQuality: object({ from: traitRef, to: traitRef }),
+  swapPrinciple: object({ replace: oneOf('background', 'archetype'), with: principle }),
+  swapAbility: object({ from: abilityId, to: abilityPick }),
+}
+
 const retconByKind: Record<string, Check> = {
   swapDice: object({
     traits: (v, path) => arrayOf(traitRef)(v, path) ?? ((v as unknown[]).length === 2 ? undefined : `${path} should name exactly two traits`),
@@ -106,6 +113,12 @@ const retcon: Check = (v, path) => {
   const base = object({ id: nonEmptyString, kind: oneOf(...Object.keys(retconByKind)) })(v, path)
   if (base) return base
   return retconByKind[(v as { kind: string }).kind]!(v, path)
+}
+
+const advancementChange: Check = (v, path) => {
+  const base = object({ kind: oneOf(...Object.keys(advancementByKind)) })(v, path)
+  if (base) return base
+  return advancementByKind[(v as { kind: string }).kind]!(v, path)
 }
 
 const personalityChoice = object({ id: nonEmptyString, 'roll?': rollRecord, 'outUses?': arrayOf(traitRef), 'outBlanks?': blanks, bonus: arrayOf(assignment) })
@@ -160,6 +173,11 @@ const heroShape = object({
     object({ 'trait?': traitRef, mode: oneOf('roll', 'fixed'), 'rollResult?': integer, 'manual?': boolean }),
   ),
   'pendingRolls?': object({ 'background?': rollRecord, 'powerSource?': rollRecord, 'archetype?': rollRecord, 'personality?': rollRecord, 'secondaryArchetype?': rollRecord }),
+  'advancement?': object({
+    backIssues: integer,
+    collections: arrayOf(object({ name: string, 'notes?': string })),
+    changes: arrayOf(advancementChange),
+  }),
   'currentHealth?': integer,
   'notes?': string,
 })

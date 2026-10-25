@@ -222,6 +222,31 @@ export type RetconChoice =
   | { id: string; kind: 'changePrinciple'; replace: 'background' | 'archetype'; with: PrincipleChoice }
   | { id: string; kind: 'gainRedAbility'; ability: AbilityPick }
 
+/**
+ * A change made between collections (p. 142–143). Changes apply in order, on top of the
+ * creation choices, which stay as they were made.
+ */
+export type AdvancementChange =
+  /** Swap a power (or quality) for another at the same die size; abilities that used it use the new one. */
+  | { kind: 'swapPower' | 'swapQuality'; from: TraitRef; to: TraitRef }
+  /** Swap one principle for another. */
+  | { kind: 'swapPrinciple'; replace: 'background' | 'archetype'; with: PrincipleChoice }
+  /** Swap an ability for another of the same color from the same entry, using the same power or quality. */
+  | { kind: 'swapAbility'; from: AbilityId; to: AbilityPick }
+
+export interface Collection {
+  name: string
+  notes?: string
+}
+
+/** Hero advancement (p. 142–143): back issues, collections, and the changes made between them. */
+export interface Advancement {
+  /** Sessions played since the last collection; six make a collection. */
+  backIssues: number
+  collections: Collection[]
+  changes: AdvancementChange[]
+}
+
 export interface HealthChoice {
   /** The power or quality whose max value is added; omit to use the fallback die. */
   trait?: TraitRef
@@ -290,6 +315,8 @@ export interface Hero {
    * moves the roll onto the choice.
    */
   pendingRolls?: Partial<Record<RollSlot, RollRecord>>
+  /** Advancement after creation; creation choices are left as they were made. */
+  advancement?: Advancement
   /** Current Health on the sheet, tracked during play. */
   currentHealth?: number
   notes?: string

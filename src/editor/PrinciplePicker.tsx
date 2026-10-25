@@ -104,12 +104,22 @@ export function PrinciplePicker({ category, label = 'Principle', choice, onChang
             ))}
         <option value={CUSTOM_PRINCIPLE_ID}>Write my own principle…</option>
       </select>
-      {isCustom && choice.custom && (
-        <CustomFields
-          custom={category ? { ...choice.custom, category } : choice.custom}
-          fixedCategory={Boolean(category)}
-          onChange={(custom) => onChange({ ...choice, custom: category ? { ...custom, category } : custom })}
-        />
+      {isCustom && (
+        <>
+          {category && choice.custom && choice.custom.category !== category && (
+            <div className="leftovers">
+              <p className="hint">This principle is saved as {principleCategories.find((c) => c.id === choice.custom!.category)?.name}, but this step's principle is {categoryName}.</p>
+              <button type="button" className="button" onClick={() => onChange({ ...choice, custom: { ...choice.custom!, category } })}>
+                Make it {categoryName}
+              </button>
+            </div>
+          )}
+          <CustomFields
+            custom={choice.custom ?? blankCustom(category ?? principleCategories[0]!.id)}
+            fixedCategory={Boolean(category)}
+            onChange={(custom) => onChange({ ...choice, custom: category ? { ...custom, category } : custom })}
+          />
+        </>
       )}
       {principle && choice && (
         <div className="principle-picker__detail">

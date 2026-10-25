@@ -53,7 +53,7 @@ export function findRedAbility(hero: Hero, pick: AbilityPick): RedLookup {
  * sources are relative to `ar` (default: the hero's archetype), so a Divided hero's second
  * archetype's abilities are looked up by passing that archetype.
  */
-function optionsFor(hero: Hero, pick: AbilityPick, archetype?: Archetype): readonly Ability[] {
+export function optionsFor(hero: Hero, pick: AbilityPick, archetype?: Archetype): readonly Ability[] {
   const ps = hero.powerSource && powerSourcesById.get(hero.powerSource.id)
   const ar = archetype ?? (hero.archetype ? archetypesById.get(hero.archetype.id) : undefined)
   switch (pick.source) {
@@ -137,4 +137,13 @@ export function recordedPicks(hero: Hero): PlacedPick[] {
   }
   result.push(...hero.redAbilities.map((pick) => ({ pick })))
   return result
+}
+
+/**
+ * A pick as the hero has it now: with the ability retcon's new traits if the retcon changed
+ * this ability (form and mode abilities are handled with their forms and modes).
+ */
+export function retconnedPick(hero: Hero, pick: AbilityPick): AbilityPick {
+  const retcon = hero.retcon?.kind === 'changeAbilityTrait' ? hero.retcon : undefined
+  return retcon && pick.source === retcon.ability.source && pick.name === retcon.ability.name ? { ...pick, uses: retcon.uses } : pick
 }

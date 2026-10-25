@@ -67,6 +67,7 @@ describe('serialize', () => {
       [{ health: { mode: 'average' } }, 'hero.health.mode has an unknown value'],
       [{ currentHealth: 'full' }, 'hero.currentHealth should be a whole number'],
       [{ background: { id: 'x', qualities: [], principle: { id: 'custom', custom: { category: 'nope' } } } }, 'hero.background.principle.custom.category has an unknown value'],
+      [{ advancement: { backIssues: 0, collections: [], changes: [{ kind: 'levelUp' }] } }, 'hero.advancement.changes[0].kind has an unknown value'],
       [{ pendingRolls: [] }, 'hero.pendingRolls should be an object'],
       [{ pendingRolls: { archetype: { dice: ['d8'], results: [2] } } }, 'hero.pendingRolls.archetype.manual should be true or false'],
       [{ pendingRolls: { secondaryArchetype: { dice: ['d8'] } } }, 'hero.pendingRolls.secondaryArchetype.results should be a list'],
@@ -92,6 +93,15 @@ describe('serialize', () => {
       personality: { id: 'impulsive', outBlanks: { x: 'y' }, bonus: [] },
       retcon: { id: 'change-principle', kind: 'changePrinciple', replace: 'archetype', with: { id: 'destiny' } },
       health: { trait: t, mode: 'roll', rollResult: 5, manual: true },
+      advancement: {
+        backIssues: 2,
+        collections: [{ name: 'Year One', notes: 'n' }],
+        changes: [
+          { kind: 'swapPower', from: { kind: 'power', id: 'fire' }, to: { kind: 'power', id: 'cold' } },
+          { kind: 'swapPrinciple', replace: 'background', with: { id: 'destiny' } },
+          { kind: 'swapAbility', from: { source: 'red', name: 'A' }, to: { source: 'red', name: 'B', category: 'power:athletic' } },
+        ],
+      },
       pendingRolls: { personality: { dice: ['d10', 'd10'], results: [3, 7], manual: false }, secondaryArchetype: { dice: ['d12', 'd6'], results: [2, 5], manual: false } },
       currentHealth: 20,
       notes: 'n',

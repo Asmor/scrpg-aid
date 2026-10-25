@@ -112,6 +112,24 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 - **Decision:** No. The player chooses it freely, as long as it differs from the civilian form's personality.
 - **Basis:** Default (permissive; not asked).
 
+### 49. Swapping the roleplaying quality during advancement
+- **Pages:** Hero advancement (p. 142–143).
+- **Question:** Between collections a hero may swap a quality for another at the same die size, and "the roleplaying quality counts". What does that mean for the roleplaying quality, which the player invents?
+- **Decision:** Changing it means rewriting (renaming) it, which the player can do at any time; it isn't swapped for a quality from the lists.
+- **Basis:** Default (not asked). Worth confirming: the plainer reading may be that it can be swapped for a listed quality at its die.
+
+### 50. Swapping a Red ability during advancement
+- **Pages:** Hero advancement (p. 142–143); Red abilities (p. 106–111).
+- **Question:** The ability swap names abilities "from the same power source or archetype entries". Can a Red ability be swapped too?
+- **Decision:** Yes, for another from the same Red ability category, using the same power or quality. Fixed abilities and Divided's transition ability can't be swapped.
+- **Basis:** Default (permissive; not asked).
+
+### 51. What a swap doesn't recheck
+- **Pages:** Hero advancement (p. 142–143).
+- **Question:** A power or quality swap can break links set at creation (a Red ability's category, an archetype's required trait), and "swap one principle for another" doesn't say which principles. Are these limited?
+- **Decision:** No. Swaps aren't checked against creation's lists or links, and the new principle may come from any category; it just can't be one the hero already has.
+- **Basis:** Default (permissive; not asked).
+
 ## Red abilities
 
 ### 10. Minion-Maker's extra Red abilities

@@ -8,6 +8,7 @@ import { editPath, heroPath, listPath } from '../app/route'
 import { buildSheet } from '../creation/sheet'
 import type { StepId } from '../creation/warnings'
 import { heroDisplayName, type Hero } from '../hero/model'
+import { AdvancementStep } from './AdvancementStep'
 import { ArchetypeStep } from './ArchetypeStep'
 import { BackgroundStep } from './BackgroundStep'
 import { DetailsStep } from './DetailsStep'
@@ -38,6 +39,7 @@ const EDITOR_STEPS: readonly EditorStep[] = [
   { id: 'red-abilities', label: 'Red abilities', warns: ['redAbilities'], render: (hero, update) => <RedAbilitiesStep hero={hero} update={update} /> },
   { id: 'retcon', label: 'Retcon', warns: ['retcon'], render: (hero, update) => <RetconStep hero={hero} update={update} /> },
   { id: 'health', label: 'Health', warns: ['health', 'principles'], render: (hero, update) => <HealthStep hero={hero} update={update} /> },
+  { id: 'advancement', label: 'Advancement', warns: ['advancement'], render: (hero, update) => <AdvancementStep hero={hero} update={update} /> },
 ]
 
 export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) {

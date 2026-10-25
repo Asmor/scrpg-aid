@@ -11,10 +11,11 @@ import {
 } from '../rules/data'
 import { parseSlots } from '../rules/slots'
 import type { Ability, AbilityType, BasicAction, Die, HealthRange, MinionForm, Zone } from '../rules/types'
-import type { AbilityPick, AbilitySource, Hero, PrincipleChoice } from '../hero/model'
+import type { AbilityPick, AbilitySource, Collection, Hero, PrincipleChoice } from '../hero/model'
+import { advancedHero, checkAdvancement, describeChange } from './advancement'
 import { checkAbilities, checkAbilityPick, checkAbilityRetcon } from './abilities'
 import { computeHealth, statusDice } from './health'
-import { findAbility, outPick, recordedPicks, type PlacedPick } from './lookup'
+import { findAbility, outPick, recordedPicks, retconnedPick, type PlacedPick } from './lookup'
 import { checkPrinciples, heroPrinciples, principleOf } from './principles'
 import { checkForms, formAbilityPick, formLabel, formTraits } from './forms'
 import { checkDivided, heroicTraits, outTraits, splitNames } from './divided'
@@ -66,6 +67,8 @@ export interface SheetMode {
 }
 
 export interface HeroSheet {
+  /** Back issues, collections, and the advancement changes made (p. 142–143). */
+  advancement?: { backIssues: number; collections: readonly Collection[]; changes: string[] }
   characteristics: { background?: string; powerSource?: string; archetype?: string; personality?: string }
   powers: HeroTrait[]
   qualities: HeroTrait[]
@@ -143,7 +146,20 @@ function sheetAbility(hero: Hero, ability: Ability, pick: AbilityPick & { source
   }
 }
 
+/**
+ * The hero's sheet. With advancement changes, it shows the hero as they are now (the changes
+ * applied), but the creation checks run on the hero as created, plus the advancement checks
+ * (./advancement.ts).
+ */
 export function buildSheet(hero: Hero): HeroSheet {
+  const adv = hero.advancement
+  const summary = adv ? { backIssues: adv.backIssues, collections: adv.collections, changes: adv.changes.map((c, i) => describeChange(advancedHero(hero, i), c)) } : undefined
+  const created = sheetOf(hero)
+  const now = adv?.changes.length ? sheetOf(advancedHero(hero)) : created
+  return { ...now, advancement: summary, warnings: [...created.warnings, ...checkAdvancement(hero)] }
+}
+
+function sheetOf(hero: Hero): HeroSheet {
   const derived = deriveTraits(hero)
   const traits = derived.traits
   // The Out ability uses the powers and qualities of the form whose personality gives it.
@@ -162,14 +178,10 @@ export function buildSheet(hero: Hero): HeroSheet {
   ]
 
   // Ability picks, with the ability retcon's new traits applied.
-  const retcon = hero.retcon?.kind === 'changeAbilityTrait' ? hero.retcon : undefined
   const placed: PlacedPick[] = [
     ...recordedPicks(hero),
     ...(hero.retcon?.kind === 'gainRedAbility' ? [{ pick: { ...hero.retcon.ability, source: 'retcon' as const } }] : []),
-  ].map(({ pick, archetype }) => ({
-    archetype,
-    pick: retcon && pick.source === retcon.ability.source && pick.name === retcon.ability.name ? { ...pick, uses: retcon.uses } : pick,
-  }))
+  ].map(({ pick, archetype }) => ({ archetype, pick: retconnedPick(hero, pick) }))
 
   const abilities: SheetAbility[] = []
   const inZone = (p: AbilityPick): p is AbilityPick & { source: ZoneSource } =>
@@ -229,7 +241,7 @@ export function buildSheet(hero: Hero): HeroSheet {
   if (recorded && outEntry) {
     const ability = outEntry
     warnings.push(...checkAbilityPick(hero, forOut, ability, recorded, 'personality'))
-    const pick = retcon?.ability.source === 'out' ? { ...recorded, uses: retcon.uses } : recorded
+    const pick = retconnedPick(hero, recorded)
     out = fillText(hero, ability.text, pick.uses, pick.blanks)
   }
 

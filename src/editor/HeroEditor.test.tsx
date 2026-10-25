@@ -73,9 +73,9 @@ describe('HeroEditor', () => {
     expect(screen.getByRole('link', { name: '← Details' })).toBeInTheDocument()
   })
 
-  it('ends with the Health step, which leads to the sheet', async () => {
-    renderEditor(await storeWith(), 'health')
-    expect(await screen.findByRole('heading', { level: 3, name: 'Health' })).toBeInTheDocument()
+  it('ends with the Advancement step, which leads to the sheet', async () => {
+    renderEditor(await storeWith(), 'advancement')
+    expect(await screen.findByRole('heading', { level: 3, name: 'Advancement' })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: 'View sheet' }).at(-1)).toHaveAttribute('href', '#/hero/h1')
   })
 
@@ -923,6 +923,48 @@ describe('HeroEditor', () => {
       await userEvent.click(screen.getByRole('radio', { name: /Take 4/ }))
       await waitFor(async () => expect((await saved(store)).health).toEqual({ mode: 'fixed' }))
     })
+  })
+
+  it('counts back issues, names collections, and records changes', async () => {
+    const store = await storeWith((h) => Object.assign(h, { ...completeHero(), id: 'h1' }))
+    renderEditor(store, 'advancement')
+    const more = await screen.findByRole('button', { name: 'One more back issue' })
+    await userEvent.click(more)
+    await userEvent.click(more)
+    expect(screen.getByText('2 of 6')).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('New collection name'), 'Year One')
+    await userEvent.click(screen.getByRole('button', { name: 'Name this collection' }))
+    // Naming a collection clears the back issues.
+    expect(screen.getByText('0 of 6')).toBeInTheDocument()
+
+    await userEvent.selectOptions(screen.getByLabelText('Change'), 'Swap a power for another at the same die size')
+    expect(screen.getByRole('button', { name: 'Add this change' })).toBeDisabled()
+    await userEvent.selectOptions(screen.getByLabelText('Swap this power'), 'Fire (d8)')
+    await userEvent.selectOptions(screen.getByLabelText('For this one, at d8'), 'Cold')
+    await userEvent.click(screen.getByRole('button', { name: 'Add this change' }))
+    expect(screen.getByText(/Swapped Fire for Cold/)).toBeInTheDocument()
+    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    await waitFor(async () =>
+      expect((await saved(store)).advancement).toEqual({ backIssues: 0, collections: [{ name: 'Year One' }], changes: [{ kind: 'swapPower', from: P('fire'), to: P('cold') }] }),
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Remove change 1' }))
+    await waitFor(async () => expect((await saved(store)).advancement?.changes).toEqual([]))
+  })
+
+  it('records an ability swap, filling in the new ability', async () => {
+    const store = await storeWith((h) => Object.assign(h, { ...completeHero(), id: 'h1' }))
+    renderEditor(store, 'advancement')
+    await userEvent.selectOptions(await screen.findByLabelText('Change'), 'Swap an ability for another of the same color from the same list')
+    await userEvent.selectOptions(screen.getByLabelText('Swap this ability'), 'Inflict')
+    await userEvent.selectOptions(screen.getByLabelText('For this one'), 'Reflexive Burst')
+    // It starts from the same power.
+    expect(within(screen.getByRole('group', { name: 'Fill in Reflexive Burst' })).getByRole('combobox', { name: '[power]' })).toHaveDisplayValue('Fire (d8)')
+    await userEvent.click(screen.getByRole('button', { name: 'Add this change' }))
+    await waitFor(async () =>
+      expect((await saved(store)).advancement?.changes).toEqual([
+        { kind: 'swapAbility', from: { source: 'powerSource.yellow', name: 'Inflict' }, to: { source: 'powerSource.yellow', name: 'Reflexive Burst', uses: [P('fire')] } },
+      ]),
+    )
   })
 
   it('reports a failed save', async () => {

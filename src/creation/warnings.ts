@@ -12,6 +12,7 @@ export type StepId =
   | 'retcon'
   | 'health'
   | 'principles'
+  | 'advancement'
 
 export interface RuleWarning {
   step: StepId

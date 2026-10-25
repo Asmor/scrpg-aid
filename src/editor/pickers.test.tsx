@@ -99,6 +99,17 @@ describe('PrinciplePicker', () => {
     })
   })
 
+  it('shows the fields for a custom principle with nothing written yet, and flags one in another category', async () => {
+    const { unmount } = render(<Principle initial={{ id: 'custom' }} />)
+    expect(screen.getByLabelText('Name')).toBeInTheDocument()
+    unmount()
+    const written = { category: 'ideals' as const, name: 'P', roleplaying: '', minorTwist: '', majorTwist: '', greenAbility: { name: '', text: '' } }
+    render(<Principle initial={{ id: 'custom', custom: written }} />)
+    expect(screen.getByText("This principle is saved as Ideals, but this step's principle is Esoteric.")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Make it Esoteric' }))
+    expect(JSON.parse(screen.getByRole('status').textContent!).custom.category).toBe('esoteric')
+  })
+
   it('picks the category of a custom principle when there’s none to follow (the retcon)', async () => {
     render(<Principle category={null} />)
     await userEvent.selectOptions(screen.getByLabelText('Principle'), 'Write my own principle…')

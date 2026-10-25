@@ -24,6 +24,7 @@ const STEP_LABEL: Record<StepId, string> = {
   retcon: 'Retcon',
   health: 'Health',
   principles: 'Principles',
+  advancement: 'Advancement',
 }
 const DETAIL_LABEL: Record<keyof HeroDetails, string> = {
   name: 'Hero name',
@@ -328,6 +329,29 @@ export function HeroSheetView({ hero }: { hero: Hero }) {
       </Panel>
 
       <Auxiliary sheet={sheet} />
+
+      {sheet.advancement && (sheet.advancement.collections.length > 0 || sheet.advancement.changes.length > 0 || sheet.advancement.backIssues > 0) && (
+        <Panel title="Advancement" className="sheet-advancement">
+          <p>Back issues: {sheet.advancement.backIssues}</p>
+          {sheet.advancement.collections.length > 0 && (
+            <ol className="sheet-collections">
+              {sheet.advancement.collections.map((c, i) => (
+                <li key={i}>
+                  <strong>{c.name || `Collection ${i + 1}`}</strong>
+                  {c.notes && <p>{c.notes}</p>}
+                </li>
+              ))}
+            </ol>
+          )}
+          {sheet.advancement.changes.length > 0 && (
+            <ul className="sheet-changes">
+              {sheet.advancement.changes.map((c, i) => (
+                <li key={i}>{c}</li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      )}
     </article>
   )
 }
