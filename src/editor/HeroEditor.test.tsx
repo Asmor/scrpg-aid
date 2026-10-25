@@ -548,7 +548,6 @@ describe('HeroEditor', () => {
     expect(screen.getByText('You have 3 powers; add 1 d6 power so you have 4.')).toBeInTheDocument()
     await userEvent.selectOptions(within(screen.getByRole('group', { name: 'Filler powers' })).getByRole('combobox', { name: 'd6' }), 'Leaping')
     expect(screen.getByRole('group', { name: 'Green abilities you always have' })).toHaveTextContent('Switch')
-    expect(screen.getByText(/Modular's modes aren't in the editor yet/)).toBeInTheDocument()
     await waitFor(async () => {
       const a = (await saved(store)).archetype!
       expect(a.secondary).toEqual({ id: 'speedster', traits: [], abilities: [], bonus: [] })
@@ -597,6 +596,63 @@ describe('HeroEditor', () => {
       expect(hero.archetype?.secondary).toBeUndefined()
       expect(hero.pendingRolls?.secondaryArchetype).toEqual({ ...secondRoll, dice: ['d12', 'd6'] })
     })
+  })
+
+  it('builds Modular’s modes and Powerless mode', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...modularHero(), id: 'h1' })
+      h.archetype!.modular = { modes: [] }
+    })
+    renderEditor(store, 'archetype')
+    const green = await screen.findByRole('group', { name: 'Green mode 1' })
+    await userEvent.selectOptions(within(green).getByRole('combobox', { name: 'Green mode' }), 'Debilitator Mode')
+    const card = screen.getByRole('group', { name: 'Debilitator Mode' })
+    expect(within(card).getByText(/Debilitator Mode uses 4 default-mode powers/)).toBeInTheDocument()
+    // Rows fill in order.
+    expect(within(card).getByRole('combobox', { name: 'Power 2' })).toBeDisabled()
+    await userEvent.selectOptions(within(card).getByRole('combobox', { name: 'Power 1' }), 'Fire (d8)')
+    await userEvent.selectOptions(within(card).getByRole('combobox', { name: 'Die in this mode' }), 'd8 → d10')
+    // A power can be used once per mode.
+    expect(within(within(card).getByRole('combobox', { name: 'Power 2' })).queryByRole('option', { name: 'Fire (d8)' })).not.toBeInTheDocument()
+    await userEvent.selectOptions(within(card).getByRole('combobox', { name: '[power]' }), 'Fire (d10)')
+
+    const powerless = screen.getByRole('group', { name: 'Powerless mode' })
+    await userEvent.click(within(powerless).getByRole('checkbox', { name: 'Take a Powerless mode' }))
+    await userEvent.selectOptions(within(powerless).getByRole('combobox', { name: 'd10' }), 'Speed')
+    await waitFor(async () =>
+      expect((await saved(store)).archetype?.modular).toEqual({
+        modes: [{ id: 'debilitator', powers: [A(P('fire'), 'd10')], ability: { source: 'archetype.mode', name: 'Debilitator', uses: [P('fire')] } }],
+        powerless: [A(P('speed'), 'd10')],
+      }),
+    )
+  })
+
+  it('switches, removes, and drops modes', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...modularHero(), id: 'h1' })
+      h.archetype!.modular!.modes.push({ id: 'scout', powers: [] })
+    })
+    renderEditor(store, 'archetype')
+    // Switching records the new mode's ability, even one with no blanks to fill.
+    await userEvent.selectOptions(within(await screen.findByRole('group', { name: 'Hunter/Killer Mode' })).getByRole('combobox', { name: 'Red mode' }), 'Destroyer Mode')
+    // A mode taken in another slot isn't offered again.
+    expect(within(screen.getByRole('group', { name: 'Improvement Mode' })).queryByRole('option', { name: 'Scout Mode' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Scout Mode' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Take a Powerless mode' }))
+    await waitFor(async () => {
+      const modular = (await saved(store)).archetype!.modular!
+      expect(modular.modes.map((m) => m.id)).toEqual(['improvement', 'analysis', 'regeneration', 'destroyer'])
+      expect(modular.modes[3]!.ability).toEqual({ source: 'archetype.mode', name: 'Destroyer' })
+      expect(modular.powerless).toBeUndefined()
+    })
+    const issues = screen.getByRole('region', { name: 'Rule issues in this step' })
+    expect(issues).not.toHaveTextContent('Fill in Destroyer')
+  })
+
+  it('shows a legal Modular hero with no issues', async () => {
+    renderEditor(await storeWith((h) => Object.assign(h, { ...modularHero(), id: 'h1' })), 'archetype')
+    expect(await screen.findByRole('group', { name: 'Patch Job' })).toBeInTheDocument()
+    expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
   })
 
   it('reports a failed save', async () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Hero } from '../hero/model'
 import { A, completeHero, modularHero, P, Q } from '../test/heroes'
-import { checkModular, describeAdjustment, findMode } from './modular'
+import { checkModular, describeAdjustment, findMode, modeDieOptions, modeSlots, setModeSlot, strayModes } from './modular'
 import { buildSheet } from './sheet'
 import { deriveTraits } from './traits'
 
@@ -167,5 +167,31 @@ describe('Modular', () => {
     const nested = modularHero()
     nested.archetype!.secondary!.modular = { modes: [] }
     expect(codes(nested)).toEqual(['unexpected-modular'])
+  })
+})
+
+describe('editing modes', () => {
+  const mode = (hero: Hero, id: string) => findMode(hero, id)!.mode
+
+  it('offers the dice a mode allows from a power’s default die', () => {
+    const hero = modularHero()
+    expect(modeDieOptions(mode(hero, 'debilitator'), 'd8')).toEqual(['d10', 'd8', 'd6'])
+    expect(modeDieOptions(mode(hero, 'bombardment'), 'd8')).toEqual(['d12', 'd6'])
+    expect(modeDieOptions(mode(hero, 'regeneration'), 'd10')).toEqual(['d12', 'd10'])
+    // Past d12 the die stays at d12 (the user's ruling), so there's just the one.
+    expect(modeDieOptions(mode(hero, 'hunter-killer'), 'd12')).toEqual(['d12'])
+  })
+
+  it('shows one slot per mode a zone asks for, plus extras, and sets modes aside that aren’t modes', () => {
+    const hero = modularHero()
+    const list = modes(hero)
+    expect(modeSlots(hero, list, 'yellow', 2)).toEqual([{ mode: list[1], index: 1 }, { mode: list[2], index: 2 }])
+    expect(modeSlots(hero, list, 'green', 2)).toEqual([{ mode: list[0], index: 0 }, {}])
+    const withStray = [...list, { id: 'nope', powers: [] }]
+    expect(strayModes(hero, withStray)).toEqual([{ mode: withStray[4], index: 4 }])
+    expect(modeSlots(hero, withStray, 'red', 1)).toEqual([{ mode: list[3], index: 3 }])
+    expect(setModeSlot(list, {}, { id: 'scout', powers: [] })).toHaveLength(5)
+    expect(setModeSlot(list, { index: 0 }, undefined)).toEqual(list.slice(1))
+    expect(setModeSlot(list, { index: 0 }, { ...list[0]!, name: 'Buff' })[0]!.name).toBe('Buff')
   })
 })

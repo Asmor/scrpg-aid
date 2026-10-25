@@ -867,6 +867,8 @@ select {
   margin: 0.5rem 0 0.25rem 1.75rem;
 }
 
+.modes-editor,
+.mode-card,
 .second-archetype,
 .outer-archetype,
 .split-form,
@@ -878,6 +880,9 @@ select {
   gap: 0.5rem;
 }
 
+.modes-editor h4,
+.modes-editor > .hint,
+.mode-card > .hint,
 .forms-editor h4,
 .second-archetype h4,
 .outer-archetype h4 {
@@ -897,6 +902,16 @@ select {
 .forms-editor > .hint,
 .minion-forms > p {
   margin: 0;
+}
+
+.mode-card__power {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+}
+
+.mode-card__power .field {
+  flex: 1 1 12rem;
 }
 
 .leftovers {

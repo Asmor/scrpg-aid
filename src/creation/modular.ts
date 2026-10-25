@@ -17,7 +17,7 @@
  *   and the new power must be one of that mode's powers.
  */
 import { traitKey } from '../rules/catalog'
-import { stepDie } from '../rules/dice'
+import { sortDice, stepDie } from '../rules/dice'
 import type { Ability, Die, ModularMode, Zone } from '../rules/types'
 import type { AbilityPick, Hero, ModeChoice } from '../hero/model'
 import { checkAbilityPick } from './abilities'
@@ -78,6 +78,39 @@ function fitsSlots(changes: readonly { from: Die; to: Die }[], slots: readonly (
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+
+/** The dice a mode may give a default-mode power at `from`, largest first, for the UI. */
+export function modeDieOptions(mode: ModularMode, from: Die): Die[] {
+  const dice = [
+    mode.upTwoSteps && stepDie(from, 2),
+    mode.upCount && stepDie(from, 1),
+    mode.setTo?.die,
+    mode.same && from,
+    mode.down && stepDie(from, -1),
+  ].filter((d): d is Die => Boolean(d))
+  return sortDice([...new Set(dice)]).reverse()
+}
+
+/**
+ * The modes of one zone the editor shows: one slot per mode the zone asks for, plus any
+ * extra ones recorded there. Each slot has the mode (if recorded) and its index in `modes`.
+ * Modes with an unknown id fill no slot (see `strayModes`).
+ */
+export function modeSlots(hero: Hero, modes: readonly ModeChoice[], zone: Zone, count: number): { mode?: ModeChoice; index?: number }[] {
+  const recorded = modes.flatMap((mode, index) => (findMode(hero, mode.id)?.zone === zone ? [{ mode, index }] : []))
+  return Array.from({ length: Math.max(count, recorded.length) }, (_, i) => recorded[i] ?? {})
+}
+
+/** Recorded modes whose id isn't a mode, with their index in `modes`, so they can be removed. */
+export function strayModes(hero: Hero, modes: readonly ModeChoice[]): { mode: ModeChoice; index: number }[] {
+  return modes.flatMap((mode, index) => (findMode(hero, mode.id) ? [] : [{ mode, index }]))
+}
+
+/** Sets the mode in `slot`, adding it if it isn't recorded yet, or removes it with `next` undefined. */
+export function setModeSlot(modes: readonly ModeChoice[], slot: { index?: number }, next: ModeChoice | undefined): ModeChoice[] {
+  if (slot.index === undefined) return next ? [...modes, next] : [...modes]
+  return next ? modes.map((m, i) => (i === slot.index ? next : m)) : modes.filter((_, i) => i !== slot.index)
+}
 
 /** "keeps 1 the same, lowers 1 one size, and raises 2 one size" */
 export function describeAdjustment(mode: ModularMode): string {

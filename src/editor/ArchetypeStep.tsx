@@ -5,7 +5,6 @@
  *
  * Divided and Modular build on a second archetype (see ../creation/layers.ts), chosen with
  * a roll of its own (rulings 45–47) and edited the same way, below their own choices.
- * Modular's modes aren't in the editor yet.
  */
 import { useId } from 'react'
 import { expandRefs, traitKey } from '../rules/catalog'
@@ -22,6 +21,7 @@ import { BonusPicker } from './BonusPicker'
 import { DiceAssigner } from './DiceAssigner'
 import { SplitFormEditor, TransitionPicker } from './DividedEditor'
 import { FormChangerForms, MinionForms } from './FormsEditor'
+import { ModesEditor } from './ModesEditor'
 import { PrinciplePicker } from './PrinciplePicker'
 import { TablePicker } from './TablePicker'
 
@@ -460,7 +460,19 @@ function ComplexArchetype({ hero, update, ar }: { hero: Hero; update: Update; ar
             }
           />
         )}
-        {ar.modes && <p className="hint">Modular's modes aren't in the editor yet. They're coming in a later update.</p>}
+        {ar.modes && (
+          <ModesEditor
+            hero={hero}
+            ar={ar}
+            traits={traits}
+            modular={choice.modular}
+            onChange={(modular) =>
+              update((h) => {
+                h.archetype!.modular = modular
+              })
+            }
+          />
+        )}
         {ar.personalityNote && <p className="hint">{ar.personalityNote} You choose that in the personality step.</p>}
         {ABILITY_BLOCKS.filter((b) => !b.has(ar) && choice.abilities.some((p) => p.source === b.source)).map((b) => (
           <div key={b.source}>{picker(b.source, `${b.name} from another archetype`, [], `${ar.name} doesn't have these. Untick them to remove them.`)}</div>
