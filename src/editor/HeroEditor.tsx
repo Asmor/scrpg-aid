@@ -3,8 +3,8 @@
  * step shows its own rule problems; nothing blocks moving on (the user's "warn only"
  * decision), and going back keeps later choices, flagging the ones that no longer fit.
  */
-import type { ReactNode } from 'react'
-import { editPath, heroPath, listPath } from '../app/route'
+import { useEffect, type MouseEvent, type ReactNode } from 'react'
+import { editPath, heroPath, listPath, navigate } from '../app/route'
 import { buildSheet } from '../creation/sheet'
 import type { StepId } from '../creation/warnings'
 import { heroDisplayName, type Hero } from '../hero/model'
@@ -43,12 +43,20 @@ const EDITOR_STEPS: readonly EditorStep[] = [
 ]
 
 export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) {
-  const { state, update, saveError } = useHeroEditor(id)
-  const index = Math.max(
-    0,
-    EDITOR_STEPS.findIndex((s) => s.id === stepId),
-  )
+  const { state, update, saveError, flush } = useHeroEditor(id)
+  const found = EDITOR_STEPS.findIndex((s) => s.id === stepId)
+  const index = Math.max(0, found)
   const step = EDITOR_STEPS[index]!
+  // An unknown step in the address shows the first step; put that step's address in its place.
+  useEffect(() => {
+    if (stepId !== undefined && found < 0) window.location.replace(editPath(id, EDITOR_STEPS[0]!.id))
+  }, [id, stepId, found])
+  /** Leaves the editor once the changes made so far are saved, so the next page shows them. */
+  const leave = (path: string) => (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    void flush().then(() => navigate(path))
+  }
 
   if (state.status !== 'ready') {
     return (
@@ -73,8 +81,12 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
   return (
     <div className="hero-editor">
       <div className="hero-editor__top">
-        <a href={listPath}>← All heroes</a>
-        <a href={heroPath(hero.id)}>View sheet</a>
+        <a href={listPath} onClick={leave(listPath)}>
+          ← All heroes
+        </a>
+        <a href={heroPath(hero.id)} onClick={leave(heroPath(hero.id))}>
+          View sheet
+        </a>
       </div>
       <h2 className="hero-editor__name">{heroDisplayName(hero)}</h2>
       {saveError && (
@@ -125,7 +137,7 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
             {next.label} →
           </a>
         ) : (
-          <a className="button button--primary" href={heroPath(hero.id)}>
+          <a className="button button--primary" href={heroPath(hero.id)} onClick={leave(heroPath(hero.id))}>
             View sheet
           </a>
         )}

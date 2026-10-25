@@ -79,9 +79,11 @@ describe('HeroEditor', () => {
     expect(screen.getAllByRole('link', { name: 'View sheet' }).at(-1)).toHaveAttribute('href', '#/hero/h1')
   })
 
-  it('falls back to the first step for an unknown step', async () => {
+  it('falls back to the first step for an unknown step, fixing the address', async () => {
+    window.location.hash = '#/hero/h1/edit/nope'
     renderEditor(await storeWith(), 'nope')
     expect(await screen.findByRole('heading', { level: 3, name: 'Details' })).toBeInTheDocument()
+    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1/edit/details'))
   })
 
   it('builds a background the constructed way, with no issues left', async () => {
@@ -975,6 +977,34 @@ describe('HeroEditor', () => {
     renderEditor(store, 'details')
     await userEvent.type(await screen.findByLabelText('Hero name'), 'X')
     expect(await screen.findByRole('alert')).toHaveTextContent("Your last change couldn't be saved: disk full")
+  })
+
+  it('waits for saves before leaving the editor, and asks before closing the page mid-save', async () => {
+    const inner = await storeWith()
+    let finish: (() => void) | undefined
+    const store: HeroStore = {
+      list: () => inner.list(),
+      get: (id) => inner.get(id),
+      remove: (id) => inner.remove(id),
+      save: (hero) =>
+        new Promise((resolve) => {
+          finish = () => void inner.save(hero).then(resolve)
+        }),
+    }
+    window.location.hash = '#/hero/h1/edit/details'
+    renderEditor(store, 'details')
+    await userEvent.type(await screen.findByLabelText('Hero name'), 'A')
+    const unload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unload)
+    expect(unload.defaultPrevented).toBe(true)
+    await userEvent.click(screen.getAllByRole('link', { name: 'View sheet' })[0]!)
+    // Still here until the save lands.
+    expect(window.location.hash).toBe('#/hero/h1/edit/details')
+    await act(async () => finish!())
+    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1'))
+    const after = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(after)
+    expect(after.defaultPrevented).toBe(false)
   })
 
   it('saves changes in order, even when an earlier save is slow', async () => {

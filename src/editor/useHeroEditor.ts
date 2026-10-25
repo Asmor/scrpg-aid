@@ -1,7 +1,8 @@
 /**
  * Loads a hero for editing and saves every change straight away. Changes are applied to a
  * copy (the store and other views never see a half-made change), and saves run one after
- * another so an older save can't land after a newer one.
+ * another so an older save can't land after a newer one. Leaving the editor waits for them
+ * (`flush`), and closing the page while one is running asks first.
  */
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../app/store-context'
@@ -18,6 +19,8 @@ export interface HeroEditor {
   update: (change: (draft: Hero) => void) => void
   /** The last save's error, if it failed. */
   saveError: string | null
+  /** Resolves once every change made so far has been saved (or failed to). */
+  flush: () => Promise<void>
 }
 
 export function useHeroEditor(id: string, now: () => Date = () => new Date()): HeroEditor {
@@ -26,6 +29,16 @@ export function useHeroEditor(id: string, now: () => Date = () => new Date()): H
   const [saveError, setSaveError] = useState<string | null>(null)
   const latest = useRef<Hero | null>(null)
   const saving = useRef<Promise<void>>(Promise.resolve())
+  const pending = useRef(0)
+
+  useEffect(() => {
+    // The browser shows its own "leave site?" prompt; the message itself isn't shown.
+    const warn = (e: BeforeUnloadEvent) => {
+      if (pending.current > 0) e.preventDefault()
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [])
 
   useEffect(() => {
     let current = true
@@ -54,14 +67,18 @@ export function useHeroEditor(id: string, now: () => Date = () => new Date()): H
     next.updatedAt = now().toISOString()
     latest.current = next
     setState({ status: 'ready', hero: next })
-    saving.current = saving.current.then(
-      () =>
+    pending.current++
+    saving.current = saving.current
+      .then(() =>
         store.save(next).then(
           () => setSaveError(null),
           (e: unknown) => setSaveError(errorText(e)),
         ),
-    )
+      )
+      .finally(() => {
+        pending.current--
+      })
   }
 
-  return { state, update, saveError }
+  return { state, update, saveError, flush: () => saving.current }
 }
