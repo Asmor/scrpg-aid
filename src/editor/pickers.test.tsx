@@ -76,17 +76,36 @@ describe('DiceAssigner', () => {
   })
 })
 
-function Principle({ category = 'esoteric' as const, initial }: { category?: 'esoteric'; initial?: PrincipleChoice }) {
+function Principle({ category = 'esoteric', initial }: { category?: 'esoteric' | null; initial?: PrincipleChoice }) {
   const [choice, setChoice] = useState(initial)
   return (
     <>
-      <PrinciplePicker category={category} choice={choice} onChange={setChoice} />
+      <PrinciplePicker category={category ?? undefined} choice={choice} onChange={setChoice} />
       <output>{JSON.stringify(choice ?? null)}</output>
     </>
   )
 }
 
 describe('PrinciplePicker', () => {
+  it('writes a custom principle in the step’s category', async () => {
+    render(<Principle />)
+    await userEvent.selectOptions(screen.getByLabelText('Principle of Esoteric'), 'Write my own principle…')
+    expect(screen.queryByLabelText('Category')).not.toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Name'), 'Principle of Tides')
+    await userEvent.type(screen.getByLabelText('Green ability'), 'Overcome at sea.')
+    expect(JSON.parse(screen.getByRole('status').textContent!)).toEqual({
+      id: 'custom',
+      custom: { category: 'esoteric', name: 'Principle of Tides', roleplaying: '', minorTwist: '', majorTwist: '', greenAbility: { name: '', text: 'Overcome at sea.' } },
+    })
+  })
+
+  it('picks the category of a custom principle when there’s none to follow (the retcon)', async () => {
+    render(<Principle category={null} />)
+    await userEvent.selectOptions(screen.getByLabelText('Principle'), 'Write my own principle…')
+    await userEvent.selectOptions(screen.getByLabelText('Category'), 'Ideals')
+    expect(JSON.parse(screen.getByRole('status').textContent!).custom.category).toBe('ideals')
+  })
+
   it('chooses a principle from the category and fills in its blank', async () => {
     render(<Principle />)
     const select = screen.getByRole('combobox', { name: 'Principle of Esoteric' })

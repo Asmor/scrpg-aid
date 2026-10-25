@@ -23,7 +23,7 @@
  */
 import { traitKey, type TraitRef } from '../rules/catalog'
 import type { RollRecord } from '../rules/rolling'
-import type { Die } from '../rules/types'
+import type { Die, PrincipleCategoryId } from '../rules/types'
 
 export type { RollRecord }
 
@@ -83,9 +83,26 @@ export interface AbilityPick extends AbilityId {
 }
 
 export interface PrincipleChoice {
+  /** The principle's id in the data, or CUSTOM_PRINCIPLE_ID for one the player made. */
   id: string
   /** Fills a bracketed blank in the principle, e.g. "Fire" for Principle of [Energy/Element]. */
   customization?: string
+  /** A principle the player made (p. 141), when `id` is CUSTOM_PRINCIPLE_ID. */
+  custom?: CustomPrinciple
+}
+
+/** The id a PrincipleChoice has when it holds a custom principle. */
+export const CUSTOM_PRINCIPLE_ID = 'custom'
+
+/** A principle the player made, with GM approval (p. 141). Fields may be blank while it's being written. */
+export interface CustomPrinciple {
+  category: PrincipleCategoryId
+  name: string
+  roleplaying: string
+  minorTwist: string
+  majorTwist: string
+  /** Its Green ability: an Overcome boost in a specific circumstance. */
+  greenAbility: { name: string; text: string }
 }
 
 export interface BackgroundChoice {

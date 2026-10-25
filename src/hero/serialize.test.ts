@@ -66,6 +66,7 @@ describe('serialize', () => {
       [{ retcon: { id: 'x', kind: 'gainPowerOrQuality' } }, 'hero.retcon.gained should be an object'],
       [{ health: { mode: 'average' } }, 'hero.health.mode has an unknown value'],
       [{ currentHealth: 'full' }, 'hero.currentHealth should be a whole number'],
+      [{ background: { id: 'x', qualities: [], principle: { id: 'custom', custom: { category: 'nope' } } } }, 'hero.background.principle.custom.category has an unknown value'],
       [{ pendingRolls: [] }, 'hero.pendingRolls should be an object'],
       [{ pendingRolls: { archetype: { dice: ['d8'], results: [2] } } }, 'hero.pendingRolls.archetype.manual should be true or false'],
       [{ pendingRolls: { secondaryArchetype: { dice: ['d8'] } } }, 'hero.pendingRolls.secondaryArchetype.results should be a list'],
@@ -80,7 +81,12 @@ describe('serialize', () => {
     const full = {
       ...hero(),
       traitNames: { 'quality:roleplaying-quality': 'Lucky' },
-      background: { id: 'upper-class', roll: { dice: ['d10', 'd10'], results: [1, 4], manual: true, rerolled: true }, qualities: [{ trait: t, die: 'd10' }], principle: { id: 'destiny' } },
+      background: {
+        id: 'upper-class',
+        roll: { dice: ['d10', 'd10'], results: [1, 4], manual: true, rerolled: true },
+        qualities: [{ trait: t, die: 'd10' }],
+        principle: { id: 'custom', custom: { category: 'responsibility', name: 'P', roleplaying: 'r', minorTwist: 'm', majorTwist: 'M', greenAbility: { name: '', text: 't' } } },
+      },
       powerSource: { id: 'accident', powers: [], abilities: [{ source: 'powerSource.yellow', name: 'X', uses: [t], blanks: { a: 'b', c: ['d', 'e'] }, customName: 'Y' }], bonus: [] },
       archetype: { id: 'speedster', traits: [{ trait: t, die: 'd8', upgrades: true }], abilities: [], bonus: [], principle: { id: 'energy-element', customization: 'Fire' } },
       personality: { id: 'impulsive', outBlanks: { x: 'y' }, bonus: [] },

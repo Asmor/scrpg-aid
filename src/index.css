@@ -846,6 +846,16 @@ select {
   font-weight: 700;
 }
 
+.principle-picker__custom {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.principle-picker__custom > .hint {
+  margin: 0;
+}
+
 .principle-picker__detail p {
   margin: 0.25rem 0;
 }

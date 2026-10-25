@@ -81,7 +81,15 @@ const abilityPick = object({
   'customName?': string,
   'category?': string,
 })
-const principle = object({ id: nonEmptyString, 'customization?': string })
+const customPrinciple = object({
+  category: oneOf('esoteric', 'expertise', 'ideals', 'identity', 'responsibility'),
+  name: string,
+  roleplaying: string,
+  minorTwist: string,
+  majorTwist: string,
+  greenAbility: object({ name: string, text: string }),
+})
+const principle = object({ id: nonEmptyString, 'customization?': string, 'custom?': customPrinciple })
 
 const retconByKind: Record<string, Check> = {
   swapDice: object({

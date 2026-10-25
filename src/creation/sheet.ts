@@ -8,7 +8,6 @@ import {
   backgroundsById,
   personalitiesById,
   powerSourcesById,
-  principlesById,
 } from '../rules/data'
 import { parseSlots } from '../rules/slots'
 import type { Ability, AbilityType, BasicAction, Die, HealthRange, MinionForm, Zone } from '../rules/types'
@@ -16,7 +15,7 @@ import type { AbilityPick, AbilitySource, Hero, PrincipleChoice } from '../hero/
 import { checkAbilities, checkAbilityPick, checkAbilityRetcon } from './abilities'
 import { computeHealth, statusDice } from './health'
 import { findAbility, outPick, recordedPicks, type PlacedPick } from './lookup'
-import { checkPrinciples, heroPrinciples } from './principles'
+import { checkPrinciples, heroPrinciples, principleOf } from './principles'
 import { checkForms, formAbilityPick, formLabel, formTraits } from './forms'
 import { checkDivided, heroicTraits, outTraits, splitNames } from './divided'
 import { archetypeName, checkSecondary, dividedChoice, layers, outerLayer, traitLayer } from './layers'
@@ -204,7 +203,7 @@ export function buildSheet(hero: Hero): HeroSheet {
   // Principles: their roleplaying text and twists, and their Green abilities.
   const principles: SheetPrinciple[] = []
   for (const choice of Object.values(heroPrinciples(hero))) {
-    const principle = choice && principlesById.get(choice.id)
+    const principle = choice && principleOf(choice)
     if (!choice || !principle) continue
     principles.push({
       name: fillPrinciple(principle.name, choice),
