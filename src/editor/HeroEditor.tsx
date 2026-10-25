@@ -14,6 +14,7 @@ import { DetailsStep } from './DetailsStep'
 import { PersonalityStep } from './PersonalityStep'
 import { PowerSourceStep } from './PowerSourceStep'
 import { RedAbilitiesStep } from './RedAbilitiesStep'
+import { RetconStep } from './RetconStep'
 import { StepWarnings } from './StepWarnings'
 import { useHeroEditor } from './useHeroEditor'
 
@@ -34,7 +35,7 @@ const EDITOR_STEPS: readonly EditorStep[] = [
   { id: 'archetype', label: 'Archetype', warns: ['archetype'], render: (hero, update) => <ArchetypeStep hero={hero} update={update} /> },
   { id: 'personality', label: 'Personality', warns: ['personality'], render: (hero, update) => <PersonalityStep hero={hero} update={update} /> },
   { id: 'red-abilities', label: 'Red abilities', warns: ['redAbilities'], render: (hero, update) => <RedAbilitiesStep hero={hero} update={update} /> },
-  { id: 'retcon', label: 'Retcon', warns: ['retcon'] },
+  { id: 'retcon', label: 'Retcon', warns: ['retcon'], render: (hero, update) => <RetconStep hero={hero} update={update} /> },
   { id: 'health', label: 'Health', warns: ['health', 'principles'] },
 ]
 

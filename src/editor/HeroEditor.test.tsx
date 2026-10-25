@@ -759,6 +759,90 @@ describe('HeroEditor', () => {
     expect(within(extras).getByRole('checkbox', { name: /Sacrifice/ })).toBeInTheDocument()
   })
 
+  describe('retcon', () => {
+    const complete = async (change: (h: Hero) => void = () => {}) =>
+      storeWith((h) => {
+        Object.assign(h, { ...completeHero(), id: 'h1' })
+        change(h)
+      })
+    const savedRetcon = async (store: HeroStore) => (await saved(store)).retcon
+
+    it('swaps two dice once both are chosen', async () => {
+      const store = await complete()
+      renderEditor(store, 'retcon')
+      await userEvent.click(await screen.findByRole('radio', { name: 'Swap any two of your power dice.' }))
+      await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Swap this die' }), 'Speed (d12)')
+      expect(await savedRetcon(store)).toBeNull()
+      await userEvent.selectOptions(screen.getByRole('combobox', { name: 'With this one' }), 'Flight (d6)')
+      await waitFor(async () => expect(await savedRetcon(store)).toEqual({ id: 'swap-power-dice', kind: 'swapDice', traits: [P('speed'), P('flight')] }))
+    })
+
+    it('adds a d6 power or quality the hero doesn’t have', async () => {
+      const store = await complete()
+      renderEditor(store, 'retcon')
+      await userEvent.click(await screen.findByRole('radio', { name: /Add any power or quality/ }))
+      const gain = screen.getByRole('combobox', { name: 'Gain at d6' })
+      expect(within(gain).queryByRole('option', { name: 'Speed (power)' })).not.toBeInTheDocument()
+      await userEvent.selectOptions(gain, 'Leaping (power)')
+      await waitFor(async () => expect(await savedRetcon(store)).toEqual({ id: 'add-d6-trait', kind: 'gainPowerOrQuality', gained: A(P('leaping'), 'd6') }))
+      expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    })
+
+    it('changes what an ability uses', async () => {
+      const store = await complete()
+      renderEditor(store, 'retcon')
+      await userEvent.click(await screen.findByRole('radio', { name: /Change which power or quality/ }))
+      await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Ability' }), 'Inflict')
+      await userEvent.selectOptions(within(screen.getByRole('group', { name: 'What Inflict uses now' })).getByRole('combobox', { name: '[power]' }), 'Agility (d10)')
+      await waitFor(async () =>
+        expect(await savedRetcon(store)).toEqual({ id: 'change-ability-trait', kind: 'changeAbilityTrait', ability: { source: 'powerSource.yellow', name: 'Inflict' }, uses: [P('agility')] }),
+      )
+    })
+
+    it('replaces a principle with any other', async () => {
+      const store = await complete()
+      renderEditor(store, 'retcon')
+      await userEvent.click(await screen.findByRole('radio', { name: /Replace either of your principles/ }))
+      await userEvent.click(screen.getByRole('radio', { name: 'Your background principle' }))
+      await userEvent.selectOptions(screen.getByLabelText('New principle'), 'Principle of Destiny')
+      await waitFor(async () => expect(await savedRetcon(store)).toEqual({ id: 'change-principle', kind: 'changePrinciple', replace: 'background', with: { id: 'destiny' } }))
+    })
+
+    it('gains one more Red ability, and can be undone', async () => {
+      const store = await complete()
+      renderEditor(store, 'retcon')
+      await userEvent.click(await screen.findByRole('radio', { name: /Gain one more Red ability/ }))
+      await userEvent.click(within(screen.getByRole('group', { name: 'Athletic power Red abilities' })).getByRole('checkbox', { name: /Reactive Strike/ }))
+      await waitFor(async () => expect((await savedRetcon(store))?.kind).toBe('gainRedAbility'))
+      expect((await savedRetcon(store)) as unknown).toMatchObject({ ability: { source: 'retcon', name: 'Reactive Strike', category: 'power:athletic' } })
+      await userEvent.click(screen.getByRole('button', { name: 'Take no retcon yet' }))
+      await waitFor(async () => expect(await savedRetcon(store)).toBeNull())
+    })
+
+    it('lets a Divided hero with two personalities pick whose status die goes up', async () => {
+      const store = await storeWith((h) => {
+        Object.assign(h, { ...dividedHero(), id: 'h1' })
+        h.archetype!.divided!.heroicPersonality = { id: 'natural-leader', bonus: [] }
+        h.archetype!.divided!.outFrom = 'civilian'
+      })
+      renderEditor(store, 'retcon')
+      await userEvent.click(await screen.findByRole('radio', { name: /Raise your Red status die/ }))
+      await userEvent.click(screen.getByRole('radio', { name: 'Heroic form' }))
+      await waitFor(async () => expect((await saved(store)).retcon).toEqual({ id: 'upgrade-red-status', kind: 'upgradeStatusDie', form: 'heroic' }))
+    })
+
+    it('raises the Red status die straight away, but isn’t offered when it’s already d12', async () => {
+      const store = await complete()
+      const { unmount } = renderEditor(store, 'retcon')
+      await userEvent.click(await screen.findByRole('radio', { name: /Raise your Red status die/ }))
+      await waitFor(async () => expect(await savedRetcon(store)).toEqual({ id: 'upgrade-red-status', kind: 'upgradeStatusDie' }))
+      unmount()
+      renderEditor(await complete((h) => (h.personality = { id: 'nurturing', bonus: [], outUses: [Q('fitness')] })), 'retcon')
+      await screen.findByRole('radio', { name: /Swap any two of your power dice/ })
+      expect(screen.queryByRole('radio', { name: /Raise your Red status die/ })).not.toBeInTheDocument()
+    })
+  })
+
   it('reports a failed save', async () => {
     const store = await storeWith()
     store.save = async () => {

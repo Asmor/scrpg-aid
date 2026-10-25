@@ -1,4 +1,4 @@
-/** Choosing a principle from a category, and filling in its blank if it has one. */
+/** Choosing a principle from a category (or from any, grouped by category), and filling in its blank if it has one. */
 import { useId } from 'react'
 import { principleCategories, principles, principlesById } from '../rules/data'
 import { formatEntryRef } from '../rules/books'
@@ -6,20 +6,23 @@ import type { PrincipleCategoryId } from '../rules/types'
 import type { PrincipleChoice } from '../hero/model'
 
 interface PrinciplePickerProps {
-  category: PrincipleCategoryId
+  /** Leave out to offer every principle (the change-principle retcon). */
+  category: PrincipleCategoryId | undefined
+  /** The select's label when there's no category. */
+  label?: string
   choice: PrincipleChoice | undefined
   onChange: (choice: PrincipleChoice | undefined) => void
 }
 
-export function PrinciplePicker({ category, choice, onChange }: PrinciplePickerProps) {
+export function PrinciplePicker({ category, label = 'Principle', choice, onChange }: PrinciplePickerProps) {
   const id = useId()
   const categoryName = principleCategories.find((c) => c.id === category)?.name ?? category
   const options = principles.filter((p) => p.category === category)
   const principle = choice && principlesById.get(choice.id)
-  const offList = principle && principle.category !== category
+  const offList = principle && category && principle.category !== category
   return (
     <div className="principle-picker">
-      <label htmlFor={`${id}-principle`}>Principle of {categoryName}</label>
+      <label htmlFor={`${id}-principle`}>{category ? `Principle of ${categoryName}` : label}</label>
       <select
         id={`${id}-principle`}
         value={choice?.id ?? ''}
@@ -27,11 +30,23 @@ export function PrinciplePicker({ category, choice, onChange }: PrinciplePickerP
       >
         <option value="">Choose…</option>
         {offList && <option value={principle.id}>{principle.name} (not {categoryName})</option>}
-        {options.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
+        {category
+          ? options.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))
+          : principleCategories.map((c) => (
+              <optgroup key={c.id} label={c.name}>
+                {principles
+                  .filter((p) => p.category === c.id)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+              </optgroup>
+            ))}
       </select>
       {principle && (
         <div className="principle-picker__detail">
