@@ -15,7 +15,7 @@
  */
 import { traitKey, type TraitRef } from '../rules/catalog'
 import { archetypesById, personalitiesById } from '../rules/data'
-import type { Hero } from '../hero/model'
+import type { ArchetypeChoice, DividedChoice, Hero } from '../hero/model'
 import { checkAbilityBlock, checkAbilityPick } from './abilities'
 import { dividedChoice, outerLayer } from './layers'
 import { compareDice } from '../rules/dice'
@@ -41,9 +41,14 @@ export function heroicTraits(hero: Hero): HeroTrait[] | undefined {
 
 const ROLEPLAYING_KEY = traitKey(ROLEPLAYING_QUALITY)
 
+/** Whether a Divided choice takes Split Form as its Divided ability. */
+export function takesSplitForm(choice: ArchetypeChoice): boolean {
+  return choice.abilities.some((p) => p.source === 'archetype.green' && p.name === SPLIT_FORM)
+}
+
 /** Whether the hero took Split Form as their Divided ability. */
 function hasSplitForm(hero: Hero): boolean {
-  return Boolean(dividedChoice(hero) && hero.archetype!.abilities.some((p) => p.source === 'archetype.green' && p.name === SPLIT_FORM))
+  return Boolean(dividedChoice(hero) && takesSplitForm(hero.archetype!))
 }
 
 /**
@@ -81,6 +86,17 @@ export function outTraits(hero: Hero, traits: readonly HeroTrait[]): readonly He
   return traitsInForm(hero, traits, divided.outFrom === 'heroic' ? 'heroic' : 'civilian')
 }
 
+/**
+ * The powers and qualities Split Form divides: those both forms have. One a personality
+ * bonus creates exists only in that personality's form (the user's ruling), and the
+ * roleplaying quality is available in both forms anyway (p. 94–95).
+ */
+export function splitCandidates(hero: Hero, traits: readonly HeroTrait[]): HeroTrait[] {
+  const heroic = heroicTraits(hero)
+  const heroicKeys = heroic && new Set(heroic.map((t) => traitKey(t.trait)))
+  return traits.filter((t) => traitKey(t.trait) !== ROLEPLAYING_KEY && (!heroicKeys || heroicKeys.has(traitKey(t.trait))))
+}
+
 function checkSplit(hero: Hero, traits: readonly HeroTrait[], warnings: RuleWarning[]): void {
   const split = hero.archetype!.divided?.split
   const warn = (code: string, message: string) => warnings.push(warning('archetype', code, message))
@@ -88,12 +104,8 @@ function checkSplit(hero: Hero, traits: readonly HeroTrait[], warnings: RuleWarn
     warn('split-missing', 'Split Form: choose two powers and two qualities you always have, and divide the rest between your forms.')
     return
   }
-  // What gets split: the powers and qualities both forms have. One a personality bonus
-  // creates exists only in that personality's form (the user's ruling), and the roleplaying
-  // quality is available in both forms anyway (p. 94–95).
   const heroic = heroicTraits(hero)
-  const heroicKeys = heroic && new Set(heroic.map((t) => traitKey(t.trait)))
-  const shared = traits.filter((t) => traitKey(t.trait) !== ROLEPLAYING_KEY && (!heroicKeys || heroicKeys.has(traitKey(t.trait))))
+  const shared = splitCandidates(hero, traits)
   const held = new Map(shared.map((t) => [traitKey(t.trait), t]))
   const inSomeForm = new Set([...traits, ...(heroic ?? [])].map((t) => traitKey(t.trait)))
 
@@ -125,6 +137,18 @@ function checkSplit(hero: Hero, traits: readonly HeroTrait[], warnings: RuleWarn
       warn('split-unplaced', `Split Form: put ${t.name} in your civilian form, your heroic form, or the ones you always have.`)
     }
   }
+}
+
+export type Split = NonNullable<DividedChoice['split']>
+export type SplitPlace = keyof Split
+
+/** Puts a trait in one place of the split (or, with `place` undefined, takes it out). */
+export function placeTrait(split: Split | undefined, trait: TraitRef, place: SplitPlace | undefined): Split {
+  const key = traitKey(trait)
+  const without = (list: readonly TraitRef[] = []) => list.filter((t) => traitKey(t) !== key)
+  const next: Split = { always: without(split?.always), civilian: without(split?.civilian), heroic: without(split?.heroic) }
+  if (place) next[place] = [...next[place], trait]
+  return next
 }
 
 /** Checks Divided's own choices. */

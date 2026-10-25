@@ -26,6 +26,12 @@ interface TablePickerProps<T extends Entry> {
   onSelect: (entry: T) => void
   /** Extra detail shown under each entry. */
   describe?: (entry: T) => ReactNode
+  /**
+   * A roll made for another choice that this one may pick from until it's rolled for itself
+   * (Modular's base archetype can be another option from the archetype roll). Rolling here
+   * replaces it, with a reroll of its own (rulings 46 and 47).
+   */
+  inherited?: { roll: RollRecord; from: string }
   /** Injectable for tests. */
   random?: () => number
 }
@@ -96,7 +102,7 @@ function ManualRoll({ dice, label, onDone, onCancel }: { dice: readonly Die[]; l
   )
 }
 
-export function TablePicker<T extends Entry>({ what, method, dice, table, roll, selectedId, onRoll, onSelect, describe, random }: TablePickerProps<T>) {
+export function TablePicker<T extends Entry>({ what, method, dice, table, roll, selectedId, onRoll, onSelect, describe, inherited, random }: TablePickerProps<T>) {
   const name = useId()
   const [manual, setManual] = useState<'roll' | 'reroll' | null>(null)
   const diceText = `${listAnd(dice)}`
@@ -105,6 +111,8 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
   // keeping the step's reroll (the user's ruling 42 in data/rulings.md).
   const current = roll && rolledOn(roll, dice) ? roll : undefined
   const stale = roll && !current ? roll : undefined
+  const borrowed = !roll && inherited && rolledOn(inherited.roll, dice) ? inherited : undefined
+  const shown = current ?? borrowed?.roll
   const doRoll = (again: boolean) => {
     // A reroll uses the same dice as the roll it replaces.
     if (again && current) onRoll(reroll(current, rollDice(current.dice, random), false))
@@ -114,12 +122,12 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
   let options: { entry: T; note?: string }[] = []
   if (method === 'constructed') {
     options = [...table].sort((a, b) => a.roll - b.roll).map((entry) => ({ entry }))
-  } else if (current) {
-    options = tableOptions(table, current.results).map(({ entry, sources }) => ({ entry, note: `rolled ${sources.map((s) => sourceText(current, s)).join(' or ')}` }))
+  } else if (shown) {
+    options = tableOptions(table, shown.results).map(({ entry, sources }) => ({ entry, note: `rolled ${sources.map((s) => sourceText(shown, s)).join(' or ')}` }))
   }
   const selected = table.find((t) => t.id === selectedId)
   if (selected && !options.some((o) => o.entry.id === selected.id)) {
-    options.unshift({ entry: selected, note: method === 'guided' ? (current ? 'your current choice; not reached by this roll' : 'your current choice') : undefined })
+    options.unshift({ entry: selected, note: method === 'guided' ? (shown ? 'your current choice; not reached by this roll' : 'your current choice') : undefined })
   }
 
   return (
@@ -131,6 +139,10 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
               You rolled <strong>{listAnd(current.results)}</strong> on {listAnd(current.dice)}
               {current.manual ? ' (typed in)' : ''}
               {current.rerolled ? ', after using your reroll' : ''}. Pick a {what} matching one die or the sum of two.
+            </p>
+          ) : borrowed ? (
+            <p>
+              Your {borrowed.from} roll was <strong>{listAnd(borrowed.roll.results)}</strong> on {listAnd(borrowed.roll.dice)}. Pick a {what} it reaches, or roll {diceText} for a fresh roll (which gets a reroll of its own).
             </p>
           ) : stale ? (
             <p role="alert">
@@ -191,6 +203,7 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
           ))}
         </fieldset>
       )}
+      {method === 'guided' && borrowed && options.length === 0 && <p>That roll doesn't reach any {what}. Roll {diceText} for a fresh one.</p>}
       {method === 'guided' && current && options.length === 0 && (
         <p>
           That roll doesn't reach any {what}.{' '}

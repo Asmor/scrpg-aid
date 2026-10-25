@@ -151,7 +151,7 @@ const heroShape = object({
   health: nullable(
     object({ 'trait?': traitRef, mode: oneOf('roll', 'fixed'), 'rollResult?': integer, 'manual?': boolean }),
   ),
-  'pendingRolls?': object({ 'background?': rollRecord, 'powerSource?': rollRecord, 'archetype?': rollRecord, 'personality?': rollRecord }),
+  'pendingRolls?': object({ 'background?': rollRecord, 'powerSource?': rollRecord, 'archetype?': rollRecord, 'personality?': rollRecord, 'secondaryArchetype?': rollRecord }),
   'currentHealth?': integer,
   'notes?': string,
 })

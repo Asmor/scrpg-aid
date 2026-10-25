@@ -382,6 +382,17 @@ function archetypeStep(state: TraitState, hero: Hero, choice: ArchetypeChoice, a
   }
 }
 
+/** Where Modular's filler powers may come from: the base archetype's and the power source's lists (the user's ruling). */
+export function fillerLists(base: Archetype | undefined, ps: PowerSource | undefined): OptionRef[] {
+  return [
+    ...(base?.powers?.options ?? []),
+    ...(base?.qualities?.powerOptions ?? []),
+    ...(base?.required?.options ?? []),
+    ...(ps?.powers.options ?? []),
+    ...(ps?.powers.required ?? []).map(requiredRef),
+  ]
+}
+
 /**
  * Modular's filler powers (p. 96): if the base archetype leaves the hero with fewer than
  * four powers, they add d6 powers until they have four. They're recorded on Modular's own
@@ -413,13 +424,7 @@ function modularFillers(state: TraitState, hero: Hero, outer: Archetype, base: A
         : `You already have ${have} powers, so ${outer.name} doesn't add any.`,
     )
   }
-  const lists = [
-    ...(base?.powers?.options ?? []),
-    ...(base?.qualities?.powerOptions ?? []),
-    ...(base?.required?.options ?? []),
-    ...(ps?.powers.options ?? []),
-    ...(ps?.powers.required ?? []).map(requiredRef),
-  ]
+  const lists = fillerLists(base, ps)
   const names = [base?.name, ps?.name].filter(Boolean).join(' or ')
   state.checkOnList('archetype', fillers.filter((a) => a.trait.kind === 'power'), lists, `${names} power`)
   for (const a of fillers) if (a.trait.kind === 'power') state.set(a.trait, a.die, 'archetype')

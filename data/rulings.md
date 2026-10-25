@@ -87,6 +87,24 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 - **Decision:** No. Every trait the hero already has that fits the required list may swap in any die.
 - **Basis:** Interpretation.
 
+### 45. Divided's second archetype roll
+- **Pages:** Divided (p. 94); Archetype (p. 72–73).
+- **Question:** Divided says to "reroll the power source dice and pick a second archetype". In a Guided game, which dice are rolled?
+- **Decision:** The archetype step's dice again (the dice the power source gives). The second archetype is chosen from that roll, and can't be Divided or Modular.
+- **Basis:** Interpretation.
+
+### 46. Rerolling the second archetype's roll
+- **Pages:** Divided (p. 94); Modular (p. 96); Methods (p. 46).
+- **Question:** Divided's second archetype roll (and Modular's, if the player rolls fresh): can it be rerolled, and does that use the archetype step's reroll?
+- **Decision:** It's a new roll with its own one reroll, whether or not the first archetype roll used its reroll.
+- **Basis:** Interpretation.
+
+### 47. Modular's base archetype after a fresh roll
+- **Pages:** Modular (p. 96).
+- **Question:** Modular's base archetype is "another option from your archetype roll, or reroll". After rolling fresh, may the player still pick an option from the original roll?
+- **Decision:** No. The fresh roll replaces the original one for choosing the base archetype.
+- **Basis:** Interpretation.
+
 ## Red abilities
 
 ### 10. Minion-Maker's extra Red abilities

@@ -13,6 +13,7 @@ import { DiceAssigner } from './DiceAssigner'
 import { PrinciplePicker } from './PrinciplePicker'
 import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
+import { TablePicker } from './TablePicker'
 
 function Assigner({ initial, earlierHero = false, earlier, canSwap }: { initial: TraitAssignment[]; earlierHero?: boolean; earlier?: HeroTrait[]; canSwap?: (t: TraitRef) => boolean }) {
   const [assignments, setAssignments] = useState(initial)
@@ -295,5 +296,21 @@ describe('BonusPicker', () => {
     expect(within(quality).queryByRole('option', { name: 'Banter at d8' })).not.toBeInTheDocument()
     await userEvent.selectOptions(quality, 'Acrobatics at d8')
     expect(output()).toEqual([A(Q('acrobatics'), 'd8')])
+  })
+})
+
+describe('TablePicker', () => {
+  it('offers the options an inherited roll reaches, or says when it reaches none', () => {
+    const table = [
+      { id: 'low', roll: 2, name: 'Low' },
+      { id: 'high', roll: 20, name: 'High' },
+    ]
+    const props = { what: 'thing', method: 'guided' as const, dice: ['d6' as const], table, roll: undefined, selectedId: undefined, onRoll: () => {}, onSelect: () => {} }
+    const { unmount } = render(<TablePicker {...props} inherited={{ roll: { dice: ['d6'], results: [2], manual: false }, from: 'first' }} />)
+    expect(screen.getByText(/Your first roll was/)).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Low/ })).toBeInTheDocument()
+    unmount()
+    render(<TablePicker {...props} inherited={{ roll: { dice: ['d6'], results: [5], manual: false }, from: 'first' }} />)
+    expect(screen.getByText("That roll doesn't reach any thing. Roll d6 for a fresh one.")).toBeInTheDocument()
   })
 })

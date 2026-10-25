@@ -246,6 +246,9 @@ export const DETAIL_FIELDS: readonly (keyof HeroDetails)[] = [
 /** The steps whose entry is chosen from a rolled table. */
 export type TableStep = 'background' | 'powerSource' | 'archetype' | 'personality'
 
+/** Where a Guided roll can be pending: a table step, or Divided and Modular's second archetype. */
+export type RollSlot = TableStep | 'secondaryArchetype'
+
 export interface Hero {
   id: string
   createdAt: string
@@ -269,7 +272,7 @@ export interface Hero {
    * or reloading from giving a fresh roll (each step gets one reroll); choosing an entry
    * moves the roll onto the choice.
    */
-  pendingRolls?: Partial<Record<TableStep, RollRecord>>
+  pendingRolls?: Partial<Record<RollSlot, RollRecord>>
   /** Current Health on the sheet, tracked during play. */
   currentHealth?: number
   notes?: string

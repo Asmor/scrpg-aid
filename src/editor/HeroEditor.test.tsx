@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { StoreContext } from '../app/store-context'
 import { createHero, type Hero } from '../hero/model'
-import { A, P, Q, formChangerHero, heroWithAbilities, minionMakerHero } from '../test/heroes'
+import { A, P, Q, dividedHero, formChangerHero, heroWithAbilities, minionMakerHero, modularHero } from '../test/heroes'
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { backgrounds } from '../rules/data'
 import { tableOptions } from '../rules/rolling'
@@ -413,7 +413,7 @@ describe('HeroEditor', () => {
     expect(within(yellow).getByRole('checkbox', { name: /Metal Skin/ })).toBeChecked()
 
     await userEvent.click(screen.getByRole('radio', { name: /Speedster/ }))
-    expect(screen.getByText("You have a bonus from another archetype, which Speedster doesn't use.")).toBeInTheDocument()
+    expect(screen.getByText("Speedster doesn't use these earlier choices: a bonus.")).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Remove them' }))
     expect(screen.queryByRole('button', { name: 'Remove them' })).not.toBeInTheDocument()
 
@@ -480,9 +480,123 @@ describe('HeroEditor', () => {
     await waitFor(async () => expect((await saved(store)).archetype?.minionForms).toEqual({ quality: Q('creativity'), forms: ['Floating'] }))
   })
 
-  it('says the archetypes that build on a second archetype aren’t in the editor yet', async () => {
-    renderEditor(await storeWith((h) => (h.archetype = { id: 'divided', traits: [], abilities: [], bonus: [] })), 'archetype')
-    expect(await screen.findByText(/Building on a second archetype isn't in the editor yet/)).toBeInTheDocument()
+  it('shows a legal Divided hero with no issues, choosing the second archetype apart from Divided and Modular', async () => {
+    renderEditor(await storeWith((h) => Object.assign(h, { ...dividedHero(), id: 'h1' })), 'archetype')
+    const second = await screen.findByRole('region', { name: 'Second archetype' })
+    expect(within(second).getByRole('radio', { name: /Speedster/ })).toBeChecked()
+    expect(within(second).queryByRole('radio', { name: /Modular/ })).not.toBeInTheDocument()
+    expect(within(second).queryByRole('radio', { name: /Divided/ })).not.toBeInTheDocument()
+    expect(within(second).getByRole('group', { name: 'Green abilities: choose 2' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Controllable Transition/ })).toBeChecked()
+    expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
+  })
+
+  it('builds Divided’s own choices: second archetype, transition, and Split Form', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...dividedHero(), id: 'h1' })
+      const secondary = h.archetype!.secondary!
+      h.archetype = { id: 'divided', traits: [], abilities: [], bonus: [], secondary: { ...secondary, id: 'shadow' } }
+    })
+    renderEditor(store, 'archetype')
+    const second = await screen.findByRole('region', { name: 'Second archetype' })
+    await userEvent.click(within(second).getByRole('radio', { name: /Speedster/ }))
+    await userEvent.click(screen.getByRole('radio', { name: /Device Transition/ }))
+    await userEvent.click(within(screen.getByRole('group', { name: 'Device Transition ability: choose 1' })).getByRole('checkbox', { name: /Device Transform/ }))
+    await userEvent.click(within(screen.getByRole('group', { name: 'Divided ability: choose 1' })).getByRole('checkbox', { name: /Split Form/ }))
+    const split = screen.getByRole('group', { name: 'Split Form' })
+    await userEvent.selectOptions(within(split).getByRole('combobox', { name: 'Speed (d12)' }), 'Always (either form)')
+    await userEvent.selectOptions(within(split).getByRole('combobox', { name: 'Flight (d6)' }), 'Heroic form only')
+    await waitFor(async () => {
+      const a = (await saved(store)).archetype!
+      expect(a.secondary?.id).toBe('speedster')
+      expect(a.divided).toEqual({
+        transitionMethod: 'device',
+        transitionAbility: { source: 'archetype.transition', name: 'Device Transform' },
+        split: { always: [P('speed')], civilian: [], heroic: [P('flight')] },
+      })
+      expect(a.abilities).toEqual([{ source: 'archetype.green', name: 'Split Form' }])
+    })
+  })
+
+  it('rolls again for Divided’s second archetype (ruling 45)', async () => {
+    const store = await storeWith((h) => {
+      h.background = { id: 'upper-class', qualities: [] }
+      h.powerSource = { id: 'accident', powers: [], abilities: [], bonus: [] }
+      h.archetype = { id: 'divided', traits: [], abilities: [], bonus: [], roll: { dice: ['d12', 'd6'], results: [12, 6], manual: false, rerolled: true } }
+    })
+    renderEditor(store, 'archetype')
+    const second = await screen.findByRole('region', { name: 'Second archetype' })
+    await userEvent.click(within(second).getByRole('button', { name: 'Roll d12 and d6' }))
+    await waitFor(async () => expect((await saved(store)).pendingRolls?.secondaryArchetype?.dice).toEqual(['d12', 'd6']))
+    // A roll of its own, with its own reroll (ruling 46).
+    expect(within(second).getByRole('button', { name: 'Reroll' })).toBeInTheDocument()
+  })
+
+  it('picks Modular’s base archetype from the archetype roll, or a fresh one (ruling 47), and adds filler powers', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...modularHero(), id: 'h1' })
+      h.method = 'guided'
+      h.archetype = { id: 'modular', traits: [], abilities: [], bonus: [], roll: { dice: ['d12', 'd6'], results: [1, 3], manual: false } }
+    })
+    renderEditor(store, 'archetype')
+    const base = await screen.findByRole('region', { name: 'Base archetype' })
+    expect(within(base).getByText(/Your archetype roll was/)).toBeInTheDocument()
+    await userEvent.click(within(base).getByRole('radio', { name: /Speedster/ }))
+    // Modular skips the base archetype's abilities.
+    expect(within(base).queryByRole('group', { name: 'Green abilities: choose 2' })).not.toBeInTheDocument()
+    // With only the power source's three powers, Modular adds a d6 power.
+    expect(screen.getByText('You have 3 powers; add 1 d6 power so you have 4.')).toBeInTheDocument()
+    await userEvent.selectOptions(within(screen.getByRole('group', { name: 'Filler powers' })).getByRole('combobox', { name: 'd6' }), 'Leaping')
+    expect(screen.getByRole('group', { name: 'Green abilities you always have' })).toHaveTextContent('Switch')
+    expect(screen.getByText(/Modular's modes aren't in the editor yet/)).toBeInTheDocument()
+    await waitFor(async () => {
+      const a = (await saved(store)).archetype!
+      expect(a.secondary).toEqual({ id: 'speedster', traits: [], abilities: [], bonus: [] })
+      expect(a.traits).toEqual([A(P('leaping'), 'd6')])
+    })
+  })
+
+  it('removes Modular’s skipped base-archetype abilities when unticked', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...modularHero(), id: 'h1' })
+      h.archetype!.secondary!.abilities = [
+        { source: 'archetype.green', name: 'Always on the Move', uses: [P('speed')] },
+        { source: 'archetype.green', name: 'Fast Fingers', uses: [P('flight')] },
+      ]
+    })
+    renderEditor(store, 'archetype')
+    const skipped = await screen.findByRole('group', { name: 'Speedster abilities' })
+    await userEvent.click(within(skipped).getByRole('checkbox', { name: /Always on the Move/ }))
+    await waitFor(async () => expect((await saved(store)).archetype?.secondary?.abilities).toEqual([{ source: 'archetype.green', name: 'Fast Fingers', uses: [P('flight')] }]))
+  })
+
+  it('clears a Split Form division left after switching to Divided Psyche', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...dividedHero(), id: 'h1' })
+      h.archetype!.divided!.split = { always: [P('speed')], civilian: [], heroic: [] }
+    })
+    renderEditor(store, 'archetype')
+    expect(await screen.findByText("Divided doesn't use these earlier choices: Split Form's division of your powers and qualities.")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Remove them' }))
+    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    await waitFor(async () => expect((await saved(store)).archetype?.divided?.split).toBeUndefined())
+  })
+
+  it('keeps the second archetype’s roll when removing it, so it can’t be rolled afresh (ruling 46)', async () => {
+    const secondRoll = { dice: ['d12', 'd6'] as const, results: [1, 2], manual: false, rerolled: true as const }
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...dividedHero(), id: 'h1' })
+      h.method = 'constructed'
+      h.archetype!.secondary!.roll = { ...secondRoll, dice: [...secondRoll.dice] }
+    })
+    renderEditor(store, 'archetype')
+    await userEvent.click((await screen.findAllByRole('radio', { name: /Shadow/ }))[0]!)
+    await userEvent.click(screen.getByRole('button', { name: 'Remove them' }))
+    await waitFor(async () => {
+      const hero = await saved(store)
+      expect(hero.archetype?.secondary).toBeUndefined()
+      expect(hero.pendingRolls?.secondaryArchetype).toEqual({ ...secondRoll, dice: ['d12', 'd6'] })
+    })
   })
 
   it('reports a failed save', async () => {

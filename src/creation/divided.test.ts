@@ -3,7 +3,7 @@ import type { Hero } from '../hero/model'
 import { A, completeHero, dividedHero, formChangerHero, P, Q } from '../test/heroes'
 import { ROLEPLAYING_QUALITY } from './traits'
 import { checkAbilityRetcon } from './abilities'
-import { checkDivided, heroicTraits, outTraits, traitsInAnyForm } from './divided'
+import { checkDivided, heroicTraits, outTraits, placeTrait, splitCandidates, traitsInAnyForm } from './divided'
 import { computeHealth, healthTraitOptions, statusDice } from './health'
 import { archetypeName, checkSecondary } from './layers'
 import { findRedAbility } from './lookup'
@@ -132,6 +132,19 @@ describe('Divided', () => {
       // …and can't list it.
       hero.archetype!.divided!.split!.heroic = [P('fire'), P('flight'), P('leaping')]
       expect(codes(hero)).toContain('split-form-only')
+    })
+
+    it('lists what the split divides, and moves a trait between places', () => {
+      const hero = splitHero()
+      const ids = splitCandidates(hero, deriveTraits(hero).traits).map((t) => t.trait.id)
+      expect(ids).toEqual(['fitness', 'alertness', 'agility', 'fire', 'awareness', 'speed', 'flight'])
+      // A bonus only the heroic personality gives isn't divided.
+      hero.archetype!.divided!.heroicPersonality = { id: 'impulsive', bonus: [A(P('leaping'), 'd8')], outUses: [] }
+      expect(splitCandidates(hero, deriveTraits(hero).traits).map((t) => t.trait.id)).not.toContain('leaping')
+      const split = hero.archetype!.divided!.split!
+      expect(placeTrait(split, P('speed'), 'heroic')).toEqual({ always: [P('agility'), Q('fitness'), Q('alertness')], civilian: [P('awareness')], heroic: [P('fire'), P('flight'), P('speed')] })
+      expect(placeTrait(split, P('fire'), undefined).heroic).toEqual([P('flight')])
+      expect(placeTrait(undefined, Q('fitness'), 'always')).toEqual({ always: [Q('fitness')], civilian: [], heroic: [] })
     })
 
     it('a split without Split Form is flagged', () => {

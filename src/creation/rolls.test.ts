@@ -36,4 +36,18 @@ describe('table step rolls', () => {
     takePendingRoll(hero, 'archetype')
     expect(hero).not.toHaveProperty('pendingRolls')
   })
+
+  it('keeps the second archetype’s roll pending, then on the second archetype once chosen', () => {
+    const hero = createHero('guided')
+    hero.archetype = { id: 'divided', traits: [], abilities: [], bonus: [], roll: roll([5, 6]) }
+    setStepRoll(hero, 'secondaryArchetype', roll([1, 2]))
+    expect(hero.pendingRolls).toEqual({ secondaryArchetype: roll([1, 2]) })
+    expect(stepRoll(hero, 'secondaryArchetype')).toEqual(roll([1, 2]))
+    // The outer archetype's roll is its own.
+    expect(stepRoll(hero, 'archetype')).toEqual(roll([5, 6]))
+    hero.archetype.secondary = { id: 'speedster', traits: [], abilities: [], bonus: [], roll: takePendingRoll(hero, 'secondaryArchetype')! }
+    expect(hero.pendingRolls).toBeUndefined()
+    setStepRoll(hero, 'secondaryArchetype', roll([3, 4]))
+    expect(hero.archetype.secondary.roll).toEqual(roll([3, 4]))
+  })
 })

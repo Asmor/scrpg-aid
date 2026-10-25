@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createHero, type Hero } from '../hero/model'
 import { A, P, Q, validHero } from '../test/heroes'
-import { deriveTraits, ROLEPLAYING_QUALITY, traitLabel, traitsBefore } from './traits'
+import { deriveTraits, fillerLists, ROLEPLAYING_QUALITY, traitLabel, traitsBefore } from './traits'
+import { archetypesById, powerSourcesById } from '../rules/data'
 
 const codes = (hero: Hero) => deriveTraits(hero).warnings.map((w) => w.code)
 const dice = (hero: Hero) => Object.fromEntries(deriveTraits(hero).traits.map((t) => [t.trait.id, t.die]))
@@ -455,5 +456,15 @@ describe('traitsBefore', () => {
     hero.powerSource = { id: 'training', powers: [A(P('agility'), 'd10'), A(P('gadgets'), 'd8'), A(P('deduction'), 'd8')], abilities: [], bonus: [A(Q('alertness'), 'd8')] }
     // ('deduction' twice: Training's power, then the second archetype's quality.)
     expect(traitsBefore(hero, 'deferredBonus').map((t) => t.trait.id)).toEqual(['fitness', 'alertness', 'agility', 'gadgets', 'deduction', 'strength', 'deduction', 'robotics'])
+  })
+})
+
+describe('fillerLists', () => {
+  it('takes the base archetype’s and the power source’s lists, including required ones', () => {
+    const lists = fillerLists(archetypesById.get('speedster'), powerSourcesById.get('accident'))
+    expect(lists).toContainEqual({ power: 'speed' })
+    expect(lists).toContainEqual({ powerCategory: 'mobility' })
+    expect(lists).toContainEqual({ powerCategory: 'elemental-energy' })
+    expect(fillerLists(undefined, undefined)).toEqual([])
   })
 })
