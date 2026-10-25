@@ -918,6 +918,19 @@ select {
   flex: 1 1 12rem;
 }
 
+.red-others {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.red-others summary {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .leftovers {
   display: flex;
   flex-wrap: wrap;

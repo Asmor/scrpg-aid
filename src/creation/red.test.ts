@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Hero } from '../hero/model'
-import { A, completeHero, P, Q } from '../test/heroes'
-import { checkRedAbilities } from './red'
+import { A, completeHero, minionMakerHero, P, Q } from '../test/heroes'
+import { checkRedAbilities, hasRedCategory, redPickSection } from './red'
+import { redAbilityCategories } from '../rules/data'
 import { deriveTraits } from './traits'
 
 const check = (hero: Hero) => checkRedAbilities(hero, deriveTraits(hero).traits)
@@ -131,5 +132,21 @@ describe('checkRedAbilities', () => {
     const hero = completeHero()
     hero.redAbilities[1] = { source: 'archetype.green', name: 'Push Your Limits', category: 'power:athletic' }
     expect(messages(hero)).toContain("Push Your Limits isn't recorded as a Red ability.")
+  })
+})
+
+describe('listing Red abilities for the editor', () => {
+  it('puts each pick under its category, the extra options, or aside', () => {
+    const hero = minionMakerHero()
+    expect(redPickSection(hero, { source: 'red', name: 'Paragon Feat', category: 'power:athletic' })).toBe('power:athletic')
+    expect(redPickSection(hero, { source: 'red', name: 'Sacrifice' })).toBe('extra')
+    expect(redPickSection(hero, { source: 'red', name: 'Nope' })).toBe('stray')
+  })
+
+  it('knows which categories the hero has a trait in', () => {
+    const traits = deriveTraits(completeHero()).traits
+    const byKey = (key: string) => redAbilityCategories.find((c) => (c.powerCategory ? `power:${c.powerCategory}` : `quality:${c.qualityCategory}`) === key)!
+    expect(hasRedCategory(traits, byKey('power:athletic'))).toBe(true)
+    expect(hasRedCategory(traits, byKey('power:psychic'))).toBe(false)
   })
 })

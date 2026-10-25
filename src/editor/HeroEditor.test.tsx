@@ -730,6 +730,35 @@ describe('HeroEditor', () => {
     await waitFor(async () => expect((await saved(store)).archetype?.divided).toEqual({ heroicPersonality: { id: 'natural-leader', bonus: [] } }))
   })
 
+  it('chooses Red abilities by category, with no issues left', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...completeHero(), id: 'h1' })
+      h.redAbilities = [{ source: 'red', name: 'Gone' }]
+    })
+    renderEditor(store, 'red-abilities')
+    // A pick that isn't on any list can be removed.
+    await userEvent.click(within(await screen.findByRole('group', { name: 'Red abilities not on any list' })).getByRole('checkbox', { name: /Gone/ }))
+    const athletic = screen.getByRole('group', { name: 'Athletic power Red abilities' })
+    await userEvent.click(within(athletic).getByRole('checkbox', { name: /Paragon Feat/ }))
+    await userEvent.selectOptions(within(athletic).getByRole('combobox', { name: '[power]' }), 'Agility (d10)')
+    await userEvent.click(within(athletic).getByRole('checkbox', { name: /Push Your Limits/ }))
+    // Categories the hero has nothing in are tucked away.
+    expect(screen.getByText('Categories you have no power or quality in')).toBeInTheDocument()
+    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    await waitFor(async () =>
+      expect((await saved(store)).redAbilities).toEqual([
+        { source: 'red', name: 'Paragon Feat', category: 'power:athletic', uses: [P('agility')] },
+        { source: 'red', name: 'Push Your Limits', category: 'power:athletic' },
+      ]),
+    )
+  })
+
+  it('lists Minion-Maker’s extra Red options', async () => {
+    renderEditor(await storeWith((h) => Object.assign(h, { ...minionMakerHero(), id: 'h1' })), 'red-abilities')
+    const extras = await screen.findByRole('group', { name: 'Extra Red abilities from your archetype' })
+    expect(within(extras).getByRole('checkbox', { name: /Sacrifice/ })).toBeInTheDocument()
+  })
+
   it('reports a failed save', async () => {
     const store = await storeWith()
     store.save = async () => {

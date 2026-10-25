@@ -14,7 +14,7 @@ import { parseSlots } from '../rules/slots'
 import type { Ability, RedAbilityCategory, TraitKind } from '../rules/types'
 import type { AbilityPick, Hero } from '../hero/model'
 import { checkAbilityPick, primaryUse } from './abilities'
-import { findRedAbility, redCategoryRef } from './lookup'
+import { findRedAbility, redCategoryKey, redCategoryRef } from './lookup'
 import type { HeroTrait } from './traits'
 import { warning, type RuleWarning, type StepId } from './warnings'
 
@@ -22,12 +22,28 @@ function categoryKind(category: RedAbilityCategory): TraitKind {
   return category.powerCategory ? 'power' : 'quality'
 }
 
-function categoryName(category: RedAbilityCategory): string {
+/** "Athletic power", "Mental quality" */
+export function categoryName(category: RedAbilityCategory): string {
   const id = (category.powerCategory ?? category.qualityCategory)!
   return `${getCategory(categoryKind(category), id)?.name ?? id} ${categoryKind(category)}`
 }
 
 const article = (word: string) => (/^[aeiou]/i.test(word) ? 'an' : 'a')
+
+/**
+ * Where the editor lists a Red ability pick: under its category's key ("power:athletic"),
+ * with Minion-Maker's extra options ('extra'), or set aside as not found ('stray').
+ */
+export function redPickSection(hero: Hero, pick: AbilityPick): string {
+  const lookup = findRedAbility(hero, pick)
+  if (!lookup.found) return 'stray'
+  return lookup.category ? redCategoryKey(lookup.category) : 'extra'
+}
+
+/** Whether the hero has a power or quality in a Red ability category (so its abilities are worth showing first). */
+export function hasRedCategory(traits: readonly HeroTrait[], category: RedAbilityCategory): boolean {
+  return traits.some((t) => refsMatch([redCategoryRef(category)], t.trait))
+}
 
 /** Checks one Red ability pick. Returns the key it was resolved to, for duplicate checks. */
 function checkRedPick(hero: Hero, traits: readonly HeroTrait[], pick: AbilityPick, step: StepId, warnings: RuleWarning[]): string | undefined {
