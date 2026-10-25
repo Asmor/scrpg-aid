@@ -3,8 +3,7 @@
  * archetype, put those dice on its required trait, powers, and qualities, take its
  * abilities, bonus, and principle. Training's extra quality is taken here too.
  *
- * Divided and Modular (which build on a second archetype) and Form-Changer and
- * Minion-Maker's forms aren't in the editor yet.
+ * Divided and Modular (which build on a second archetype) aren't in the editor yet.
  */
 import { expandRefs } from '../rules/catalog'
 import { archetypes, archetypesById, powerSourcesById, principleCategories } from '../rules/data'
@@ -17,6 +16,7 @@ import { canSwapRequired, deriveTraits, traitsBefore } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
 import { DiceAssigner } from './DiceAssigner'
+import { FormChangerForms, MinionForms } from './FormsEditor'
 import { PrinciplePicker } from './PrinciplePicker'
 import { TablePicker } from './TablePicker'
 
@@ -190,7 +190,32 @@ export function ArchetypeStep({ hero, update }: { hero: Hero; update: (change: (
               ar.yellowAbilities.constraint,
             )}
           {ar.fixedRedAbilities && picker('archetype.fixedRed', 'Red abilities you always have', ar.fixedRedAbilities, undefined, true)}
-          {(ar.forms || ar.minionForms) && <p className="hint">{ar.name}'s forms aren't in the editor yet. They're coming in a later update.</p>}
+          {ar.forms && (
+            <FormChangerForms
+              hero={hero}
+              ar={ar}
+              traits={traits}
+              forms={choice.forms ?? []}
+              onChange={(forms) =>
+                update((h) => {
+                  h.archetype!.forms = forms
+                })
+              }
+            />
+          )}
+          {ar.minionForms && (
+            <MinionForms
+              hero={hero}
+              ar={ar}
+              traits={traits}
+              choice={choice.minionForms}
+              onChange={(minionForms) =>
+                update((h) => {
+                  h.archetype!.minionForms = minionForms
+                })
+              }
+            />
+          )}
 
           {/* Picks for a block this archetype doesn't have, so they can be removed. */}
           {ABILITY_BLOCKS.filter((b) => !b.has(ar) && abilities(b.source).length > 0).map((b) => (

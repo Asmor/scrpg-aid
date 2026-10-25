@@ -150,6 +150,11 @@ describe('deriveTraits', () => {
       const result = deriveTraits(hero)
       expect(result.warnings).toEqual([])
       expect(result.traits.find((t) => t.trait.id === 'speed')?.die).toBe('d6')
+      // Every held trait that fits a required category may swap (ruling 44).
+      const blaster = validHero()
+      blaster.powerSource!.powers = [A(P('agility'), 'd10'), A(P('fire'), 'd8'), A(P('cold'), 'd8')]
+      blaster.archetype = { id: 'blaster', traits: [A(P('fire'), 'd6', true), A(P('cold'), 'd8', true), A(P('flight'), 'd12'), A(Q('conviction'), 'd8'), A(Q('creativity'), 'd8')], abilities: [], bonus: [] }
+      expect(codes(blaster).filter((c) => c === 'not-an-upgrade')).toEqual([])
       // Agility isn't Speedster's required trait, so only a bigger die can replace it.
       hero.powerSource!.powers[0] = A(P('agility'), 'd10')
       hero.archetype!.traits = [A(P('agility'), 'd6', true), A(P('speed'), 'd12'), A(P('leaping'), 'd10')]

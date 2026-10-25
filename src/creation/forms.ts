@@ -11,9 +11,9 @@
  * Minion-Maker (p. 88): choose as many minion forms as the max value of a quality the
  * player picks.
  */
-import { getTrait, refsMatch, traitKey, type TraitRef } from '../rules/catalog'
+import { expandRefs, getTrait, refsMatch, traitKey, type CatalogTrait, type TraitRef } from '../rules/catalog'
 import { compareDice, dieSize, sortDice, stepDie } from '../rules/dice'
-import type { Ability, Die } from '../rules/types'
+import type { Ability, Archetype, Die, OptionRef } from '../rules/types'
 import type { FormChoice, Hero } from '../hero/model'
 import { checkAbilityPick } from './abilities'
 import { layers, traitLayer, type ArchetypeLayer } from './layers'
@@ -48,6 +48,46 @@ export function formLabel(forms: readonly FormChoice[], form: FormChoice): strin
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+
+type FormSpec = NonNullable<Archetype['forms']>
+
+/** The hero's power dice, largest first: the dice every form rearranges. */
+export function formDice(traits: readonly HeroTrait[]): Die[] {
+  return sortDice(traits.filter((t) => t.trait.kind === 'power').map((t) => t.die)).reverse()
+}
+
+/** The powers a form may put dice on: the hero's powers, and powers from the archetype's lists. */
+export function formPowerOptions(ar: Archetype, traits: readonly HeroTrait[]): CatalogTrait[] {
+  const held: OptionRef[] = traits.filter((t) => t.trait.kind === 'power').map((t) => ({ power: t.trait.id }))
+  return expandRefs([...held, ...(ar.powers?.options ?? []), ...(ar.required?.options ?? [])]).filter((t) => t.kind === 'power')
+}
+
+/** The abilities a form may take: a Green form's list, or for the Yellow form, its own and any Green form ability neither Green form took. */
+export function formAbilityOptions(spec: FormSpec, forms: readonly FormChoice[], form: FormChoice): Ability[] {
+  if (form.zone === 'green') return spec.greenFormAbilities
+  const taken = forms.filter((f) => f.zone === 'green').flatMap((f) => (f.ability ? [f.ability.name] : []))
+  return [...spec.yellowFormAbilities, ...spec.greenFormAbilities.filter((a) => !taken.includes(a.name))]
+}
+
+/** The traits a Yellow form can raise one size: its powers and the hero's qualities, below d12. */
+export function formUpgradeOptions(hero: Hero, traits: readonly HeroTrait[], form: FormChoice): HeroTrait[] {
+  return formTraits(hero, traits, { ...form, upgrades: [] }).filter((t) => compareDice(t.die, 'd12') < 0)
+}
+
+/**
+ * The forms of one zone the editor shows: one slot per form the archetype asks for, plus
+ * any extra ones recorded. Each slot has the form (if recorded) and its index in `forms`.
+ */
+export function formSlots(forms: readonly FormChoice[], zone: FormChoice['zone'], count: number): { form?: FormChoice; index?: number }[] {
+  const recorded = forms.flatMap((form, index) => (form.zone === zone ? [{ form, index }] : []))
+  return Array.from({ length: Math.max(count, recorded.length) }, (_, i) => recorded[i] ?? {})
+}
+
+/** Sets the form in `slot` (from formSlots), adding it if it isn't recorded yet, or removes it with `next` undefined. */
+export function setFormSlot(forms: readonly FormChoice[], slot: { index?: number }, next: FormChoice | undefined): FormChoice[] {
+  if (slot.index === undefined) return next ? [...forms, next] : [...forms]
+  return next ? forms.map((f, i) => (i === slot.index ? next : f)) : forms.filter((_, i) => i !== slot.index)
+}
 
 function checkFormChanger(hero: Hero, traits: readonly HeroTrait[], layer: ArchetypeLayer, warnings: RuleWarning[]): void {
   const ar = layer.archetype
@@ -104,10 +144,7 @@ function checkFormChanger(hero: Hero, traits: readonly HeroTrait[], layer: Arche
       warn('form-ability-missing', `Choose ${label}'s form ability.`)
       return
     }
-    const options: readonly Ability[] =
-      form.zone === 'green'
-        ? spec.greenFormAbilities
-        : [...spec.yellowFormAbilities, ...spec.greenFormAbilities.filter((a) => !greenAbilityNames.includes(a.name))]
+    const options = formAbilityOptions(spec, forms, form)
     if (form.ability.source !== 'archetype.form') {
       warn('form-ability-source', `${label}'s ability should be recorded as a form ability.`)
     }

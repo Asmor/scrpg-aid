@@ -81,6 +81,12 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 - **Decision:** Yes. For the required trait, the archetype die replaces the old die whatever its size, and the old die joins the archetype step's dice to assign elsewhere.
 - **Basis:** Interpretation.
 
+### 44. Swapping onto more than one trait that fits a required category
+- **Pages:** Archetype step notes (p. 73); e.g. Blaster (p. 77), Elemental Manipulator (p. 81), Form-Changer (p. 90).
+- **Question:** When the required trait is a whole category (e.g. "an Elemental/Energy power") and the hero already has several traits in it, does ruling 43's swap apply to just one of them?
+- **Decision:** No. Every trait the hero already has that fits the required list may swap in any die.
+- **Basis:** Interpretation.
+
 ## Red abilities
 
 ### 10. Minion-Maker's extra Red abilities

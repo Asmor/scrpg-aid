@@ -867,6 +867,23 @@ select {
   margin: 0.5rem 0 0.25rem 1.75rem;
 }
 
+.forms-editor,
+.form-card,
+.minion-forms,
+.form-card__upgrades {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.forms-editor h4 {
+  margin: 0;
+}
+
+.forms-editor > .hint,
+.minion-forms > p {
+  margin: 0;
+}
+
 .leftovers {
   display: flex;
   flex-wrap: wrap;

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { Hero } from '../hero/model'
 import { A, completeHero, formChangerHero, minionMakerHero, P, Q } from '../test/heroes'
 import { buildSheet } from './sheet'
-import { checkForms, formTraits } from './forms'
+import { checkForms, formAbilityOptions, formDice, formPowerOptions, formSlots, formTraits, formUpgradeOptions, setFormSlot } from './forms'
+import { archetypesById } from '../rules/data'
 import { deriveTraits } from './traits'
 
 const check = (hero: Hero) => checkForms(hero, deriveTraits(hero).traits)
@@ -161,5 +162,52 @@ describe('Minion-Maker minion forms', () => {
 
   it('shows chosen minion forms on the sheet', () => {
     expect(buildSheet(minionMaker()).minionForms.map((f) => f.name)).toEqual(['Autonomous', 'Burrowing', 'Floating', 'Pack', 'Explosive', 'Reinforced'])
+  })
+})
+
+describe('editing forms', () => {
+  const formChanger = archetypesById.get('form-changer')!
+  const spec = formChanger.forms!
+
+  it('offers the hero’s power dice, and their powers plus the archetype’s list', () => {
+    const hero = formChangerHero()
+    const traits = deriveTraits(hero).traits
+    expect(formDice(traits)).toEqual(['d12', 'd10', 'd8', 'd8', 'd6'])
+    const ids = formPowerOptions(formChanger, traits).map((t) => t.id)
+    expect(ids).toContain('fire') // the hero's, though not on the archetype's lists
+    expect(ids).toContain('strength') // Athletic, on the list
+    expect(formPowerOptions(formChanger, traits).every((t) => t.kind === 'power')).toBe(true)
+  })
+
+  it('gives the Yellow form its own abilities and the Green ones neither Green form took', () => {
+    const forms = formChangerHero().archetype!.forms!
+    expect(formAbilityOptions(spec, forms, forms[0]!)).toEqual(spec.greenFormAbilities)
+    const yellow = formAbilityOptions(spec, forms, forms[2]!).map((a) => a.name)
+    expect(yellow).toContain('Agile Form')
+    expect(yellow).toContain('Tough Form')
+    expect(yellow).not.toContain('Strong Form')
+    expect(yellow).not.toContain('Clever Form')
+  })
+
+  it('lets the Yellow form raise its powers and the hero’s qualities, but not a d12', () => {
+    const hero = formChangerHero()
+    const form = hero.archetype!.forms![2]!
+    const options = formUpgradeOptions(hero, deriveTraits(hero).traits, form).map((t) => t.trait.id)
+    expect(options).toContain('speed')
+    expect(options).toContain('fitness')
+    expect(options).not.toContain('agility') // d12 in this form
+  })
+
+  it('shows one slot per form asked for, plus extras, and edits them in place', () => {
+    const forms = formChangerHero().archetype!.forms!
+    expect(formSlots(forms, 'green', 2)).toEqual([{ form: forms[0], index: 0 }, { form: forms[1], index: 1 }])
+    expect(formSlots([], 'yellow', 1)).toEqual([{}])
+    expect(formSlots(forms, 'yellow', 0)).toHaveLength(1)
+    const added = setFormSlot(forms, {}, { zone: 'yellow', powers: [] })
+    expect(added).toHaveLength(4)
+    const renamed = setFormSlot(forms, { index: 1 }, { ...forms[1]!, name: 'Blaze' })
+    expect(renamed[1]!.name).toBe('Blaze')
+    expect(setFormSlot(forms, { index: 0 }, undefined)).toEqual([forms[1], forms[2]])
+    expect(setFormSlot(forms, {}, undefined)).toEqual(forms)
   })
 })

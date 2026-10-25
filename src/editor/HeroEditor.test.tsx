@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { StoreContext } from '../app/store-context'
 import { createHero, type Hero } from '../hero/model'
-import { A, P, Q, heroWithAbilities } from '../test/heroes'
+import { A, P, Q, formChangerHero, heroWithAbilities, minionMakerHero } from '../test/heroes'
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { backgrounds } from '../rules/data'
 import { tableOptions } from '../rules/rolling'
@@ -430,9 +430,54 @@ describe('HeroEditor', () => {
     })
   })
 
-  it('says forms aren’t in the editor yet', async () => {
-    renderEditor(await storeWith((h) => (h.archetype = { id: 'minion-maker', traits: [], abilities: [], bonus: [] })), 'archetype')
-    expect(await screen.findByText("Minion-Maker's forms aren't in the editor yet. They're coming in a later update.")).toBeInTheDocument()
+  it('builds Form-Changer forms: powers, a name, the Yellow form’s raised dice, and one ability each', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...formChangerHero(), id: 'h1' })
+      h.archetype!.forms = []
+    })
+    renderEditor(store, 'archetype')
+    const green = await screen.findByRole('group', { name: 'Green form 1' })
+    await userEvent.selectOptions(within(green).getByRole('combobox', { name: 'd12' }), 'Strength')
+    await userEvent.type(within(green).getByLabelText('Form name (optional)'), 'Brute')
+    const brute = screen.getByRole('group', { name: 'Brute' })
+    const ability = within(brute).getByRole('group', { name: 'Brute ability: choose 1' })
+    await userEvent.click(within(ability).getByRole('checkbox', { name: /Strong Form/ }))
+    await userEvent.click(within(ability).getByRole('checkbox', { name: /Tough Form/ }))
+    expect(within(ability).getByRole('checkbox', { name: /Strong Form/ })).not.toBeChecked()
+
+    const yellow = screen.getByRole('group', { name: 'Yellow form 1' })
+    await userEvent.selectOptions(within(yellow).getByRole('combobox', { name: 'Raise die 1' }), 'Fitness: d10 → d12')
+    // A die can't be raised twice.
+    expect(within(within(yellow).getByRole('combobox', { name: 'Raise die 2' })).queryByRole('option', { name: 'Fitness: d10 → d12' })).not.toBeInTheDocument()
+    await waitFor(async () =>
+      expect((await saved(store)).archetype?.forms).toEqual([
+        { zone: 'green', powers: [A(P('strength'), 'd12')], name: 'Brute', ability: { source: 'archetype.form', name: 'Tough Form' } },
+        { zone: 'yellow', powers: [], upgrades: [Q('fitness')] },
+      ]),
+    )
+  })
+
+  it('lets an extra form be removed', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...formChangerHero(), id: 'h1' })
+      h.archetype!.forms!.push({ zone: 'green', powers: [], name: 'Spare' })
+    })
+    renderEditor(store, 'archetype')
+    await userEvent.click(within(await screen.findByRole('group', { name: 'Spare' })).getByRole('button', { name: 'Remove this extra form' }))
+    await waitFor(async () => expect((await saved(store)).archetype?.forms).toEqual(formChangerHero().archetype!.forms))
+  })
+
+  it('chooses Minion-Maker’s minion forms, as many as the chosen quality’s die', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...minionMakerHero(), id: 'h1' })
+      delete h.archetype!.minionForms
+    })
+    renderEditor(store, 'archetype')
+    const group = await screen.findByRole('group', { name: 'Minion forms' })
+    await userEvent.selectOptions(within(group).getByRole('combobox', { name: 'Quality that sets how many' }), 'Creativity (d6)')
+    expect(within(group).getByText('Choose 6 (your Creativity is d6); you have 0.')).toBeInTheDocument()
+    await userEvent.click(within(group).getByRole('checkbox', { name: /Floating/ }))
+    await waitFor(async () => expect((await saved(store)).archetype?.minionForms).toEqual({ quality: Q('creativity'), forms: ['Floating'] }))
   })
 
   it('says the archetypes that build on a second archetype aren’t in the editor yet', async () => {

@@ -340,7 +340,7 @@ function powerSourceStep(state: TraitState, hero: Hero, ps: PowerSource): void {
   if (bg) state.checkPool('powerSource', bg.powerSourceDice, freed, choice.powers)
 }
 
-/** Whether the archetype lets a die be swapped onto this trait, whatever its size (its required trait, ruling 43). */
+/** Whether the archetype lets a die be swapped onto this trait, whatever its size: any trait fitting its required list (rulings 43 and 44). */
 export function canSwapRequired(ar: Archetype, trait: TraitRef): boolean {
   return Boolean(ar.required?.ifAlreadyHave.includes('swap') && refsMatch(ar.required.options, trait))
 }
