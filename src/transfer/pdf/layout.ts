@@ -340,39 +340,56 @@ function panel(canvas: Canvas, title: string, content: Block, fill: string = COL
 interface FieldLine {
   label: string
   value: string
+  /** The first line of a field after the first: a separator line goes above it when asked for. */
+  startsRow?: true
 }
 
+/** Extra room above a separated field; the separator line sits in it, nudged 1pt up to look centred against the text. */
+const SEPARATOR = 6
+
 /** Lines laid out by `fields`, drawn a line at a time so they can split between pages. */
-function fieldLines(canvas: Canvas, lines: readonly FieldLine[], labelWidth: number): Block {
+function fieldLines(canvas: Canvas, lines: readonly FieldLine[], labelWidth: number, separated: boolean): Block {
+  // Each line's top, with room above every field after the first when they're separated.
+  const tops: number[] = []
+  let at = 0
+  lines.forEach((line, i) => {
+    if (separated && line.startsRow && i > 0) at += SEPARATOR
+    tops.push(at)
+    at += LINE
+  })
   return {
-    height: () => lines.length * LINE,
-    draw: (x, y) =>
+    height: () => at,
+    draw: (x, y, w) =>
       lines.forEach((line, i) => {
-        if (line.label) canvas.text(line.label, x, y + i * LINE, 'bold', BODY, COLORS.text)
-        if (line.value) canvas.text(line.value, x + labelWidth, y + i * LINE, 'regular', BODY, COLORS.text)
+        if (separated && line.startsRow && i > 0) canvas.rect(x, y + tops[i]! - SEPARATOR / 2 - 1, w, 0.5, { fill: COLORS.border })
+        if (line.label) canvas.text(line.label, x, y + tops[i]!, 'bold', BODY, COLORS.text)
+        if (line.value) canvas.text(line.value, x + labelWidth, y + tops[i]!, 'regular', BODY, COLORS.text)
       }),
     split: (_w, room) => {
-      const fit = Math.floor(room / LINE)
+      const fit = tops.filter((top) => top + LINE <= room).length
       // At least two lines on each side of the break, so nothing is left on its own.
       if (fit < 2 || lines.length - fit < 2) return undefined
-      return [fieldLines(canvas, lines.slice(0, fit), labelWidth), fieldLines(canvas, lines.slice(fit), labelWidth)]
+      return [fieldLines(canvas, lines.slice(0, fit), labelWidth, separated), fieldLines(canvas, lines.slice(fit), labelWidth, separated)]
     },
   }
 }
 
-/** "Label: value" rows, the label in bold; a long label wraps in its column, and long values can run onto the next page. */
-function fields(canvas: Canvas, rows: readonly (readonly [string, string])[]): Block {
+/**
+ * "Label: value" rows, the label in bold; a long label wraps in its column, and long values
+ * can run onto the next page. `separated` draws a line between the fields (the principles).
+ */
+function fields(canvas: Canvas, rows: readonly (readonly [string, string])[], separated = false): Block {
   const labelWidth = (w: number) => Math.min(w * 0.5, Math.max(...rows.map(([l]) => canvas.measure(`${l}:`, 'bold', BODY))) + 6)
   const lines = (w: number): FieldLine[] =>
-    rows.flatMap(([label, value]) => {
+    rows.flatMap(([label, value], r) => {
       const ls = wrap(canvas, `${label}:`, 'bold', BODY, labelWidth(w) - 6)
       const vs = wrap(canvas, value, 'regular', BODY, w - labelWidth(w))
-      return Array.from({ length: Math.max(ls.length, vs.length) }, (_, i) => ({ label: ls[i] ?? '', value: vs[i] ?? '' }))
+      return Array.from({ length: Math.max(ls.length, vs.length) }, (_, i) => ({ label: ls[i] ?? '', value: vs[i] ?? '', ...(i === 0 && r > 0 ? { startsRow: true as const } : {}) }))
     })
   return {
-    height: (w) => lines(w).length * LINE,
-    draw: (x, y, w, h) => fieldLines(canvas, lines(w), labelWidth(w)).draw(x, y, w, h),
-    split: (w, room) => fieldLines(canvas, lines(w), labelWidth(w)).split!(w, room),
+    height: (w) => fieldLines(canvas, lines(w), labelWidth(w), separated).height(w),
+    draw: (x, y, w, h) => fieldLines(canvas, lines(w), labelWidth(w), separated).draw(x, y, w, h),
+    split: (w, room) => fieldLines(canvas, lines(w), labelWidth(w), separated).split!(w, room),
   }
 }
 
@@ -667,11 +684,19 @@ export function layoutHero(canvas: Canvas, hero: Hero): void {
   layout.place(panel(canvas, 'Powers, qualities, and status', diceTable(canvas, sheet)))
 
   const principles = sheet.principles.map((p) =>
-    panel(canvas, p.name, fields(canvas, [
-      ['During roleplaying', p.roleplaying],
-      ['Minor twist', p.minorTwist],
-      ['Major twist', p.majorTwist],
-    ])),
+    panel(
+      canvas,
+      p.name,
+      fields(
+        canvas,
+        [
+          ['During roleplaying', p.roleplaying],
+          ['Minor twist', p.minorTwist],
+          ['Major twist', p.majorTwist],
+        ],
+        true,
+      ),
+    ),
   )
   if (principles.length) grid(principles, 2).forEach((row) => layout.place(row))
   else layout.place(panel(canvas, 'Principles', paragraph(canvas, 'No principles yet.', { color: COLORS.muted })))

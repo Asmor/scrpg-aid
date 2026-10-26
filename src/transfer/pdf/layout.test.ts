@@ -253,6 +253,17 @@ describe('layoutHero', () => {
     expect(across[0]!.x).toBeLessThan(across[1]!.x)
   })
 
+  it('draws a line between the sections of each principle', () => {
+    const c = laidOut()
+    const minor = c.texts.filter((t) => t.text === 'Minor twist:')
+    const major = c.texts.filter((t) => t.text === 'Major twist:')
+    expect(minor).toHaveLength(2)
+    // A thin rule just above each "Minor twist" and "Major twist" label, and none above "During roleplaying".
+    const ruleAbove = (t: TextOp) => c.rects.some((r) => r.page === t.page && r.height === 0.5 && r.y < t.y && t.y - r.y < 6 && r.x === t.x)
+    for (const t of [...minor, ...major]) expect(ruleAbove(t)).toBe(true)
+    for (const t of c.texts.filter((t) => t.text === 'During roleplaying:')) expect(ruleAbove(t)).toBe(false)
+  })
+
   it('includes advancement', () => {
     const hero = exampleHero({ id: 'x' })
     hero.advancement = { backIssues: 3, collections: [{ name: 'Origins', notes: 'First arc' }], changes: [] }
