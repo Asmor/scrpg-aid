@@ -8,6 +8,7 @@ import { createHero } from '../hero/model'
 import { toSaved } from '../hero/serialize'
 import { downloadFile } from '../transfer/download'
 import { backupJson, readImport } from '../transfer/files'
+import { heroHtml } from '../transfer/html'
 import { heroMarkdown } from '../transfer/markdown'
 import { HeroList } from './HeroList'
 
@@ -200,6 +201,13 @@ describe('HeroList', () => {
       const store = new MemoryHeroStore()
       renderList(store)
       await upload(heroMarkdown(named('n1', 'Nova')), 'nova.md')
+      expect(await screen.findByRole('link', { name: /Nova/ })).toHaveAttribute('href', '#/hero/n1')
+    })
+
+    it('imports a hero from an HTML export', async () => {
+      const store = new MemoryHeroStore()
+      renderList(store)
+      await upload(heroHtml(named('n1', 'Nova')), 'nova.html')
       expect(await screen.findByRole('link', { name: /Nova/ })).toHaveAttribute('href', '#/hero/n1')
     })
 

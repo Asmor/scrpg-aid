@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { StoreContext } from '../app/store-context'
@@ -66,5 +66,26 @@ describe('HeroPage', () => {
     expect(type).toBe('text/markdown')
     expect(text).toMatch(/^# Maya Reyes\n/)
     expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], skipped: [] })
+  })
+
+  it('exports the hero as an HTML page that imports back', async () => {
+    vi.mocked(downloadFile).mockClear()
+    const hero = exampleHero({ id: 'x' })
+    renderPage(storeReturning(async () => ({ status: 'found', hero })))
+    await userEvent.click(await screen.findByRole('button', { name: 'Download HTML' }))
+    await waitFor(() => expect(downloadFile).toHaveBeenCalled())
+    const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
+    expect(name).toBe('maya-reyes.html')
+    expect(type).toBe('text/html')
+    expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], skipped: [] })
+  })
+
+  it('says when the HTML file couldn’t be made', async () => {
+    vi.mocked(downloadFile).mockImplementationOnce(() => {
+      throw new Error('no space')
+    })
+    renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
+    await userEvent.click(await screen.findByRole('button', { name: 'Download HTML' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't make the HTML file: no space")
   })
 })

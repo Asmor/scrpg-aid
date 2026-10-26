@@ -1,0 +1,50 @@
+import { describe, expect, it } from 'vitest'
+import { exampleHero } from '../hero/example'
+import { createHero } from '../hero/model'
+import { formChangerHero } from '../test/heroes'
+import { readImport } from './files'
+import { heroHtml } from './html'
+import { heroMarkdown } from './markdown'
+
+const parse = (html: string) => new DOMParser().parseFromString(html, 'text/html')
+
+describe('heroHtml', () => {
+  it('is a standalone page with the sheet, its styles, and the light theme', () => {
+    const html = heroHtml(exampleHero({ id: 'x' }))
+    expect(html.startsWith('<!doctype html>\n<html lang="en" data-theme="light">')).toBe(true)
+    const doc = parse(html)
+    expect(doc.title).toBe('Maya Reyes')
+    expect(doc.querySelector('meta[name="viewport"]')).not.toBeNull()
+    expect(doc.querySelector('head style')).not.toBeNull()
+    const sheet = doc.querySelector('main .hero-sheet')!
+    expect(sheet.querySelector('h2')!.textContent).toBe('Maya Reyes')
+    expect(sheet.textContent).toContain('Paragon Feat')
+    // Nothing that loads from elsewhere, and nothing that runs.
+    expect(doc.querySelectorAll('link, img, iframe, script:not([type="application/json"])')).toHaveLength(0)
+  })
+
+  it('leaves out rule warnings', () => {
+    const hero = createHero('guided', { id: 'h1' })
+    hero.background = { id: 'upper-class', qualities: [] }
+    expect(parse(heroHtml(hero)).querySelector('.sheet-warnings')).toBeNull()
+  })
+
+  it('imports back to the same hero', () => {
+    const hero = { ...formChangerHero(), id: 'f1' }
+    expect(readImport(heroHtml(hero))).toEqual({ ok: true, heroes: [hero], skipped: [] })
+  })
+
+  it('keeps the player’s text as text, and the real payload findable', () => {
+    const hero = createHero('guided', { id: 'h1' })
+    hero.details.name = 'X </script><script type="application/json" id="scrpg-hero">{} <!-- scrpg-hero -->'
+    hero.details.costume = '<img src=x onerror=alert(1)>'
+    const html = heroHtml(hero)
+    const doc = parse(html)
+    expect(doc.title).toBe(hero.details.name)
+    expect(doc.querySelectorAll('script')).toHaveLength(1)
+    expect(doc.querySelectorAll('img')).toHaveLength(0)
+    expect(readImport(html)).toEqual({ ok: true, heroes: [hero], skipped: [] })
+    // A Markdown export with the same text still finds its own comment.
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], skipped: [] })
+  })
+})

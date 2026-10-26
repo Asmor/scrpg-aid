@@ -210,7 +210,8 @@ function Auxiliary({ sheet }: { sheet: HeroSheet }) {
   )
 }
 
-export function HeroSheetView({ hero }: { hero: Hero }) {
+/** `warnings: false` leaves out the rule issues (for exports). */
+export function HeroSheetView({ hero, warnings = true }: { hero: Hero; warnings?: boolean }) {
   const sheet = buildSheet(hero)
   const { characteristics: c } = sheet
   const details = DETAIL_FIELDS.filter((f) => f !== 'name' && f !== 'alias' && hero.details[f].trim())
@@ -221,7 +222,7 @@ export function HeroSheetView({ hero }: { hero: Hero }) {
         {hero.details.alias.trim() && hero.details.name.trim() && <p className="hero-sheet__alias">{hero.details.alias}</p>}
       </header>
 
-      <Warnings warnings={sheet.warnings} />
+      {warnings && <Warnings warnings={sheet.warnings} />}
 
       <div className="sheet-grid">
         <Panel title="Characteristics">

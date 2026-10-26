@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { exampleHero } from '../hero/example'
 import { createHero } from '../hero/model'
 import { dividedHero, formChangerHero, minionMakerHero, modularHero } from '../test/heroes'
-import { embeddableJson, extractEmbedded, markdownPayload } from './embed'
+import { embeddableJson, extractEmbedded, markdownPayload, SCRIPT_OPEN } from './embed'
 import { readImport } from './files'
 import { heroMarkdown } from './markdown'
 
@@ -118,5 +118,22 @@ describe('embedded JSON', () => {
     expect(readImport('# Just notes')).toEqual({ ok: false, error: "This file isn't a hero or a backup the app can read." })
     expect(readImport('# Hero\n\n<!-- scrpg-hero\n{"unclosed": 1')).toEqual({ ok: false, error: "This file isn't a hero or a backup the app can read." })
     expect(readImport('# Hero\n\n<!-- scrpg-hero\n{broken\n-->')).toEqual({ ok: false, error: "This file's hero data is damaged, so it can't be imported." })
+  })
+})
+
+describe('extractEmbedded', () => {
+  const comment = (json: string) => `<!-- scrpg-hero\n${json}\n-->`
+  const script = (json: string) => `${SCRIPT_OPEN}${json}</script>`
+
+  it('reads whichever kind of payload comes last', () => {
+    expect(extractEmbedded(`${comment('"a"')} text ${script('"b"')}`)).toBe('"b"')
+    expect(extractEmbedded(`${script('"b"')} text ${comment('"a"')}`)?.trim()).toBe('"a"')
+    expect(extractEmbedded(`${comment('"a"')} ${comment('"c"')}`)?.trim()).toBe('"c"')
+  })
+
+  it('finds nothing without a payload, or with one that isn’t closed', () => {
+    expect(extractEmbedded('# Notes')).toBeUndefined()
+    expect(extractEmbedded('<!-- scrpg-hero {"a": 1}')).toBeUndefined()
+    expect(extractEmbedded(`${SCRIPT_OPEN}{"a": 1}`)).toBeUndefined()
   })
 })

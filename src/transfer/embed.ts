@@ -26,14 +26,20 @@ export function markdownPayload(hero: Hero): string {
 
 const OPEN = `<!-- ${EMBED_MARKER}`
 
+/** An HTML export's script tag (see ./html.tsx). */
+export const SCRIPT_OPEN = `<script type="application/json" id="${EMBED_MARKER}">`
+
 /**
- * The JSON embedded in an exported file, if it has some. The comment comes last, so the last
- * opening is the real one: the player's own text may contain the same characters (escaped
- * as Markdown, but still there to a plain search).
+ * The JSON embedded in an exported file, if it has some: a Markdown export's comment, or an
+ * HTML export's script tag. Either comes last, so the last opening is the real one: the
+ * player's own text may contain the same characters (escaped as Markdown or HTML, but
+ * still there to a plain search). The embedded JSON itself can't hold an opening or a close.
  */
 export function extractEmbedded(text: string): string | undefined {
-  const start = text.lastIndexOf(OPEN)
+  // Whichever kind of opening comes last is the file's own.
+  const [open, close] = text.lastIndexOf(SCRIPT_OPEN) > text.lastIndexOf(OPEN) ? [SCRIPT_OPEN, '</script>'] : [OPEN, '-->']
+  const start = text.lastIndexOf(open)
   if (start < 0) return undefined
-  const end = text.indexOf('-->', start)
-  return end < 0 ? undefined : text.slice(start + OPEN.length, end)
+  const end = text.indexOf(close, start + open.length)
+  return end < 0 ? undefined : text.slice(start + open.length, end)
 }
