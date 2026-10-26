@@ -6,9 +6,11 @@ import type { GetResult, HeroStore } from '../hero/store'
 import { exampleHero } from '../hero/example'
 import { readImport } from '../transfer/files'
 import { downloadFile } from '../transfer/download'
+import { exportPdf } from '../transfer/pdf'
 import { HeroPage } from './HeroPage'
 
 vi.mock('../transfer/download', () => ({ downloadFile: vi.fn() }))
+vi.mock('../transfer/pdf', () => ({ exportPdf: vi.fn(async () => new Uint8Array([37, 80, 68, 70])) }))
 
 const storeReturning = (get: () => Promise<GetResult>): HeroStore => ({
   list: async () => ({ heroes: [], unreadable: [] }),
@@ -87,5 +89,27 @@ describe('HeroPage', () => {
     renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
     await userEvent.click(await screen.findByRole('button', { name: 'Download HTML' }))
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't make the HTML file: no space")
+  })
+
+  it('exports a PDF on the chosen page size', async () => {
+    vi.mocked(downloadFile).mockClear()
+    const hero = exampleHero({ id: 'x' })
+    renderPage(storeReturning(async () => ({ status: 'found', hero })))
+    await userEvent.selectOptions(await screen.findByLabelText('Page size'), 'A4')
+    await userEvent.click(screen.getByRole('button', { name: 'Download PDF' }))
+    await waitFor(() => expect(downloadFile).toHaveBeenCalled())
+    expect(exportPdf).toHaveBeenCalledWith(hero, 'a4')
+    const [name, bytes, type] = vi.mocked(downloadFile).mock.calls[0]!
+    expect(name).toBe('maya-reyes.pdf')
+    expect(type).toBe('application/pdf')
+    expect(bytes).toEqual(new Uint8Array([37, 80, 68, 70]))
+    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled()
+  })
+
+  it('says when the PDF couldn’t be made', async () => {
+    vi.mocked(exportPdf).mockRejectedValueOnce(new Error('font missing'))
+    renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
+    await userEvent.click(await screen.findByRole('button', { name: 'Download PDF' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't make the PDF: font missing")
   })
 })

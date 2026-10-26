@@ -253,6 +253,16 @@ a {
   margin: 0 0 0.5rem;
 }
 
+.export-menu__pdf {
+  margin-top: 0.5rem;
+}
+
+.field--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .import-control {
   margin-top: var(--space);
 }
