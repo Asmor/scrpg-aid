@@ -10,15 +10,16 @@ import { DiceAssigner } from './DiceAssigner'
 import { MethodPicker } from './MethodPicker'
 import { PrinciplePicker } from './PrinciplePicker'
 import { TablePicker } from './TablePicker'
+import { DiceText } from '../components/icons'
 
 function BackgroundSummary({ bg }: { bg: Background }) {
   const category = principleCategories.find((c) => c.id === bg.principleCategory)?.name ?? bg.principleCategory
   const required = bg.qualities.required ?? []
   return (
     <>
-      Qualities {bg.qualities.dice.join(', ')}
+      Qualities <DiceText text={bg.qualities.dice.join(', ')} />
       {required.length > 0 && ` (one on ${describeOptions(required)})`}: {describeOptions(bg.qualities.options)}. Principle of {category}. Power source dice{' '}
-      {bg.powerSourceDice.join(', ')}. <span className="page-ref">{formatEntryRef(bg)}</span>
+      <DiceText text={bg.powerSourceDice.join(', ')} />. <span className="page-ref">{formatEntryRef(bg)}</span>
     </>
   )
 }

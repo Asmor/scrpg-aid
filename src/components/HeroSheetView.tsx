@@ -14,7 +14,7 @@ import type { StepId } from '../creation/warnings'
 import type { AbilityType, Die, Zone } from '../rules/types'
 import { abilityEffects } from '../creation/effects'
 import { modeLimits } from '../creation/format'
-import { AbilityText, ActionIcon, DieLabel } from './icons'
+import { AbilityText, ActionIcon, DiceText, DieIcon } from './icons'
 
 const STEP_LABEL: Record<StepId, string> = {
   background: 'Background',
@@ -53,7 +53,7 @@ function TraitTable({ caption, traits }: { caption: string; traits: readonly Her
           <tr key={`${t.trait.kind}:${t.trait.id}`}>
             <td>{t.name}</td>
             <td className="die">
-              <DieLabel die={t.die} />
+              <DieIcon die={t.die} />
             </td>
           </tr>
         ))}
@@ -71,7 +71,7 @@ function StatusDice({ dice, label }: { dice: Record<Zone, Die>; label?: string }
           <li key={zone} className={`status-die zone-${zone}`}>
             <span className="status-die__zone">{ZONE_LABEL[zone]}</span>
             <span className="die">
-              <DieLabel die={dice[zone]} />
+              <DieIcon die={dice[zone]} />
             </span>
           </li>
         ))}
@@ -102,6 +102,25 @@ function AbilityRow({ name, type, text }: { name: string; type: AbilityType; tex
         <AbilityText text={text} />
       </span>
     </li>
+  )
+}
+
+/** The Out ability: its effects' icons, then its text with inline icons, like an ability row without a name or type. */
+function OutAbility({ text }: { text: string }) {
+  const effects = abilityEffects(text)
+  return (
+    <p className="out-ability">
+      {effects.length > 0 && (
+        <span className="ability__effects">
+          {effects.map((e) => (
+            <ActionIcon key={e} action={e} />
+          ))}
+        </span>
+      )}
+      <span className="ability__text">
+        <AbilityText text={text} />
+      </span>
+    </p>
   )
 }
 
@@ -139,7 +158,9 @@ function Warnings({ warnings }: { warnings: HeroSheet['warnings'] }) {
             {warnings
               .filter((w) => w.step === step)
               .map((w, i) => (
-                <li key={`${w.code}:${i}`}>{w.message}</li>
+                <li key={`${w.code}:${i}`}>
+                  <DiceText text={w.message} />
+                </li>
               ))}
           </ul>
         </section>
@@ -329,7 +350,7 @@ export function HeroSheetView({ hero, warnings = true }: { hero: Hero; warnings?
         ))}
         <section className="ability-band zone-out" aria-label="Out ability">
           <h4 className="ability-band__title">Out</h4>
-          <p className="ability__text">{sheet.outAbility ?? 'Choose a personality.'}</p>
+          {sheet.outAbility ? <OutAbility text={sheet.outAbility} /> : <p className="ability__text">Choose a personality.</p>}
         </section>
       </Panel>
 

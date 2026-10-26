@@ -14,6 +14,7 @@ import { PrinciplePicker } from './PrinciplePicker'
 import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
 import { TablePicker } from './TablePicker'
+import { readable } from '../test/readable'
 
 function Assigner({ initial, earlierHero = false, earlier, canSwap }: { initial: TraitAssignment[]; earlierHero?: boolean; earlier?: HeroTrait[]; canSwap?: (t: TraitRef) => boolean }) {
   const [assignments, setAssignments] = useState(initial)
@@ -271,7 +272,7 @@ describe('BonusPicker', () => {
 
   it('gains a trait at the bonus die', async () => {
     render(<Bonuses bonus={bonusOf('mystical')} before={[]} />)
-    expect(screen.getByText('Gain an Information quality at d10.')).toBeInTheDocument()
+    expect(readable(screen.getByText(/^Gain an Information quality at/))).toBe('Gain an Information quality at d10.')
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Quality' }), 'History at d10')
     expect(output()).toEqual([A(Q('history'), 'd10')])
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Quality' }), 'Choose…')
@@ -344,7 +345,7 @@ describe('TablePicker', () => {
     expect(screen.getByRole('radio', { name: /Low/ })).toBeInTheDocument()
     unmount()
     render(<TablePicker {...props} inherited={{ roll: { dice: ['d6'], results: [5], manual: false }, from: 'first' }} />)
-    expect(screen.getByText(/That roll doesn't reach any thing/)).toHaveTextContent("That roll doesn't reach any thing. Roll d6 for a fresh one.")
+    expect(readable(screen.getByText(/That roll doesn't reach any thing/))).toBe("That roll doesn't reach any thing. Roll d6 for a fresh one.")
   })
 
   it('points to the method choice when a roll reaches nothing and the reroll is used', () => {

@@ -8,6 +8,7 @@ import type { Bonus, Die, OptionRef } from '../rules/types'
 import type { Hero, TraitAssignment } from '../hero/model'
 import { fallbackOptions, gainOptions, shiftTargets, splitShift, upgradeTargets, usesFallback, type BonusTarget } from '../creation/bonus'
 import { traitLabel, type HeroTrait } from '../creation/traits'
+import { DiceText } from '../components/icons'
 
 interface BonusPickerProps {
   hero: Hero
@@ -143,7 +144,9 @@ export function BonusPicker({ hero, legend, bonus, listed, before, archetypeQual
   return (
     <fieldset className="bonus-picker">
       <legend>{legend}</legend>
-      <p>{bonus.summary}</p>
+      <p>
+        <DiceText text={bonus.summary} />
+      </p>
       {body}
     </fieldset>
   )

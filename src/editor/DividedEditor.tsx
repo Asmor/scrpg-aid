@@ -11,6 +11,7 @@ import type { DividedChoice, Hero } from '../hero/model'
 import { placeTrait, splitCandidates, type Split, type SplitPlace as Place } from '../creation/divided'
 import { traitLabel, type HeroTrait } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
+import { DiceText } from '../components/icons'
 
 const PLACES: readonly { place: Place; label: string }[] = [
   { place: 'always', label: 'Always (either form)' },
@@ -31,7 +32,9 @@ export function TransitionPicker({ hero, ar, traits, divided, onChange }: { hero
             <input type="radio" name={name} checked={m.id === divided?.transitionMethod} onChange={() => onChange({ ...divided, transitionMethod: m.id })} />
             <span className="choice__body">
               <span className="choice__title">{m.name}</span>
-              <span className="choice__detail">{m.summary}</span>
+              <span className="choice__detail">
+                <DiceText text={m.summary} />
+              </span>
             </span>
           </label>
         ))}

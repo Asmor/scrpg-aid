@@ -24,6 +24,7 @@ import { FormChangerForms, MinionForms } from './FormsEditor'
 import { ModesEditor } from './ModesEditor'
 import { PrinciplePicker } from './PrinciplePicker'
 import { TablePicker } from './TablePicker'
+import { DiceText } from '../components/icons'
 
 function ArchetypeSummary({ ar }: { ar: Archetype }) {
   const category = principleCategories.find((c) => c.id === ar.principleCategory)?.name
@@ -37,7 +38,7 @@ function ArchetypeSummary({ ar }: { ar: Archetype }) {
       ]
   return (
     <>
-      {parts.filter(Boolean).join('. ')}. <span className="page-ref">{formatEntryRef(ar)}</span>
+      <DiceText text={parts.filter(Boolean).join('. ')} />. <span className="page-ref">{formatEntryRef(ar)}</span>
     </>
   )
 }
@@ -425,7 +426,9 @@ function ComplexArchetype({ hero, update, ar }: { hero: Hero; update: Update; ar
   const titleId = useId()
   return (
     <>
-      <p className="hint">{ar.summary}</p>
+      <p className="hint">
+        <DiceText text={ar.summary ?? ''} />
+      </p>
       <SecondArchetype hero={hero} update={update} outer={ar} />
       {ar.secondaryArchetype?.minimumPowers !== undefined && <FillerPowers hero={hero} update={update} outer={ar} />}
 

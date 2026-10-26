@@ -13,6 +13,7 @@ import { formAbilityOptions, formDice, formLabel, formPowerOptions, formSlots, f
 import { traitLabel, type HeroTrait } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
 import { DiceAssigner } from './DiceAssigner'
+import { DiceText } from '../components/icons'
 
 interface FormCardProps {
   hero: Hero
@@ -128,7 +129,9 @@ export function FormChangerForms({ hero, ar, traits, forms, onChange }: { hero: 
   return (
     <div className="forms-editor">
       <h4>Forms</h4>
-      <p className="hint">{spec.summary}</p>
+      <p className="hint">
+        <DiceText text={spec.summary} />
+      </p>
       {zones.map(({ zone, count }) =>
         formSlots(forms, zone, count).map((slot, i) => {
           const form = slot.form ?? { zone, powers: [] }
@@ -185,7 +188,7 @@ export function MinionForms({ hero, ar, traits, choice, onChange }: { hero: Hero
         </select>
       </label>
       <p>
-        {quality ? `Choose ${dieSize(quality.die)} (your ${quality.name} is ${quality.die}); you have ${chosen.length}.` : `You have ${chosen.length}.`}
+        <DiceText text={quality ? `Choose ${dieSize(quality.die)} (your ${quality.name} is ${quality.die}); you have ${chosen.length}.` : `You have ${chosen.length}.`} />
       </p>
       {chosen
         .filter((n) => !spec.forms.some((f) => f.name === n))

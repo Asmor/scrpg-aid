@@ -14,11 +14,12 @@ import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
 import { DiceAssigner } from './DiceAssigner'
 import { TablePicker } from './TablePicker'
+import { DiceText } from '../components/icons'
 
 function PowerSourceSummary({ ps }: { ps: PowerSource }) {
   return (
     <>
-      Powers: {describeOptions(ps.powers.options)}. Archetype dice {ps.archetypeDice.join(', ')}. <span className="page-ref">{formatEntryRef(ps)}</span>
+      Powers: {describeOptions(ps.powers.options)}. Archetype dice <DiceText text={ps.archetypeDice.join(', ')} />. <span className="page-ref">{formatEntryRef(ps)}</span>
     </>
   )
 }

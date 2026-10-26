@@ -18,6 +18,7 @@ import { DETAIL_FIELDS, heroDisplayName, type Hero } from '../../hero/model'
 import type { AbilityType, Die, Zone } from '../../rules/types'
 import type { IconName } from '../../components/icon-source'
 import { abilityEffects, ACTIONS, effectMentions, type Action } from '../../creation/effects'
+import { DICE } from '../../rules/dice'
 
 export type FontId = 'regular' | 'bold' | 'boldItalic'
 
@@ -105,15 +106,19 @@ export function wrap(canvas: Canvas, text: string, font: FontId, size: number, w
   return lines
 }
 
-// ---- Ability text with action icons ----
+// ---- Ability text with action and die icons ----
 
-/** A private-use character standing for an action's icon in laid-out text. */
+/** Private-use characters standing for icons in laid-out text: actions from U+E000, dice from U+E010. */
 const marker = (action: Action) => String.fromCharCode(0xe000 + ACTIONS.indexOf(action))
-const MARKER = /[\ue000-\ue005]/g
+const dieMarker = (die: Die) => String.fromCharCode(0xe010 + DICE.indexOf(die))
+const MARKER = /[\ue000-\ue01f]/g
 const iconSize = (size: number) => size * 1.1
 const ICON_GAP = 1.5
 
-/** The text with an icon marker before each action word that's an effect (../../creation/effects.ts). */
+/**
+ * The text with an icon marker before each action word that's an effect
+ * (../../creation/effects.ts), and each die size ("d8") replaced by its die's marker.
+ */
 export function markEffects(raw: string): string {
   // The player's own text can't bring its own markers.
   const text = raw.replace(MARKER, '')
@@ -123,7 +128,7 @@ export function markEffects(raw: string): string {
     out += text.slice(at, m.start) + marker(m.action)
     at = m.start
   }
-  return out + text.slice(at)
+  return (out + text.slice(at)).replace(/\bd(4|6|8|10|12)\b/g, (die) => dieMarker(die as Die))
 }
 
 /** Measures text that may hold icon markers. */
@@ -135,12 +140,16 @@ const richMeasure =
 /** Draws a line that may hold icon markers: text runs with the icons between them. */
 function drawRich(canvas: Canvas, line: string, x: number, y: number, font: FontId, size: number, color: string) {
   let cx = x
-  for (const part of line.split(/([\ue000-\ue005])/)) {
+  for (const part of line.split(/([\ue000-\ue01f])/)) {
     if (!part) continue
     const code = part.charCodeAt(0) - 0xe000
-    if (part.length === 1 && code >= 0 && code < ACTIONS.length) {
-      canvas.icon(`action/${ACTIONS[code]!}`, cx, y - size * 0.1, iconSize(size))
+    const isMarker = part.length === 1 && code >= 0 && code < 0x20
+    const icon: IconName | undefined = !isMarker ? undefined : code < ACTIONS.length ? `action/${ACTIONS[code]!}` : code >= 0x10 && code - 0x10 < DICE.length ? `die/${DICE[code - 0x10]!}` : undefined
+    if (icon) {
+      canvas.icon(icon, cx, y - size * 0.1, iconSize(size))
       cx += iconSize(size) + ICON_GAP
+    } else if (isMarker) {
+      // A marker with no icon (none should occur) takes no space.
     } else {
       canvas.text(part, cx, y, font, size, color)
       cx += canvas.measure(part, font, size)
@@ -366,20 +375,18 @@ function fields(canvas: Canvas, rows: readonly (readonly [string, string])[]): B
   }
 }
 
-const ICON = 13
+const ICON = 15
 const ROW = 18
 
-/** A die icon with its size written beside it, right-aligned at `right`. */
+/** A die, shown as its icon alone, right-aligned at `right`. */
 function drawDie(canvas: Canvas, die: Die, right: number, y: number) {
-  const w = canvas.measure(die, 'bold', BODY)
-  canvas.text(die, right - w, y + (ICON - BODY) / 2, 'bold', BODY, COLORS.text)
-  canvas.icon(`die/${die}`, right - w - 3 - ICON, y - 0.5, ICON)
+  canvas.icon(`die/${die}`, right - ICON, y - 1.5, ICON)
 }
 
 /** Name and die rows, as on the sheet's Powers and Qualities tables. */
 function traitTable(canvas: Canvas, traits: readonly HeroTrait[], empty: string): Block {
   if (traits.length === 0) return paragraph(canvas, empty, { color: COLORS.muted })
-  const dieWidth = ICON + 3 + canvas.measure('d12', 'bold', BODY) + 4
+  const dieWidth = ICON + 6
   const nameLines = (w: number, t: HeroTrait) => wrap(canvas, t.name, 'regular', BODY, w - dieWidth)
   const rowHeight = (w: number, t: HeroTrait) => Math.max(ROW, nameLines(w, t).length * LINE + 6)
   return {
@@ -409,8 +416,7 @@ function statusDice(canvas: Canvas, dice: Record<Zone, Die>): Block {
         canvas.rect(bx, y, boxW, h, { fill: COLORS.zone[zone], stroke: COLORS.border, lineWidth: 1 })
         const label = ZONE_LABEL[zone]
         canvas.text(label, bx + (boxW - canvas.measure(label, 'bold', SMALL)) / 2, y + 4, 'bold', SMALL, COLORS.zoneStrong[zone])
-        const dieW = ICON + 3 + canvas.measure(dice[zone], 'bold', BODY)
-        drawDie(canvas, dice[zone], bx + (boxW + dieW) / 2, y + 19)
+        drawDie(canvas, dice[zone], bx + (boxW + ICON) / 2, y + 17)
       })
     },
   }
@@ -521,10 +527,28 @@ function placeAbilities(layout: Layout, sheet: HeroSheet) {
     rows.slice(1).forEach((r) => layout.place(r, 0, continued))
     layout.place(spacer(4), 0)
   })
-  layout.place(keepTogether(zoneBar(canvas, 'Out', COLORS.text, COLORS.zone.out), abilityRowText(canvas, sheet.outAbility ?? 'Choose a personality.', COLORS.zone.out)))
+  layout.place(keepTogether(zoneBar(canvas, 'Out', COLORS.text, COLORS.zone.out), sheet.outAbility ? outRow(canvas, sheet.outAbility) : abilityRowText(canvas, 'Choose a personality.', COLORS.zone.out)))
 }
 
-/** A plain text row in a band, for the Out ability and empty bands. */
+/** The Out ability's row: its effects' icons (two to a row), then its text with inline action icons. */
+function outRow(canvas: Canvas, text: string): Block {
+  const EFFECT = 12
+  const effects = abilityEffects(text)
+  const iconsW = effects.length ? 2 * (EFFECT + 2) + 4 : 0
+  const measure = richMeasure(canvas)
+  const lines = (w: number) => wrap(canvas, markEffects(text), 'regular', BODY, w - 2 * PAD - iconsW, measure)
+  const iconsH = Math.ceil(effects.length / 2) * (EFFECT + 2)
+  return {
+    height: (w) => Math.max(lines(w).length * LINE, iconsH) + 8,
+    draw: (x, y, w, h) => {
+      canvas.rect(x, y, w, h, { fill: COLORS.zone.out, stroke: COLORS.border, lineWidth: 0.5 })
+      effects.forEach((effect, i) => canvas.icon(`action/${effect}`, x + PAD + (i % 2) * (EFFECT + 2), y + 4 + Math.floor(i / 2) * (EFFECT + 2), EFFECT))
+      lines(w).forEach((line, i) => drawRich(canvas, line, x + PAD + iconsW, y + 4 + i * LINE, 'regular', BODY, COLORS.text))
+    },
+  }
+}
+
+/** A plain text row in a band, for empty bands and an Out ability not chosen yet. */
 function abilityRowText(canvas: Canvas, text: string, fill: string): Block {
   const lines = (w: number) => wrap(canvas, text, 'regular', BODY, w - 2 * PAD)
   return {

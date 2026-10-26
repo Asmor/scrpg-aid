@@ -28,6 +28,7 @@ describe('heroHtml', () => {
     expect(imgs.length).toBeGreaterThan(0)
     for (const img of imgs) expect(img.getAttribute('src')).toMatch(/^data:image\/png;base64,/)
     expect(sheet.querySelector('img[alt="Attack"]')).not.toBeNull()
+    expect(sheet.querySelector('img[alt="d12"]')).not.toBeNull()
     expect(doc.querySelectorAll('link, iframe, script:not([type="application/json"])')).toHaveLength(0)
   })
 

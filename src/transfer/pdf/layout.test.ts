@@ -73,6 +73,8 @@ describe('markEffects', () => {
   it('puts an icon marker before each effect word', () => {
     expect(markEffects('Attack using Fire. Hinder that same target using your Min die.')).toBe('\ue000Attack using Fire. \ue003Hinder that same target using your Min die.')
     expect(markEffects('When you are hit with an Attack, change forms.')).toBe('When you are hit with an Attack, change forms.')
+    // Die sizes become die markers.
+    expect(markEffects('Gain a d8 minion; roll a d12.')).toBe('Gain a \ue012 minion; roll a \ue014.')
   })
 
   it('wraps marked text with room for the icons', () => {
@@ -91,6 +93,14 @@ describe('layoutHero', () => {
     }
     // A die icon beside every power and quality, and each status die.
     expect(c.icons.filter((i) => i.name.startsWith('die/'))).toHaveLength(5 + 3 + 3)
+    // The Out ability ("Boost an ally by rolling your single Fitness die.") shows its Boost icon in
+    // its effects column, left of the text, as well as inline.
+    const out = c.texts.find((t) => t.text.includes('an ally by rolling your single Fitness die'))!
+    const outBoosts = c.icons.filter((i) => i.name === 'action/boost' && i.page === out.page && Math.abs(i.y - out.y) < 6)
+    expect(outBoosts).toHaveLength(2)
+    expect(Math.min(...outBoosts.map((i) => i.x))).toBeLessThan(out.x - 14)
+    // Dice are icons alone: no die size is written out.
+    expect(text).not.toMatch(/\bd(4|6|8|10|12)\b/)
     // Inflict ("Attack using Fire. Hinder that same target using your Min die.") shows its
     // effects under its badge and before each effect word.
     const actions = c.icons.filter((i) => i.name.startsWith('action/')).map((i) => i.name)
@@ -197,6 +207,25 @@ describe('layoutHero', () => {
     expect(text).toContain('Line 120.')
     expect(text).toContain('Note 90.')
     for (const t of c.texts.filter((t) => !t.text.includes(' · page '))) expect(t.y + t.size).toBeLessThanOrEqual(792 - 36 - 14 + 0.01)
+  })
+
+  it('draws punctuation next to a die icon as text', () => {
+    const hero = exampleHero({ id: 'x' })
+    hero.background!.principle = { id: 'custom', custom: { category: 'identity', name: 'Dice', roleplaying: 'r', minorTwist: 'm', majorTwist: 'M', greenAbility: { name: 'Dice', text: 'Overcome using your Max die. Then roll a d6.' } } }
+    const c = laidOut(hero)
+    expect(c.icons.map((i) => i.name).filter((n) => n.includes('undefined'))).toEqual([])
+    // The "." after the die is drawn on its own, after the die icon.
+    const d6 = c.icons.find((i) => i.name === 'die/d6')!
+    expect(c.texts.some((t) => t.text === '.' && t.page === d6.page && t.x > d6.x)).toBe(true)
+  })
+
+  it('draws die sizes in ability text as die icons', () => {
+    const hero = exampleHero({ id: 'x' })
+    hero.background!.principle = { id: 'custom', custom: { category: 'identity', name: 'Dice', roleplaying: 'r', minorTwist: 'm', majorTwist: 'M', greenAbility: { name: 'Dice', text: 'Overcome using your Max die. Then roll a d6 and a d12.' } } }
+    const c = laidOut(hero)
+    expect(allText(c)).not.toMatch(/\bd(4|6|8|10|12)\b/)
+    expect(allText(c)).toContain('Then roll a')
+    expect(c.icons.filter((i) => i.name === 'die/d6' || i.name === 'die/d12').length).toBeGreaterThanOrEqual(2)
   })
 
   it('includes advancement', () => {

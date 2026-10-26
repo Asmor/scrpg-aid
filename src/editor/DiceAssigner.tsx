@@ -60,7 +60,6 @@ export function DiceAssigner({ hero, legend, dice, assignments, options, earlier
           <div key={i} className="dice-assigner__row">
             <label htmlFor={selectId} className="die">
               <DieIcon die={row.die} />
-              {row.die}
               {/* Tells apart dice of the same size, e.g. "d6 #2". */}
               {/* The spaces sit outside the spans so they're kept in the accessible name. */}
               {all.filter((d) => d === row.die).length > 1 && (
@@ -100,7 +99,7 @@ export function DiceAssigner({ hero, legend, dice, assignments, options, earlier
                   checked={Boolean(current.upgrades)}
                   onChange={(e) => assign(i, current.trait, e.target.checked)}
                 />
-                {canSwap(had.trait) ? 'Swap this die onto' : 'Upgrade'} my {getTrait(had.trait)?.name ?? had.name} ({had.die})
+                {canSwap(had.trait) ? 'Swap this die onto' : 'Upgrade'} my {getTrait(had.trait)?.name ?? had.name} (<DieIcon die={had.die} />)
               </label>
             )}
           </div>

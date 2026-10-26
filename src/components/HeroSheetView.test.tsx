@@ -5,6 +5,7 @@ import { exampleHero } from '../hero/example'
 import { createHero } from '../hero/model'
 import { dividedHero, formChangerHero, minionMakerHero, modularHero } from '../test/heroes'
 import { HeroSheetView } from './HeroSheetView'
+import { readable } from '../test/readable'
 
 describe('HeroSheetView', () => {
   it('shows a complete hero’s sheet', () => {
@@ -17,7 +18,10 @@ describe('HeroSheetView', () => {
 
     // Powers, biggest die first.
     const powers = within(screen.getByRole('region', { name: 'Powers' })).getAllByRole('row').slice(1)
-    expect(powers.map((r) => r.textContent)).toEqual(['Speedd12', 'Agilityd10', 'Awarenessd8', 'Fired8', 'Flightd6'])
+    expect(powers.map((r) => [...r.querySelectorAll('td')].map(readable).join(' '))).toEqual(['Speed d12', 'Agility d10', 'Awareness d8', 'Fire d8', 'Flight d6'])
+    // Dice show as icons alone, named by their size.
+    expect(within(powers[0]!).queryByText('d12')).not.toBeInTheDocument()
+    expect(within(powers[0]!).getByRole('img', { name: 'd12' })).toHaveAttribute('src', '/icons/die/d12.png')
 
     // Health and its ranges.
     const health = screen.getByRole('region', { name: 'Health' })
@@ -29,7 +33,11 @@ describe('HeroSheetView', () => {
     expect(green.at(-1)).toHaveTextContent(/Principle of/)
     expect(within(screen.getByRole('region', { name: 'Yellow abilities' })).getByText('Speedy Analysis')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Red abilities' })).getByText('Paragon Feat')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Out ability' })).getByText(/Fitness/)).toBeInTheDocument()
+    const out = screen.getByRole('region', { name: 'Out ability' })
+    expect(within(out).getByText(/Fitness/)).toBeInTheDocument()
+    // Its effect's icon comes first, and again before the effect word.
+    expect(within(out).getByRole('img', { name: 'Boost' })).toBeInTheDocument()
+    expect(out.querySelectorAll('img[src="/icons/action/boost.png"]')).toHaveLength(2)
 
     // Filled-in blanks, and action types spelled out for screen readers.
     expect(green[0]).not.toHaveTextContent('[')

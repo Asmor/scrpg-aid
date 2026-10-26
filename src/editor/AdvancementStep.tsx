@@ -3,13 +3,14 @@
  * the changes made between them. The changes apply on top of the creation choices, which stay
  * as they were made, so each new change works from the hero as they are now.
  */
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { parseTraitKey, traitKey, type TraitRef } from '../rules/catalog'
 import type { AbilityPick, Advancement, AdvancementChange, Hero, PrincipleChoice } from '../hero/model'
 import { abilitySwapOptions, advancedHero, BACK_ISSUES_PER_COLLECTION, describeChange, swappablePicks, traitSwapOptions } from '../creation/advancement'
 import { deriveTraits, ROLEPLAYING_QUALITY, traitLabel } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
 import { PrinciplePicker } from './PrinciplePicker'
+import { DieIcon } from '../components/icons'
 
 type Update = (change: (draft: Hero) => void) => void
 
@@ -22,7 +23,7 @@ const CHANGE_KINDS: readonly { kind: AdvancementChange['kind']; label: string }[
   { kind: 'swapAbility', label: 'Swap an ability for another of the same color from the same list' },
 ]
 
-function Select({ label, value, options, onChange }: { label: string; value: string; options: readonly { value: string; text: string }[]; onChange: (value: string) => void }) {
+function Select({ label, value, options, onChange }: { label: ReactNode; value: string; options: readonly { value: string; text: string }[]; onChange: (value: string) => void }) {
   const id = useId()
   return (
     <label className="field" htmlFor={id}>
@@ -70,7 +71,15 @@ function NewChange({ hero, onAdd }: { hero: Hero; onAdd: (change: AdvancementCha
         <Select label={`Swap this ${traitKind}`} value={from} options={held.map((t) => ({ value: traitKey(t.trait), text: `${t.name} (${t.die})` }))} onChange={setFrom} />
         {traitKind === 'quality' && <p className="hint">To change your roleplaying quality, rename it in the personality step.</p>}
         <Select
-          label={old ? `For this one, at ${old.die}` : 'For this one'}
+          label={
+            old ? (
+              <>
+                For this one, at <DieIcon die={old.die} />
+              </>
+            ) : (
+              'For this one'
+            )
+          }
           value={to}
           options={traitSwapOptions(now, traitKind).map((t) => ({ value: traitKey(t), text: traitLabel(now, t) }))}
           onChange={setTo}

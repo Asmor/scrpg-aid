@@ -7,7 +7,7 @@ import { useId, useState, type ReactNode } from 'react'
 import { canReroll, checkManualResults, newRoll, reroll, rollDice, rolledOn, tableOptions, type RollRecord, type RollSource } from '../rules/rolling'
 import type { Die } from '../rules/types'
 import type { CreationMethod } from '../hero/model'
-import { DiceList } from '../components/icons'
+import { DiceList, DieIcon } from '../components/icons'
 
 interface Entry {
   id: string
@@ -71,7 +71,7 @@ function ManualRoll({ dice, label, onDone, onCancel }: { dice: readonly Die[]; l
         <div className="manual-roll__dice">
           {dice.map((die, i) => (
             <label key={i}>
-              {die} #{i + 1}
+              <DieIcon die={die} /> #{i + 1}
               <input
                 type="number"
                 inputMode="numeric"

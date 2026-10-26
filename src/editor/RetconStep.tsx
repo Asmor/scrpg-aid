@@ -3,7 +3,7 @@
  * one that isn't complete yet (two dice to swap, a trait to add, ...) is kept on screen until
  * it is, since a saved retcon is always a whole one.
  */
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { parseTraitKey, traitKey, traitsOfKind, type TraitRef } from '../rules/catalog'
 import { retcons, retconStep } from '../rules/data'
 import { formatEntryRef } from '../rules/books'
@@ -15,11 +15,12 @@ import { deriveTraits, traitLabel, type HeroTrait } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
 import { PrinciplePicker } from './PrinciplePicker'
 import { RedAbilityLists } from './RedAbilitiesStep'
+import { DiceText, DieIcon } from '../components/icons'
 
 type Update = (change: (draft: Hero) => void) => void
 
 /** A select of traits, by "kind:id". */
-function TraitField({ hero, label, options, value, onChange }: { hero: Hero; label: string; options: readonly { trait: TraitRef; text: string }[]; value: TraitRef | undefined; onChange: (t: TraitRef | undefined) => void }) {
+function TraitField({ hero, label, options, value, onChange }: { hero: Hero; label: ReactNode; options: readonly { trait: TraitRef; text: string }[]; value: TraitRef | undefined; onChange: (t: TraitRef | undefined) => void }) {
   const id = useId()
   const offList = value && !options.some((o) => traitKey(o.trait) === traitKey(value))
   return (
@@ -203,7 +204,9 @@ export function RetconStep({ hero, update }: { hero: Hero; update: Update }) {
             <label key={r.id} className="choice">
               <input type="radio" name={name} checked={r.id === selectedId} onChange={() => choose(r)} />
               <span className="choice__body">
-                <span className="choice__title">{r.summary}</span>
+                <span className="choice__title">
+                  <DiceText text={r.summary} />
+                </span>
                 {reason && <span className="choice__detail">{reason}</span>}
               </span>
             </label>
@@ -244,7 +247,11 @@ export function RetconStep({ hero, update }: { hero: Hero; update: Update }) {
       {retcon?.kind === 'gainPowerOrQuality' && (
         <TraitField
           hero={hero}
-          label={`Gain at ${retcon.die}`}
+          label={
+            <>
+              Gain at <DieIcon die={retcon.die} />
+            </>
+          }
           options={[...traitsOfKind('power'), ...traitsOfKind('quality')]
             .filter((t) => !before.some((b) => traitKey(b.trait) === traitKey(t)))
             .map((t) => ({ trait: { kind: t.kind, id: t.id }, text: `${traitLabel(hero, t)} (${t.kind})` }))}

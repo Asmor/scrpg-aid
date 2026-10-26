@@ -13,7 +13,7 @@ import { traitsInAnyForm } from '../creation/divided'
 import { healthTraitOptions, healthTraitTerm } from '../creation/health'
 import { buildSheet } from '../creation/sheet'
 import { deriveTraits, traitLabel } from '../creation/traits'
-import { DieLabel } from '../components/icons'
+import { DiceText, DieIcon } from '../components/icons'
 
 type Update = (change: (draft: Hero) => void) => void
 
@@ -35,7 +35,9 @@ function ManualHealthRoll({ onDone, onCancel }: { onDone: (result: number) => vo
       }}
     >
       <label className="field" htmlFor={id}>
-        <span>Your {die} roll</span>
+        <span>
+          Your <DieIcon die={die} /> roll
+        </span>
         <input id={id} type="number" inputMode="numeric" min={1} max={Number(die.slice(1))} value={value} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined} onChange={(e) => setValue(e.target.value)} />
       </label>
       {error && (
@@ -75,7 +77,7 @@ export function HealthStep({ hero, update, random }: { hero: Hero; update: Updat
   return (
     <div className="step-form">
       <p className="hint">
-        {healthFormula.summary} <span className="page-ref">{formatEntryRef(healthStep)}</span>
+        <DiceText text={healthFormula.summary} /> <span className="page-ref">{formatEntryRef(healthStep)}</span>
       </p>
 
       {options.length === 0 && <p className="hint">You have no power or quality that can add to Health, so you use {term?.fallbackDie ?? 'the fallback die'}.</p>}
@@ -110,7 +112,7 @@ export function HealthStep({ hero, update, random }: { hero: Hero; update: Updat
           <input type="radio" name={`${id}-mode`} checked={choice?.mode === 'roll'} onChange={() => set({ mode: 'roll' })} />
           <span className="choice__body">
             <span className="choice__title">
-              Roll <DieLabel die={roll.die} />
+              Roll <DieIcon die={roll.die} />
             </span>
           </span>
         </label>
@@ -167,7 +169,7 @@ export function HealthStep({ hero, update, random }: { hero: Hero; update: Updat
                 })
               }
             >
-              Roll {roll.die}
+              Roll <DieIcon die={roll.die} />
             </button>
             <button type="button" className="button" onClick={() => setManual(true)}>
               Enter my own roll

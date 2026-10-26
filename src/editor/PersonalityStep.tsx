@@ -18,6 +18,7 @@ import { deriveTraits, ROLEPLAYING_QUALITY, traitsBefore } from '../creation/tra
 import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
 import { TablePicker } from './TablePicker'
+import { DiceText, DieIcon } from '../components/icons'
 
 type Update = (change: (draft: Hero) => void) => void
 
@@ -156,7 +157,9 @@ export function PersonalityStep({ hero, update }: { hero: Hero; update: Update }
       {choice && personality && (
         <>
           <label className="field" htmlFor={`${id}-rp`}>
-            <span>Roleplaying quality ({personalityStep.roleplayingQuality.die})</span>
+            <span>
+              Roleplaying quality (<DieIcon die={personalityStep.roleplayingQuality.die} />)
+            </span>
             <input
               id={`${id}-rp`}
               type="text"
@@ -170,7 +173,7 @@ export function PersonalityStep({ hero, update }: { hero: Hero; update: Update }
             />
           </label>
           <p className="hint">
-            {personalityStep.roleplayingQuality.summary} <span className="page-ref">{formatEntryRef(personalityStep.roleplayingQuality)}</span>
+            <DiceText text={personalityStep.roleplayingQuality.summary} /> <span className="page-ref">{formatEntryRef(personalityStep.roleplayingQuality)}</span>
           </p>
 
           <PersonalityBonus

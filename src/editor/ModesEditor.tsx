@@ -13,6 +13,7 @@ import { describeAdjustment, findMode, modeDieOptions, modeSlots, modeTraits, se
 import { traitLabel, type HeroTrait } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
 import { DiceAssigner } from './DiceAssigner'
+import { DiceText } from '../components/icons'
 
 const ZONE_NAME: Record<Zone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red' }
 
@@ -195,7 +196,7 @@ export function ModesEditor({ hero, ar, traits, modular, onChange }: { hero: Her
     <div className="modes-editor">
       <h4>Modes</h4>
       <p className="hint">
-        {spec.summary} Your default {ZONE_NAME[spec.default.zone]} mode: {spec.default.summary}
+        <DiceText text={`${spec.summary} Your default ${ZONE_NAME[spec.default.zone]} mode: ${spec.default.summary}`} />
       </p>
       {(['green', 'yellow', 'red'] as const).map((zone) =>
         modeSlots(hero, modes, zone, spec[zone].count).map((slot, i) => (
@@ -230,7 +231,9 @@ export function ModesEditor({ hero, ar, traits, modular, onChange }: { hero: Her
 
       <fieldset className="mode-card">
         <legend>Powerless mode</legend>
-        <p className="hint">{spec.powerless.summary}</p>
+        <p className="hint">
+          <DiceText text={spec.powerless.summary} />
+        </p>
         <label className="checkbox">
           <input
             type="checkbox"

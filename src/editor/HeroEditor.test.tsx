@@ -10,6 +10,7 @@ import { tableOptions } from '../rules/rolling'
 import { HeroEditor } from './HeroEditor'
 import { HealthStep } from './HealthStep'
 import { useHeroEditor } from './useHeroEditor'
+import { readable } from '../test/readable'
 
 /** The Health step with a fixed random number (the top of the die), for the in-app roll. */
 function HealthHarness() {
@@ -108,8 +109,8 @@ describe('HeroEditor', () => {
     })
     renderEditor(store, 'background')
     await userEvent.click(await screen.findByRole('radio', { name: /Upper Class/ }))
-    await userEvent.selectOptions(screen.getByLabelText('d10'), 'Fitness')
-    await userEvent.selectOptions(screen.getByLabelText('d8'), 'Persuasion')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'd10' }), 'Fitness')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'd8' }), 'Persuasion')
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Principle of Responsibility' }), 'Principle of Business')
     expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
     await waitFor(async () =>
@@ -130,11 +131,13 @@ describe('HeroEditor', () => {
     expect(await screen.findByRole('button', { name: 'Roll d10 and d10' })).toBeInTheDocument()
     // Typed-in rolls: a d10's 0 counts as 10.
     await userEvent.click(screen.getByRole('button', { name: 'Enter my own roll' }))
+    // Each input is named by its die's icon and number.
+    expect(screen.getByRole('spinbutton', { name: 'd10 #2' })).toBeInTheDocument()
     const [first, second] = screen.getAllByRole('spinbutton')
     await userEvent.type(first!, '1')
     await userEvent.type(second!, '0')
     await userEvent.click(screen.getByRole('button', { name: 'Use these results' }))
-    expect(screen.getByText(/You rolled/)).toHaveTextContent('You rolled 1 and 10 on d10 and d10 (typed in).')
+    expect(readable(screen.getByText(/You rolled/))).toContain('You rolled 1 and 10 on d10 and d10 (typed in).')
 
     const reachable = tableOptions(backgrounds, [1, 10]).map((o) => o.entry.name)
     const radios = backgroundRadios().map((r) => r.closest('label')!.textContent)
@@ -175,7 +178,7 @@ describe('HeroEditor', () => {
     expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('radio', { name: /Adventurer/ }))
     // Persuasion isn't on Adventurer's list, but it's kept and offered as the current choice.
-    expect(screen.getByLabelText('d8')).toHaveDisplayValue('Persuasion (not on this list)')
+    expect(screen.getByRole('combobox', { name: 'd8' })).toHaveDisplayValue('Persuasion (not on this list)')
     expect(screen.getByRole('region', { name: 'Rule issues in this step' })).toBeInTheDocument()
     await waitFor(async () =>
       expect((await saved(store)).background).toEqual({
@@ -223,7 +226,7 @@ describe('HeroEditor', () => {
       }),
       'background',
     )
-    expect(await screen.findByLabelText('d8')).toBeInTheDocument()
+    expect(await screen.findByRole('combobox', { name: 'd8' })).toBeInTheDocument()
     // The number is part of what a screen reader announces, with its space.
     expect(screen.getByRole('combobox', { name: 'd6 #1' })).not.toBe(screen.getByRole('combobox', { name: 'd6 #2' }))
   })
@@ -270,9 +273,9 @@ describe('HeroEditor', () => {
     })
     renderEditor(store, 'power-source')
     await userEvent.click(await screen.findByRole('radio', { name: /Mystical/ }))
-    await userEvent.selectOptions(screen.getByLabelText('d10'), 'Flight')
-    await userEvent.selectOptions(screen.getByLabelText('d8 #1'), 'Awareness')
-    await userEvent.selectOptions(screen.getByLabelText('d8 #2'), 'Teleportation')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'd10' }), 'Flight')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'd8 #1' }), 'Awareness')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'd8 #2' }), 'Teleportation')
 
     await userEvent.click(screen.getByRole('checkbox', { name: /Modification Wave/ }))
     await userEvent.click(screen.getByRole('checkbox', { name: /Sever Link/ }))
@@ -335,7 +338,7 @@ describe('HeroEditor', () => {
       h.pendingRolls = { powerSource: { dice: ['d10', 'd8', 'd8'], results: [1, 2, 3], manual: false, rerolled: true } }
     })
     renderEditor(store, 'power-source')
-    expect(await screen.findByRole('alert')).toHaveTextContent("You rolled 1, 2 and 3 on d10, d8 and d8, but this step's dice are now d10 and d8")
+    expect(readable(await screen.findByRole('alert'))).toContain("You rolled 1, 2 and 3 on d10, d8 and d8, but this step's dice are now d10 and d8")
     // The old roll no longer offers entries.
     expect(screen.queryAllByRole('radio')).toHaveLength(0)
     await userEvent.click(screen.getByRole('button', { name: 'Enter my own roll' }))
@@ -344,7 +347,7 @@ describe('HeroEditor', () => {
     await userEvent.type(inputs[0]!, '4')
     await userEvent.type(inputs[1]!, '5')
     await userEvent.click(screen.getByRole('button', { name: 'Use these results' }))
-    expect(screen.getByText(/You rolled/)).toHaveTextContent('You rolled 4 and 5 on d10 and d8 (typed in).')
+    expect(readable(screen.getByText(/You rolled/))).toContain('You rolled 4 and 5 on d10 and d8 (typed in).')
     expect(screen.getByRole('button', { name: 'Reroll' })).toBeInTheDocument()
     await waitFor(async () => expect((await saved(store)).pendingRolls?.powerSource).toEqual({ dice: ['d10', 'd8'], results: [4, 5], manual: true }))
   })
@@ -501,7 +504,7 @@ describe('HeroEditor', () => {
     renderEditor(store, 'archetype')
     const group = await screen.findByRole('group', { name: 'Minion forms' })
     await userEvent.selectOptions(within(group).getByRole('combobox', { name: 'Quality that sets how many' }), 'Creativity (d6)')
-    expect(within(group).getByText('Choose 6 (your Creativity is d6); you have 0.')).toBeInTheDocument()
+    expect(readable(within(group).getByText(/^Choose 6/))).toBe('Choose 6 (your Creativity is d6); you have 0.')
     await userEvent.click(within(group).getByRole('checkbox', { name: /Floating/ }))
     await waitFor(async () => expect((await saved(store)).archetype?.minionForms).toEqual({ quality: Q('creativity'), forms: ['Floating'] }))
   })
@@ -703,7 +706,7 @@ describe('HeroEditor', () => {
     })
     renderEditor(store, 'personality')
     await userEvent.click(await screen.findByRole('radio', { name: /Lone Wolf/ }))
-    await userEvent.type(screen.getByLabelText('Roleplaying quality (d8)'), 'Old Money')
+    await userEvent.type(screen.getByRole('textbox', { name: 'Roleplaying quality (d8)' }), 'Old Money')
     const out = screen.getByRole('group', { name: 'Out ability' })
     expect(within(out).queryByLabelText('Your name for it (optional)')).not.toBeInTheDocument()
     await userEvent.selectOptions(within(out).getByRole('combobox', { name: '[quality]' }), 'Fitness (d10)')
@@ -884,6 +887,10 @@ describe('HeroEditor', () => {
       const store = await noHealth()
       renderEditor(store, 'health')
       await userEvent.selectOptions(await screen.findByLabelText('Power or quality for Health'), 'Agility (d10)')
+      // The formula's dice show as icons.
+      const formula = screen.getByText(/Max Health = /)
+      expect(within(formula).getByRole('img', { name: 'd8' })).toBeInTheDocument()
+      expect(formula.textContent).not.toMatch(/\bd(4|8)\b/)
       await userEvent.click(screen.getByRole('radio', { name: 'Take 4' }))
       // 8 + Lone Wolf's d8 Red status die + Agility's d10 + 4.
       expect(await screen.findByText(/Max Health/, { selector: '.health-result' })).toHaveTextContent('Max Health 30')
@@ -929,11 +936,11 @@ describe('HeroEditor', () => {
       renderEditor(store, 'health')
       await userEvent.click(await screen.findByRole('radio', { name: 'Roll d8' }))
       await userEvent.click(screen.getByRole('button', { name: 'Enter my own roll' }))
-      await userEvent.type(screen.getByLabelText('Your d8 roll'), '9')
+      await userEvent.type(screen.getByRole('spinbutton', { name: 'Your d8 roll' }), '9')
       await userEvent.click(screen.getByRole('button', { name: 'Use this result' }))
       expect(screen.getByRole('alert')).toBeInTheDocument()
-      await userEvent.clear(screen.getByLabelText('Your d8 roll'))
-      await userEvent.type(screen.getByLabelText('Your d8 roll'), '5')
+      await userEvent.clear(screen.getByRole('spinbutton', { name: 'Your d8 roll' }))
+      await userEvent.type(screen.getByRole('spinbutton', { name: 'Your d8 roll' }), '5')
       await userEvent.click(screen.getByRole('button', { name: 'Use this result' }))
       expect(screen.getByText(/You rolled/)).toHaveTextContent('You rolled 5 (typed in).')
       expect(screen.getByRole('radio', { name: /Take 4/ })).toBeEnabled()
@@ -962,7 +969,7 @@ describe('HeroEditor', () => {
     await userEvent.selectOptions(screen.getByLabelText('Change'), 'Swap a power for another at the same die size')
     expect(screen.getByRole('button', { name: 'Add this change' })).toBeDisabled()
     await userEvent.selectOptions(screen.getByLabelText('Swap this power'), 'Fire (d8)')
-    await userEvent.selectOptions(screen.getByLabelText('For this one, at d8'), 'Cold')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'For this one, at d8' }), 'Cold')
     await userEvent.click(screen.getByRole('button', { name: 'Add this change' }))
     expect(screen.getByText(/Swapped Fire for Cold/)).toBeInTheDocument()
     expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()

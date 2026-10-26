@@ -14,6 +14,7 @@ import { categoryName, hasRedCategory, redPickSection, redSlotLimit } from '../c
 import { deriveTraits } from '../creation/traits'
 import type { StepId } from '../creation/warnings'
 import { AbilityPicker } from './AbilityPicker'
+import { DiceText } from '../components/icons'
 
 type Update = (change: (draft: Hero) => void) => void
 
@@ -70,7 +71,7 @@ export function RedAbilitiesStep({ hero, update }: { hero: Hero; update: Update 
   return (
     <div className="step-form">
       <p className="hint">
-        Choose {redAbilityStep.count}; you have {hero.redAbilities.length}. {redAbilityStep.rules} <span className="page-ref">{formatEntryRef(redAbilityStep)}</span>
+        Choose {redAbilityStep.count}; you have {hero.redAbilities.length}. <DiceText text={redAbilityStep.rules} /> <span className="page-ref">{formatEntryRef(redAbilityStep)}</span>
       </p>
       <RedAbilityLists
         hero={hero}
