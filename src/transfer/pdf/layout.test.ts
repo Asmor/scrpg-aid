@@ -229,6 +229,30 @@ describe('layoutHero', () => {
     expect(c.icons.filter((i) => i.name === 'die/d6' || i.name === 'die/d12').length).toBeGreaterThanOrEqual(2)
   })
 
+  it('puts Health beside Characteristics and Details, above the dice table', () => {
+    const find = (c: RecordingCanvas, text: string) => c.texts.find((t) => t.text === text)!
+    const chip = (c: RecordingCanvas, zone: string) => c.texts.find((t) => t.text.startsWith(`${zone} `) && /\d+–\d+$/.test(t.text))!
+    // With details: three columns, and in that narrow column the health ranges stack.
+    const c = laidOut()
+    const [characteristics, details, health] = ['Characteristics', 'Details', 'Health'].map((t) => find(c, t))
+    expect(details!.y).toBe(characteristics!.y)
+    expect(health!.y).toBe(characteristics!.y)
+    expect(characteristics!.x).toBeLessThan(details!.x)
+    expect(details!.x).toBeLessThan(health!.x)
+    expect(health!.y).toBeLessThan(find(c, 'Powers, qualities, and status').y)
+    const [g, y, r] = ['Green', 'Yellow', 'Red'].map((z) => chip(c, z))
+    expect(g!.y).toBeLessThan(y!.y)
+    expect(y!.y).toBeLessThan(r!.y)
+    // Without details: two columns, and the ranges sit three across.
+    const hero = exampleHero({ id: 'x' })
+    for (const f of ['age', 'build', 'costume'] as const) hero.details[f] = ''
+    const two = laidOut(hero)
+    expect(find(two, 'Health').y).toBe(find(two, 'Characteristics').y)
+    const across = ['Green', 'Yellow', 'Red'].map((z) => chip(two, z))
+    expect(new Set(across.map((t) => t.y)).size).toBe(1)
+    expect(across[0]!.x).toBeLessThan(across[1]!.x)
+  })
+
   it('includes advancement', () => {
     const hero = exampleHero({ id: 'x' })
     hero.advancement = { backIssues: 3, collections: [{ name: 'Origins', notes: 'First arc' }], changes: [] }

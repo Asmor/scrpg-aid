@@ -31,8 +31,9 @@ describe('HeroSheetView', () => {
     expect(within(powers[0]!).queryByText('d12')).not.toBeInTheDocument()
     expect(within(powers[0]!).getByRole('img', { name: 'd12' })).toHaveAttribute('src', '/icons/die/d12.png')
 
-    // Health and its ranges.
+    // Health and its ranges, up beside the details, before the dice table.
     const health = screen.getByRole('region', { name: 'Health' })
+    expect(health.compareDocumentPosition(screen.getByRole('region', { name: 'Powers, qualities, and status' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(health).getByText('30')).toBeInTheDocument()
 
     // Abilities sit in their zone bands; principle abilities end the Green band.

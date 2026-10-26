@@ -330,9 +330,6 @@ export function HeroSheetView({ hero, warnings = true }: { hero: Hero; warnings?
           </Panel>
         )}
 
-        <Panel title="Powers, qualities, and status" className="sheet-dice">
-          <DiceTable sheet={sheet} />
-        </Panel>
         <Panel title="Health">
           {sheet.maxHealth !== undefined ? (
             <>
@@ -352,6 +349,9 @@ export function HeroSheetView({ hero, warnings = true }: { hero: Hero; warnings?
           ) : (
             <p className="sheet-empty">Not worked out yet.</p>
           )}
+        </Panel>
+        <Panel title="Powers, qualities, and status" className="sheet-dice">
+          <DiceTable sheet={sheet} />
         </Panel>
       </div>
 

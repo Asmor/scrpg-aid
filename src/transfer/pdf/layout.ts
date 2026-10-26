@@ -362,7 +362,7 @@ function fieldLines(canvas: Canvas, lines: readonly FieldLine[], labelWidth: num
 
 /** "Label: value" rows, the label in bold; a long label wraps in its column, and long values can run onto the next page. */
 function fields(canvas: Canvas, rows: readonly (readonly [string, string])[]): Block {
-  const labelWidth = (w: number) => Math.min(w * 0.38, Math.max(...rows.map(([l]) => canvas.measure(`${l}:`, 'bold', BODY))) + 6)
+  const labelWidth = (w: number) => Math.min(w * 0.5, Math.max(...rows.map(([l]) => canvas.measure(`${l}:`, 'bold', BODY))) + 6)
   const lines = (w: number): FieldLine[] =>
     rows.flatMap(([label, value]) => {
       const ls = wrap(canvas, `${label}:`, 'bold', BODY, labelWidth(w) - 6)
@@ -471,15 +471,20 @@ function health(canvas: Canvas, sheet: HeroSheet): Block {
   const ranges = sheet.healthRanges
   const max = paragraph(canvas, `Max Health ${sheet.maxHealth}`, { font: 'bold', size: 12 })
   if (!ranges) return max
+  // Three across when there's room; stacked in a narrow column.
+  const across = (w: number) => w >= 220
   const chips: Block = {
-    height: () => 22,
+    height: (w) => (across(w) ? 22 : 3 * 18 + 2 * 4),
     draw: (x, y, w) => {
-      const chipW = (w - 2 * 6) / 3
+      const wide = across(w)
+      const chipW = wide ? (w - 2 * 6) / 3 : w
       ZONES.forEach((zone, i) => {
-        const cx = x + i * (chipW + 6)
-        canvas.rect(cx, y, chipW, 22, { fill: COLORS.zone[zone], stroke: COLORS.border, lineWidth: 1 })
+        const cx = wide ? x + i * (chipW + 6) : x
+        const cy = wide ? y : y + i * 22
+        const ch = wide ? 22 : 18
+        canvas.rect(cx, cy, chipW, ch, { fill: COLORS.zone[zone], stroke: COLORS.border, lineWidth: 1 })
         const label = `${ZONE_LABEL[zone]} ${ranges[zone][0]}–${ranges[zone][1]}`
-        canvas.text(label, cx + (chipW - canvas.measure(label, 'bold', SMALL)) / 2, y + 7, 'bold', SMALL, COLORS.zoneStrong[zone])
+        canvas.text(label, cx + (chipW - canvas.measure(label, 'bold', SMALL)) / 2, cy + (ch - SMALL) / 2, 'bold', SMALL, COLORS.zoneStrong[zone])
       })
     },
   }
@@ -653,10 +658,13 @@ export function layoutHero(canvas: Canvas, hero: Hero): void {
     ['Personality', c.personality ?? '—'],
   ]))
   const details = DETAIL_FIELDS.filter((f) => f !== 'name' && f !== 'alias' && f !== 'player' && hero.details[f].trim())
-  layout.place(details.length ? columns([characteristics, panel(canvas, 'Details', fields(canvas, details.map((f) => [DETAIL_LABEL[f], hero.details[f].trim()] as const)))]) : characteristics)
+  // Health sits beside the characteristics and details, as on the on-screen sheet.
+  const healthPanel = panel(canvas, 'Health', health(canvas, sheet))
+  layout.place(
+    columns(details.length ? [characteristics, panel(canvas, 'Details', fields(canvas, details.map((f) => [DETAIL_LABEL[f], hero.details[f].trim()] as const))), healthPanel] : [characteristics, healthPanel]),
+  )
 
   layout.place(panel(canvas, 'Powers, qualities, and status', diceTable(canvas, sheet)))
-  layout.place(panel(canvas, 'Health', health(canvas, sheet)))
 
   const principles = sheet.principles.map((p) =>
     panel(canvas, p.name, fields(canvas, [
