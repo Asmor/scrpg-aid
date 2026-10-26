@@ -8,6 +8,20 @@ import { defaultPageSize, type PageSize } from '../transfer/pdf/page-size'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
+/**
+ * What to tell the player when a PDF fails. The PDF maker isn't cached up front, so its
+ * first download needs a connection; and after an update, a page still running the old
+ * version asks for files that are gone, until the update is accepted or the page reloaded.
+ */
+function pdfErrorText(e: unknown): string {
+  if (e instanceof Error && e.name === 'PdfDownloadError') {
+    return navigator.onLine
+      ? "Couldn't make the PDF: part of the PDF maker couldn't be downloaded. If the app offers an update, accept it (or reload the page), then try again."
+      : "Couldn't make the PDF: you're offline, and the PDF maker downloads the first time it's used. Connect to the internet and try again."
+  }
+  return `Couldn't make the PDF: ${errorText(e)}`
+}
+
 export function ExportMenu({ hero }: { hero: Hero }) {
   const id = useId()
   const [error, setError] = useState<string | null>(null)
@@ -17,11 +31,13 @@ export function ExportMenu({ hero }: { hero: Hero }) {
     setMakingPdf(true)
     setError(null)
     try {
-      // pdf-lib, the fonts and the icons are only loaded when a PDF is made.
-      const { exportPdf } = await import('../transfer/pdf')
+      // pdf-lib, the fonts and the icons are only downloaded when a PDF is made (then cached).
+      const { exportPdf } = await import('../transfer/pdf').catch((e: unknown) => {
+        throw Object.assign(e instanceof Error ? e : new Error(String(e)), { name: 'PdfDownloadError' })
+      })
       downloadFile(heroFileName(hero, 'pdf'), await exportPdf(hero, pageSize), 'application/pdf')
     } catch (e) {
-      setError(`Couldn't make the PDF: ${errorText(e)}`)
+      setError(pdfErrorText(e))
     } finally {
       setMakingPdf(false)
     }

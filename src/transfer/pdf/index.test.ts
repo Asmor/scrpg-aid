@@ -30,6 +30,8 @@ describe('exportPdf', () => {
 
   it('says which file couldn’t be loaded', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })))
-    await expect(exportPdf(exampleHero({ id: 'x' }), 'letter')).rejects.toThrow(/couldn't load .* \(404\)/)
+    await expect(exportPdf(exampleHero({ id: 'x' }), 'letter')).rejects.toMatchObject({ name: 'PdfDownloadError', message: expect.stringMatching(/couldn't load .* \(404\)/) })
+    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('Failed to fetch'))))
+    await expect(exportPdf(exampleHero({ id: 'x' }), 'letter')).rejects.toMatchObject({ name: 'PdfDownloadError', message: expect.stringContaining('Failed to fetch') })
   })
 })

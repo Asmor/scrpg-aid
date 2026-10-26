@@ -112,4 +112,25 @@ describe('HeroPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Download PDF' }))
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't make the PDF: font missing")
   })
+
+  it('explains a PDF maker that couldn’t be downloaded: offline, or after an update', async () => {
+    const downloadError = () => Object.assign(new Error("couldn't load /assets/font.ttf (404)"), { name: 'PdfDownloadError' })
+    const online = vi.spyOn(navigator, 'onLine', 'get')
+    try {
+      online.mockReturnValue(false)
+      vi.mocked(exportPdf).mockRejectedValueOnce(downloadError())
+      const view = renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
+      await userEvent.click(await screen.findByRole('button', { name: 'Download PDF' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent("you're offline, and the PDF maker downloads the first time it's used")
+      view.unmount()
+
+      online.mockReturnValue(true)
+      vi.mocked(exportPdf).mockRejectedValueOnce(downloadError())
+      renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
+      await userEvent.click(await screen.findByRole('button', { name: 'Download PDF' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent('If the app offers an update, accept it (or reload the page), then try again.')
+    } finally {
+      online.mockRestore()
+    }
+  })
 })

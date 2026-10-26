@@ -13,9 +13,22 @@ import { heroPdf, type PdfAssets } from './render'
 
 const DICE: readonly Die[] = ['d4', 'd6', 'd8', 'd10', 'd12']
 
+/**
+ * A part of the PDF maker that couldn't be downloaded (offline, or gone after the app was
+ * updated). The menu tells it apart by `name`, without loading this module up front.
+ */
+export class PdfDownloadError extends Error {
+  override name = 'PdfDownloadError'
+}
+
 async function bytes(url: string): Promise<Uint8Array> {
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`couldn't load ${url} (${response.status})`)
+  let response: Response
+  try {
+    response = await fetch(url)
+  } catch (e) {
+    throw new PdfDownloadError(`couldn't load ${url} (${e instanceof Error ? e.message : String(e)})`)
+  }
+  if (!response.ok) throw new PdfDownloadError(`couldn't load ${url} (${response.status})`)
   return new Uint8Array(await response.arrayBuffer())
 }
 

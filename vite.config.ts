@@ -31,7 +31,19 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,json,woff2,ttf}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,json,woff2}'],
+        // The PDF export's code (the dynamically imported src/transfer/pdf chunk, named pdf-*.js)
+        // and its fonts (~3 MB) aren't precached for everyone: they're cached the first time a
+        // PDF is made, and from then on work offline. Their names carry a content hash, so
+        // cache-first is safe; old versions age out.
+        globIgnores: ['**/assets/pdf-*.js'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => /\/assets\/(pdf-[^/]*\.js|[^/]*\.ttf)$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: { cacheName: 'pdf-export', expiration: { maxEntries: 8 } },
+          },
+        ],
       },
     }),
   ],
