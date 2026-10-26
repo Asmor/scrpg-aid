@@ -244,6 +244,43 @@ a {
   color: var(--color-danger);
 }
 
+/* Export and import */
+.export-menu {
+  margin-top: var(--space);
+}
+
+.export-menu h3 {
+  margin: 0 0 0.5rem;
+}
+
+.import-control {
+  margin-top: var(--space);
+}
+
+.import-control > [role='status']:empty {
+  margin: 0;
+}
+
+.import-conflicts {
+  margin: var(--space) 0 0;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  padding: 0.75rem var(--space);
+}
+
+.import-conflict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 1rem;
+}
+
+.import-conflict__name {
+  flex: 1 1 100%;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 /* Hero list */
 .hero-list__header {
   display: flex;

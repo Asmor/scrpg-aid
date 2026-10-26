@@ -6,6 +6,9 @@ import { archetypeName } from '../creation/layers'
 import { exampleHero } from '../hero/example'
 import { createHero, heroDisplayName, type Hero } from '../hero/model'
 import type { HeroList as Heroes } from '../hero/store'
+import { downloadFile } from '../transfer/download'
+import { backupFileName, backupJson } from '../transfer/files'
+import { ImportControl } from './ImportControl'
 
 type State = { status: 'loading' } | { status: 'ready'; list: Heroes } | { status: 'error'; message: string }
 
@@ -55,6 +58,8 @@ export function HeroList() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // An import is saving; other changes wait for it.
+  const [importing, setImporting] = useState(false)
   // Bumped to reload the list after a change.
   const [version, setVersion] = useState(0)
   // Applied (and cleared) after the next render that has its target.
@@ -129,7 +134,7 @@ export function HeroList() {
       id={id}
       label={label}
       confirming={confirming === id}
-      busy={busy}
+      busy={busy || importing}
       onAsk={() => {
         setConfirming(id)
         setFocus({ to: 'keep' })
@@ -152,13 +157,13 @@ export function HeroList() {
           Your heroes
         </h2>
         <div className="button-row">
-          <button type="button" className="button button--primary" disabled={busy || loading} onClick={() => {
+          <button type="button" className="button button--primary" disabled={busy || importing || loading} onClick={() => {
               const hero = createHero('guided')
               void add(hero, editPath(hero.id, 'background'))
             }}>
             New hero
           </button>
-          <button type="button" className="button" disabled={busy || loading} onClick={() => {
+          <button type="button" className="button" disabled={busy || importing || loading} onClick={() => {
               const hero = exampleHero()
               void add(hero, heroPath(hero.id))
             }}>
@@ -166,6 +171,23 @@ export function HeroList() {
           </button>
         </div>
       </div>
+
+      <ImportControl
+        savedIds={new Set(state.status === 'ready' ? state.list.heroes.map((h) => h.id).concat(state.list.unreadable.map((u) => u.id)) : [])}
+        unreadableIds={new Set(state.status === 'ready' ? state.list.unreadable.map((u) => u.id) : [])}
+        disabled={busy || state.status !== 'ready'}
+        onBusyChange={setImporting}
+        onImported={() => setVersion((v) => v + 1)}
+      >
+        {state.status === 'ready' && state.list.heroes.length > 0 && (
+          <button type="button" className="button" disabled={busy || importing} onClick={() => downloadFile(backupFileName(), backupJson(state.list.heroes), 'application/json')}>
+            Back up all heroes
+          </button>
+        )}
+      </ImportControl>
+      {state.status === 'ready' && state.list.unreadable.length > 0 && state.list.heroes.length > 0 && (
+        <p className="hint">The backup leaves out heroes that couldn't be read.</p>
+      )}
 
       {actionError && (
         <p role="alert" className="error">

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { editPath, listPath } from '../app/route'
 import { useStore } from '../app/store-context'
 import type { GetResult } from '../hero/store'
+import { ExportMenu } from './ExportMenu'
 import { HeroSheetView } from './HeroSheetView'
 
 type State = { status: 'loading' } | GetResult | { status: 'error'; message: string }
@@ -32,7 +33,12 @@ export function HeroPage({ id }: { id: string }) {
       {state.status === 'missing' && <p role="alert">There's no saved hero with that link. It may have been deleted.</p>}
       {state.status === 'unreadable' && <p role="alert">This hero couldn't be read: {state.error}</p>}
       {state.status === 'error' && <p role="alert">Something went wrong loading this hero: {state.message}</p>}
-      {state.status === 'found' && <HeroSheetView hero={state.hero} />}
+      {state.status === 'found' && (
+        <>
+          <HeroSheetView hero={state.hero} />
+          <ExportMenu hero={state.hero} />
+        </>
+      )}
     </div>
   )
 }

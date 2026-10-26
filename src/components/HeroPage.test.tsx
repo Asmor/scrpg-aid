@@ -1,8 +1,14 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import { StoreContext } from '../app/store-context'
 import type { GetResult, HeroStore } from '../hero/store'
+import { exampleHero } from '../hero/example'
+import { readImport } from '../transfer/files'
+import { downloadFile } from '../transfer/download'
 import { HeroPage } from './HeroPage'
+
+vi.mock('../transfer/download', () => ({ downloadFile: vi.fn() }))
 
 const storeReturning = (get: () => Promise<GetResult>): HeroStore => ({
   list: async () => ({ heroes: [], unreadable: [] }),
@@ -37,5 +43,15 @@ describe('HeroPage', () => {
       }),
     )
     expect(await screen.findByRole('alert')).toHaveTextContent('database closed')
+  })
+
+  it('exports the hero as JSON that imports back', async () => {
+    const hero = exampleHero({ id: 'x' })
+    renderPage(storeReturning(async () => ({ status: 'found', hero })))
+    await userEvent.click(await screen.findByRole('button', { name: 'Download JSON' }))
+    const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
+    expect(name).toBe('maya-reyes.json')
+    expect(type).toBe('application/json')
+    expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], skipped: [] })
   })
 })
