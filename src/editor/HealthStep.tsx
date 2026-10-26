@@ -13,6 +13,7 @@ import { traitsInAnyForm } from '../creation/divided'
 import { healthTraitOptions, healthTraitTerm } from '../creation/health'
 import { buildSheet } from '../creation/sheet'
 import { deriveTraits, traitLabel } from '../creation/traits'
+import { DieLabel } from '../components/icons'
 
 type Update = (change: (draft: Hero) => void) => void
 
@@ -108,7 +109,9 @@ export function HealthStep({ hero, update, random }: { hero: Hero; update: Updat
         <label className="choice">
           <input type="radio" name={`${id}-mode`} checked={choice?.mode === 'roll'} onChange={() => set({ mode: 'roll' })} />
           <span className="choice__body">
-            <span className="choice__title">Roll {roll.die}</span>
+            <span className="choice__title">
+              Roll <DieLabel die={roll.die} />
+            </span>
           </span>
         </label>
         <label className="choice">

@@ -7,6 +7,7 @@ import { useId, useState, type ReactNode } from 'react'
 import { canReroll, checkManualResults, newRoll, reroll, rollDice, rolledOn, tableOptions, type RollRecord, type RollSource } from '../rules/rolling'
 import type { Die } from '../rules/types'
 import type { CreationMethod } from '../hero/model'
+import { DiceList } from '../components/icons'
 
 interface Entry {
   id: string
@@ -136,21 +137,21 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
         <div className="table-picker__roll">
           {current ? (
             <p>
-              You rolled <strong>{listAnd(current.results)}</strong> on {listAnd(current.dice)}
+              You rolled <strong>{listAnd(current.results)}</strong> on <DiceList dice={current.dice} />
               {current.manual ? ' (typed in)' : ''}
               {current.rerolled ? ', after using your reroll' : ''}. Pick a {what} matching one die or the sum of two.
             </p>
           ) : borrowed ? (
             <p>
-              Your {borrowed.from} roll was <strong>{listAnd(borrowed.roll.results)}</strong> on {listAnd(borrowed.roll.dice)}. Pick a {what} it reaches, or roll {diceText} for a fresh roll (which gets a reroll of its own).
+              Your {borrowed.from} roll was <strong>{listAnd(borrowed.roll.results)}</strong> on <DiceList dice={borrowed.roll.dice} />. Pick a {what} it reaches, or roll <DiceList dice={dice} /> for a fresh roll (which gets a reroll of its own).
             </p>
           ) : stale ? (
             <p role="alert">
-              You rolled {listAnd(stale.results)} on {listAnd(stale.dice)}, but this step's dice are now {diceText}, because an earlier choice changed. Roll again; this doesn't use your reroll.
+              You rolled {listAnd(stale.results)} on <DiceList dice={stale.dice} />, but this step's dice are now <DiceList dice={dice} />, because an earlier choice changed. Roll again; this doesn't use your reroll.
             </p>
           ) : (
             <p>
-              Roll {diceText} to see which {what}s you can choose from.
+              Roll <DiceList dice={dice} /> to see which {what}s you can choose from.
             </p>
           )}
           {manual ? (
@@ -203,7 +204,11 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
           ))}
         </fieldset>
       )}
-      {method === 'guided' && borrowed && options.length === 0 && <p>That roll doesn't reach any {what}. Roll {diceText} for a fresh one.</p>}
+      {method === 'guided' && borrowed && options.length === 0 && (
+        <p>
+          That roll doesn't reach any {what}. Roll <DiceList dice={dice} /> for a fresh one.
+        </p>
+      )}
       {method === 'guided' && current && options.length === 0 && (
         <p>
           That roll doesn't reach any {what}.{' '}

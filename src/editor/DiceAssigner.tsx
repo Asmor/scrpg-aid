@@ -10,6 +10,7 @@ import type { Die } from '../rules/types'
 import type { Hero, TraitAssignment } from '../hero/model'
 import { assignStepRow, dieRows, freedDice } from '../creation/assign'
 import { traitLabel, type HeroTrait } from '../creation/traits'
+import { DieIcon } from '../components/icons'
 
 interface DiceAssignerProps {
   hero: Hero
@@ -58,6 +59,7 @@ export function DiceAssigner({ hero, legend, dice, assignments, options, earlier
         return (
           <div key={i} className="dice-assigner__row">
             <label htmlFor={selectId} className="die">
+              <DieIcon die={row.die} />
               {row.die}
               {/* Tells apart dice of the same size, e.g. "d6 #2". */}
               {/* The spaces sit outside the spans so they're kept in the accessible name. */}

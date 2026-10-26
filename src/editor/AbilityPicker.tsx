@@ -14,6 +14,7 @@ import { canSetUse, replacePick, setBlank, setCustomName, setUse } from '../crea
 import { fillText } from '../creation/sheet'
 import { traitLabel, type HeroTrait } from '../creation/traits'
 import type { StepId } from '../creation/warnings'
+import { AbilityText } from '../components/icons'
 
 const TYPE_NAME: Record<Ability['type'], string> = { A: 'Action', R: 'Reaction', I: 'Inherent', 'A/I': 'Action/Inherent' }
 
@@ -171,7 +172,11 @@ function PickFields({ hero, traits, step, ability, pick, nameable, slotLimit, on
         </label>
       )}
       {/* With no blanks, the text above already says it all. */}
-      {slots.length > 0 && <p className="ability-pick__preview">{fillText(hero, ability.text, pick.uses, pick.blanks)}</p>}
+      {slots.length > 0 && (
+        <p className="ability-pick__preview">
+          <AbilityText text={fillText(hero, ability.text, pick.uses, pick.blanks)} />
+        </p>
+      )}
     </div>
   )
 }
@@ -194,7 +199,9 @@ export function AbilityPicker({ hero, traits, legend, hint, options, source, ste
                 <span className="choice__title">
                   {ability.name} <span className="choice__note">({TYPE_NAME[ability.type]})</span>
                 </span>
-                <span className="choice__detail">{ability.text}</span>
+                <span className="choice__detail">
+                  <AbilityText text={ability.text} />
+                </span>
               </p>
               <PickFields hero={hero} traits={traits} step={step} ability={ability} pick={pick ?? { source, name: ability.name }} nameable={nameable} slotLimit={slotLimit} onChange={(p) => replace(ability.name, p)} />
             </div>
@@ -208,7 +215,9 @@ export function AbilityPicker({ hero, traits, legend, hint, options, source, ste
                 <span className="choice__title">
                   {ability.name} <span className="choice__note">({TYPE_NAME[ability.type]})</span>
                 </span>
-                <span className="choice__detail">{ability.text}</span>
+                <span className="choice__detail">
+                  <AbilityText text={ability.text} />
+                </span>
               </span>
             </label>
             {pick && <PickFields hero={hero} traits={traits} step={step} ability={ability} pick={pick} nameable={nameable} slotLimit={slotLimit} onChange={(p) => replace(ability.name, p)} />}

@@ -1,5 +1,5 @@
 /**
- * Draws the PDF export's layout (./layout.ts) with pdf-lib. The fonts and die icons come in
+ * Draws the PDF export's layout (./layout.ts) with pdf-lib. The fonts and icons come in
  * as bytes, so this works the same in the browser and in tests. The fonts are embedded as
  * subsets (only the characters used), keeping the file small; a character the font
  * doesn't have is written as "?".
@@ -7,13 +7,13 @@
 import fontkit from '@pdf-lib/fontkit'
 import { PDFDocument, rgb, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib'
 import { heroDisplayName, type Hero } from '../../hero/model'
-import type { Die } from '../../rules/types'
+import type { IconName } from '../../components/icon-source'
 import { layoutHero, type Box, type Canvas, type FontId } from './layout'
 import { PAGE_SIZES, type PageSize } from './page-size'
 
 export interface PdfAssets {
   fonts: Record<FontId, Uint8Array>
-  dice: Record<Die, Uint8Array>
+  icons: Record<IconName, Uint8Array>
 }
 
 const color = (hex: string) => rgb(parseInt(hex.slice(1, 3), 16) / 255, parseInt(hex.slice(3, 5), 16) / 255, parseInt(hex.slice(5, 7), 16) / 255)
@@ -26,12 +26,12 @@ class PdfCanvas implements Canvas {
   readonly height: number
   private readonly doc: PDFDocument
   private readonly fonts: Record<FontId, PDFFont>
-  private readonly dice: Record<Die, PDFImage>
+  private readonly icons: Record<IconName, PDFImage>
 
-  constructor(doc: PDFDocument, size: { width: number; height: number }, fonts: Record<FontId, PDFFont>, dice: Record<Die, PDFImage>) {
+  constructor(doc: PDFDocument, size: { width: number; height: number }, fonts: Record<FontId, PDFFont>, icons: Record<IconName, PDFImage>) {
     this.doc = doc
     this.fonts = fonts
-    this.dice = dice
+    this.icons = icons
     this.width = size.width
     this.height = size.height
     this.charsets = { regular: new Set(fonts.regular.getCharacterSet()), bold: new Set(fonts.bold.getCharacterSet()), boldItalic: new Set(fonts.boldItalic.getCharacterSet()) }
@@ -84,8 +84,8 @@ class PdfCanvas implements Canvas {
     })
   }
 
-  die(die: Die, x: number, y: number, size: number) {
-    this.current().drawImage(this.dice[die], { x, y: this.height - y - size, width: size, height: size })
+  icon(name: IconName, x: number, y: number, size: number) {
+    this.current().drawImage(this.icons[name], { x, y: this.height - y - size, width: size, height: size })
   }
 }
 
@@ -98,12 +98,12 @@ export async function heroPdf(hero: Hero, pageSize: PageSize, assets: PdfAssets,
     bold: await doc.embedFont(assets.fonts.bold, { subset: true }),
     boldItalic: await doc.embedFont(assets.fonts.boldItalic, { subset: true }),
   }
-  const dice = Object.fromEntries(await Promise.all(Object.entries(assets.dice).map(async ([die, bytes]) => [die, await doc.embedPng(bytes)] as const))) as Record<Die, PDFImage>
+  const icons = Object.fromEntries(await Promise.all(Object.entries(assets.icons).map(async ([name, bytes]) => [name, await doc.embedPng(bytes)] as const))) as Record<IconName, PDFImage>
   doc.setTitle(heroDisplayName(hero))
   doc.setSubject('Sentinel Comics RPG hero sheet')
   doc.setCreator('SCRPG Builder')
   doc.setCreationDate(now)
   doc.setModificationDate(now)
-  layoutHero(new PdfCanvas(doc, PAGE_SIZES[pageSize], fonts, dice), hero)
+  layoutHero(new PdfCanvas(doc, PAGE_SIZES[pageSize], fonts, icons), hero)
   return doc.save()
 }

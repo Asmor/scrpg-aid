@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { exampleHero } from '../../hero/example'
 import { createHero } from '../../hero/model'
 import { dividedHero, formChangerHero, minionMakerHero, modularHero } from '../../test/heroes'
-import type { Die } from '../../rules/types'
-import { layoutHero, wrap, type Box, type Canvas, type FontId } from './layout'
+import type { IconName } from '../../components/icon-source'
+import { layoutHero, markEffects, wrap, type Box, type Canvas, type FontId } from './layout'
 import { PAGE_SIZES } from './page-size'
 
 interface TextOp {
@@ -20,7 +20,7 @@ interface TextOp {
 class RecordingCanvas implements Canvas {
   texts: TextOp[] = []
   rects: { page: number; x: number; y: number; width: number; height: number; box: Box }[] = []
-  dice: { page: number; die: Die }[] = []
+  icons: { page: number; name: IconName; x: number; y: number }[] = []
   private page = -1
   pageCount = 0
   readonly width: number
@@ -44,8 +44,8 @@ class RecordingCanvas implements Canvas {
   rect(x: number, y: number, width: number, height: number, box: Box) {
     this.rects.push({ page: this.page, x, y, width, height, box })
   }
-  die(die: Die) {
-    this.dice.push({ page: this.page, die })
+  icon(name: IconName, x: number, y: number) {
+    this.icons.push({ page: this.page, name, x, y })
   }
 }
 
@@ -69,6 +69,19 @@ describe('wrap', () => {
   })
 })
 
+describe('markEffects', () => {
+  it('puts an icon marker before each effect word', () => {
+    expect(markEffects('Attack using Fire. Hinder that same target using your Min die.')).toBe('\ue000Attack using Fire. \ue003Hinder that same target using your Min die.')
+    expect(markEffects('When you are hit with an Attack, change forms.')).toBe('When you are hit with an Attack, change forms.')
+  })
+
+  it('wraps marked text with room for the icons', () => {
+    const canvas = new RecordingCanvas(612, 792)
+    // Without the icon, "Attack using" (12 characters, 60 points) would fit in 62.
+    expect(wrap(canvas, markEffects('Attack using Fire'), 'regular', 10, 62)).toHaveLength(2)
+  })
+})
+
 describe('layoutHero', () => {
   it('draws the whole sheet: header, panels, dice, principles, and ability bands', () => {
     const c = laidOut()
@@ -77,7 +90,12 @@ describe('layoutHero', () => {
       expect(text).toContain(s)
     }
     // A die icon beside every power and quality, and each status die.
-    expect(c.dice.length).toBe(5 + 3 + 3)
+    expect(c.icons.filter((i) => i.name.startsWith('die/'))).toHaveLength(5 + 3 + 3)
+    // Inflict ("Attack using Fire. Hinder that same target using your Min die.") shows its
+    // effects under its badge and before each effect word.
+    const actions = c.icons.filter((i) => i.name.startsWith('action/')).map((i) => i.name)
+    expect(actions.filter((n) => n === 'action/hinder').length).toBeGreaterThanOrEqual(2)
+    expect(actions).toContain('action/attack')
     // Warnings are never part of the export.
     expect(text).not.toMatch(/issue/i)
   })

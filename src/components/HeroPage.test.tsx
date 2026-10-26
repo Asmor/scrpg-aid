@@ -11,6 +11,10 @@ import { HeroPage } from './HeroPage'
 
 vi.mock('../transfer/download', () => ({ downloadFile: vi.fn() }))
 vi.mock('../transfer/pdf', () => ({ exportPdf: vi.fn(async () => new Uint8Array([37, 80, 68, 70])) }))
+vi.mock('../transfer/icons', async (original) => {
+  const { TEST_ICONS } = await import('../test/icons')
+  return { ...(await original<typeof import('../transfer/icons')>()), loadIconDataUris: vi.fn(async () => TEST_ICONS) }
+})
 
 const storeReturning = (get: () => Promise<GetResult>): HeroStore => ({
   list: async () => ({ heroes: [], unreadable: [] }),
@@ -114,14 +118,14 @@ describe('HeroPage', () => {
   })
 
   it('explains a PDF maker that couldn’t be downloaded: offline, or after an update', async () => {
-    const downloadError = () => Object.assign(new Error("couldn't load /assets/font.ttf (404)"), { name: 'PdfDownloadError' })
+    const downloadError = () => Object.assign(new Error("couldn't load /assets/font.ttf (404)"), { name: 'DownloadError' })
     const online = vi.spyOn(navigator, 'onLine', 'get')
     try {
       online.mockReturnValue(false)
       vi.mocked(exportPdf).mockRejectedValueOnce(downloadError())
       const view = renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
       await userEvent.click(await screen.findByRole('button', { name: 'Download PDF' }))
-      expect(await screen.findByRole('alert')).toHaveTextContent("you're offline, and the PDF maker downloads the first time it's used")
+      expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't make the PDF: you're offline, and part of it downloads the first time it's used")
       view.unmount()
 
       online.mockReturnValue(true)

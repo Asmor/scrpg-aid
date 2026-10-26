@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { PDFDocument } from 'pdf-lib'
 import { describe, expect, it } from 'vitest'
 import { exampleHero } from '../../hero/example'
-import type { Die } from '../../rules/types'
+import type { IconName } from '../../components/icon-source'
+import { ICON_NAMES } from '../icons'
 import { defaultPageSize, PAGE_SIZES } from './page-size'
 import { heroPdf, type PdfAssets } from './render'
 
@@ -11,7 +12,7 @@ const file = (path: string) => new Uint8Array(readFileSync(path))
 const fonts = 'node_modules/dejavu-fonts-ttf/ttf/'
 const assets: PdfAssets = {
   fonts: { regular: file(`${fonts}DejaVuSansCondensed.ttf`), bold: file(`${fonts}DejaVuSansCondensed-Bold.ttf`), boldItalic: file(`${fonts}DejaVuSansCondensed-BoldOblique.ttf`) },
-  dice: Object.fromEntries((['d4', 'd6', 'd8', 'd10', 'd12'] as const).map((d) => [d, file(`public/icons/die/${d}.png`)])) as Record<Die, Uint8Array>,
+  icons: Object.fromEntries(ICON_NAMES.map((name) => [name, file(`public/icons/${name}.png`)])) as Record<IconName, Uint8Array>,
 }
 
 describe('heroPdf', () => {

@@ -537,7 +537,7 @@ a {
 
 .ability {
   display: grid;
-  grid-template-columns: 2rem minmax(7rem, 12rem) 1fr;
+  grid-template-columns: 5.5rem minmax(7rem, 12rem) 1fr;
   gap: 0.25rem 0.75rem;
   padding: 0.375rem 0;
   border-top: 1px solid var(--color-border);
@@ -548,6 +548,14 @@ a {
 }
 
 .ability__type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: flex-start;
+  gap: 0.25rem;
+}
+
+.ability__type-letter {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -557,6 +565,53 @@ a {
   border-radius: 50%;
   font-weight: 800;
   background: var(--color-surface);
+}
+
+/* The effects the ability produces, after its type. */
+.ability__effects {
+  display: contents;
+}
+
+.ability__effects .action-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Icons: black line art with white edges; inverted in the dark theme so the lines show. */
+.die-icon,
+.action-icon {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  object-fit: contain;
+  vertical-align: -0.2em;
+}
+
+:root[data-theme='dark'] :is(.die-icon, .action-icon) {
+  filter: invert(1);
+}
+
+@media not all and (prefers-color-scheme: light) {
+  :root:not([data-theme]) :is(.die-icon, .action-icon) {
+    filter: invert(1);
+  }
+}
+
+.die-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  white-space: nowrap;
+}
+
+.die-label .die-icon {
+  width: 1.35em;
+  height: 1.35em;
+  vertical-align: middle;
+}
+
+.effect-word .action-icon {
+  margin-right: 0.15em;
 }
 
 .ability__name {
@@ -569,7 +624,7 @@ a {
 
 @media (max-width: 36rem) {
   .ability {
-    grid-template-columns: 2rem 1fr;
+    grid-template-columns: auto 1fr;
   }
 
   .ability__text {
@@ -837,7 +892,7 @@ select {
 }
 
 .dice-assigner__row .die {
-  min-width: 2.5rem;
+  min-width: 3.75rem;
   text-align: left;
 }
 

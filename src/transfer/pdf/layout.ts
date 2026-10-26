@@ -16,6 +16,8 @@ import { modeLimits } from '../../creation/format'
 import { DETAIL_LABEL, ZONE_LABEL } from '../../hero/labels'
 import { DETAIL_FIELDS, heroDisplayName, type Hero } from '../../hero/model'
 import type { AbilityType, Die, Zone } from '../../rules/types'
+import type { IconName } from '../../components/icon-source'
+import { abilityEffects, ACTIONS, effectMentions, type Action } from '../../creation/effects'
 
 export type FontId = 'regular' | 'bold' | 'boldItalic'
 
@@ -38,7 +40,8 @@ export interface Canvas {
   /** Text with its top at `y`. */
   text(text: string, x: number, y: number, font: FontId, size: number, color: string): void
   rect(x: number, y: number, width: number, height: number, box: Box): void
-  die(die: Die, x: number, y: number, size: number): void
+  /** A die or action icon, `size` points square. */
+  icon(name: IconName, x: number, y: number, size: number): void
 }
 
 /** The light theme's colours (src/index.css). */
@@ -75,22 +78,22 @@ interface Block {
 }
 
 /** Splits text into lines that fit `width`, keeping the author's line breaks; over-long words are broken. */
-export function wrap(canvas: Canvas, text: string, font: FontId, size: number, width: number): string[] {
+export function wrap(canvas: Canvas, text: string, font: FontId, size: number, width: number, measure: Canvas['measure'] = (t, f, sz) => canvas.measure(t, f, sz)): string[] {
   const lines: string[] = []
   for (const paragraph of text.split(/\r?\n/)) {
     let line = ''
     for (const word of paragraph.split(/\s+/).filter(Boolean)) {
       const candidate = line ? `${line} ${word}` : word
-      if (canvas.measure(candidate, font, size) <= width) {
+      if (measure(candidate, font, size) <= width) {
         line = candidate
         continue
       }
       if (line) lines.push(line)
       line = word
       // A word wider than the line is broken wherever it has to be.
-      while (canvas.measure(line, font, size) > width && line.length > 1) {
+      while (measure(line, font, size) > width && line.length > 1) {
         let cut = line.length - 1
-        while (cut > 1 && canvas.measure(line.slice(0, cut), font, size) > width) cut--
+        while (cut > 1 && measure(line.slice(0, cut), font, size) > width) cut--
         lines.push(line.slice(0, cut))
         line = line.slice(cut)
       }
@@ -100,6 +103,49 @@ export function wrap(canvas: Canvas, text: string, font: FontId, size: number, w
   // Drop trailing blank lines, keep blank lines between paragraphs.
   while (lines.length > 1 && lines.at(-1) === '') lines.pop()
   return lines
+}
+
+// ---- Ability text with action icons ----
+
+/** A private-use character standing for an action's icon in laid-out text. */
+const marker = (action: Action) => String.fromCharCode(0xe000 + ACTIONS.indexOf(action))
+const MARKER = /[\ue000-\ue005]/g
+const iconSize = (size: number) => size * 1.1
+const ICON_GAP = 1.5
+
+/** The text with an icon marker before each action word that's an effect (../../creation/effects.ts). */
+export function markEffects(raw: string): string {
+  // The player's own text can't bring its own markers.
+  const text = raw.replace(MARKER, '')
+  let out = ''
+  let at = 0
+  for (const m of effectMentions(text)) {
+    out += text.slice(at, m.start) + marker(m.action)
+    at = m.start
+  }
+  return out + text.slice(at)
+}
+
+/** Measures text that may hold icon markers. */
+const richMeasure =
+  (canvas: Canvas): Canvas['measure'] =>
+  (text, font, size) =>
+    canvas.measure(text.replace(MARKER, ''), font, size) + (text.match(MARKER)?.length ?? 0) * (iconSize(size) + ICON_GAP)
+
+/** Draws a line that may hold icon markers: text runs with the icons between them. */
+function drawRich(canvas: Canvas, line: string, x: number, y: number, font: FontId, size: number, color: string) {
+  let cx = x
+  for (const part of line.split(/([\ue000-\ue005])/)) {
+    if (!part) continue
+    const code = part.charCodeAt(0) - 0xe000
+    if (part.length === 1 && code >= 0 && code < ACTIONS.length) {
+      canvas.icon(`action/${ACTIONS[code]!}`, cx, y - size * 0.1, iconSize(size))
+      cx += iconSize(size) + ICON_GAP
+    } else {
+      canvas.text(part, cx, y, font, size, color)
+      cx += canvas.measure(part, font, size)
+    }
+  }
 }
 
 class Layout {
@@ -327,7 +373,7 @@ const ROW = 18
 function drawDie(canvas: Canvas, die: Die, right: number, y: number) {
   const w = canvas.measure(die, 'bold', BODY)
   canvas.text(die, right - w, y + (ICON - BODY) / 2, 'bold', BODY, COLORS.text)
-  canvas.die(die, right - w - 3 - ICON, y - 0.5, ICON)
+  canvas.icon(`die/${die}`, right - w - 3 - ICON, y - 0.5, ICON)
 }
 
 /** Name and die rows, as on the sheet's Powers and Qualities tables. */
@@ -390,31 +436,40 @@ function health(canvas: Canvas, sheet: HeroSheet): Block {
   return stack([max, chips], 6)
 }
 
-/** One ability row: type badge, name, and game text, on the zone's colour. Very long text splits by line. */
+/** One ability row: type badge with the effects' icons under it, name, and game text with inline action icons, on the zone's colour. Very long text splits by line. */
 function abilityRow(canvas: Canvas, a: { name: string; type: AbilityType; text: string }, fill: string): Block {
-  const typeW = 24
+  const typeW = 32
+  const EFFECT = 12
+  const effects = abilityEffects(a.text)
+  // The badge on top, then the effects two to a row.
+  const firstCellHeight = LINE + 1 + (effects.length ? 2 + Math.ceil(effects.length / 2) * (EFFECT + 2) : 0)
   const nameW = (w: number) => Math.min(120, w * 0.28)
   const textW = (w: number) => w - typeW - nameW(w) - 2 * PAD - 8
-  const lines = (w: number) => ({ name: wrap(canvas, a.name, 'bold', BODY, nameW(w)), text: wrap(canvas, a.text, 'regular', BODY, textW(w)) })
-  /** The row from its lines; a continuation (`badge` false) has neither badge nor name. */
-  const row = (get: (w: number) => { name: string[]; text: string[] }, badge: boolean): Block => ({
-    height: (w) => Math.max(get(w).name.length, get(w).text.length) * LINE + 8,
+  const measure = richMeasure(canvas)
+  const marked = markEffects(a.text)
+  const lines = (w: number) => ({ name: wrap(canvas, a.name, 'bold', BODY, nameW(w)), text: wrap(canvas, marked, 'regular', BODY, textW(w), measure) })
+  /** The row from its lines; a continuation (`first` false) has neither badge, effects nor name. */
+  const row = (get: (w: number) => { name: string[]; text: string[] }, first: boolean): Block => ({
+    height: (w) => Math.max(Math.max(get(w).name.length, get(w).text.length) * LINE, first ? firstCellHeight : 0) + 8,
     draw: (x, y, w, h) => {
       canvas.rect(x, y, w, h, { fill, stroke: COLORS.border, lineWidth: 0.5 })
-      if (badge) {
+      if (first) {
         // The type's letter, as on the printed sheet (A, R, I, or A/I).
-        canvas.rect(x + PAD / 2, y + 3, typeW - 4, LINE + 1, { fill: '#ffffff', stroke: COLORS.border, lineWidth: 0.5 })
-        canvas.text(a.type, x + PAD / 2 + (typeW - 4 - canvas.measure(a.type, 'bold', SMALL)) / 2, y + 3 + (LINE + 1 - SMALL) / 2, 'bold', SMALL, COLORS.text)
+        const bx = x + PAD / 2
+        const bw = typeW - 6
+        canvas.rect(bx, y + 3, bw, LINE + 1, { fill: '#ffffff', stroke: COLORS.border, lineWidth: 0.5 })
+        canvas.text(a.type, bx + (bw - canvas.measure(a.type, 'bold', SMALL)) / 2, y + 3 + (LINE + 1 - SMALL) / 2, 'bold', SMALL, COLORS.text)
+        effects.forEach((effect, i) => canvas.icon(`action/${effect}`, bx + (i % 2) * (EFFECT + 2), y + 3 + LINE + 3 + Math.floor(i / 2) * (EFFECT + 2), EFFECT))
       }
       const { name, text } = get(w)
       name.forEach((line, i) => canvas.text(line, x + typeW + PAD / 2, y + 4 + i * LINE, 'bold', BODY, COLORS.text))
-      text.forEach((line, i) => canvas.text(line, x + typeW + nameW(w) + PAD, y + 4 + i * LINE, 'regular', BODY, COLORS.text))
+      text.forEach((line, i) => drawRich(canvas, line, x + typeW + nameW(w) + PAD, y + 4 + i * LINE, 'regular', BODY, COLORS.text))
     },
     split: (w, room) => {
       const { name, text } = get(w)
       const fit = Math.floor((room - 8) / LINE)
-      if (fit < 2 || Math.max(name.length, text.length) - fit < 2) return undefined
-      return [row(() => ({ name: name.slice(0, fit), text: text.slice(0, fit) }), badge), row(() => ({ name: name.slice(fit), text: text.slice(fit) }), false)]
+      if (fit < 2 || Math.max(name.length, text.length) - fit < 2 || (first && fit * LINE < firstCellHeight)) return undefined
+      return [row(() => ({ name: name.slice(0, fit), text: text.slice(0, fit) }), first), row(() => ({ name: name.slice(fit), text: text.slice(fit) }), false)]
     },
   })
   return row(lines, true)

@@ -12,7 +12,9 @@ import { buildSheet, type HeroSheet, type SheetAbility } from '../creation/sheet
 import type { HeroTrait } from '../creation/traits'
 import type { StepId } from '../creation/warnings'
 import type { AbilityType, Die, Zone } from '../rules/types'
+import { abilityEffects } from '../creation/effects'
 import { modeLimits } from '../creation/format'
+import { AbilityText, ActionIcon, DieLabel } from './icons'
 
 const STEP_LABEL: Record<StepId, string> = {
   background: 'Background',
@@ -50,7 +52,9 @@ function TraitTable({ caption, traits }: { caption: string; traits: readonly Her
         {traits.map((t) => (
           <tr key={`${t.trait.kind}:${t.trait.id}`}>
             <td>{t.name}</td>
-            <td className="die">{t.die}</td>
+            <td className="die">
+              <DieLabel die={t.die} />
+            </td>
           </tr>
         ))}
       </tbody>
@@ -66,7 +70,9 @@ function StatusDice({ dice, label }: { dice: Record<Zone, Die>; label?: string }
         {(['green', 'yellow', 'red'] as const).map((zone) => (
           <li key={zone} className={`status-die zone-${zone}`}>
             <span className="status-die__zone">{ZONE_LABEL[zone]}</span>
-            <span className="die">{dice[zone]}</span>
+            <span className="die">
+              <DieLabel die={dice[zone]} />
+            </span>
           </li>
         ))}
       </ul>
@@ -75,14 +81,26 @@ function StatusDice({ dice, label }: { dice: Record<Zone, Die>; label?: string }
 }
 
 function AbilityRow({ name, type, text }: { name: string; type: AbilityType; text: string }) {
+  const effects = abilityEffects(text)
   return (
     <li className="ability">
-      <span className="ability__type" title={TYPE_LABEL[type]}>
-        <span aria-hidden="true">{type}</span>
-        <span className="visually-hidden">{TYPE_LABEL[type]}</span>
+      <span className="ability__type">
+        <span className="ability__type-letter" title={TYPE_LABEL[type]}>
+          <span aria-hidden="true">{type}</span>
+          <span className="visually-hidden">{TYPE_LABEL[type]}</span>
+        </span>
+        {effects.length > 0 && (
+          <span className="ability__effects">
+            {effects.map((e) => (
+              <ActionIcon key={e} action={e} />
+            ))}
+          </span>
+        )}
       </span>
       <span className="ability__name">{name}</span>
-      <span className="ability__text">{text}</span>
+      <span className="ability__text">
+        <AbilityText text={text} />
+      </span>
     </li>
   )
 }

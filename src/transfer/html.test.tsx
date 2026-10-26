@@ -3,8 +3,12 @@ import { exampleHero } from '../hero/example'
 import { createHero } from '../hero/model'
 import { formChangerHero } from '../test/heroes'
 import { readImport } from './files'
-import { heroHtml } from './html'
+import { heroHtml as renderHtml } from './html'
+import { TEST_ICONS } from '../test/icons'
+import type { Hero } from '../hero/model'
 import { heroMarkdown } from './markdown'
+
+const heroHtml = (hero: Hero) => renderHtml(hero, TEST_ICONS)
 
 const parse = (html: string) => new DOMParser().parseFromString(html, 'text/html')
 
@@ -19,8 +23,12 @@ describe('heroHtml', () => {
     const sheet = doc.querySelector('main .hero-sheet')!
     expect(sheet.querySelector('h2')!.textContent).toBe('Maya Reyes')
     expect(sheet.textContent).toContain('Paragon Feat')
-    // Nothing that loads from elsewhere, and nothing that runs.
-    expect(doc.querySelectorAll('link, img, iframe, script:not([type="application/json"])')).toHaveLength(0)
+    // The icons are embedded, nothing loads from elsewhere, and nothing runs.
+    const imgs = [...doc.querySelectorAll('img')]
+    expect(imgs.length).toBeGreaterThan(0)
+    for (const img of imgs) expect(img.getAttribute('src')).toMatch(/^data:image\/png;base64,/)
+    expect(sheet.querySelector('img[alt="Attack"]')).not.toBeNull()
+    expect(doc.querySelectorAll('link, iframe, script:not([type="application/json"])')).toHaveLength(0)
   })
 
   it('leaves out rule warnings', () => {
@@ -42,7 +50,7 @@ describe('heroHtml', () => {
     const doc = parse(html)
     expect(doc.title).toBe(hero.details.name)
     expect(doc.querySelectorAll('script')).toHaveLength(1)
-    expect(doc.querySelectorAll('img')).toHaveLength(0)
+    expect(doc.querySelectorAll('img[onerror], img[src="x"]')).toHaveLength(0)
     expect(readImport(html)).toEqual({ ok: true, heroes: [hero], skipped: [] })
     // A Markdown export with the same text still finds its own comment.
     expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], skipped: [] })

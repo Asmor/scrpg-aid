@@ -182,7 +182,10 @@ describe('AbilityPicker', () => {
     expect([...power.querySelectorAll('option')].map((o) => o.textContent)).toEqual(['Choose…', 'Agility (d10)', 'Fire (d8)', 'Awareness (d8)', 'Speed (d12)', 'Flight (d6)'])
     await userEvent.selectOptions(power, 'Fire (d8)')
     await userEvent.type(screen.getByLabelText('Your name for it (optional)'), 'Heat Wave')
-    expect(screen.getByText('Hinder any number of nearby targets using Fire. Use your Max die.')).toBeInTheDocument()
+    // The filled-in text, with the Hinder icon before its effect word.
+    const preview = document.querySelector('.ability-pick__preview')!
+    expect(preview).toHaveTextContent('Hinder any number of nearby targets using Fire. Use your Max die.')
+    expect(preview.querySelector('img')).toHaveAttribute('src', '/icons/action/hinder.png')
     expect(output()).toEqual([
       { source: 'powerSource.yellow', name: 'Area Alteration', blanks: { 'Boost or Hinder': 'Hinder' }, uses: [P('fire')], customName: 'Heat Wave' },
     ])
@@ -341,7 +344,7 @@ describe('TablePicker', () => {
     expect(screen.getByRole('radio', { name: /Low/ })).toBeInTheDocument()
     unmount()
     render(<TablePicker {...props} inherited={{ roll: { dice: ['d6'], results: [5], manual: false }, from: 'first' }} />)
-    expect(screen.getByText("That roll doesn't reach any thing. Roll d6 for a fresh one.")).toBeInTheDocument()
+    expect(screen.getByText(/That roll doesn't reach any thing/)).toHaveTextContent("That roll doesn't reach any thing. Roll d6 for a fresh one.")
   })
 
   it('points to the method choice when a roll reaches nothing and the reroll is used', () => {
