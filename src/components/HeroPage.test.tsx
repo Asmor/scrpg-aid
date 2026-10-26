@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { StoreContext } from '../app/store-context'
@@ -99,7 +99,9 @@ describe('HeroPage', () => {
     vi.mocked(downloadFile).mockClear()
     const hero = exampleHero({ id: 'x' })
     renderPage(storeReturning(async () => ({ status: 'found', hero })))
-    await userEvent.selectOptions(await screen.findByLabelText('Page size'), 'A4')
+    // The page size options sit after the button, as radio buttons.
+    const sizes = await screen.findByRole('radiogroup', { name: 'Page size' })
+    await userEvent.click(within(sizes).getByRole('radio', { name: 'A4' }))
     await userEvent.click(screen.getByRole('button', { name: 'Download PDF' }))
     await waitFor(() => expect(downloadFile).toHaveBeenCalled())
     expect(exportPdf).toHaveBeenCalledWith(hero, 'a4')

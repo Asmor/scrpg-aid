@@ -16,9 +16,17 @@ describe('HeroSheetView', () => {
     expect(within(characteristics).getByText('Upper Class')).toBeInTheDocument()
     expect(within(characteristics).getByText('Speedster')).toBeInTheDocument()
 
-    // Powers, biggest die first.
-    const powers = within(screen.getByRole('region', { name: 'Powers' })).getAllByRole('row').slice(1)
-    expect(powers.map((r) => [...r.querySelectorAll('td')].map(readable).join(' '))).toEqual(['Speed d12', 'Agility d10', 'Awareness d8', 'Fire d8', 'Flight d6'])
+    // Powers (biggest die first), qualities, and status dice in one six-column table.
+    const table = within(screen.getByRole('region', { name: 'Powers, qualities, and status' }))
+    expect(table.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Power', 'Quality', 'Status'])
+    const powers = table.getAllByRole('row').slice(1)
+    expect(powers.map((r) => [...r.querySelectorAll('td')].map(readable))).toEqual([
+      ['Speed', 'd12', 'Fitness', 'd10', 'Green', 'd8'],
+      ['Agility', 'd10', 'Alertness', 'd8', 'Yellow', 'd8'],
+      ['Awareness', 'd8', 'Old Money', 'd8', 'Red', 'd8'],
+      ['Fire', 'd8', '', '', '', ''],
+      ['Flight', 'd6', '', '', '', ''],
+    ])
     // Dice show as icons alone, named by their size.
     expect(within(powers[0]!).queryByText('d12')).not.toBeInTheDocument()
     expect(within(powers[0]!).getByRole('img', { name: 'd12' })).toHaveAttribute('src', '/icons/die/d12.png')
@@ -35,9 +43,8 @@ describe('HeroSheetView', () => {
     expect(within(screen.getByRole('region', { name: 'Red abilities' })).getByText('Paragon Feat')).toBeInTheDocument()
     const out = screen.getByRole('region', { name: 'Out ability' })
     expect(within(out).getByText(/Fitness/)).toBeInTheDocument()
-    // Its effect's icon comes first, and again before the effect word.
-    expect(within(out).getByRole('img', { name: 'Boost' })).toBeInTheDocument()
-    expect(out.querySelectorAll('img[src="/icons/action/boost.png"]')).toHaveLength(2)
+    // Its effect's icon sits inline before the effect word only.
+    expect(out.querySelectorAll('img[src="/icons/action/boost.png"]')).toHaveLength(1)
 
     // Filled-in blanks, and action types spelled out for screen readers.
     expect(green[0]).not.toHaveTextContent('[')
@@ -53,8 +60,9 @@ describe('HeroSheetView', () => {
     hero.archetype = { id: 'speedster', traits: [], abilities: [], bonus: [] }
     render(<HeroSheetView hero={hero} />)
     expect(screen.getByRole('heading', { level: 2, name: 'Unnamed hero' })).toBeInTheDocument()
-    expect(screen.getByText('No powers yet.')).toBeInTheDocument()
-    expect(screen.getByText('Choose a personality.', { selector: '.sheet-empty' })).toBeInTheDocument()
+    // The dice table still shows its three status rows, with no dice yet.
+    const table = within(screen.getByRole('region', { name: 'Powers, qualities, and status' }))
+    expect(table.getAllByRole('row').slice(1).map((r) => [...r.querySelectorAll('td')].map(readable).join(' ').trim())).toEqual(['Green —', 'Yellow —', 'Red —'])
     expect(screen.getByText('Not worked out yet.')).toBeInTheDocument()
     const summary = screen.getByText(/rule issues? to look at/)
     await userEvent.click(summary)

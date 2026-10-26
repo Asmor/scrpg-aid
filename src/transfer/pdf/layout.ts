@@ -10,6 +10,7 @@
  * Layout only measures and draws through the Canvas interface (top-left coordinates, in
  * points), so it's pure and testable; ./render.ts draws it with pdf-lib.
  */
+import { diceTableRows, type DiceTableRow } from '../../creation/dice-table'
 import { buildSheet, type HeroSheet } from '../../creation/sheet'
 import type { HeroTrait } from '../../creation/traits'
 import { modeLimits } from '../../creation/format'
@@ -404,6 +405,49 @@ function traitTable(canvas: Canvas, traits: readonly HeroTrait[], empty: string)
   }
 }
 
+/**
+ * Powers, qualities, and status dice in one six-column table (../../creation/dice-table.ts):
+ * a name and its die for each, with the status rows in their zone colours.
+ */
+function diceTable(canvas: Canvas, sheet: HeroSheet): Block {
+  const rows = diceTableRows(sheet)
+  const dieW = ICON + 8
+  const statusW = 44
+  const nameW = (w: number) => (w - 3 * dieW - statusW) / 2
+  const lines = (w: number, t: HeroTrait | undefined) => (t ? wrap(canvas, t.name, 'regular', BODY, nameW(w) - 4) : [])
+  const rowHeight = (w: number, r: DiceTableRow) => Math.max(ROW + 2, Math.max(lines(w, r.power).length, lines(w, r.quality).length) * LINE + 8)
+  const HEAD = 16
+  return {
+    height: (w) => HEAD + rows.reduce((sum, r) => sum + rowHeight(w, r), 0),
+    draw: (x, y, w, h) => {
+      const qx = x + nameW(w) + dieW
+      const sx = qx + nameW(w) + dieW
+      canvas.text('Power', x, y + 2, 'bold', BODY, COLORS.text)
+      canvas.text('Quality', qx + 4, y + 2, 'bold', BODY, COLORS.text)
+      canvas.text('Status', sx + 4, y + 2, 'bold', BODY, COLORS.text)
+      let top = y + HEAD
+      rows.forEach((r) => {
+        const rh = rowHeight(w, r)
+        canvas.rect(x, top, w, 0.5, { fill: COLORS.border })
+        if (r.status) {
+          canvas.rect(sx, top, statusW + dieW, rh, { fill: COLORS.zone[r.status.zone] })
+          canvas.text(ZONE_LABEL[r.status.zone], sx + 4, top + 5, 'bold', BODY, COLORS.zoneStrong[r.status.zone])
+          if (r.status.die) drawDie(canvas, r.status.die, sx + statusW + dieW - 4, top + 4)
+          else canvas.text('—', sx + statusW + 4, top + 5, 'regular', BODY, COLORS.muted)
+        }
+        lines(w, r.power).forEach((line, j) => canvas.text(line, x, top + 5 + j * LINE, 'regular', BODY, COLORS.text))
+        if (r.power) drawDie(canvas, r.power.die, x + nameW(w) + dieW - 4, top + 4)
+        lines(w, r.quality).forEach((line, j) => canvas.text(line, qx + 4, top + 5 + j * LINE, 'regular', BODY, COLORS.text))
+        if (r.quality) drawDie(canvas, r.quality.die, qx + nameW(w) + dieW - 4, top + 4)
+        top += rh
+      })
+      // Rules between the three pairs of columns.
+      canvas.rect(qx, y, 0.5, h, { fill: COLORS.border })
+      canvas.rect(sx, y, 0.5, h, { fill: COLORS.border })
+    },
+  }
+}
+
 /** The three status dice in their zone colours. */
 function statusDice(canvas: Canvas, dice: Record<Zone, Die>): Block {
   const h = 40
@@ -530,20 +574,15 @@ function placeAbilities(layout: Layout, sheet: HeroSheet) {
   layout.place(keepTogether(zoneBar(canvas, 'Out', COLORS.text, COLORS.zone.out), sheet.outAbility ? outRow(canvas, sheet.outAbility) : abilityRowText(canvas, 'Choose a personality.', COLORS.zone.out)))
 }
 
-/** The Out ability's row: its effects' icons (two to a row), then its text with inline action icons. */
+/** The Out ability's row: its text, with an icon before each effect word. */
 function outRow(canvas: Canvas, text: string): Block {
-  const EFFECT = 12
-  const effects = abilityEffects(text)
-  const iconsW = effects.length ? 2 * (EFFECT + 2) + 4 : 0
   const measure = richMeasure(canvas)
-  const lines = (w: number) => wrap(canvas, markEffects(text), 'regular', BODY, w - 2 * PAD - iconsW, measure)
-  const iconsH = Math.ceil(effects.length / 2) * (EFFECT + 2)
+  const lines = (w: number) => wrap(canvas, markEffects(text), 'regular', BODY, w - 2 * PAD, measure)
   return {
-    height: (w) => Math.max(lines(w).length * LINE, iconsH) + 8,
+    height: (w) => lines(w).length * LINE + 8,
     draw: (x, y, w, h) => {
       canvas.rect(x, y, w, h, { fill: COLORS.zone.out, stroke: COLORS.border, lineWidth: 0.5 })
-      effects.forEach((effect, i) => canvas.icon(`action/${effect}`, x + PAD + (i % 2) * (EFFECT + 2), y + 4 + Math.floor(i / 2) * (EFFECT + 2), EFFECT))
-      lines(w).forEach((line, i) => drawRich(canvas, line, x + PAD + iconsW, y + 4 + i * LINE, 'regular', BODY, COLORS.text))
+      lines(w).forEach((line, i) => drawRich(canvas, line, x + PAD, y + 4 + i * LINE, 'regular', BODY, COLORS.text))
     },
   }
 }
@@ -616,13 +655,8 @@ export function layoutHero(canvas: Canvas, hero: Hero): void {
   const details = DETAIL_FIELDS.filter((f) => f !== 'name' && f !== 'alias' && f !== 'player' && hero.details[f].trim())
   layout.place(details.length ? columns([characteristics, panel(canvas, 'Details', fields(canvas, details.map((f) => [DETAIL_LABEL[f], hero.details[f].trim()] as const)))]) : characteristics)
 
-  layout.place(columns([panel(canvas, 'Powers', traitTable(canvas, sheet.powers, 'No powers yet.')), panel(canvas, 'Qualities', traitTable(canvas, sheet.qualities, 'No qualities yet.'))]))
-  layout.place(
-    columns([
-      panel(canvas, 'Status dice', sheet.statusDice ? statusDice(canvas, sheet.statusDice) : paragraph(canvas, 'Choose a personality.', { color: COLORS.muted })),
-      panel(canvas, 'Health', health(canvas, sheet)),
-    ]),
-  )
+  layout.place(panel(canvas, 'Powers, qualities, and status', diceTable(canvas, sheet)))
+  layout.place(panel(canvas, 'Health', health(canvas, sheet)))
 
   const principles = sheet.principles.map((p) =>
     panel(canvas, p.name, fields(canvas, [

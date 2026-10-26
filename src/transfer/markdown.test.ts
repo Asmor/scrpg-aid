@@ -17,9 +17,20 @@ describe('heroMarkdown', () => {
   it('lays out the sheet with headings, lists and padded tables', () => {
     expect(md.startsWith('# Maya Reyes\n\n**Alias:** Afterimage\n\n## Characteristics\n\n- **Background:** Upper Class\n')).toBe(true)
     expect(md).toContain('- **Costume / equipment:** A heat-resistant running suit in orange and white')
-    expect(md).toContain(['| Power     | Die |', '| --------- | --- |', '| Speed     | d12 |'].join('\n'))
-    expect(md).toContain('| Old Money | d8  |')
-    expect(md).toContain(['| Green | Yellow | Red |', '| ----- | ------ | --- |', '| d8    | d8     | d8  |'].join('\n'))
+    // Powers, qualities, and status dice in one table, padded so it lines up as plain text.
+    expect(md).toContain(
+      [
+        '## Powers, qualities, and status',
+        '',
+        '| Power     | Die | Quality   | Die | Status | Die |',
+        '| --------- | --- | --------- | --- | ------ | --- |',
+        '| Speed     | d12 | Fitness   | d10 | Green  | d8  |',
+        '| Agility   | d10 | Alertness | d8  | Yellow | d8  |',
+        '| Awareness | d8  | Old Money | d8  | Red    | d8  |',
+        '| Fire      | d8  |           |     |        |     |',
+        '| Flight    | d6  |           |     |        |     |',
+      ].join('\n'),
+    )
     expect(md).toContain('**Max Health:** 30\n\n- **Green:** 30–23\n- **Yellow:** 22–12\n- **Red:** 11–1')
     expect(md).toContain('### Principle of Business\n\n- **During roleplaying:** ')
     expect(md).toContain('### Green\n\n- **Immunity** (Inherent): You do not take damage from Fire.')
@@ -65,9 +76,7 @@ describe('heroMarkdown', () => {
   it('says what a new hero hasn’t chosen yet', () => {
     const out = heroMarkdown(createHero('guided', { id: 'h1' }))
     expect(out).toContain('# Unnamed hero')
-    expect(out).toContain('## Powers\n\nNo powers yet.')
-    expect(out).toContain('## Qualities\n\nNo qualities yet.')
-    expect(out).toContain('## Status dice\n\nChoose a personality.')
+    expect(out).toContain(['## Powers, qualities, and status', '', '| Power | Die | Quality | Die | Status | Die |', '| ----- | --- | ------- | --- | ------ | --- |', '|       |     |         |     | Green  | —   |'].join('\n'))
     expect(out).toContain('## Health\n\nNot worked out yet.')
     expect(out).toContain('## Principles\n\nNo principles yet.')
     expect(out).not.toContain('## Details')

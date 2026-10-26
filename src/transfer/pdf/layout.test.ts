@@ -88,17 +88,18 @@ describe('layoutHero', () => {
   it('draws the whole sheet: header, panels, dice, principles, and ability bands', () => {
     const c = laidOut()
     const text = allText(c)
-    for (const s of ['Maya Reyes', 'Afterimage', 'Characteristics', 'Upper Class', 'Powers', 'Speed', 'Qualities', 'Old Money', 'Status dice', 'Max Health 30', 'Green 30–23', 'Principle of Business', 'Abilities', 'Paragon Feat', 'Out']) {
+    for (const s of ['Maya Reyes', 'Afterimage', 'Characteristics', 'Upper Class', 'Powers, qualities, and status', 'Power', 'Speed', 'Quality', 'Old Money', 'Status', 'Green', 'Yellow', 'Red', 'Max Health 30', 'Green 30–23', 'Principle of Business', 'Abilities', 'Paragon Feat', 'Out']) {
       expect(text).toContain(s)
     }
     // A die icon beside every power and quality, and each status die.
     expect(c.icons.filter((i) => i.name.startsWith('die/'))).toHaveLength(5 + 3 + 3)
-    // The Out ability ("Boost an ally by rolling your single Fitness die.") shows its Boost icon in
-    // its effects column, left of the text, as well as inline.
+    // The Out ability ("Boost an ally by rolling your single Fitness die.") shows its Boost icon
+    // inline only, with no effects column before it.
     const out = c.texts.find((t) => t.text.includes('an ally by rolling your single Fitness die'))!
     const outBoosts = c.icons.filter((i) => i.name === 'action/boost' && i.page === out.page && Math.abs(i.y - out.y) < 6)
-    expect(outBoosts).toHaveLength(2)
-    expect(Math.min(...outBoosts.map((i) => i.x))).toBeLessThan(out.x - 14)
+    expect(outBoosts).toHaveLength(1)
+    expect(outBoosts[0]!.x).toBeLessThan(out.x)
+    expect(outBoosts[0]!.x).toBeGreaterThan(out.x - 14)
     // Dice are icons alone: no die size is written out.
     expect(text).not.toMatch(/\bd(4|6|8|10|12)\b/)
     // Inflict ("Attack using Fire. Hinder that same target using your Min die.") shows its
@@ -142,7 +143,7 @@ describe('layoutHero', () => {
     expect(allText(laidOut(formChangerHero()))).toMatch(/\((Green|Yellow) form\)/)
     expect(allText(laidOut(minionMakerHero()))).toContain('Minion forms')
     const blank = allText(laidOut(createHero('guided', { id: 'h1' })))
-    for (const s of ['Unnamed hero', 'No powers yet.', 'No qualities yet.', 'Choose a personality.', 'Not worked out yet.', 'No principles yet.', 'None yet.']) expect(blank).toContain(s)
+    for (const s of ['Unnamed hero', 'Powers, qualities, and status', '—', 'Choose a personality.', 'Not worked out yet.', 'No principles yet.', 'None yet.']) expect(blank).toContain(s)
     expect(blank).not.toContain('Auxiliary sheet')
   })
 
@@ -214,9 +215,9 @@ describe('layoutHero', () => {
     hero.background!.principle = { id: 'custom', custom: { category: 'identity', name: 'Dice', roleplaying: 'r', minorTwist: 'm', majorTwist: 'M', greenAbility: { name: 'Dice', text: 'Overcome using your Max die. Then roll a d6.' } } }
     const c = laidOut(hero)
     expect(c.icons.map((i) => i.name).filter((n) => n.includes('undefined'))).toEqual([])
-    // The "." after the die is drawn on its own, after the die icon.
-    const d6 = c.icons.find((i) => i.name === 'die/d6')!
-    expect(c.texts.some((t) => t.text === '.' && t.page === d6.page && t.x > d6.x)).toBe(true)
+    // The "." after the die is drawn on its own, just after the die icon on the same line.
+    const dot = c.texts.find((t) => t.text === '.')!
+    expect(c.icons.some((i) => i.name === 'die/d6' && i.page === dot.page && Math.abs(i.y - dot.y) < 6 && i.x < dot.x)).toBe(true)
   })
 
   it('draws die sizes in ability text as die icons', () => {

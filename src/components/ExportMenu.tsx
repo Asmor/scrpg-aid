@@ -72,16 +72,22 @@ export function ExportMenu({ hero }: { hero: Hero }) {
         </button>
       </div>
       <div className="button-row export-menu__pdf">
-        <label className="field field--inline" htmlFor={`${id}-page`}>
-          <span>Page size</span>
-          <select id={`${id}-page`} value={pageSize} onChange={(e) => setPageSize(e.target.value as PageSize)}>
-            <option value="letter">Letter</option>
-            <option value="a4">A4</option>
-          </select>
-        </label>
         <button type="button" className="button" disabled={makingPdf} onClick={() => void pdf()}>
           {makingPdf ? 'Making PDF…' : 'Download PDF'}
         </button>
+        <span role="radiogroup" aria-label="Page size" className="export-menu__sizes">
+          {(
+            [
+              ['letter', 'Letter'],
+              ['a4', 'A4'],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={value} className="checkbox">
+              <input type="radio" name={`${id}-page`} checked={pageSize === value} onChange={() => setPageSize(value)} />
+              {label}
+            </label>
+          ))}
+        </span>
       </div>
       {error && (
         <p role="alert" className="error">

@@ -12,6 +12,7 @@ import { buildSheet, type HeroSheet, type SheetAbility } from '../creation/sheet
 import type { HeroTrait } from '../creation/traits'
 import type { StepId } from '../creation/warnings'
 import type { AbilityType, Die, Zone } from '../rules/types'
+import { diceTableRows } from '../creation/dice-table'
 import { abilityEffects } from '../creation/effects'
 import { modeLimits } from '../creation/format'
 import { AbilityText, ActionIcon, DiceText, DieIcon } from './icons'
@@ -62,6 +63,55 @@ function TraitTable({ caption, traits }: { caption: string; traits: readonly Her
   )
 }
 
+/** Powers, qualities, and status dice in one six-column table (../creation/dice-table.ts). */
+function DiceTable({ sheet }: { sheet: HeroSheet }) {
+  const cells = (t: HeroTrait | undefined) => (
+    <>
+      <td>{t?.name}</td>
+      <td className="die">{t && <DieIcon die={t.die} />}</td>
+    </>
+  )
+  return (
+    <div className="dice-table-wrap">
+      <table className="trait-table dice-table">
+        <caption className="visually-hidden">Powers, qualities, and status dice</caption>
+        <thead>
+          <tr>
+            <th scope="colgroup" colSpan={2}>
+              Power
+            </th>
+            <th scope="colgroup" colSpan={2}>
+              Quality
+            </th>
+            <th scope="colgroup" colSpan={2}>
+              Status
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {diceTableRows(sheet).map((row, i) => (
+            <tr key={i}>
+              {cells(row.power)}
+              {cells(row.quality)}
+              {row.status ? (
+                <>
+                  <td className={`dice-table__zone zone-${row.status.zone}`}>{ZONE_LABEL[row.status.zone]}</td>
+                  <td className={`die dice-table__zone zone-${row.status.zone}`}>{row.status.die ? <DieIcon die={row.status.die} /> : '—'}</td>
+                </>
+              ) : (
+                <>
+                  <td />
+                  <td />
+                </>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 function StatusDice({ dice, label }: { dice: Record<Zone, Die>; label?: string }) {
   return (
     <div className="status-dice">
@@ -105,21 +155,11 @@ function AbilityRow({ name, type, text }: { name: string; type: AbilityType; tex
   )
 }
 
-/** The Out ability: its effects' icons, then its text with inline icons, like an ability row without a name or type. */
+/** The Out ability's text, with an icon before each effect word. */
 function OutAbility({ text }: { text: string }) {
-  const effects = abilityEffects(text)
   return (
-    <p className="out-ability">
-      {effects.length > 0 && (
-        <span className="ability__effects">
-          {effects.map((e) => (
-            <ActionIcon key={e} action={e} />
-          ))}
-        </span>
-      )}
-      <span className="ability__text">
-        <AbilityText text={text} />
-      </span>
+    <p className="ability__text">
+      <AbilityText text={text} />
     </p>
   )
 }
@@ -290,15 +330,8 @@ export function HeroSheetView({ hero, warnings = true }: { hero: Hero; warnings?
           </Panel>
         )}
 
-        <Panel title="Powers">
-          <TraitTable caption="Powers" traits={sheet.powers} />
-        </Panel>
-        <Panel title="Qualities">
-          <TraitTable caption="Qualities" traits={sheet.qualities} />
-        </Panel>
-
-        <Panel title="Status dice">
-          {sheet.statusDice ? <StatusDice dice={sheet.statusDice} /> : <p className="sheet-empty">Choose a personality.</p>}
+        <Panel title="Powers, qualities, and status" className="sheet-dice">
+          <DiceTable sheet={sheet} />
         </Panel>
         <Panel title="Health">
           {sheet.maxHealth !== undefined ? (

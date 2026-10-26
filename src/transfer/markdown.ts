@@ -3,6 +3,7 @@
  * plain text and rendered. It ends with the hero's JSON in an HTML comment (the one HTML
  * allowed), so the file can be imported back. Rule warnings are left out.
  */
+import { diceTableRows } from '../creation/dice-table'
 import { buildSheet, type HeroSheet, type SheetAbility } from '../creation/sheet'
 import type { HeroTrait } from '../creation/traits'
 import { modeLimits } from '../creation/format'
@@ -54,6 +55,15 @@ function table(header: readonly string[], rows: readonly (readonly string[])[]):
 function traitTable(kind: string, traits: readonly HeroTrait[]): string {
   if (traits.length === 0) return `No ${kind === 'Quality' ? 'qualities' : `${kind.toLowerCase()}s`} yet.`
   return table([kind, 'Die'], traits.map((t) => [escapeInline(t.name), t.die]))
+}
+
+/** Powers, qualities, and status dice side by side (../creation/dice-table.ts), padded to line up as plain text. */
+function diceTable(sheet: HeroSheet): string {
+  const pair = (t: HeroTrait | undefined) => (t ? [escapeInline(t.name), t.die] : ['', ''])
+  return table(
+    ['Power', 'Die', 'Quality', 'Die', 'Status', 'Die'],
+    diceTableRows(sheet).map((r) => [...pair(r.power), ...pair(r.quality), ...(r.status ? [ZONE_LABEL[r.status.zone], r.status.die ?? '—'] : ['', ''])]),
+  )
 }
 
 function statusTable(dice: Record<Zone, Die>): string {
@@ -144,8 +154,7 @@ export function heroMarkdown(hero: Hero): string {
   const details = DETAIL_FIELDS.filter((f) => f !== 'name' && f !== 'alias' && hero.details[f].trim())
   if (details.length) blocks.push('## Details', details.map((f) => field(DETAIL_LABEL[f], hero.details[f])).join('\n'))
 
-  blocks.push('## Powers', traitTable('Power', sheet.powers), '## Qualities', traitTable('Quality', sheet.qualities))
-  blocks.push('## Status dice', sheet.statusDice ? statusTable(sheet.statusDice) : 'Choose a personality.')
+  blocks.push('## Powers, qualities, and status', diceTable(sheet))
   blocks.push('## Health')
   if (sheet.maxHealth !== undefined) {
     blocks.push(`**Max Health:** ${sheet.maxHealth}`)
