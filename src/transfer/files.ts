@@ -6,6 +6,7 @@
  */
 import { newId, type Hero } from '../hero/model'
 import { parseSaved, toSaved, type SavedHero } from '../hero/serialize'
+import { extractEmbedded } from './embed'
 
 export const BACKUP_FORMAT = 'scrpg-backup'
 export const BACKUP_VERSION = 1
@@ -56,18 +57,33 @@ export type ImportResult = { ok: true; heroes: Hero[]; skipped: SkippedHero[] } 
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
-/** Reads an imported file: one hero, or a backup of several. */
-export function readImport(text: string): ImportResult {
-  let value: unknown
+const NOT_OURS = "This file isn't a hero or a backup the app can read."
+
+const parseJson = (text: string): { ok: true; value: unknown } | { ok: false } => {
   try {
-    value = JSON.parse(text)
+    return { ok: true, value: JSON.parse(text) }
   } catch {
-    return { ok: false, error: "This file isn't a hero or a backup the app can read." }
+    return { ok: false }
   }
+}
+
+/**
+ * Reads an imported file: one hero or a backup of several as JSON, or a Markdown or HTML
+ * export carrying its hero's JSON (./embed.ts).
+ */
+export function readImport(text: string): ImportResult {
+  let parsed = parseJson(text)
+  if (!parsed.ok) {
+    const embedded = extractEmbedded(text)
+    if (embedded === undefined) return { ok: false, error: NOT_OURS }
+    parsed = parseJson(embedded)
+    if (!parsed.ok) return { ok: false, error: "This file's hero data is damaged, so it can't be imported." }
+  }
+  const { value } = parsed
   if (isRecord(value) && value.format === BACKUP_FORMAT) return readBackup(value)
   const result = parseSaved(value)
   if (result.ok) return { ok: true, heroes: [result.hero], skipped: [] }
-  return { ok: false, error: result.error === 'not a saved hero' ? "This file isn't a hero or a backup the app can read." : `This hero couldn't be read: ${result.error}.` }
+  return { ok: false, error: result.error === 'not a saved hero' ? NOT_OURS : `This hero couldn't be read: ${result.error}.` }
 }
 
 function readBackup(value: Record<string, unknown>): ImportResult {

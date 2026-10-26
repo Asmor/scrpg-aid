@@ -1,5 +1,5 @@
 /**
- * Importing heroes from a file: one hero, or a backup of several. When a hero is already
+ * Importing heroes from a file: one hero, a backup of several, or a Markdown export. When a hero is already
  * saved (the same id), the player chooses each time whether to replace theirs or keep both.
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
@@ -120,7 +120,7 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
       <input
         ref={input}
         type="file"
-        accept=".json,application/json"
+        accept=".json,.md,.markdown,application/json,text/markdown"
         className="visually-hidden"
         tabIndex={-1}
         aria-hidden="true"

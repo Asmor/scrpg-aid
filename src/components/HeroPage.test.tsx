@@ -46,12 +46,25 @@ describe('HeroPage', () => {
   })
 
   it('exports the hero as JSON that imports back', async () => {
+    vi.mocked(downloadFile).mockClear()
     const hero = exampleHero({ id: 'x' })
     renderPage(storeReturning(async () => ({ status: 'found', hero })))
     await userEvent.click(await screen.findByRole('button', { name: 'Download JSON' }))
     const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
     expect(name).toBe('maya-reyes.json')
     expect(type).toBe('application/json')
+    expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], skipped: [] })
+  })
+
+  it('exports the hero as Markdown that imports back', async () => {
+    vi.mocked(downloadFile).mockClear()
+    const hero = exampleHero({ id: 'x' })
+    renderPage(storeReturning(async () => ({ status: 'found', hero })))
+    await userEvent.click(await screen.findByRole('button', { name: 'Download Markdown' }))
+    const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
+    expect(name).toBe('maya-reyes.md')
+    expect(type).toBe('text/markdown')
+    expect(text).toMatch(/^# Maya Reyes\n/)
     expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], skipped: [] })
   })
 })

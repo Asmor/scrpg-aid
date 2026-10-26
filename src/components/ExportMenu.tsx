@@ -2,6 +2,7 @@
 import type { Hero } from '../hero/model'
 import { downloadFile } from '../transfer/download'
 import { heroFileName, heroJson } from '../transfer/files'
+import { heroMarkdown } from '../transfer/markdown'
 
 export function ExportMenu({ hero }: { hero: Hero }) {
   return (
@@ -11,8 +12,11 @@ export function ExportMenu({ hero }: { hero: Hero }) {
         <button type="button" className="button" onClick={() => downloadFile(heroFileName(hero, 'json'), heroJson(hero), 'application/json')}>
           Download JSON
         </button>
+        <button type="button" className="button" onClick={() => downloadFile(heroFileName(hero, 'md'), heroMarkdown(hero), 'text/markdown')}>
+          Download Markdown
+        </button>
       </div>
-      <p className="hint">JSON can be imported back into the app, here or on another device.</p>
+      <p className="hint">JSON and Markdown files can be imported back into the app, here or on another device.</p>
     </section>
   )
 }

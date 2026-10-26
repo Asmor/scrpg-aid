@@ -6,15 +6,14 @@
  * listed, never blocking (the user's "warn only" decision).
  */
 import type { ReactNode } from 'react'
-import { DETAIL_FIELDS, heroDisplayName, type Hero, type HeroDetails } from '../hero/model'
+import { DETAIL_FIELDS, heroDisplayName, type Hero } from '../hero/model'
+import { ABILITY_TYPE_LABEL as TYPE_LABEL, DETAIL_LABEL, ZONE_LABEL } from '../hero/labels'
 import { buildSheet, type HeroSheet, type SheetAbility } from '../creation/sheet'
 import type { HeroTrait } from '../creation/traits'
 import type { StepId } from '../creation/warnings'
 import type { AbilityType, Die, Zone } from '../rules/types'
-import { modeLimits } from './format'
+import { modeLimits } from '../creation/format'
 
-const ZONE_LABEL: Record<Zone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red' }
-const TYPE_LABEL: Record<AbilityType, string> = { A: 'Action', R: 'Reaction', I: 'Inherent', 'A/I': 'Action or Inherent' }
 const STEP_LABEL: Record<StepId, string> = {
   background: 'Background',
   powerSource: 'Power source',
@@ -25,19 +24,6 @@ const STEP_LABEL: Record<StepId, string> = {
   health: 'Health',
   principles: 'Principles',
   advancement: 'Advancement',
-}
-const DETAIL_LABEL: Record<keyof HeroDetails, string> = {
-  name: 'Hero name',
-  alias: 'Alias',
-  player: 'Player',
-  gender: 'Gender',
-  age: 'Age',
-  height: 'Height',
-  eyes: 'Eyes',
-  hair: 'Hair',
-  skin: 'Skin',
-  build: 'Build',
-  costume: 'Costume / equipment',
 }
 
 function Panel({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {

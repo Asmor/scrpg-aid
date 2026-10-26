@@ -8,6 +8,7 @@ import { createHero } from '../hero/model'
 import { toSaved } from '../hero/serialize'
 import { downloadFile } from '../transfer/download'
 import { backupJson, readImport } from '../transfer/files'
+import { heroMarkdown } from '../transfer/markdown'
 import { HeroList } from './HeroList'
 
 vi.mock('../transfer/download', () => ({ downloadFile: vi.fn() }))
@@ -192,6 +193,13 @@ describe('HeroList', () => {
       renderList(store)
       await upload(JSON.stringify(toSaved(named('n1', 'Nova'))))
       expect(await screen.findByRole('status')).toHaveTextContent('Imported one hero.')
+      expect(await screen.findByRole('link', { name: /Nova/ })).toHaveAttribute('href', '#/hero/n1')
+    })
+
+    it('imports a hero from a Markdown export', async () => {
+      const store = new MemoryHeroStore()
+      renderList(store)
+      await upload(heroMarkdown(named('n1', 'Nova')), 'nova.md')
       expect(await screen.findByRole('link', { name: /Nova/ })).toHaveAttribute('href', '#/hero/n1')
     })
 

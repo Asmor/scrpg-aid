@@ -1,0 +1,122 @@
+import { describe, expect, it } from 'vitest'
+import { exampleHero } from '../hero/example'
+import { createHero } from '../hero/model'
+import { dividedHero, formChangerHero, minionMakerHero, modularHero } from '../test/heroes'
+import { embeddableJson, extractEmbedded, markdownPayload } from './embed'
+import { readImport } from './files'
+import { heroMarkdown } from './markdown'
+
+/** The Markdown before the import comment. */
+const body = (md: string) => md.slice(0, md.indexOf('<!--'))
+/** An HTML tag or comment that isn't escaped. */
+const HTML = /(^|[^\\])<[a-z!/]/im
+
+describe('heroMarkdown', () => {
+  const md = heroMarkdown(exampleHero({ id: 'x' }))
+
+  it('lays out the sheet with headings, lists and padded tables', () => {
+    expect(md.startsWith('# Maya Reyes\n\n**Alias:** Afterimage\n\n## Characteristics\n\n- **Background:** Upper Class\n')).toBe(true)
+    expect(md).toContain('- **Costume / equipment:** A heat-resistant running suit in orange and white')
+    expect(md).toContain(['| Power     | Die |', '| --------- | --- |', '| Speed     | d12 |'].join('\n'))
+    expect(md).toContain('| Old Money | d8  |')
+    expect(md).toContain(['| Green | Yellow | Red |', '| ----- | ------ | --- |', '| d8    | d8     | d8  |'].join('\n'))
+    expect(md).toContain('**Max Health:** 30\n\n- **Green:** 30–23\n- **Yellow:** 22–12\n- **Red:** 11–1')
+    expect(md).toContain('### Principle of Business\n\n- **During roleplaying:** ')
+    expect(md).toContain('### Green\n\n- **Immunity** (Inherent): You do not take damage from Fire.')
+    expect(md).toContain('### Out\n\nBoost an ally by rolling your single Fitness die.')
+  })
+
+  it('uses no HTML besides the import comment, which comes last', () => {
+    expect(body(md)).not.toMatch(HTML)
+    expect(md.trimEnd().endsWith('-->')).toBe(true)
+  })
+
+  it('imports back to the same hero', () => {
+    const hero = { ...dividedHero(), id: 'd1' }
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], skipped: [] })
+  })
+
+  it('escapes the player’s text so it stays plain', () => {
+    const hero = createHero('guided', { id: 'h1' })
+    hero.details.name = 'The *Real* [Deal] | <b>'
+    hero.details.costume = 'Cape\n- not a list\n# not a heading\n1. not numbered\n\n  > not a quote'
+    const out = heroMarkdown(hero)
+    expect(out.startsWith('# The \\*Real\\* \\[Deal\\] \\| \\<b\\>\n')).toBe(true)
+    expect(out).toContain('- **Costume / equipment:** Cape\\\n  \\- not a list\\\n  \\# not a heading\\\n  1\\. not numbered\n\n  \\> not a quote\n')
+    expect(body(out)).not.toMatch(HTML)
+  })
+
+  it('keeps paragraphs, escapes every line-start marker, and leaves an empty field blank', () => {
+    const hero = createHero('guided', { id: 'h1' })
+    hero.details.name = 'Agent #'
+    hero.details.costume = 'Mask ~~and~~ cape &amp; boots\n+ one\n= two\n~ three\n1) four\n\n\nSecond paragraph'
+    hero.archetype = { id: 'speedster', traits: [], abilities: [], bonus: [], principle: { id: 'custom', custom: { category: 'ideals', name: 'Hope', roleplaying: '', minorTwist: '', majorTwist: '', greenAbility: { name: '', text: '' } } } }
+    const out = heroMarkdown(hero)
+    // A trailing "#" would otherwise be dropped from the rendered heading.
+    expect(out.startsWith('# Agent \\#\n')).toBe(true)
+    expect(out).toContain('- **Costume / equipment:** Mask \\~\\~and\\~\\~ cape \\&amp; boots\\\n  \\+ one\\\n  \\= two\\\n  \\~ three\\\n  1\\) four\n\n  Second paragraph\n')
+    expect(out).toMatch(/- \*\*During roleplaying:\*\*\n/)
+  })
+
+  it('leaves out a Divided section with nothing in it', () => {
+    expect(heroMarkdown(dividedHero())).not.toContain('### Divided')
+  })
+
+  it('says what a new hero hasn’t chosen yet', () => {
+    const out = heroMarkdown(createHero('guided', { id: 'h1' }))
+    expect(out).toContain('# Unnamed hero')
+    expect(out).toContain('## Powers\n\nNo powers yet.')
+    expect(out).toContain('## Qualities\n\nNo qualities yet.')
+    expect(out).toContain('## Status dice\n\nChoose a personality.')
+    expect(out).toContain('## Health\n\nNot worked out yet.')
+    expect(out).toContain('## Principles\n\nNo principles yet.')
+    expect(out).not.toContain('## Details')
+    expect(out).not.toContain('## Auxiliary sheet')
+  })
+
+  it('includes the auxiliary sheet for forms, modes, and minion forms', () => {
+    expect(heroMarkdown(formChangerHero())).toContain('### Brute (Green form)\n\n| Trait ')
+    const modular = heroMarkdown(modularHero())
+    expect(modular).toMatch(/### .+ \((Green|Yellow|Red) mode\)/)
+    expect(modular).toContain('### Powerless mode')
+    expect(heroMarkdown(minionMakerHero())).toContain('### Minion forms\n\n- **')
+  })
+
+  it('lists advancement: back issues, collections with notes, and changes', () => {
+    const hero = exampleHero({ id: 'x' })
+    hero.advancement = {
+      backIssues: 2,
+      collections: [{ name: 'Origins', notes: 'First arc\nSecond line' }, { name: '' }],
+      changes: [{ kind: 'swapQuality', from: { kind: 'quality', id: 'alertness' }, to: { kind: 'quality', id: 'banter' } }],
+    }
+    const out = heroMarkdown(hero)
+    expect(out).toContain('## Advancement\n\nBack issues: 2\n\n1. **Origins**\\\n   First arc\\\n   Second line\n2. **Collection 2**\n\n- ')
+    expect(out).toMatch(/\| Banter +\| d8 +\|/)
+  })
+})
+
+describe('embedded JSON', () => {
+  it('can’t close its comment or script tag, whatever the player typed', () => {
+    const hero = createHero('guided', { id: 'h1' })
+    hero.details.name = 'a --> b </script> c <!-- d & e ---'
+    const json = embeddableJson(hero)
+    expect(json).not.toMatch(/--|<|>|&/)
+    expect(JSON.parse(json).hero.details.name).toBe(hero.details.name)
+    expect(extractEmbedded(`text\n\n${markdownPayload(hero)}\n`)?.trim()).toBe(json)
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], skipped: [] })
+  })
+
+  it('finds the real comment when the player’s text looks like one', () => {
+    const hero = createHero('guided', { id: 'h1' })
+    hero.details.name = 'Agent <!-- scrpg-hero #'
+    hero.details.costume = '<!-- scrpg-hero {"format":"scrpg-hero"} -->'
+    hero.background = { id: 'upper-class', qualities: [], principle: { id: 'custom', custom: { category: 'identity', name: '<!-- scrpg-hero', roleplaying: 'x -->', minorTwist: '', majorTwist: '', greenAbility: { name: 'a --> b', text: '' } } } }
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], skipped: [] })
+  })
+
+  it('explains a Markdown file without a readable hero', () => {
+    expect(readImport('# Just notes')).toEqual({ ok: false, error: "This file isn't a hero or a backup the app can read." })
+    expect(readImport('# Hero\n\n<!-- scrpg-hero\n{"unclosed": 1')).toEqual({ ok: false, error: "This file isn't a hero or a backup the app can read." })
+    expect(readImport('# Hero\n\n<!-- scrpg-hero\n{broken\n-->')).toEqual({ ok: false, error: "This file's hero data is damaged, so it can't be imported." })
+  })
+})
