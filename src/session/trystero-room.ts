@@ -9,7 +9,7 @@ import type { Connect } from './transport'
 import type { TurnServer } from './turn'
 
 /** Keeps this app's rooms apart from other Trystero apps'. */
-export const APP_ID = 'scrpg-vibe-coded'
+export const APP_ID = 'scrpg-aid'
 
 /** Trystero, with TURN relay servers for peers who can't connect directly (./turn.ts). */
 export const trysteroConnect =

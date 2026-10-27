@@ -25,7 +25,7 @@ export default function App({ store: given, connect, sessionStore }: { store?: H
       <div className="app">
         <header className="app-header">
           <h1>
-            <a href={listPath}>SCRPG Builder</a>
+            <a href={listPath}>SCRPG Aid</a>
           </h1>
           <ThemeToggle value={theme} onChange={setTheme} />
         </header>

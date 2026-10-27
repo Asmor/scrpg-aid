@@ -14,9 +14,9 @@ export default defineConfig({
       registerType: 'prompt',
       manifest: {
         id: base,
-        name: 'Sentinel Comics RPG Builder',
-        short_name: 'SCRPG Builder',
-        description: 'Create heroes for the Sentinel Comics RPG.',
+        name: 'Sentinel Comics RPG Aid',
+        short_name: 'SCRPG Aid',
+        description: 'Create heroes and run games for the Sentinel Comics RPG.',
         theme_color: '#1f3a93',
         // Dark, since dark is the default whenever the system has no preference.
         background_color: '#15171c',

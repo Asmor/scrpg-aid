@@ -101,7 +101,7 @@ export async function heroPdf(hero: Hero, pageSize: PageSize, assets: PdfAssets,
   const icons = Object.fromEntries(await Promise.all(Object.entries(assets.icons).map(async ([name, bytes]) => [name, await doc.embedPng(bytes)] as const))) as Record<IconName, PDFImage>
   doc.setTitle(heroDisplayName(hero))
   doc.setSubject('Sentinel Comics RPG hero sheet')
-  doc.setCreator('SCRPG Builder')
+  doc.setCreator('SCRPG Aid')
   doc.setCreationDate(now)
   doc.setModificationDate(now)
   layoutHero(new PdfCanvas(doc, PAGE_SIZES[pageSize], fonts, icons), hero)

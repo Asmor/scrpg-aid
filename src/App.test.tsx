@@ -17,7 +17,7 @@ afterEach(() => {
 describe('App', () => {
   it('renders the app title, linking home', () => {
     render(<App store={new MemoryHeroStore()} />)
-    const title = screen.getByRole('heading', { level: 1, name: 'SCRPG Builder' })
+    const title = screen.getByRole('heading', { level: 1, name: 'SCRPG Aid' })
     expect(title.querySelector('a')).toHaveAttribute('href', '#/')
   })
 

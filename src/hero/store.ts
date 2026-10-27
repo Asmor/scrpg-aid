@@ -74,7 +74,7 @@ export class MemoryHeroStore implements HeroStore {
   }
 }
 
-const DB_NAME = 'scrpg-builder'
+const DB_NAME = 'scrpg-aid'
 const DB_VERSION = 1
 const STORE = 'heroes'
 
