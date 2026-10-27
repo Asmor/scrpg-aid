@@ -33,7 +33,7 @@ First, let's get all of the relevant data out of the PDF and into another format
 
 Output should be kept in `data/`.
 
-### Phase 1: Hero creation
+### Phase 1: Hero creation **(Complete)**
 
 - Create, save, edit, and view a hero
 - All options in core rules are implemented
@@ -42,7 +42,7 @@ Output should be kept in `data/`.
   - The Minion Maker also has some unique requirements.
   - This list may not be exhaustive.
 
-### Phase 2: Export & Import
+### Phase 2: Export & Import **(Complete)**
 
 - Export
   - PDF
