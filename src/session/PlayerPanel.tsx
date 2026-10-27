@@ -4,6 +4,7 @@
  */
 import { joinPath, playPath } from '../app/route'
 import { useTick } from '../play/useTick'
+import { useOnline } from './useOnline'
 import type { PlayerSession, PlayerSnapshot } from './controller'
 import { Feed, Party } from './TableViews'
 
@@ -18,6 +19,7 @@ interface Props {
 
 export function PlayerPanel({ heroId, player, snapshot, hosting, onLeave }: Props) {
   const now = useTick()
+  const online = useOnline()
   if (!player) {
     return (
       <p>
@@ -38,6 +40,7 @@ export function PlayerPanel({ heroId, player, snapshot, hosting, onLeave }: Prop
       <p className="session-status" role="status">
         {status === 'connecting' ? `Connecting to game ${player.room}…` : status === 'connected' ? `In game ${player.room}.` : 'The GM is away. Reconnecting…'}
       </p>
+      {!online && <p className="hint">You’re offline. The game picks up again when you’re back online.</p>}
       {status === 'connecting' && <p className="hint">If this takes more than a few seconds, check the room code and password with your GM, and that they’re online.</p>}
       {snapshot?.state && (
         <>

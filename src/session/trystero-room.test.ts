@@ -11,7 +11,7 @@ const joinRoom = vi.fn(() => room)
 room.makeAction.mockReturnValue(action)
 vi.mock('trystero', () => ({ joinRoom }))
 
-const { APP_ID, connectTrystero } = await import('./trystero')
+const { APP_ID, connectTrysteroRoom: connectTrystero } = await import('./trystero-room')
 
 describe('the Trystero transport', () => {
   it('joins the room with the app id and password, and passes messages and peers through', () => {

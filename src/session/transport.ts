@@ -37,6 +37,48 @@ export function quietAfterLeave(transport: Transport): Transport {
   }
 }
 
+/**
+ * A transport whose real one loads in the background (a dynamically imported module). Until
+ * it has, nothing is sent; handlers are passed on once it's there. If it never loads (offline
+ * before it was cached), the session just stays unconnected.
+ */
+export function lazyConnect(load: () => Promise<Connect>): Connect {
+  return (room, password) => {
+    let real: Transport | undefined
+    let left = false
+    const handlers: { message?: (message: unknown, peerId: string) => void; join?: (peerId: string) => void; leave?: (peerId: string) => void } = {}
+    load().then(
+      (connect) => {
+        if (left) return
+        real = connect(room, password)
+        if (handlers.message) real.onMessage(handlers.message)
+        if (handlers.join) real.onPeerJoin(handlers.join)
+        if (handlers.leave) real.onPeerLeave(handlers.leave)
+      },
+      () => {},
+    )
+    return {
+      send: (message, to) => real?.send(message, to),
+      onMessage: (handler) => {
+        handlers.message = handler
+        real?.onMessage(handler)
+      },
+      onPeerJoin: (handler) => {
+        handlers.join = handler
+        real?.onPeerJoin(handler)
+      },
+      onPeerLeave: (handler) => {
+        handlers.leave = handler
+        real?.onPeerLeave(handler)
+      },
+      leave: () => {
+        left = true
+        real?.leave()
+      },
+    }
+  }
+}
+
 interface FakePeer {
   id: string
   room: string

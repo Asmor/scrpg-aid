@@ -8,6 +8,7 @@ import { ZONE_LABEL } from '../hero/labels'
 import { ModForm } from '../play/ModForm'
 import { useTick } from '../play/useTick'
 import { memberName } from './gm'
+import { useOnline } from './useOnline'
 import { useGmState, useSession } from './context'
 import { Feed, Party } from './TableViews'
 
@@ -18,6 +19,7 @@ export function GmPage() {
   const state = useGmState(session.gm)
   const formId = useId()
   const now = useTick()
+  const online = useOnline()
   const [password, setPassword] = useState('')
   const [copied, setCopied] = useState<'copied' | 'failed' | null>(null)
   const copyTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -60,6 +62,7 @@ export function GmPage() {
         <a href={listPath}>← All heroes</a>
       </p>
       <h2>Your game</h2>
+      {!online && <p className="hint">You’re offline. The game picks up again when you’re back online.</p>}
       <div className="sheet-grid">
         <section className="sheet-panel play-section" aria-label="Invite players">
           <h3 className="sheet-panel__title">Invite players</h3>
