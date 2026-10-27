@@ -9,16 +9,19 @@ import { DieIcon } from '../components/icons'
 import { buildSheet } from '../creation/sheet'
 import { useHeroEditor } from '../editor/useHeroEditor'
 import { heroDisplayName, newId, type PlayState } from '../hero/model'
-import { addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, MAX_HERO_POINTS, newIssue, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock, type PlayZone } from './state'
+import { addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, MAX_HERO_POINTS, newIssue, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
 import { currentForm, dividedForm, formAvailable, formDice, formNoun, playAbilities, playForms } from './forms'
 import { modeLimits } from '../creation/format'
 import { formatFull, formatWhen } from './time'
+import { useTick } from './useTick'
 import { ActionIcon } from '../components/icons'
-import { ABILITY_TYPE_LABEL } from '../hero/labels'
+import { ABILITY_TYPE_LABEL, PLAY_ZONE_LABEL } from '../hero/labels'
 import { confirmRoll } from './roll'
 import { RollDialog, type RollSubject } from './RollDialog'
+import { usePlayerSnapshot, useSession } from '../session/context'
+import { heroSummary } from '../session/player'
+import { PlayerPanel } from '../session/PlayerPanel'
 
-const ZONE_LABEL: Record<PlayZone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red', out: 'Out' }
 const MOD_VALUES = [-4, -3, -2, -1, 1, 2, 3, 4] as const
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -28,16 +31,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       {children}
     </section>
   )
-}
-
-/** Re-renders every half minute, so "3 minutes ago" stays true. */
-function useTick(ms = 30_000): Date {
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), ms)
-    return () => clearInterval(timer)
-  }, [ms])
-  return now
 }
 
 export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => newId() }), random }: { id: string; clock?: () => Clock; random?: () => number }) {
@@ -53,6 +46,21 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
   const [twistText, setTwistText] = useState('')
   const [confirmIssue, setConfirmIssue] = useState(false)
   const [rolling, setRolling] = useState<RollSubject | null>(null)
+
+  // A game session this hero is playing in (Phase 4).
+  const session = useSession()
+  const player = session.player?.heroId === id ? session.player : undefined
+  const snapshot = usePlayerSnapshot(player)
+  const loaded = state.status === 'ready' ? state.hero : undefined
+  useEffect(() => {
+    if (!player || !loaded) return
+    // The session's changes (the GM's scene, mods others gave) go into the hero's play state.
+    const next = player.sync(loaded.play ?? emptyPlay())
+    if (next) update((h) => void (h.play = next))
+    // The table sees the hero, and their history as it happens.
+    player.updateHero(heroSummary(loaded, buildSheet(loaded), next ?? loaded.play ?? emptyPlay()))
+    if (snapshot?.status === 'connected') player.share((next ?? loaded.play)?.history ?? [])
+  }, [player, snapshot, loaded, update])
 
   if (state.status !== 'ready') {
     return (
@@ -116,7 +124,7 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
           ) : (
             <>
               <p className={`play-health zone-${zone ?? 'green'}`}>
-                <strong>{health}</strong> / {sheet.maxHealth} <span className="play-zone">{zone ? ZONE_LABEL[zone] : ''}</span>
+                <strong>{health}</strong> / {sheet.maxHealth} <span className="play-zone">{zone ? PLAY_ZONE_LABEL[zone] : ''}</span>
               </p>
               <div className="button-row">
                 <label className="visually-hidden" htmlFor={`${formId}-amount`}>
@@ -138,15 +146,16 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
               </div>
             </>
           )}
-          <fieldset className="play-scene">
+          <fieldset className="play-scene" disabled={Boolean(player)}>
             <legend>Scene</legend>
             {(['green', 'yellow', 'red'] as const).map((z) => (
               <label key={z} className="checkbox">
                 <input type="radio" name={`${formId}-scene`} checked={(play.sceneZone ?? 'green') === z} onChange={() => change((p, c) => setSceneZone(p, z, c))} />
-                {ZONE_LABEL[z]}
+                {PLAY_ZONE_LABEL[z]}
               </label>
             ))}
           </fieldset>
+          {player && <p className="hint">The GM sets the scene.</p>}
           <p>
             Status die: {die ? <DieIcon die={die} /> : zone === 'out' ? 'none (Out)' : '—'}
           </p>
@@ -326,6 +335,10 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
           </form>
         </Section>
       </div>
+
+      <Section title="Game">
+        <PlayerPanel heroId={id} player={session.player} snapshot={snapshot} hosting={Boolean(session.gm)} onLeave={session.leave} />
+      </Section>
 
       <Section title="Abilities">
         <div className="button-row">

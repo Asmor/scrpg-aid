@@ -8,7 +8,7 @@ import type { Clock } from '../play/state'
 import type { Zone } from '../rules/types'
 import { gmGiveMod, gmReceive, gmRemoveMember, gmSetConnected, gmSetScene, newSession } from './gm'
 import { applySession, entriesToShare } from './player'
-import type { Connect, Transport } from './transport'
+import { quietAfterLeave, type Connect, type Transport } from './transport'
 import { FEED_BATCH, INBOX_LIMIT, readGmMessage, readPlayerMessage, SAVED_VERSION, SESSION_VERSION, type GmMessage, type GmSaved, type HeroSummary, type PlayerMessage, type PlayerSaved, type SessionState } from './types'
 
 type Listener = () => void
@@ -47,7 +47,7 @@ export class GmSession extends Subscribable<SessionState> {
     this.save = save
     this.room = saved.room
     if (saved.password) this.password = saved.password
-    this.transport = connect(saved.room, saved.password)
+    this.transport = quietAfterLeave(connect(saved.room, saved.password))
     this.transport.onPeerJoin((peer) => this.sendState(peer))
     this.transport.onPeerLeave((peer) => {
       const clientId = this.peers.get(peer)
@@ -130,6 +130,8 @@ export class PlayerSession extends Subscribable<PlayerSnapshot> {
   private gmPeer?: string
   private hero?: HeroSummary
   private info: PlayerSaved
+  /** The GM's state the last acknowledgement answered. */
+  private ackedFor?: SessionState
   private clock: () => Clock
   private save: (saved: PlayerSaved) => void
 
@@ -138,7 +140,7 @@ export class PlayerSession extends Subscribable<PlayerSnapshot> {
     this.clock = clock
     this.save = save
     this.info = saved
-    this.transport = connect(saved.room, saved.password)
+    this.transport = quietAfterLeave(connect(saved.room, saved.password))
     // Anyone could be the GM, so say hello to each peer; only the GM answers.
     this.transport.onPeerJoin((peer) => this.hello(peer))
     this.transport.onPeerLeave((peer) => {
@@ -163,6 +165,10 @@ export class PlayerSession extends Subscribable<PlayerSnapshot> {
 
   get room(): string {
     return this.info.room
+  }
+
+  get password(): string | undefined {
+    return this.info.password
   }
 
   get heroId(): string {
@@ -197,7 +203,11 @@ export class PlayerSession extends Subscribable<PlayerSnapshot> {
     if (!state) return undefined
     const result = applySession(play, state, this.info.clientId, new Set(this.info.applied), this.clock())
     if (result.added.length) this.updateInfo({ applied: [...this.info.applied, ...result.added].slice(-APPLIED_LIMIT) })
-    if (result.ack.length) this.toGm({ v: SESSION_VERSION, type: 'ack', ids: result.ack })
+    // Once per state from the GM: the next state shows whether the GM got it.
+    if (result.ack.length && this.ackedFor !== state) {
+      this.ackedFor = state
+      this.toGm({ v: SESSION_VERSION, type: 'ack', ids: result.ack })
+    }
     return result.play === play ? undefined : result.play
   }
 

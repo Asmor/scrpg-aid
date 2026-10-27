@@ -18,4 +18,7 @@ export const DETAIL_LABEL: Record<keyof HeroDetails, string> = {
 
 export const ZONE_LABEL: Record<Zone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red' }
 
+/** Zones in play, including Out (p. 14). */
+export const PLAY_ZONE_LABEL: Record<Zone | 'out', string> = { ...ZONE_LABEL, out: 'Out' }
+
 export const ABILITY_TYPE_LABEL: Record<AbilityType, string> = { A: 'Action', R: 'Reaction', I: 'Inherent', 'A/I': 'Action or Inherent' }

@@ -9,6 +9,7 @@ const DAY = 24 * HOUR
 
 export function formatWhen(at: string, now: Date, locale?: string, timeZone?: string): string {
   const then = new Date(at)
+  if (Number.isNaN(then.getTime())) return 'unknown time'
   const ago = now.getTime() - then.getTime()
   if (ago < HOUR) {
     const relative = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
@@ -21,5 +22,7 @@ export function formatWhen(at: string, now: Date, locale?: string, timeZone?: st
 
 /** The full date and time, for a tooltip on any timestamp. */
 export function formatFull(at: string, locale?: string, timeZone?: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeStyle: 'medium', timeZone }).format(new Date(at))
+  const then = new Date(at)
+  if (Number.isNaN(then.getTime())) return 'unknown time'
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeStyle: 'medium', timeZone }).format(then)
 }

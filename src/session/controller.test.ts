@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { emptyPlay, setHealth } from '../play/state'
 import { GmSession, PlayerSession } from './controller'
-import { fakeNetwork } from './transport'
+import { fakeNetwork, type Transport } from './transport'
 import type { GmSaved, HeroSummary, PlayerSaved } from './types'
 
 let n = 0
@@ -226,5 +226,55 @@ describe('a session over the network', () => {
       ['first', false],
       ['second', true],
     ])
+  })
+
+  it('does nothing with messages that arrive after leaving', () => {
+    // Trystero still delivers for a moment after leave(); the fake network doesn't, so use a stub.
+    const handlers: { message?: (m: unknown, p: string) => void; join?: (p: string) => void } = {}
+    const sent: unknown[] = []
+    const stub: Transport = {
+      send: (m) => void sent.push(m),
+      onMessage: (h) => void (handlers.message = h),
+      onPeerJoin: (h) => void (handlers.join = h),
+      onPeerLeave: () => {},
+      leave: () => {},
+    }
+    const saves: GmSaved[] = []
+    const gm = new GmSession(() => stub, { room: ROOM }, clock, (s) => saves.push(s))
+    const before = gm.state
+    gm.leave()
+    handlers.message!({ v: 1, type: 'hello', clientId: 'late', hero: hero('Late') }, 'p9')
+    handlers.join!('p9')
+    expect(gm.state).toBe(before)
+    expect(saves).toHaveLength(1)
+    expect(sent).toEqual([])
+  })
+
+  it('acknowledges mods once per state from the GM', async () => {
+    const net = fakeNetwork()
+    const gm = new GmSession(net.connect, { room: ROOM }, clock)
+    const sent: unknown[] = []
+    const ace = new PlayerSession(
+      (room, pw) => {
+        const t = net.connect(room, pw)
+        return { ...t, send: (m, to) => (sent.push(m), t.send(m, to)) }
+      },
+      { v: 1, room: ROOM, clientId: 'c1', heroId: 'h', applied: [] },
+      clock,
+    )
+    await net.settle()
+    gm.giveMod('c1', { label: 'x', value: 1 })
+    gm.giveMod('c1', { label: 'y', value: 2 })
+    await net.settle()
+    // Syncing twice on the same state from the GM acknowledges once.
+    const play = ace.sync(emptyPlay())!
+    ace.sync(play)
+    const acks = () => sent.filter((m) => (m as { type: string }).type === 'ack').length
+    expect(acks()).toBe(1)
+    // A new state with something waiting is acknowledged again.
+    gm.giveMod('c1', { label: 'z', value: 3 })
+    await net.settle()
+    ace.sync(play)
+    expect(acks()).toBe(2)
   })
 })

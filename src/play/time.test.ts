@@ -26,4 +26,9 @@ describe('formatWhen', () => {
   it('has a long form for tooltips', () => {
     expect(formatFull('2026-10-26T20:00:00Z', 'en-US', 'UTC')).toContain('Monday, October 26, 2026')
   })
+
+  it('says so for a time it can’t read (from another browser, say)', () => {
+    expect(formatWhen('garbage', new Date())).toBe('unknown time')
+    expect(formatFull('garbage')).toBe('unknown time')
+  })
 })

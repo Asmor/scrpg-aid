@@ -1,6 +1,6 @@
 /** The saved heroes: open, create, or delete one, or add the example hero. */
 import { useEffect, useRef, useState, type Ref } from 'react'
-import { editPath, heroPath, navigate } from '../app/route'
+import { editPath, gmPath, heroPath, joinPath, navigate } from '../app/route'
 import { useStore } from '../app/store-context'
 import { archetypeName } from '../creation/layers'
 import { exampleHero } from '../hero/example'
@@ -169,6 +169,12 @@ export function HeroList() {
             }}>
             Add example hero
           </button>
+          <a className="button" href={gmPath}>
+            Host a game
+          </a>
+          <a className="button" href={joinPath()}>
+            Join a game
+          </a>
         </div>
       </div>
 

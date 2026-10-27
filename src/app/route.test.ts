@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { editPath, heroPath, parseRoute, playPath } from './route'
+import { editPath, gmPath, heroPath, joinPath, joinUrl, parseRoute, playPath } from './route'
 
 describe('routes', () => {
   it('parses the list, a hero, and anything else', () => {
@@ -23,5 +23,14 @@ describe('routes', () => {
     expect(parseRoute(`${heroPath(id)}/plays`)).toEqual({ name: 'notFound' })
     expect(parseRoute(editPath('edit'))).toEqual({ name: 'edit', id: 'edit' })
     expect(parseRoute(heroPath('edit'))).toEqual({ name: 'hero', id: 'edit' })
+  })
+
+  it('parses the GM page and joining a game', () => {
+    expect(parseRoute(gmPath)).toEqual({ name: 'gm' })
+    expect(parseRoute(joinPath())).toEqual({ name: 'join' })
+    expect(parseRoute(joinPath('ABCD-EFGH'))).toEqual({ name: 'join', room: 'ABCD-EFGH' })
+    expect(parseRoute('#/join/%E0%A4%A')).toEqual({ name: 'notFound' })
+    expect(parseRoute('#/join/a/b')).toEqual({ name: 'notFound' })
+    expect(joinUrl('ABCD-EFGH')).toBe(`${window.location.origin}${window.location.pathname}#/join/ABCD-EFGH`)
   })
 })

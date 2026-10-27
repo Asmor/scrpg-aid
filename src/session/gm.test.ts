@@ -46,7 +46,7 @@ describe('the GM’s session', () => {
     const entry = { id: 'e1', at: '2026-10-27T10:01:00.000Z', text: 'Used ability Inflict:', details: ['Max: 7 (Fire d8)'] }
     let s = gmReceive(joined(), 'c1', { v: 1, type: 'feed', entries: [entry] }, clock())
     s = gmReceive(s, 'c1', { v: 1, type: 'feed', entries: [entry] }, clock())
-    expect(s.feed.at(-1)).toEqual({ id: 'c1:e1', at: entry.at, by: 'Ace', text: entry.text, details: entry.details })
+    expect(s.feed.at(-1)).toEqual({ id: 'c1:e1', at: '2026-10-27T10:00:00.000Z', by: 'Ace', text: entry.text, details: entry.details })
     expect(s.feed).toHaveLength(3)
     const many = Array.from({ length: 50 }, (_, i) => ({ id: `x${i}`, at: 'x', text: `${i}` }))
     for (let i = 0; i < 5; i++) s = gmReceive(s, 'c2', { v: 1, type: 'feed', entries: many.map((e) => ({ ...e, id: `${e.id}-${i}` })) }, clock())
@@ -98,5 +98,13 @@ describe('the GM’s session', () => {
     for (let i = 0; i < INBOX_LIMIT + 5; i++) s = gmGiveMod(s, 'c0', { label: 'x', value: 1 }, clock())
     expect(s.inbox).toHaveLength(INBOX_LIMIT)
     expect(gmReceive(s, 'c1', { v: 1, type: 'giveMod', id: 'g', to: 'c0', mod: { label: 'x', value: 1 } }, clock())).toBe(s)
+  })
+
+  it('announces a player once their hero is known', () => {
+    let s = gmReceive(newSession('ABCD-EFGH'), 'c1', { v: 1, type: 'hello', clientId: 'c1' }, clock())
+    expect(s.feed).toEqual([])
+    s = gmReceive(s, 'c1', { v: 1, type: 'hero', hero: hero('Ace') }, clock())
+    s = gmReceive(s, 'c1', { v: 1, type: 'hero', hero: { ...hero('Ace'), health: 3 } }, clock())
+    expect(s.feed.map((e) => e.text)).toEqual(['Ace joined the game.'])
   })
 })

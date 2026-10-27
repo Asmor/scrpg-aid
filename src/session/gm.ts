@@ -23,6 +23,8 @@ export function memberName(member: Pick<Member, 'hero'> | undefined): string {
   return member?.hero?.name.trim() || 'A player'
 }
 
+const joinedEntry = (clock: Clock, member: Pick<Member, 'hero'>) => gmEntry(clock, `${memberName(member)} joined the game.`)
+
 const updateMember = (state: SessionState, clientId: string, change: (m: Member) => Member): SessionState => ({
   ...state,
   members: state.members.map((m) => (m.clientId === clientId ? change(m) : m)),
@@ -37,16 +39,23 @@ export function gmReceive(state: SessionState, clientId: string, msg: PlayerMess
       if (member) return JSON.stringify(member) === JSON.stringify(joined) ? state : updateMember(state, clientId, () => joined)
       // Within the limit players accept (./types.ts).
       if (state.members.length >= MEMBER_LIMIT) return state
-      return withFeed({ ...state, members: [...state.members, joined] }, [gmEntry(clock, `${memberName(joined)} joined the game.`)])
+      const added = { ...state, members: [...state.members, joined] }
+      return joined.hero ? withFeed(added, [joinedEntry(clock, joined)]) : added
     }
-    case 'hero':
-      return member ? updateMember(state, clientId, (m) => ({ ...m, hero: msg.hero })) : state
+    case 'hero': {
+      if (!member) return state
+      const updated = updateMember(state, clientId, (m) => ({ ...m, hero: msg.hero }))
+      // A player's browser may say hello before it knows the hero: they join the feed once it does.
+      return member.hero ? updated : withFeed(updated, [joinedEntry(clock, { hero: msg.hero })])
+    }
     case 'feed': {
       if (!member) return state
       // Skip entries already in the feed (a player's browser may send one twice).
       const known = new Set(state.feed.map((e) => e.id))
+      // Stamped with the GM's clock, so the feed's times agree whatever the players' clocks say.
+      const at = clock.now.toISOString()
       const fresh = msg.entries
-        .map((e) => ({ id: `${clientId}:${e.id}`, at: e.at, by: memberName(member), text: e.text, ...(e.details?.length ? { details: e.details } : {}) }))
+        .map((e) => ({ id: `${clientId}:${e.id}`, at, by: memberName(member), text: e.text, ...(e.details?.length ? { details: e.details } : {}) }))
         .filter((e) => !known.has(e.id))
       return withFeed(state, fresh)
     }

@@ -15,6 +15,28 @@ export interface Transport {
 /** Joins a room. The password, when there is one, encrypts the connection setup. */
 export type Connect = (room: string, password?: string) => Transport
 
+/**
+ * A transport that goes quiet once left: no more messages, peer events, or sends. Trystero
+ * still delivers for a moment after leaving, and a session that's over mustn't act on it
+ * (it would save itself again after being forgotten).
+ */
+export function quietAfterLeave(transport: Transport): Transport {
+  let left = false
+  return {
+    send: (message, to) => {
+      if (!left) transport.send(message, to)
+    },
+    onMessage: (handler) => transport.onMessage((message, peer) => !left && handler(message, peer)),
+    onPeerJoin: (handler) => transport.onPeerJoin((peer) => !left && handler(peer)),
+    onPeerLeave: (handler) => transport.onPeerLeave((peer) => !left && handler(peer)),
+    leave: () => {
+      if (left) return
+      left = true
+      transport.leave()
+    },
+  }
+}
+
 interface FakePeer {
   id: string
   room: string
