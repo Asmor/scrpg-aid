@@ -80,8 +80,11 @@ export class GmSession extends Subscribable<SessionState> {
     this.apply(gmSetScene(this.snapshot, scene, this.clock()))
   }
 
-  giveMod(to: string, mod: Omit<PlayMod, 'id'>): void {
-    this.apply(gmGiveMod(this.snapshot, to, mod, this.clock()))
+  /** Gives a player a bonus or penalty; false when it can't (they've gone, or too many are waiting). */
+  giveMod(to: string, mod: Omit<PlayMod, 'id'>): boolean {
+    const before = this.snapshot
+    this.apply(gmGiveMod(before, to, mod, this.clock()))
+    return this.snapshot !== before
   }
 
   removeMember(clientId: string): void {

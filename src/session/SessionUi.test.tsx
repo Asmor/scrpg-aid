@@ -1,13 +1,13 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
-import { useRoute } from '../app/route'
 import { StoreContext } from '../app/store-context'
 import { MemoryHeroStore } from '../hero/store'
 import { PlayPage } from '../play/PlayPage'
 import { completeHero } from '../test/heroes'
 import { GmPage } from './GmPage'
 import { JoinPage } from './JoinPage'
+import { useSession } from './context'
 import { SessionProvider } from './SessionProvider'
 import { localSessionStore, memoryStorage } from './storage'
 import { fakeNetwork } from './transport'
@@ -15,10 +15,30 @@ import { fakeNetwork } from './transport'
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
 
-/** The player's browser: the join page, then the hero's Play page. */
-function PlayerApp({ room }: { room?: string }) {
-  const route = useRoute()
-  return route.name === 'play' ? <PlayPage id={route.id} clock={clock} /> : <JoinPage room={room} />
+/** A player's browser: the join page, then (once in the game) the hero's Play page. */
+function PlayerApp({ room, heroId }: { room?: string; heroId: string }) {
+  const session = useSession()
+  return session.player?.heroId === heroId ? <PlayPage id={heroId} clock={clock} /> : <JoinPage room={room} />
+}
+
+async function addPlayer(net: ReturnType<typeof fakeNetwork>, room: string, name: string, heroId: string) {
+  const heroes = new MemoryHeroStore()
+  const hero = { ...completeHero(), id: heroId }
+  hero.details.name = name
+  await heroes.save(hero)
+  const view = render(
+    <StoreContext.Provider value={heroes}>
+      <SessionProvider connect={net.connect} store={localSessionStore(memoryStorage())} clock={clock}>
+        <PlayerApp room={room} heroId={heroId} />
+      </SessionProvider>
+    </StoreContext.Provider>,
+  )
+  const player = within(view.container)
+  await waitFor(() => expect(player.getByLabelText('Hero')).toHaveDisplayValue(name))
+  await userEvent.click(player.getByRole('button', { name: 'Join' }))
+  await player.findByRole('region', { name: 'Game' })
+  await act(() => net.settle())
+  return player
 }
 
 async function setup() {
@@ -33,26 +53,9 @@ async function setup() {
   const gm = within(gmView.container)
   await userEvent.click(gm.getByRole('button', { name: 'Start a game' }))
   const room = within(gm.getByRole('region', { name: 'Invite players' })).getByText(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/).textContent!
-
-  const heroes = new MemoryHeroStore()
-  const hero = { ...completeHero(), id: 'h1' }
-  hero.details.name = 'Ace'
-  await heroes.save(hero)
-  const playerStorage = memoryStorage()
-  const playerView = render(
-    <StoreContext.Provider value={heroes}>
-      <SessionProvider connect={net.connect} store={localSessionStore(playerStorage)} clock={clock}>
-        <PlayerApp room={room} />
-      </SessionProvider>
-    </StoreContext.Provider>,
-  )
-  const player = within(playerView.container)
-  await waitFor(() => expect(player.getByLabelText('Hero')).toHaveDisplayValue('Ace'))
-  await userEvent.click(player.getByRole('button', { name: 'Join' }))
-  await player.findByRole('region', { name: 'Game' })
+  const player = await addPlayer(net, room, 'Ace', 'h1')
   const settle = () => act(() => net.settle())
-  await settle()
-  return { net, gm, player, room, heroes, gmStorage, settle }
+  return { net, gm, player, room, gmStorage, settle }
 }
 
 afterEach(() => {
@@ -94,7 +97,8 @@ describe('a game session in the app', () => {
   it('leaves the game', async () => {
     const { gm, player, settle } = await setup()
     await userEvent.click(player.getByRole('button', { name: 'Leave the game' }))
-    expect(player.getByRole('region', { name: 'Game' })).toHaveTextContent('Not in a game.')
+    // (This test's player app goes back to the join page once out of the game.)
+    expect(player.getByRole('heading', { name: 'Join a game' })).toBeInTheDocument()
     await settle()
     await waitFor(() => expect(within(gm.getByRole('listitem', { name: 'Ace' })).getByText('Away')).toBeInTheDocument())
     await userEvent.click(gm.getByRole('button', { name: 'Remove' }))
@@ -113,6 +117,65 @@ describe('a game session in the app', () => {
     await userEvent.click(gm.getByRole('button', { name: 'Yes, end it' }))
     expect(gm.getByRole('button', { name: 'Start a game' })).toBeInTheDocument()
     expect(gmStorage.data.has('scrpg.session.gm')).toBe(false)
+  })
+})
+
+describe('mods between heroes', () => {
+  it('lets the GM give a hero a penalty', async () => {
+    const { gm, player, settle } = await setup()
+    const give = within(gm.getByRole('region', { name: 'Give a bonus or penalty' }))
+    expect(give.getByLabelText('For')).toHaveDisplayValue('Ace')
+    await userEvent.selectOptions(give.getByLabelText('Size'), '-2 penalty')
+    await userEvent.type(give.getByLabelText('What it is'), 'grabbed')
+    await userEvent.click(give.getByRole('button', { name: 'Give' }))
+    await settle()
+    const mods = player.getByRole('region', { name: 'Bonuses and penalties' })
+    await waitFor(() => expect(mods).toHaveTextContent("'-2 grabbed' penalty"))
+    expect(player.getByRole('region', { name: 'History' })).toHaveTextContent("Gained '-2 grabbed' penalty from GM.")
+    await settle()
+    await waitFor(() => expect(gm.getByRole('region', { name: 'Feed' })).toHaveTextContent("Ace: Gained '-2 grabbed' penalty from GM."))
+  })
+
+  it('lets a player give another hero a bonus, which stays gone once removed', async () => {
+    const { net, room, gm, player: ace, settle } = await setup()
+    const bolt = await addPlayer(net, room, 'Bolt', 'h2')
+    await settle()
+    const form = within(ace.getByRole('region', { name: 'Bonuses and penalties' }))
+    await waitFor(() => expect(within(form.getByLabelText('For')).getByRole('option', { name: 'Bolt' })).toBeInTheDocument())
+    await userEvent.selectOptions(form.getByLabelText('For'), 'Bolt')
+    await userEvent.selectOptions(form.getByLabelText('Size'), '+2 bonus')
+    await userEvent.type(form.getByLabelText('What it is'), 'rallied')
+    await userEvent.click(form.getByRole('button', { name: 'Give' }))
+    expect(ace.getByRole('region', { name: 'History' })).toHaveTextContent("Gave '+2 rallied' bonus to Bolt.")
+    // Not on Ace's own list.
+    expect(form.queryByText("'+2 rallied' bonus")).not.toBeInTheDocument()
+    await settle()
+    const boltMods = within(bolt.getByRole('region', { name: 'Bonuses and penalties' }))
+    await waitFor(() => expect(boltMods.getByText("'+2 rallied' bonus")).toBeInTheDocument())
+    expect(bolt.getByRole('region', { name: 'History' })).toHaveTextContent("Gained '+2 rallied' bonus from Ace.")
+    await userEvent.click(boltMods.getByRole('button', { name: "Remove '+2 rallied' bonus" }))
+    // Another change at the table doesn't bring it back.
+    await userEvent.click(within(gm.getByRole('region', { name: 'Scene' })).getByRole('radio', { name: 'Yellow' }))
+    await settle()
+    await waitFor(() => expect(bolt.getByRole('region', { name: 'Health' })).toHaveTextContent('Yellow'))
+    expect(boltMods.queryByText("'+2 rallied' bonus")).not.toBeInTheDocument()
+  })
+
+  it('offers a Boost’s bonus to another hero', async () => {
+    const { net, room, gm, player: ace, settle } = await setup()
+    await addPlayer(net, room, 'Bolt', 'h2')
+    await userEvent.click(within(gm.getByRole('region', { name: 'Scene' })).getByRole('radio', { name: 'Yellow' }))
+    await settle()
+    await waitFor(() => expect(ace.getByRole('button', { name: 'Use Area Alteration' })).toBeEnabled())
+    await userEvent.click(ace.getByRole('button', { name: 'Use Area Alteration' }))
+    const dialog = within(screen.getByRole('dialog'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
+    const offer = within(dialog.getByRole('group', { name: /Add the \+\d bonus to the mods list\?/ }))
+    await userEvent.selectOptions(offer.getByLabelText('For'), 'Bolt')
+    await userEvent.click(offer.getByRole('button', { name: /^Give \+\d bonus to Bolt$/ }))
+    expect(offer.getByRole('button', { name: 'Given' })).toBeDisabled()
+    expect(ace.getByRole('region', { name: 'History' })).toHaveTextContent(/Gave '\+\d Area Alteration' bonus to Bolt\./)
   })
 })
 

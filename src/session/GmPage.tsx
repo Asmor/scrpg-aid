@@ -2,10 +2,12 @@
  * The GM's page (Phase 4): host a game, share its code and link, set the scene, and watch
  * the party and the feed. The GM needs no hero.
  */
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { joinUrl, listPath } from '../app/route'
 import { ZONE_LABEL } from '../hero/labels'
+import { ModForm } from '../play/ModForm'
 import { useTick } from '../play/useTick'
+import { memberName } from './gm'
 import { useGmState, useSession } from './context'
 import { Feed, Party } from './TableViews'
 
@@ -18,6 +20,8 @@ export function GmPage() {
   const now = useTick()
   const [password, setPassword] = useState('')
   const [copied, setCopied] = useState<'copied' | 'failed' | null>(null)
+  const copyTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(copyTimer.current), [])
   const [confirmEnd, setConfirmEnd] = useState(false)
 
   if (!session.gm || !state) {
@@ -75,7 +79,8 @@ export function GmPage() {
               onClick={() => {
                 const done = (result: 'copied' | 'failed') => {
                   setCopied(result)
-                  setTimeout(() => setCopied(null), 3000)
+                  clearTimeout(copyTimer.current)
+                  copyTimer.current = setTimeout(() => setCopied(null), 3000)
                 }
                 // The clipboard needs a secure page (https); without it, say how to copy by hand.
                 if (!navigator.clipboard) done('failed')
@@ -114,6 +119,17 @@ export function GmPage() {
               </button>
             )
           }
+        />
+      </section>
+
+      <section className="sheet-panel play-section" aria-label="Give a bonus or penalty">
+        <h3 className="sheet-panel__title">Give a bonus or penalty</h3>
+        <p className="hint">A villain’s Hinder, say. It goes straight onto the hero’s list.</p>
+        <ModForm
+          self={false}
+          targets={state.members.filter((m) => m.hero).map((m) => ({ id: m.clientId, name: memberName(m) }))}
+          submitLabel="Give"
+          onSubmit={(mod, to) => (to ? gm.giveMod(to, mod) : false)}
         />
       </section>
 

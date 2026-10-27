@@ -13,6 +13,7 @@ import { checkManualResults, rollDice } from '../rules/rolling'
 import type { Action, BasicAction, Die, EffectUse } from '../rules/types'
 import { activePlans, chosenMods, modFlagsFor, defaultAssignment, defaultModChoice, defaultPlans, describeEffect, describeRolls, hasDoubles, modSize, poolDice, results, USE_LABEL, type EffectPlan, type EffectResult, type GivenValues, type ModChoice, type RollRecord, type Rolled } from './roll'
 import { defaultSlots, traitChoices, type FormDice } from './forms'
+import { GONE, type ModTarget } from './ModForm'
 import { describeMod, type PlayZone } from './state'
 
 /** What's being used: an ability (with its effects), or a basic action. */
@@ -29,8 +30,10 @@ interface RollDialogProps {
   zone: PlayZone | undefined
   mods: readonly PlayMod[]
   onConfirm: (record: RollRecord) => void
-  /** Adds a bonus or penalty a Boost or Hinder made. */
-  onAddMod: (mod: Omit<PlayMod, 'id'>) => void
+  /** Adds a bonus or penalty a Boost or Hinder made; `to` gives it to another hero instead. */
+  onAddMod: (mod: Omit<PlayMod, 'id'>, to?: string) => boolean | void
+  /** Other heroes in a game session it can go to. */
+  targets?: readonly ModTarget[]
   onClose: () => void
   /** Injectable for tests. */
   random?: () => number
@@ -48,7 +51,7 @@ function Field({ label, children }: { label: string; children: (id: string) => R
   )
 }
 
-export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, onClose, random }: RollDialogProps) {
+export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, targets = [], onClose, random }: RollDialogProps) {
   const titleId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const use = subject.kind === 'ability' ? subject.use : undefined
@@ -167,7 +170,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, onC
               if ((r.action !== 'boost' && r.action !== 'hinder') || r.total === undefined || modSize(r.total) === 0) return null
               const value = (r.action === 'boost' ? 1 : -1) * modSize(r.total)
               const flags = subject.kind === 'ability' ? modFlagsFor(subject.text, active[i]!) : { persistent: false, exclusive: false }
-              return <ModOffer key={i} value={value} label={title} persistent={flags.persistent} exclusive={flags.exclusive} onAdd={onAddMod} />
+              return <ModOffer key={i} value={value} label={title} persistent={flags.persistent} exclusive={flags.exclusive} targets={targets} onAdd={onAddMod} />
             })}
             <div className="button-row">
               <button type="button" className="button button--primary" onClick={onClose}>
@@ -446,17 +449,53 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, onC
 }
 
 /** Offers to add the mod a Boost or Hinder made, with its label and kind editable first. */
-function ModOffer({ value, label: start, persistent: p, exclusive: x, onAdd }: { value: number; label: string; persistent: boolean; exclusive: boolean; onAdd: (mod: Omit<PlayMod, 'id'>) => void }) {
+function ModOffer({
+  value,
+  label: start,
+  persistent: p,
+  exclusive: x,
+  targets,
+  onAdd,
+}: {
+  value: number
+  label: string
+  persistent: boolean
+  exclusive: boolean
+  targets: readonly ModTarget[]
+  onAdd: (mod: Omit<PlayMod, 'id'>, to?: string) => boolean | void
+}) {
   const id = useId()
   const [label, setLabel] = useState(start)
   const [persistent, setPersistent] = useState(p)
   const [exclusive, setExclusive] = useState(x)
   const [added, setAdded] = useState(false)
+  const [to, setTo] = useState<ModTarget | null>(null)
+  // A hero who was chosen and has since left isn't swapped for "Me": that could put their penalty on you.
+  const gone = to !== null && !targets.some((t) => t.id === to.id)
+  const target = gone ? undefined : (to ?? undefined)
   const what = value > 0 ? `+${value} bonus` : `${value} penalty`
   return (
     <fieldset className="roll-section" disabled={added}>
       <legend>Add the {what} to the mods list?</legend>
-      {value < 0 && <p className="hint">Only if the penalty is on you.</p>}
+      {value < 0 && <p className="hint">{targets.length ? 'Only if the penalty is on a hero.' : 'Only if the penalty is on you.'}</p>}
+      {(targets.length > 0 || gone) && (
+        <label className="field" htmlFor={`${id}-to`}>
+          <span>For</span>
+          <select id={`${id}-to`} value={gone ? GONE : (target?.id ?? '')} onChange={(e) => setTo(targets.find((t) => t.id === e.target.value) ?? null)}>
+            {gone && (
+              <option value={GONE} disabled>
+                Choose who it’s for
+              </option>
+            )}
+            <option value="">Me</option>
+            {targets.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="field" htmlFor={id}>
         <span>What it is</span>
         <input id={id} type="text" value={label} onChange={(e) => setLabel(e.target.value)} />
@@ -469,15 +508,16 @@ function ModOffer({ value, label: start, persistent: p, exclusive: x, onAdd }: {
         <input type="checkbox" checked={exclusive} onChange={(e) => setExclusive(e.target.checked)} />
         Exclusive
       </label>
+      {gone && <p className="hint">{to.name} has left the game. Choose who it’s for.</p>}
       <button
         type="button"
         className="button"
+        disabled={gone}
         onClick={() => {
-          onAdd({ label, value, ...(persistent ? { persistent: true } : {}), ...(exclusive ? { exclusive: true } : {}) })
-          setAdded(true)
+          if (onAdd({ label, value, ...(persistent ? { persistent: true } : {}), ...(exclusive ? { exclusive: true } : {}) }, target?.id) !== false) setAdded(true)
         }}
       >
-        {added ? 'Added' : `Add ${what}`}
+        {added ? (target ? 'Given' : 'Added') : target ? `Give ${what} to ${target.name}` : `Add ${what}`}
       </button>
     </fieldset>
   )

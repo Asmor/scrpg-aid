@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildSheet } from '../creation/sheet'
 import { completeHero } from '../test/heroes'
-import { abilityAvailable, addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, newIssue, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
+import { abilityAvailable, addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, newIssue, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
 
 // completeHero: Max Health 30; Green 30–23, Yellow 22–12, Red 11–1; Lone Wolf d8/d8/d8.
 const sheet = buildSheet(completeHero())
@@ -135,5 +135,13 @@ describe('forms', () => {
   it('stays in the same form for a new issue', () => {
     expect(newIssue({ ...emptyPlay(), form: 'mode:1', dividedForm: 'heroic', heroPoints: 2 }, clock)).toMatchObject({ form: 'mode:1', dividedForm: 'heroic', heroPoints: 0 })
     expect(newIssue(emptyPlay(), clock)).not.toHaveProperty('form')
+  })
+})
+
+describe('giving mods', () => {
+  it('notes a mod given to another hero, without adding it', () => {
+    const play = noteGivenMod(emptyPlay(), { label: 'rallied', value: 2 }, 'Bolt', { now: new Date('2026-10-27T10:00:00Z'), newId: () => 'x' })
+    expect(play.mods).toEqual([])
+    expect(play.history.map((h) => h.text)).toEqual(["Gave '+2 rallied' bonus to Bolt."])
   })
 })

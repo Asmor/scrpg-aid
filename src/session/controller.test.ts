@@ -84,7 +84,8 @@ describe('a session over the network', () => {
     const saved: PlayerSaved[] = []
     const ace = player(net, 'c1', {}, (s) => saved.push(s))
     await net.settle()
-    gm.giveMod('c1', { label: 'tied up', value: -3 })
+    expect(gm.giveMod('c1', { label: 'tied up', value: -3 })).toBe(true)
+    expect(gm.giveMod('nobody', { label: 'x', value: 1 })).toBe(false)
     await net.settle()
     const net2 = fakeNetwork()
     // The same inbox, seen again by a player who already added the mod (the ack was lost).

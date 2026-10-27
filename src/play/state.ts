@@ -132,6 +132,11 @@ export function addMod(play: PlayState, mod: Omit<PlayMod, 'id'>, clock: Clock, 
   return withEntry({ ...play, mods: [...play.mods, added] }, entry(clock, `Gained ${describeMod(added)}${given.from ? ` from ${given.from}` : ''}.`))
 }
 
+/** Notes in the history a bonus or penalty given to another hero in a game session. */
+export function noteGivenMod(play: PlayState, mod: Omit<PlayMod, 'id'>, to: string, clock: Clock): PlayState {
+  return withEntry(play, entry(clock, `Gave ${describeMod(mod)} to ${to}.`))
+}
+
 /** Removes a mod; `why` says how in the history ("Used up", default "Removed"). */
 export function removeMod(play: PlayState, id: string, clock: Clock, why = 'Removed'): PlayState {
   const mod = play.mods.find((m) => m.id === id)

@@ -8,8 +8,8 @@ import { editPath, heroPath, listPath, navigate } from '../app/route'
 import { DieIcon } from '../components/icons'
 import { buildSheet } from '../creation/sheet'
 import { useHeroEditor } from '../editor/useHeroEditor'
-import { heroDisplayName, newId, type PlayState } from '../hero/model'
-import { addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, MAX_HERO_POINTS, newIssue, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
+import { heroDisplayName, newId, type PlayMod, type PlayState } from '../hero/model'
+import { addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, MAX_HERO_POINTS, newIssue, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
 import { currentForm, dividedForm, formAvailable, formDice, formNoun, playAbilities, playForms } from './forms'
 import { modeLimits } from '../creation/format'
 import { formatFull, formatWhen } from './time'
@@ -18,11 +18,12 @@ import { ActionIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL, PLAY_ZONE_LABEL } from '../hero/labels'
 import { confirmRoll } from './roll'
 import { RollDialog, type RollSubject } from './RollDialog'
+import { ModForm, type ModTarget } from './ModForm'
 import { usePlayerSnapshot, useSession } from '../session/context'
 import { heroSummary } from '../session/player'
+import { memberName } from '../session/gm'
 import { PlayerPanel } from '../session/PlayerPanel'
 
-const MOD_VALUES = [-4, -3, -2, -1, 1, 2, 3, 4] as const
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -38,10 +39,6 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
   const formId = useId()
   const tick = useTick()
   const [amount, setAmount] = useState('')
-  const [modLabel, setModLabel] = useState('')
-  const [modValue, setModValue] = useState<number>(-1)
-  const [modPersistent, setModPersistent] = useState(false)
-  const [modExclusive, setModExclusive] = useState(false)
   const [twistKind, setTwistKind] = useState<'minor' | 'major'>('minor')
   const [twistText, setTwistText] = useState('')
   const [confirmIssue, setConfirmIssue] = useState(false)
@@ -89,6 +86,20 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
     update((h) => {
       h.play = fn(h.play ?? emptyPlay(), clock())
     })
+  // In a game, a mod can go to another hero (through the GM).
+  const targets: ModTarget[] =
+    snapshot?.status === 'connected' && player ? (snapshot.state?.members ?? []).filter((m) => m.clientId !== player.clientId && m.hero).map((m) => ({ id: m.clientId, name: memberName(m) })) : []
+  /** Adds a mod to the hero, or gives it to another; false when it couldn't be sent. */
+  const giveOrAdd = (mod: Omit<PlayMod, 'id'>, to?: string): boolean => {
+    if (!to) {
+      change((p, c) => addMod(p, mod, c))
+      return true
+    }
+    const target = targets.find((t) => t.id === to)
+    if (!target || !player?.giveMod(target.id, mod)) return false
+    change((p, c) => noteGivenMod(p, mod, target.name, c))
+    return true
+  }
   const health = currentHealth(sheet, play)
   const zone = effectiveZone(sheet, play)
   const forms = playForms(sheet)
@@ -255,42 +266,7 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
               ))}
             </ul>
           )}
-          <form
-            className="play-add"
-            onSubmit={(e) => {
-              e.preventDefault()
-              change((p, c) => addMod(p, { label: modLabel, value: modValue, ...(modPersistent ? { persistent: true } : {}), ...(modExclusive ? { exclusive: true } : {}) }, c))
-              setModLabel('')
-              setModPersistent(false)
-              setModExclusive(false)
-            }}
-          >
-            <label className="field" htmlFor={`${formId}-mod-value`}>
-              <span>Size</span>
-              <select id={`${formId}-mod-value`} value={modValue} onChange={(e) => setModValue(Number(e.target.value))}>
-                {MOD_VALUES.map((v) => (
-                  <option key={v} value={v}>
-                    {v > 0 ? `+${v} bonus` : `${v} penalty`}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field" htmlFor={`${formId}-mod-label`}>
-              <span>What it is</span>
-              <input id={`${formId}-mod-label`} type="text" value={modLabel} onChange={(e) => setModLabel(e.target.value)} placeholder="e.g. tied up" />
-            </label>
-            <label className="checkbox">
-              <input type="checkbox" checked={modPersistent} onChange={(e) => setModPersistent(e.target.checked)} />
-              Persistent
-            </label>
-            <label className="checkbox">
-              <input type="checkbox" checked={modExclusive} onChange={(e) => setModExclusive(e.target.checked)} />
-              Exclusive
-            </label>
-            <button type="submit" className="button">
-              Add
-            </button>
-          </form>
+          <ModForm targets={targets} onSubmit={giveOrAdd} />
         </Section>
 
         <Section title="Twists">
@@ -413,7 +389,8 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
               return rolling.kind === 'ability' && rolling.reaction ? setReactionUsed(after, true, c) : after
             })
           }
-          onAddMod={(mod) => change((p, c) => addMod(p, mod, c))}
+          targets={targets}
+          onAddMod={giveOrAdd}
           random={random}
         />
       )}
