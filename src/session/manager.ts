@@ -8,7 +8,7 @@ import { newRoomCode } from './code'
 import { GmSession, PlayerSession } from './controller'
 import type { SessionStore } from './storage'
 import type { Connect } from './transport'
-import { SAVED_VERSION, type PlayerSaved } from './types'
+import { SAVED_VERSION, type LastGame, type PlayerSaved } from './types'
 
 export interface CurrentSession {
   gm?: GmSession
@@ -34,6 +34,12 @@ export class SessionManager {
   }
 
   getSnapshot = (): CurrentSession => this.current
+
+  /** The last game joined (kept after leaving), to join again without typing. */
+  lastGame(): Omit<LastGame, 'v'> | undefined {
+    const game = this.store.loadLastGame()
+    return game && { room: game.room, ...(game.password ? { password: game.password } : {}) }
+  }
 
   /** Reconnects to the saved session, if there is one and nothing's connected. */
   resume(): void {
@@ -70,6 +76,7 @@ export class SessionManager {
     if (current && current.room === room && current.heroId === heroId && current.password === password) return
     this.disconnect()
     this.store.saveGm(undefined)
+    this.store.saveLastGame({ v: SAVED_VERSION, room, ...(password ? { password } : {}) })
     const saved: PlayerSaved = { v: SAVED_VERSION, room, ...(password ? { password } : {}), clientId: this.store.clientId(), heroId, ...(sharedUpTo ? { sharedUpTo } : {}), applied: [] }
     this.set({ player: new PlayerSession(this.connect, saved, this.clock, (s) => this.store.savePlayer(s)) })
   }

@@ -21,6 +21,16 @@ describe('session storage', () => {
     expect(store.loadGm()).toBeUndefined()
   })
 
+  it('remembers the last game joined', () => {
+    const storage = memoryStorage()
+    const store = localSessionStore(storage)
+    expect(store.loadLastGame()).toBeUndefined()
+    store.saveLastGame({ v: 1, room: 'ABCD-EFGH', password: 'pw' })
+    expect(localSessionStore(storage).loadLastGame()).toEqual({ v: 1, room: 'ABCD-EFGH', password: 'pw' })
+    storage.setItem('scrpg.session.lastGame', '{"room":"ABCD-EFGH"}')
+    expect(store.loadLastGame()).toBeUndefined()
+  })
+
   it('keeps one client id per browser', () => {
     const storage = memoryStorage()
     const id = localSessionStore(storage).clientId()

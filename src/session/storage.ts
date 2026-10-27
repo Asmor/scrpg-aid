@@ -6,20 +6,23 @@
  * session just doesn't survive a reload.
  */
 import { newId } from '../hero/model'
-import { readGmSaved, readPlayerSaved, type GmSaved, type PlayerSaved } from './types'
+import { readGmSaved, readLastGame, readPlayerSaved, type GmSaved, type LastGame, type PlayerSaved } from './types'
 
 export interface SessionStore {
   loadGm(): GmSaved | undefined
   saveGm(saved: GmSaved | undefined): void
   loadPlayer(): PlayerSaved | undefined
   savePlayer(saved: PlayerSaved | undefined): void
+  /** The last game joined, kept after leaving it. */
+  loadLastGame(): LastGame | undefined
+  saveLastGame(game: LastGame): void
   /** This browser's id in sessions, the same every time. */
   clientId(): string
 }
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
-const KEYS = { gm: 'scrpg.session.gm', player: 'scrpg.session.player', clientId: 'scrpg.session.clientId' }
+const KEYS = { gm: 'scrpg.session.gm', player: 'scrpg.session.player', lastGame: 'scrpg.session.lastGame', clientId: 'scrpg.session.clientId' }
 
 function defaultStorage(): StorageLike | undefined {
   try {
@@ -53,6 +56,8 @@ export function localSessionStore(storage: StorageLike | null | undefined = defa
     saveGm: (saved) => write(KEYS.gm, saved),
     loadPlayer: () => readPlayerSaved(read(KEYS.player)),
     savePlayer: (saved) => write(KEYS.player, saved),
+    loadLastGame: () => readLastGame(read(KEYS.lastGame)),
+    saveLastGame: (game) => write(KEYS.lastGame, game),
     clientId() {
       const known = read(KEYS.clientId)
       if (typeof known === 'string' && known) return known

@@ -15,8 +15,10 @@ export function JoinPage({ room: given }: { room?: string }) {
   const formId = useId()
   const [heroes, setHeroes] = useState<Hero[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [room, setRoom] = useState(given ?? '')
-  const [password, setPassword] = useState('')
+  // The last game joined fills in the code, and its password unless the link is for another room.
+  const last = session.lastGame
+  const [room, setRoom] = useState(given ?? last?.room ?? '')
+  const [password, setPassword] = useState(() => (last && normalizeRoomCode(given ?? last.room) === last.room ? (last.password ?? '') : ''))
   const [heroId, setHeroId] = useState('')
 
   useEffect(() => {

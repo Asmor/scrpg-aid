@@ -95,10 +95,12 @@ describe('a game session in the app', () => {
   })
 
   it('leaves the game', async () => {
-    const { gm, player, settle } = await setup()
+    const { gm, player, room, settle } = await setup()
     await userEvent.click(player.getByRole('button', { name: 'Leave the game' }))
     // (This test's player app goes back to the join page once out of the game.)
     expect(player.getByRole('heading', { name: 'Join a game' })).toBeInTheDocument()
+    // The code is remembered, so joining again needs no typing.
+    expect(player.getByLabelText('Room code')).toHaveValue(room)
     await settle()
     await waitFor(() => expect(within(gm.getByRole('listitem', { name: 'Ace' })).getByText('Away')).toBeInTheDocument())
     await userEvent.click(gm.getByRole('button', { name: 'Remove' }))
@@ -190,5 +192,54 @@ describe('joining', () => {
     await userEvent.type(screen.getByLabelText('Room code'), 'abc')
     expect(screen.getByText(/A room code is eight letters and numbers/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Join' })).toBeDisabled()
+  })
+})
+
+describe('the remembered game', () => {
+  const remembered = (game: object) => {
+    const storage = memoryStorage()
+    storage.setItem('scrpg.session.lastGame', JSON.stringify({ v: 1, ...game }))
+    return localSessionStore(storage)
+  }
+  const renderJoin = (store: ReturnType<typeof localSessionStore>, room?: string) =>
+    render(
+      <StoreContext.Provider value={new MemoryHeroStore()}>
+        <SessionProvider connect={fakeNetwork().connect} store={store} clock={clock}>
+          <JoinPage room={room} />
+        </SessionProvider>
+      </StoreContext.Provider>,
+    )
+
+  it('fills in the last game’s code and password', () => {
+    renderJoin(remembered({ room: 'ABCD-EFGH', password: 'pw' }))
+    expect(screen.getByLabelText('Room code')).toHaveValue('ABCD-EFGH')
+    expect(screen.getByLabelText('Password (if the game has one)')).toHaveValue('pw')
+  })
+
+  it('doesn’t use its password for a link to another room', () => {
+    renderJoin(remembered({ room: 'ABCD-EFGH', password: 'pw' }), 'WXYZ-2345')
+    expect(screen.getByLabelText('Room code')).toHaveValue('WXYZ-2345')
+    expect(screen.getByLabelText('Password (if the game has one)')).toHaveValue('')
+  })
+})
+
+describe('joining the last game again from the Play page', () => {
+  it('joins with this hero, without sharing history from before', async () => {
+    const storage = memoryStorage()
+    storage.setItem('scrpg.session.lastGame', JSON.stringify({ v: 1, room: 'ABCD-EFGH', password: 'pw' }))
+    const heroes = new MemoryHeroStore()
+    const hero = { ...completeHero(), id: 'h1' }
+    hero.play = { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [{ id: 'old1', at: '2026-10-27T10:00:00.000Z', text: 'Lost 4 HP (30 → 26).' }] }
+    await heroes.save(hero)
+    render(
+      <StoreContext.Provider value={heroes}>
+        <SessionProvider connect={fakeNetwork().connect} store={localSessionStore(storage)} clock={clock}>
+          <PlayPage id="h1" clock={clock} />
+        </SessionProvider>
+      </StoreContext.Provider>,
+    )
+    await userEvent.click(await screen.findByRole('button', { name: 'Join game ABCD-EFGH with this hero' }))
+    expect(JSON.parse(storage.data.get('scrpg.session.player')!)).toMatchObject({ room: 'ABCD-EFGH', password: 'pw', heroId: 'h1', sharedUpTo: 'old1' })
+    expect(screen.getByRole('status')).toHaveTextContent('Connecting to game ABCD-EFGH…')
   })
 })

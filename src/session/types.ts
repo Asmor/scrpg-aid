@@ -181,3 +181,17 @@ export function readGmSaved(value: unknown): GmSaved | undefined {
 export function readPlayerSaved(value: unknown): PlayerSaved | undefined {
   return playerSaved(value, 'saved') ? undefined : (value as PlayerSaved)
 }
+
+/** The last game a player joined, remembered after leaving so joining again needs no typing. */
+export interface LastGame {
+  v: typeof SAVED_VERSION
+  room: string
+  password?: string
+}
+
+const lastGame = object({ v: oneOf(SAVED_VERSION), room: id, 'password?': text(200) })
+
+/** A stored last game, or undefined if it's malformed or from another version. */
+export function readLastGame(value: unknown): LastGame | undefined {
+  return lastGame(value, 'saved') ? undefined : (value as LastGame)
+}

@@ -15,16 +15,28 @@ interface Props {
   snapshot?: PlayerSnapshot
   hosting: boolean
   onLeave: () => void
+  /** The last game joined, to join again with this hero in one click. */
+  lastRoom?: string
+  onRejoin?: () => void
 }
 
-export function PlayerPanel({ heroId, player, snapshot, hosting, onLeave }: Props) {
+export function PlayerPanel({ heroId, player, snapshot, hosting, onLeave, lastRoom, onRejoin }: Props) {
   const now = useTick()
   const online = useOnline()
   if (!player) {
     return (
-      <p>
-        Not in a game. {hosting ? 'You’re hosting one as the GM.' : <a href={joinPath()}>Join a game</a>}
-      </p>
+      <>
+        <p>
+          Not in a game. {hosting ? 'You’re hosting one as the GM.' : <a href={joinPath()}>Join a game</a>}
+        </p>
+        {!hosting && lastRoom && onRejoin && (
+          <div className="button-row">
+            <button type="button" className="button button--primary" onClick={onRejoin}>
+              Join game {lastRoom} with this hero
+            </button>
+          </div>
+        )}
+      </>
     )
   }
   if (player.heroId !== heroId) {

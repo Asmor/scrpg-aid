@@ -313,7 +313,15 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
       </div>
 
       <Section title="Game">
-        <PlayerPanel heroId={id} player={session.player} snapshot={snapshot} hosting={Boolean(session.gm)} onLeave={session.leave} />
+        <PlayerPanel
+          heroId={id}
+          player={session.player}
+          snapshot={snapshot}
+          hosting={Boolean(session.gm)}
+          onLeave={session.leave}
+          lastRoom={session.lastGame?.room}
+          onRejoin={() => session.lastGame && session.join({ ...session.lastGame, heroId: id, sharedUpTo: play.history.at(-1)?.id })}
+        />
       </Section>
 
       <Section title="Abilities">

@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { PlayerSession } from './controller'
 import { PlayerPanel } from './PlayerPanel'
@@ -11,6 +12,15 @@ describe('the Game section', () => {
     expect(screen.getByRole('link', { name: 'Join a game' })).toHaveAttribute('href', '#/join')
     rerender(<PlayerPanel heroId="h1" hosting onLeave={leave} />)
     expect(screen.getByText(/You’re hosting one as the GM/)).toBeInTheDocument()
+  })
+
+  it('offers to join the last game again with this hero', async () => {
+    const onRejoin = vi.fn()
+    const { rerender } = render(<PlayerPanel heroId="h1" hosting={false} onLeave={leave} lastRoom="ABCD-EFGH" onRejoin={onRejoin} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Join game ABCD-EFGH with this hero' }))
+    expect(onRejoin).toHaveBeenCalled()
+    rerender(<PlayerPanel heroId="h1" hosting onLeave={leave} lastRoom="ABCD-EFGH" onRejoin={onRejoin} />)
+    expect(screen.queryByRole('button', { name: /Join game/ })).not.toBeInTheDocument()
   })
 
   it('points to the hero who is in the game', () => {

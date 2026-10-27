@@ -7,6 +7,8 @@ import type { SessionState } from './types'
 export const SessionContext = createContext<SessionManager | null>(null)
 
 export interface SessionApi extends CurrentSession {
+  /** The last game joined, kept after leaving it. */
+  lastGame?: { room: string; password?: string }
   host(password?: string): void
   join(options: { room: string; password?: string; heroId: string; sharedUpTo?: string }): void
   leave(): void
@@ -21,8 +23,10 @@ const NONE: CurrentSession = {}
 export function useSession(): SessionApi {
   const manager = useContext(SessionContext)
   const current = useSyncExternalStore(manager?.subscribe ?? noSubscribe, manager?.getSnapshot ?? noSession)
+  const lastGame = manager?.lastGame()
   return {
     ...current,
+    ...(lastGame ? { lastGame } : {}),
     host: (password) => manager?.host(password),
     join: (options) => manager?.join(options),
     leave: () => manager?.leave(),
