@@ -1386,6 +1386,13 @@ a.button--primary {
   flex: 1 1 12rem;
 }
 
+.play-ability__text {
+  flex: 1 0 100%;
+  order: 3;
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
 /* The roll dialog */
 .dialog-backdrop {
   position: fixed;
@@ -1428,6 +1435,13 @@ a.button--primary {
 
 .roll-traits .field {
   flex: 1 1 10rem;
+}
+
+.roll-fixed__trait {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2.75rem;
 }
 
 .roll-pool__die {

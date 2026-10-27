@@ -56,7 +56,9 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, onC
 
   // Dice: the ability's own power or quality, and one of the other kind (or two of one kind, with Divided Psyche).
   const choices = traitChoices(dice, use)
-  const [slotKeys, setSlotKeys] = useState(() => defaultSlots(choices, dice.slots, use).map((t) => (t ? traitKeyOf(t) : '')))
+  // The ability's own power or quality is fixed (it must be used); the other slot is the player's choice.
+  const [startSlots] = useState(() => defaultSlots(choices, dice.slots, use))
+  const [slotKeys, setSlotKeys] = useState(() => startSlots.map((x) => (x.trait ? traitKeyOf(x.trait) : '')))
   const picked = dice.slots.map((kind, i) => choices[kind].find((t) => traitKeyOf(t) === slotKeys[i]))
   const firstNamed = use?.traits[0]
   const named = firstNamed && choices[firstNamed.kind].find((t) => t.trait.id === firstNamed.id)
@@ -88,7 +90,6 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, onC
   const active = rolled ? activePlans(shownPlans, rolled) : []
   // Values the dice can't give, asked for once the roll shows which effects happen.
   const needs = { damage: active.some((p) => p.use === 'damage'), other: active.some((p) => p.use === 'other') }
-  const bases = rolled ? results(active, rolled, givenValues, [], {}).map((r) => r.base) : []
   const [assignment, setAssignment] = useState<Record<string, number>>({})
   const [done, setDone] = useState<EffectResult[] | null>(null)
   const finalResults = rolled ? results(active, rolled, givenValues, chosen, assignment) : []
@@ -212,21 +213,32 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, onC
               )}
               {!single && (
                 <div className="roll-traits">
-                  {dice.slots.map((kind, i) => (
-                    <Field key={i} label={dice.slots.slice(0, i).includes(kind) ? `Second ${kind}` : KIND_LABEL[kind]}>
-                      {(id) => (
-                        <select id={id} value={slotKeys[i]} onChange={(e) => setSlotKeys((keys) => keys.map((k, j) => (j === i ? e.target.value : k)))}>
-                          {!picked[i] && <option value="">Choose one</option>}
-                          {choices[kind].map((t) => (
-                            // A trait picked for another slot can't be rolled twice.
-                            <option key={traitKeyOf(t)} value={traitKeyOf(t)} disabled={slotKeys.some((k, j) => j !== i && k === traitKeyOf(t))}>
-                              {t.name} ({t.die})
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </Field>
-                  ))}
+                  {dice.slots.map((kind, i) => {
+                    const label = dice.slots.slice(0, i).includes(kind) ? `Second ${kind}` : KIND_LABEL[kind]
+                    const fixed = startSlots[i]!.fixed && picked[i]
+                    return fixed ? (
+                      <div key={i} className="field" role="group" aria-label={label}>
+                        <span>{label}</span>
+                        <span className="roll-fixed__trait">
+                          {fixed.name} <DieIcon die={fixed.die} />
+                        </span>
+                      </div>
+                    ) : (
+                      <Field key={i} label={label}>
+                        {(id) => (
+                          <select id={id} value={slotKeys[i]} onChange={(e) => setSlotKeys((keys) => keys.map((k, j) => (j === i ? e.target.value : k)))}>
+                            {!picked[i] && <option value="">Choose one</option>}
+                            {choices[kind].map((t) => (
+                              // A trait picked for another slot can't be rolled twice.
+                              <option key={traitKeyOf(t)} value={traitKeyOf(t)} disabled={slotKeys.some((k, j) => j !== i && k === traitKeyOf(t))}>
+                                {t.name} ({t.die})
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </Field>
+                    )
+                  })}
                 </div>
               )}
               <p className="roll-pool">
@@ -386,6 +398,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, onC
               <p>No effects with this roll.</p>
             ) : (
               <div className="roll-assign">
+                {active.length > 1 && chosen.length > 0 && <p className="hint">Drag a mod onto the effect it applies to.</p>}
                 {active.map((p, i) => (
                   <div key={i} className="roll-target" onDragOver={(e) => e.preventDefault()} onDrop={onDrop(i)} aria-label={`${ACTION_LABEL[p.action]} (${USE_LABEL[p.use]})`} role="group">
                     <p className="roll-target__title">{describeEffect(finalResults[i]!)}</p>
@@ -401,24 +414,6 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, onC
                   </div>
                 ))}
               </div>
-            )}
-            {active.length > 1 && chosen.length > 0 && (
-              <fieldset className="roll-section">
-                <legend>Which effect each mod applies to</legend>
-                {chosen.map((m) => (
-                  <Field key={m.id} label={describeMod(m)}>
-                    {(id) => (
-                      <select id={id} value={assignment[m.id] ?? 0} onChange={(e) => setAssignment((a) => ({ ...a, [m.id]: Number(e.target.value) }))}>
-                        {active.map((p, i) => (
-                          <option key={i} value={i}>
-                            {ACTION_LABEL[p.action]} ({USE_LABEL[p.use]}, {bases[i] ?? '?'})
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </Field>
-                ))}
-              </fieldset>
             )}
             {(needs.damage || needs.other) && (
               <fieldset className="roll-section">

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { StoreContext } from '../app/store-context'
@@ -43,6 +43,8 @@ describe('using abilities', () => {
     expect(abilities().getByRole('button', { name: 'Use Paragon Feat' })).toBeDisabled()
     expect(abilities().getByRole('button', { name: 'Use Out ability' })).toBeDisabled()
     expect(abilities().queryByRole('button', { name: 'Use Immunity' })).not.toBeInTheDocument()
+    // Each ability's text shows in the list.
+    expect(abilities().getByText(/Attack using Fire\. Hinder that same target/)).toBeInTheDocument()
   })
 
   it('opens the Out ability, and only it, when Out', async () => {
@@ -56,8 +58,11 @@ describe('using abilities', () => {
     const store = await setup()
     await userEvent.click(abilities().getByRole('button', { name: 'Use Always on the Move' }))
     const dialog = within(screen.getByRole('dialog', { name: 'Always on the Move' }))
-    // Its own power, the best quality, and the Green status die.
-    expect(dialog.getByLabelText('Power')).toHaveDisplayValue('Speed (d12)')
+    // Its own power, fixed as text; the best quality, which the player can change; and the Green status die.
+    const power = dialog.getByRole('group', { name: 'Power' })
+    expect(power).toHaveTextContent('Speed')
+    expect(within(power).getByRole('img', { name: 'd12' })).toBeInTheDocument()
+    expect(dialog.queryByRole('combobox', { name: 'Power' })).not.toBeInTheDocument()
     expect(dialog.getByLabelText('Quality')).toHaveDisplayValue('Fitness (d10)')
     await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
     expect(dialog.getByRole('list', { name: 'Dice rolled' })).toHaveTextContent('Max: 12 (Speed d12)Mid: 10 (Fitness d10)Min: 8 (Green status d8)')
@@ -85,7 +90,12 @@ describe('using abilities', () => {
     await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
     // Both mods start on the larger effect (Attack 10); move the penalty to Defend.
     expect(dialog.getByText('Deal 9 (Mid, with -3 +2) damage.')).toBeInTheDocument()
-    await userEvent.selectOptions(dialog.getByRole('combobox', { name: "'-3 tied up' penalty" }), 'Defend (Min, 8)')
+    // Dragging; on touch screens the polyfill turns touch drags into these events.
+    const chip = dialog.getByText("'-3 tied up' penalty")
+    let dragged = ''
+    fireEvent.dragStart(chip, { dataTransfer: { setData: (_: string, v: string) => (dragged = v) } })
+    fireEvent.drop(dialog.getByRole('group', { name: 'Defend (Min)' }), { dataTransfer: { getData: () => dragged } })
+    expect(dialog.queryByRole('combobox')).not.toBeInTheDocument()
     expect(dialog.getByText('Deal 12 (Mid, with +2) damage.')).toBeInTheDocument()
     expect(dialog.getByText('Defend 5 (Min, with -3).')).toBeInTheDocument()
     await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
@@ -112,7 +122,7 @@ describe('using abilities', () => {
     // The Out ability: "Boost an ally by rolling your single Fitness die." rolls 10: a +3 bonus.
     await userEvent.click(abilities().getByRole('button', { name: 'Use Out ability' }))
     const dialog = within(screen.getByRole('dialog'))
-    expect(dialog.queryByLabelText('Power')).not.toBeInTheDocument()
+    expect(dialog.queryByText('Power')).not.toBeInTheDocument()
     await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
     expect(dialog.getByText('Boost 10 (single die): a +3 bonus.')).toBeInTheDocument()
     await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))

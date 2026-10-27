@@ -45,7 +45,7 @@ describe('forms in play', () => {
     await waitFor(async () => expect((await saved(store)).play?.form).toBe('form:0'))
 
     await userEvent.click(abilities().getByRole('button', { name: 'Use Strong Form' }))
-    expect(within(screen.getByRole('dialog')).getByLabelText('Power')).toHaveDisplayValue('Strength (d12)')
+    expect(within(screen.getByRole('dialog')).getByRole('group', { name: 'Power' })).toHaveTextContent('Strength')
   })
 
   it('says nothing about zones, and allows any form, while Out', async () => {
@@ -80,6 +80,8 @@ describe('forms in play', () => {
     expect(section.queryByLabelText('Current form')).not.toBeInTheDocument()
     await userEvent.click(abilities().getByRole('button', { name: 'Use Always on the Move' }))
     let dialog = within(screen.getByRole('dialog'))
+    // Always on the Move names Speed, a power: in civilian form nothing is fixed (ruling 56).
+    expect(dialog.queryByRole('group', { name: 'Quality' })).not.toBeInTheDocument()
     expect(dialog.getByLabelText('Quality')).toHaveDisplayValue('Fitness (d10)')
     expect(dialog.getByLabelText('Second quality')).toHaveDisplayValue('Alertness (d8)')
     await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }))
@@ -89,7 +91,8 @@ describe('forms in play', () => {
     expect(section.getByText(/two powers/)).toBeInTheDocument()
     await userEvent.click(abilities().getByRole('button', { name: 'Use Always on the Move' }))
     dialog = within(screen.getByRole('dialog'))
-    expect(dialog.getByLabelText('Power')).toHaveDisplayValue('Speed (d12)')
+    // Always on the Move's own power, Speed, is fixed.
+    expect(dialog.getByRole('group', { name: 'Power' })).toHaveTextContent('Speed')
     expect(dialog.getByLabelText('Second power')).toHaveDisplayValue('Agility (d10)')
     await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
     expect(dialog.getByRole('list', { name: 'Dice rolled' })).toHaveTextContent('Max: 12 (Speed d12)Mid: 10 (Agility d10)Min: 8 (Green status d8)')

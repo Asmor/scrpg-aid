@@ -81,7 +81,7 @@ describe('forms and modes', () => {
 
   it('doesn’t pick one trait for two slots', () => {
     const one = { trait: Q('fitness'), die: 'd10' as const, step: 'background' as const, name: 'Fitness' }
-    expect(defaultSlots({ power: [], quality: [one] }, ['quality', 'quality'], undefined)).toEqual([one, undefined])
+    expect(defaultSlots({ power: [], quality: [one] }, ['quality', 'quality'], undefined)).toEqual([{ trait: one, fixed: false }, { fixed: false }])
   })
 
   it('rolls a d4 for a power the form doesn’t have (ruling 17)', () => {
@@ -89,7 +89,10 @@ describe('forms and modes', () => {
     const d = dice(formChangerHero(), { form: 'form:1' })
     const choices = traitChoices(d, { effects: [], traits: [P('strength')] })
     expect(names(choices.power).at(-1)).toBe('Strength (not in this form) d4')
-    expect(names(defaultSlots(choices, d.slots, { effects: [], traits: [P('strength')] }))).toEqual(['Strength (not in this form) d4', 'Fitness d10'])
+    const slots = defaultSlots(choices, d.slots, { effects: [], traits: [P('strength')] })
+    expect(names(slots.map((x) => x.trait))).toEqual(['Strength (not in this form) d4', 'Fitness d10'])
+    // The ability's own power is fixed; the other slot is the player's choice.
+    expect(slots.map((x) => x.fixed)).toEqual([true, false])
   })
 })
 
@@ -98,7 +101,7 @@ describe('Divided forms', () => {
     expect(dice(dividedHero()).slots).toEqual(['quality', 'quality'])
     expect(dice(dividedHero(), { dividedForm: 'heroic' }).slots).toEqual(['power', 'power'])
     const d = dice(dividedHero(), { dividedForm: 'heroic' })
-    expect(names(defaultSlots(traitChoices(d, undefined), d.slots, undefined))).toEqual(['Speed d12', 'Agility d10'])
+    expect(names(defaultSlots(traitChoices(d, undefined), d.slots, undefined).map((x) => x.trait))).toEqual(['Speed d12', 'Agility d10'])
     expect(formNoun(playForms(buildSheet(dividedHero())))).toBe('form')
   })
 

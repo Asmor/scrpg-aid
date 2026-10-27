@@ -126,19 +126,24 @@ export function traitChoices(dice: FormDice, use: AbilityUse | undefined): Recor
   return { power: add('power', dice.powers), quality: add('quality', dice.qualities) }
 }
 
+/** A slot's trait, and whether it's fixed: the power or quality chosen for the ability, which must be used. */
+export interface Slot {
+  trait?: HeroTrait
+  fixed: boolean
+}
+
 /**
- * The starting pick for each slot: the ability's own power or quality where its kind fits,
+ * Each slot's starting trait: the ability's own power or quality where its kind fits (fixed),
  * then the largest die not already picked; none when every trait of that kind is taken.
  */
-export function defaultSlots(choices: Record<Kind, readonly HeroTrait[]>, slots: readonly Kind[], use: AbilityUse | undefined): (HeroTrait | undefined)[] {
+export function defaultSlots(choices: Record<Kind, readonly HeroTrait[]>, slots: readonly Kind[], use: AbilityUse | undefined): Slot[] {
   const picked: HeroTrait[] = []
   return slots.map((kind) => {
-    const list = choices[kind]
-    const free = list.filter((t) => !picked.includes(t))
+    const free = choices[kind].filter((t) => !picked.includes(t))
     const named = free.find((t) => use?.traits.some((r) => traitKey(r) === traitKey(t.trait)))
-    const pick = named ?? free[0]
-    if (pick) picked.push(pick)
-    return pick
+    const trait = named ?? free[0]
+    if (trait) picked.push(trait)
+    return { ...(trait ? { trait } : {}), fixed: Boolean(named) }
   })
 }
 

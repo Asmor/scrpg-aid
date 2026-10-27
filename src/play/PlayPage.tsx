@@ -356,6 +356,7 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
                   </button>
                 )}
                 {usable && a.blocked && <span className="hint">{a.blocked}</span>}
+                <p className="play-ability__text">{a.text}</p>
               </li>
             )
           })}
