@@ -6,12 +6,12 @@
 import { DETAIL_FIELDS } from './model'
 import { type Check, arrayOf, boolean, either, integer, nonEmptyString, nullable, object, oneOf, recordOf, string } from '../shape'
 
-const die = oneOf('d4', 'd6', 'd8', 'd10', 'd12')
+export const die = oneOf('d4', 'd6', 'd8', 'd10', 'd12')
 
-const traitRef = object({ kind: oneOf('power', 'quality'), id: nonEmptyString })
+export const traitRef = object({ kind: oneOf('power', 'quality'), id: nonEmptyString })
 const rollRecord = object({ dice: arrayOf(die), results: arrayOf(integer), manual: boolean, 'rerolled?': boolean })
-const assignment = object({ trait: traitRef, die, 'upgrades?': oneOf(true) })
-const blanks = recordOf(either(string, arrayOf(string)))
+export const assignment = object({ trait: traitRef, die, 'upgrades?': oneOf(true) })
+export const blanks = recordOf(either(string, arrayOf(string)))
 // Ability sources accept any text, not just today's AbilitySource values, so heroes
 // saved by a newer app with new sources still open; unknown sources show as warnings.
 const abilityId = object({ source: nonEmptyString, name: nonEmptyString })

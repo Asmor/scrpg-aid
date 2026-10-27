@@ -2,6 +2,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createHero } from './model'
 import { HERO_FORMAT } from './serialize'
+import { DB_VERSION } from '../store/records'
 import { createDefaultStore, IndexedDbHeroStore, MemoryHeroStore, type HeroStore } from './store'
 
 const hero = (id: string, updated: string) =>
@@ -94,7 +95,7 @@ describe('IndexedDbHeroStore', () => {
     await store.save(hero('good', '2026-01-01T00:00:00Z'))
     // Write a record from a future app version directly.
     await new Promise<void>((resolve, reject) => {
-      const request = factory.open('corrupt-test', 1)
+      const request = factory.open('corrupt-test', DB_VERSION)
       request.onsuccess = () => {
         const tx = request.result.transaction('heroes', 'readwrite')
         tx.objectStore('heroes').put({ id: 'future', saved: { format: HERO_FORMAT, version: 99, hero: {} } })
@@ -155,12 +156,12 @@ describe('IndexedDbHeroStore errors', () => {
     const store = new IndexedDbHeroStore(factory, 'upgrade-test')
     await store.save(hero('a', '2026-01-01T00:00:00Z'))
     const upgraded = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = factory.open('upgrade-test', 2)
+      const request = factory.open('upgrade-test', DB_VERSION + 1)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
       request.onblocked = () => reject(new Error('blocked'))
     })
-    expect(upgraded.version).toBe(2)
+    expect(upgraded.version).toBe(DB_VERSION + 1)
     upgraded.close()
   })
 
