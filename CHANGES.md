@@ -1,9 +1,0 @@
-- [ ] In all character-sheet views, including exports, Powers, Qualities, and Status dice should all be in a single 6-column table.
-  - First two columns are labeled "Power" and are the powers and their associated dice
-  - Second two columns are for "Quality"
-  - Third pair are for "Status" (Green in first row, yellow second row, red third row)
-  - Make sure in the Markdown export that the table is formatted well for reading in plain text mode.
-- [ ] The "page size" selector has a label which pushes the dropdown down.
-  - Let's change this to radio buttons, after the "Download PDF" button
-    - "[Download PDF] (x) Letter ( ) A4"
-    - Make sure there are no line breaks after the button/before the options

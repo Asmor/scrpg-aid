@@ -59,7 +59,7 @@ Output should be kept in `data/`.
   - Markdown _maybe_
     - Only if it's easy to make the markdown readily importable without sacrificing readability in both plain text and rendered states
 
-### Phase 3: Game aid
+### Phase 3: Game aid **(Complete)**
 
 - A mode to assist users in tracking their game state
   - Keep track of and apply bonuses and penalties
@@ -103,11 +103,41 @@ Output should be kept in `data/`.
       - With roll and effects
     - "Gained '-3 tied up' penalty"
 
+### Phase 4: Peer-to-peer game sessions
+
+- A GM can host a game session and players can join it
+  - Serverless, using Trystero (WebRTC)
+  - GM starts a session from a GM page and gets a room code and a join link
+    - Optional room password
+  - Players join from the link or by entering the code, choosing which hero they're playing
+  - The GM doesn't need a hero
+  - Solo play and hero creation keep working offline; only sessions need a network connection
+- The GM's browser is the authority for shared state
+  - Players send their changes to the GM, who passes them on to everyone
+  - If the GM reloads, the session resumes with the same room code
+  - Players reconnect automatically and get the current state
+  - Each player's own hero state stays saved in their own browser
+- Scene tracker
+  - The GM sets the scene zone (Green, Yellow, Red)
+  - Everyone's game aid follows it automatically and records it in their history
+    - "The GM set the scene to Yellow."
+  - Players can't change the scene zone while in a session
+- Party view
+  - Everyone can see each hero's name, Health, zone, and mods
+  - Connection status for each member
+- Shared feed
+  - Every confirmed roll appears in everyone's feed, with its dice and effects
+    - "Captain Example used ability Inflict: ..."
+  - Health changes, mods, and twists also appear in the feed
+- Mods between players
+  - When adding a mod, or after a Boost or Hinder, choose who it applies to: yourself or another hero
+  - It appears in the recipient's mods list immediately, with a history entry naming who gave it
+    - "Gained '+2 rallied' bonus from Captain Example."
+  - The recipient can remove it
+- Known limitation: some strict networks block peer-to-peer connections without a relay (TURN) server; revisit if real tables hit it
+
 ### Future plans
 
-- Peer-to-peer
-  - Trystero or similar
-  - Allow players to see each others' rolls and such
 - Villains
 - Minions & Lieutenants
 - Environments
