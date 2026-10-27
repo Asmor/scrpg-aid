@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fakeNetwork, lazyConnect } from './transport'
+import { fakeNetwork, lazyConnect, quietAfterLeave, type Connect } from './transport'
 
 describe('a transport that loads in the background', () => {
   it('passes handlers on once loaded, and sends nothing before', async () => {
@@ -42,4 +42,24 @@ describe('a transport that loads in the background', () => {
     failed.send('x')
     failed.leave()
   })
+
+  it('passes connection problems on, but not after leaving', async () => {
+    let report!: (message: string) => void
+    const stub = { send: () => {}, onMessage: () => {}, onPeerJoin: () => {}, onPeerLeave: () => {}, onError: (h: (m: string) => void) => void (report = h), leave: () => {} }
+    const t = quietAfterLeave(await lazyLoaded(() => stub))
+    const errors: string[] = []
+    t.onError!((m) => errors.push(m))
+    report('one')
+    t.leave()
+    report('two')
+    expect(errors).toEqual(['one'])
+  })
 })
+
+/** A lazily loaded transport, after its load has finished. */
+async function lazyLoaded(make: Connect) {
+  const t = lazyConnect(() => Promise.resolve(make))('ROOM')
+  await Promise.resolve()
+  await Promise.resolve()
+  return t
+}

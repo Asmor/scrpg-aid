@@ -19,6 +19,9 @@ jobs:
     env:
       # Project Pages serve from /<repo>/. Change this for a custom domain or a <user>.github.io repo.
       BASE_PATH: /${{ github.event.repository.name }}/
+      # Where game sessions fetch TURN relay credentials (src/session/turn.ts), from a repository
+      # secret so the API key stays out of the code. Without it, sessions use direct connections only.
+      VITE_TURN_CREDENTIALS_URL: ${{ secrets.TURN_CREDENTIALS_URL }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

@@ -30,6 +30,7 @@ Node 22+ and Python 3 are required.
 - Build: `npm run build` (output in `dist/`), preview with `npm run preview`
 - Validate rules data: `npm run validate:data` (runs `python3 scripts/validate_data.py`; must pass before any change to `data/` is done)
 - Everything CI runs: `npm run check`
+- TURN relay for game sessions (optional): set `VITE_TURN_CREDENTIALS_URL` (a URL returning a JSON list of ICE servers, e.g. Metered's credentials endpoint) in a gitignored `.env.local`; the deploy workflow reads it from the `TURN_CREDENTIALS_URL` repository secret. Without it, sessions use direct connections only.
 
 ## Rules data (`data/`)
 

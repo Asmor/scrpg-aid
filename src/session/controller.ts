@@ -123,6 +123,8 @@ export interface PlayerSnapshot {
   status: PlayerStatus
   /** The session as the GM last sent it. */
   state?: SessionState
+  /** The last connection problem, until the GM is reached. */
+  error?: string
 }
 
 /** How many applied mod ids to remember (as many as the GM can hold for one player); the GM forgets them once acknowledged anyway. */
@@ -152,6 +154,9 @@ export class PlayerSession extends Subscribable<PlayerSnapshot> {
       this.publish({ ...this.snapshot, status: 'disconnected' })
       // A reloaded GM may have joined before the old connection was noticed gone: ask everyone again.
       this.hello()
+    })
+    this.transport.onError?.((error) => {
+      if (this.snapshot.status !== 'connected') this.publish({ ...this.snapshot, error })
     })
     this.transport.onMessage((raw, peer) => {
       const msg = readGmMessage(raw)

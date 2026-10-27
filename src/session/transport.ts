@@ -9,6 +9,8 @@ export interface Transport {
   onMessage(handler: (message: unknown, peerId: string) => void): void
   onPeerJoin(handler: (peerId: string) => void): void
   onPeerLeave(handler: (peerId: string) => void): void
+  /** Connection problems worth showing (a peer found but not reachable, say). Optional. */
+  onError?(handler: (message: string) => void): void
   leave(): void
 }
 
@@ -29,6 +31,7 @@ export function quietAfterLeave(transport: Transport): Transport {
     onMessage: (handler) => transport.onMessage((message, peer) => !left && handler(message, peer)),
     onPeerJoin: (handler) => transport.onPeerJoin((peer) => !left && handler(peer)),
     onPeerLeave: (handler) => transport.onPeerLeave((peer) => !left && handler(peer)),
+    onError: (handler) => transport.onError?.((message) => !left && handler(message)),
     leave: () => {
       if (left) return
       left = true
@@ -46,7 +49,12 @@ export function lazyConnect(load: () => Promise<Connect>): Connect {
   return (room, password) => {
     let real: Transport | undefined
     let left = false
-    const handlers: { message?: (message: unknown, peerId: string) => void; join?: (peerId: string) => void; leave?: (peerId: string) => void } = {}
+    const handlers: {
+      message?: (message: unknown, peerId: string) => void
+      join?: (peerId: string) => void
+      leave?: (peerId: string) => void
+      error?: (message: string) => void
+    } = {}
     load().then(
       (connect) => {
         if (left) return
@@ -54,6 +62,7 @@ export function lazyConnect(load: () => Promise<Connect>): Connect {
         if (handlers.message) real.onMessage(handlers.message)
         if (handlers.join) real.onPeerJoin(handlers.join)
         if (handlers.leave) real.onPeerLeave(handlers.leave)
+        if (handlers.error) real.onError?.(handlers.error)
       },
       () => {},
     )
@@ -70,6 +79,10 @@ export function lazyConnect(load: () => Promise<Connect>): Connect {
       onPeerLeave: (handler) => {
         handlers.leave = handler
         real?.onPeerLeave(handler)
+      },
+      onError: (handler) => {
+        handlers.error = handler
+        real?.onError?.(handler)
       },
       leave: () => {
         left = true

@@ -41,6 +41,7 @@ export function PlayerPanel({ heroId, player, snapshot, hosting, onLeave }: Prop
         {status === 'connecting' ? `Connecting to game ${player.room}…` : status === 'connected' ? `In game ${player.room}.` : 'The GM is away. Reconnecting…'}
       </p>
       {!online && <p className="hint">You’re offline. The game picks up again when you’re back online.</p>}
+      {status !== 'connected' && snapshot?.error && <p className="hint">Connection problem: {snapshot.error}</p>}
       {status === 'connecting' && <p className="hint">If this takes more than a few seconds, check the room code and password with your GM, and that they’re online.</p>}
       {snapshot?.state && (
         <>

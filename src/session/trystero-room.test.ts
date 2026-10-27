@@ -7,16 +7,21 @@ const room = {
   onPeerLeave: null as ((id: string) => void) | null,
 }
 const action = { send: vi.fn(() => Promise.resolve()), onMessage: null as ((data: unknown, ctx: { peerId: string }) => void) | null }
-const joinRoom = vi.fn(() => room)
+let callbacks: { onJoinError?: (e: { error: string }) => void } = {}
+const joinRoom = vi.fn((_config: unknown, _room: string, cb?: typeof callbacks) => {
+  callbacks = cb ?? {}
+  return room
+})
 room.makeAction.mockReturnValue(action)
 vi.mock('trystero', () => ({ joinRoom }))
 
-const { APP_ID, connectTrysteroRoom: connectTrystero } = await import('./trystero-room')
+const { APP_ID, trysteroConnect } = await import('./trystero-room')
+const connectTrystero = trysteroConnect()
 
 describe('the Trystero transport', () => {
   it('joins the room with the app id and password, and passes messages and peers through', () => {
     const t = connectTrystero('ABCD-EFGH', 'pw')
-    expect(joinRoom).toHaveBeenCalledWith({ appId: APP_ID, password: 'pw' }, 'ABCD-EFGH')
+    expect(joinRoom).toHaveBeenCalledWith({ appId: APP_ID, password: 'pw' }, 'ABCD-EFGH', expect.anything())
     t.send({ hi: 1 })
     t.send({ hi: 2 }, 'peerA')
     expect(action.send).toHaveBeenNthCalledWith(1, { hi: 1 }, undefined)
@@ -31,9 +36,17 @@ describe('the Trystero transport', () => {
     room.onPeerJoin!('p1')
     room.onPeerLeave!('p1')
     expect(joins).toEqual(['+p1', '-p1'])
+    const errors: string[] = []
+    t.onError!((e) => errors.push(e))
+    callbacks.onJoinError!({ error: 'could not connect to peer p1' })
+    expect(errors).toEqual(['could not connect to peer p1'])
     t.leave()
     expect(room.leave).toHaveBeenCalled()
     connectTrystero('ABCD-EFGH')
-    expect(joinRoom).toHaveBeenLastCalledWith({ appId: APP_ID }, 'ABCD-EFGH')
+    expect(joinRoom).toHaveBeenLastCalledWith({ appId: APP_ID }, 'ABCD-EFGH', expect.anything())
+    // With relay servers, Trystero gets them as its TURN config.
+    const turn = [{ urls: 'turn:a.relay.example:80', username: 'u', credential: 'c' }]
+    trysteroConnect(turn)('ABCD-EFGH')
+    expect(joinRoom).toHaveBeenLastCalledWith({ appId: APP_ID, turnConfig: turn }, 'ABCD-EFGH', expect.anything())
   })
 })

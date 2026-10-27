@@ -278,4 +278,22 @@ describe('a session over the network', () => {
     ace.sync(play)
     expect(acks()).toBe(2)
   })
+
+  it('shows a connection problem until the GM is reached', async () => {
+    const net = fakeNetwork()
+    let report!: (message: string) => void
+    const ace = new PlayerSession(
+      (room, pw) => ({ ...net.connect(room, pw), onError: (h) => void (report = h) }),
+      { v: 1, room: ROOM, clientId: 'c1', heroId: 'h', applied: [] },
+      clock,
+    )
+    report('could not connect to peer p1')
+    expect(ace.getSnapshot()).toMatchObject({ status: 'connecting', error: 'could not connect to peer p1' })
+    new GmSession(net.connect, { room: ROOM }, clock)
+    await net.settle()
+    expect(ace.getSnapshot().status).toBe('connected')
+    expect(ace.getSnapshot().error).toBeUndefined()
+    report('a later problem')
+    expect(ace.getSnapshot().error).toBeUndefined()
+  })
 })
