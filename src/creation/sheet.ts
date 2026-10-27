@@ -124,6 +124,11 @@ export interface HeroSheet {
 
 /** Replaces bracketed blanks with the player's choices, leaving unfilled ones as they are. */
 export function fillText(hero: Hero, text: string, uses: readonly TraitRef[] = [], blanks: AbilityPick['blanks'] = {}): string {
+  return fillTextWith((t) => traitLabel(hero, t), text, uses, blanks)
+}
+
+/** fillText for any kind of character, given how to name its traits. */
+export function fillTextWith(label: (t: TraitRef) => string, text: string, uses: readonly TraitRef[] = [], blanks: AbilityPick['blanks'] = {}): string {
   const slots = parseSlots(text)
   let index = 0
   let traitIndex = 0
@@ -131,7 +136,7 @@ export function fillText(hero: Hero, text: string, uses: readonly TraitRef[] = [
     const slot = slots[index++]!
     if (slot.type === 'trait') {
       const use = uses[traitIndex++]
-      return use ? traitLabel(hero, use) : whole
+      return use ? label(use) : whole
     }
     const value = blanks[slot.label]
     const filled = Array.isArray(value) ? value.filter((v) => v.trim()).join(' and ') : value?.trim()

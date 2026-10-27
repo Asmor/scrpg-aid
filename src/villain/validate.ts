@@ -3,7 +3,7 @@
  * Shape only, like ../hero/validate.ts: rule problems are warnings (./sheet.ts).
  */
 import { arrayOf, integer, nonEmptyString, nullable, object, recordOf, string } from '../shape'
-import { assignment, blanks, traitRef } from '../hero/validate'
+import { assignment, blanks, die, traitRef } from '../hero/validate'
 import { VILLAIN_DETAIL_FIELDS } from './model'
 
 // Sources accept any text, so villains saved by a newer app with new sources still open.
@@ -18,7 +18,7 @@ const villainShape = object({
   traitNames: recordOf(string),
   approach: nullable(object({ id: nonEmptyString, traits: arrayOf(assignment), abilities: arrayOf(pick) })),
   archetype: nullable(object({ id: nonEmptyString, abilities: arrayOf(pick) })),
-  upgrades: arrayOf(object({ id: nonEmptyString, abilities: arrayOf(pick) })),
+  upgrades: arrayOf(object({ id: nonEmptyString, abilities: arrayOf(pick), 'vehicle?': object({ 'die?': die, abilities: arrayOf(pick) }) })),
   mastery: nullable(pick),
   heroCount,
   'notes?': string,

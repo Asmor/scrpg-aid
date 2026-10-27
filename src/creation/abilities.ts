@@ -38,21 +38,25 @@ export interface SlotLimit {
 }
 
 interface Context {
-  hero: Hero
-  step: StepId
-  /** The hero's traits by traitKey. */
-  traits: ReadonlyMap<string, HeroTrait>
+  /** A trait's name for messages (the player's name for it, or the catalog's). */
+  label: (t: TraitRef) => string
+  step: string
+  /** The character's traits by traitKey. */
+  traits: ReadonlyMap<string, { trait: TraitRef }>
   /** Traits given dice in the archetype step, for "[a power gained from your archetype]". */
   archetypeTraits: ReadonlySet<string>
   slotLimit?: SlotLimit
-  warnings: RuleWarning[]
+  warnings: { step: string; code: string; message: string }[]
 }
 
-const warn = (ctx: Context, code: string, message: string) => ctx.warnings.push(warning(ctx.step, code, message))
-const label = (ctx: Context, t: TraitRef) => traitLabel(ctx.hero, t)
+/** The fields of an ability pick the checks read (heroes' and villains' picks both have them). */
+type PickLike = Pick<AbilityPick, 'name' | 'uses' | 'blanks' | 'customName'>
+
+const warn = (ctx: Context, code: string, message: string) => ctx.warnings.push({ step: ctx.step, code, message })
+const label = (ctx: Context, t: TraitRef) => ctx.label(t)
 
 /** The trait an ability pick uses for restrictions (see the module doc). */
-export function primaryUse(ability: Ability, pick: AbilityPick): TraitRef | undefined {
+export function primaryUse(ability: Ability, pick: PickLike | AbilityPick): TraitRef | undefined {
   if (parseSlots(ability.text).some((s) => s.type === 'trait')) return pick.uses?.[0]
   return namedTrait(ability)
 }
@@ -93,7 +97,7 @@ function hasMatching(ctx: Context, refs: readonly OptionRef[]): boolean {
 }
 
 /** Checks one ability pick: its blanks are filled, with traits the hero has, and its requirement is met. */
-function checkPick(ctx: Context, ability: Ability, pick: AbilityPick): void {
+function checkPick(ctx: Context, ability: Ability, pick: PickLike): void {
   const name = pick.customName?.trim() || ability.name
   let traitIndex = 0
   let limited = false
@@ -191,7 +195,7 @@ function archetypeLists(ar: Archetype, powersOnly: boolean): OptionRef[] {
 
 /** A pick together with the ability it names. */
 interface Taken {
-  pick: AbilityPick
+  pick: PickLike
   ability: Ability
 }
 
@@ -203,7 +207,7 @@ function checkBlock(
   ctx: Context,
   block: AbilityChoice,
   available: readonly Ability[],
-  picks: readonly AbilityPick[],
+  picks: readonly PickLike[],
   source: string,
   archetype: Archetype | undefined,
   greenUses: readonly TraitRef[] = [],
@@ -287,8 +291,8 @@ function checkFixed(ctx: Context, fixed: readonly Ability[], picks: readonly Abi
   return taken
 }
 
-function checkPowerSource(ctx: Context): void {
-  const choice = ctx.hero.powerSource
+function checkPowerSource(ctx: Context, hero: Hero): void {
+  const choice = hero.powerSource
   const ps = choice && powerSourcesById.get(choice.id)
   if (!choice || !ps) return
   if (ps.greenAbilities) {
@@ -380,13 +384,41 @@ function contextFor(hero: Hero, traits: readonly HeroTrait[], step: StepId, warn
   // Divided, the second archetype (the user's ruling).
   const layer = traitLayer(hero)?.choice
   const archetypeTraits = new Set((layer?.traits ?? []).concat(layer?.bonus ?? []).map((a) => traitKey(a.trait)))
-  return { hero, step, traits: new Map(traits.map((t) => [traitKey(t.trait), t])), archetypeTraits, warnings }
+  return { label: (t) => traitLabel(hero, t), step, traits: new Map(traits.map((t) => [traitKey(t.trait), t])), archetypeTraits, warnings }
+}
+
+/**
+ * Checks a list of ability picks for any kind of character (villains use this): each pick's
+ * blanks, the count, duplicates, and the block's restrictions (`rule`, `usesFrom` with a
+ * list, `requireAtLeast`, `minDifferentPowers`). Returns the warnings, and the powers and
+ * qualities the picks use (for checks of the caller's own, like `sameUsePattern`).
+ */
+export function checkChoiceBlock<S extends string>(options: {
+  step: S
+  traits: readonly { trait: TraitRef }[]
+  label: (t: TraitRef) => string
+  block: AbilityChoice
+  available: readonly Ability[]
+  picks: readonly PickLike[]
+  source: string
+}): { warnings: { step: S; code: string; message: string }[]; uses: TraitRef[] } {
+  const warnings: { step: S; code: string; message: string }[] = []
+  const ctx: Context = { label: options.label, step: options.step, traits: new Map(options.traits.map((t) => [traitKey(t.trait), t])), archetypeTraits: new Set(), warnings }
+  const taken = checkBlock(ctx, options.block, options.available, options.picks, options.source, undefined)
+  return { warnings, uses: taken.flatMap(({ ability, pick }) => primaryUse(ability, pick) ?? []) }
+}
+
+/** Checks one pick of a fixed ability (its blanks) for any kind of character. */
+export function checkPickFor<S extends string>(options: { step: S; traits: readonly { trait: TraitRef }[]; label: (t: TraitRef) => string; ability: Ability; pick: PickLike }): { step: S; code: string; message: string }[] {
+  const warnings: { step: S; code: string; message: string }[] = []
+  checkPick({ label: options.label, step: options.step, traits: new Map(options.traits.map((t) => [traitKey(t.trait), t])), archetypeTraits: new Set(), warnings }, options.ability, options.pick)
+  return warnings
 }
 
 /** Checks the power source and archetype abilities against the hero's traits. */
 export function checkAbilities(hero: Hero, traits: readonly HeroTrait[]): RuleWarning[] {
   const warnings: RuleWarning[] = []
-  checkPowerSource(contextFor(hero, traits, 'powerSource', warnings))
+  checkPowerSource(contextFor(hero, traits, 'powerSource', warnings), hero)
   const ctx = contextFor(hero, traits, 'archetype', warnings)
   const [outer, second] = layers(hero)
   if (outer) checkArchetype(ctx, outer)

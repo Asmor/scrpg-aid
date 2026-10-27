@@ -350,6 +350,14 @@ These came from questions the user put to the rules-expert agent about an action
 - **Decision:** No. The roll is two qualities and the status die. The ability's own trait fills a slot only when it's of the kind being rolled.
 - **Basis:** Default (permissive; not asked).
 
+## Villains (p. 208–239)
+
+### 57. Quality Upgrade's extra abilities and an approach's pattern
+- **Pages:** Quality Upgrade (p. 237); approaches with a pattern, e.g. Specialized (p. 208–219).
+- **Question:** Quality Upgrade gives another approach ability for each quality already at d12. An approach like Specialized says its abilities follow a pattern ("two use the same quality and the third uses a different quality"). Does the extra ability have to fit the pattern too?
+- **Decision:** No. The pattern covers the approach's usual number of abilities; an extra one may use any power or quality.
+- **Basis:** Default (permissive; not asked).
+
 ## Data corrections
 
 These fix the data rather than settling an ambiguity.

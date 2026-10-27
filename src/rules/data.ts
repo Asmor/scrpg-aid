@@ -47,7 +47,7 @@ type Loose<X> = X extends string
           : X
 
 /** Narrows an inferred JSON value to its declared type (see the module comment). */
-function typed<T>(value: Loose<T>): T {
+export function typed<T>(value: Loose<T>): T {
   return value as T
 }
 

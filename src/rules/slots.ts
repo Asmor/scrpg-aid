@@ -65,6 +65,7 @@ const KNOWN: Record<string, Omit<TraitSlot, 'label'> | Omit<ChoiceSlot, 'label'>
   'boost or hinder': { type: 'choice', options: ['Boost', 'Hinder'] },
   'physical or energy': { type: 'choice', options: ['Physical', 'Energy'] },
   'choose two basic actions': { type: 'choice', options: BASIC_ACTIONS.map(capitalize), count: 2 },
+  'basic action': { type: 'choice', options: BASIC_ACTIONS.map(capitalize) },
 }
 
 /** Whether a bracket's text is one this module knows how to read. */

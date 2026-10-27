@@ -17,9 +17,10 @@
  */
 import { newId, type TraitAssignment } from '../hero/model'
 import { traitKey, type TraitRef } from '../rules/catalog'
+import type { Die } from '../rules/types'
 
 /** Where a villain's ability came from. */
-export type VillainAbilitySource = 'approach' | 'archetype' | 'archetype.fixed' | 'upgrade' | 'mastery'
+export type VillainAbilitySource = 'approach' | 'archetype' | 'archetype.fixed' | 'upgrade' | 'vehicle' | 'mastery'
 
 /** An ability the villain took, with the choices made when taking it (like a hero's). */
 export interface VillainAbilityPick {
@@ -51,6 +52,8 @@ export interface UpgradeChoice {
   id: string
   /** The upgrade's abilities, with their blanks filled in. */
   abilities: VillainAbilityPick[]
+  /** Villainous Vehicle: the vehicle's die (it's built as a lieutenant), and the vehicle abilities chosen (source 'vehicle'). */
+  vehicle?: { die?: Die; abilities: VillainAbilityPick[] }
 }
 
 /** Who the villain is, and the finishing touches (p. 208). */

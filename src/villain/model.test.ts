@@ -30,7 +30,10 @@ describe('saving villains', () => {
     const v = createVillain({ id: 'v1', now })
     v.approach = { id: 'adaptive', traits: [{ trait: { kind: 'power', id: 'robotics' }, die: 'd10' }], abilities: [{ source: 'approach', name: 'Initiate Upgrade Procedure', uses: [{ kind: 'power', id: 'robotics' }] }] }
     v.archetype = { id: 'bruiser', abilities: [{ source: 'archetype', name: 'Lash Out', uses: [{ kind: 'power', id: 'robotics' }], customName: 'Smash' }] }
-    v.upgrades = [{ id: 'mook-squad', abilities: [{ source: 'upgrade', name: 'Alert!' }] }]
+    v.upgrades = [
+      { id: 'mook-squad', abilities: [{ source: 'upgrade', name: 'Alert!' }] },
+      { id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd10', abilities: [{ source: 'vehicle', name: 'Reliable', blanks: { 'basic action': 'Attack' } }] } },
+    ]
     v.mastery = { source: 'mastery', name: 'Master of Annihilation' }
     v.notes = 'Hates the heroes.'
     return v
@@ -58,6 +61,8 @@ describe('saving villains', () => {
     expect(bad((v) => (v.upgrades = [{ id: 'x' }]))).toEqual({ ok: false, error: 'villain.upgrades[0].abilities should be a list' })
     expect(bad((v) => ((v.approach as { traits: unknown[] }).traits = [{ trait: { kind: 'power', id: 'x' }, die: 'd7' }]))).toEqual({ ok: false, error: 'villain.approach.traits[0].die has an unknown value' })
     expect(bad((v) => (v.mastery = { name: 'x' }))).toEqual({ ok: false, error: 'villain.mastery.source is missing' })
+    expect(bad((v) => (v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd7', abilities: [] } }]))).toEqual({ ok: false, error: 'villain.upgrades[0].vehicle.die has an unknown value' })
+    expect(bad((v) => (v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd10' } }]))).toEqual({ ok: false, error: 'villain.upgrades[0].vehicle.abilities should be a list' })
   })
 
   it('migrates an older version forward', () => {
