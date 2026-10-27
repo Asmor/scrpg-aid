@@ -193,20 +193,17 @@ export function describeEffect(r: EffectResult): string {
 }
 
 /**
- * The pool for using an ability: its own power or quality plus one of the other kind and the
- * status die; or, for a single-die ability, that one die. Basic actions pass no `use`.
+ * The pool for using an ability: the two traits picked (normally its own power or quality
+ * and one of the other kind) and the status die; or, for a single-die ability, that one die
+ * (`named`: the power or quality it names). Basic actions pass no `use`.
  */
-export function poolDice(opts: { use?: AbilityUse; power?: HeroTrait; quality?: HeroTrait; status?: { label: string; die: Die }; redStatus?: Die }): PoolDie[] {
+export function poolDice(opts: { use?: AbilityUse; picked?: readonly (HeroTrait | undefined)[]; named?: HeroTrait; status?: PoolDie; redStatus?: Die }): PoolDie[] {
   const single = opts.use?.pool?.single
   const trait = (t?: HeroTrait) => (t ? [{ label: t.name, die: t.die }] : [])
   if (single === 'status') return opts.status ? [opts.status] : []
   if (single === 'redStatus') return opts.redStatus ? [{ label: 'Red status', die: opts.redStatus }] : []
-  if (single === 'trait') {
-    const used = opts.use!.traits[0]
-    const t = used?.kind === 'quality' ? opts.quality : opts.power
-    return trait(t)
-  }
-  return [...trait(opts.power), ...trait(opts.quality), ...(opts.status ? [opts.status] : [])]
+  if (single === 'trait') return trait(opts.named)
+  return [...(opts.picked ?? []).flatMap(trait), ...(opts.status ? [opts.status] : [])]
 }
 
 /**

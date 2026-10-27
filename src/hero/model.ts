@@ -359,6 +359,10 @@ export interface PlayState {
   health?: number
   /** The scene tracker's zone, when it's past Green (p. 14). */
   sceneZone?: 'yellow' | 'red'
+  /** The Form-Changer form or Modular mode in use ("form:0", "mode:2", "powerless"); unset for the base form or default mode. */
+  form?: string
+  /** A Divided hero in their heroic form; unset in their civilian form. */
+  dividedForm?: 'heroic'
   heroPoints: number
   reactionUsed: boolean
   mods: PlayMod[]

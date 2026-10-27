@@ -23,6 +23,7 @@ import { deriveTraits, ROLEPLAYING_QUALITY, traitLabel, type HeroTrait } from '.
 import { warning, type RuleWarning } from './warnings'
 
 const SPLIT_FORM = 'Split Form'
+const DIVIDED_PSYCHE = 'Divided Psyche'
 
 /** The hero as they are in the heroic form: the same choices, with the heroic personality. */
 function heroicHero(hero: Hero): Hero | undefined {
@@ -60,10 +61,20 @@ export function traitsInForm(hero: Hero, traits: readonly HeroTrait[], form: 'ci
   const divided = dividedChoice(hero)
   if (!divided) return traits
   const base = form === 'heroic' ? (heroicTraits(hero) ?? traits) : traits
-  const split = hasSplitForm(hero) ? divided.split : undefined
-  if (!split) return base
+  return withoutOtherForm(hero, base, form)
+}
+
+/** `traits` without those Split Form places only in the other form (all of them, without Split Form). */
+export function withoutOtherForm(hero: Hero, traits: readonly HeroTrait[], form: 'civilian' | 'heroic'): readonly HeroTrait[] {
+  const split = hasSplitForm(hero) ? dividedChoice(hero)?.split : undefined
+  if (!split) return traits
   const elsewhere = new Set((form === 'heroic' ? split.civilian : split.heroic).map(traitKey))
-  return base.filter((t) => !elsewhere.has(traitKey(t.trait)))
+  return traits.filter((t) => !elsewhere.has(traitKey(t.trait)))
+}
+
+/** Whether a Divided hero took Divided Psyche: two qualities in civilian form, two powers in heroic form. */
+export function takesDividedPsyche(hero: Hero): boolean {
+  return Boolean(dividedChoice(hero) && hero.archetype!.abilities.some((p) => p.source.startsWith('archetype.') && p.name === DIVIDED_PSYCHE))
 }
 
 /**

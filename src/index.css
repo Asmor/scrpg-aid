@@ -1288,6 +1288,32 @@ a.button--primary {
   line-height: 2.75rem;
 }
 
+.play-traits {
+  margin: 0.5rem 0;
+}
+
+.play-traits > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.play-traits dt {
+  font-weight: 600;
+}
+
+.play-traits dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+}
+
+.play-trait {
+  white-space: nowrap;
+}
+
 .play-list {
   list-style: none;
   margin: 0 0 0.75rem;

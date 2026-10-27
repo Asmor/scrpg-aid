@@ -190,6 +190,8 @@ const heroShape = object({
   'play?': object({
     'health?': integer,
     'sceneZone?': oneOf('yellow', 'red'),
+    'form?': nonEmptyString,
+    'dividedForm?': oneOf('heroic'),
     heroPoints: integer,
     reactionUsed: boolean,
     mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),

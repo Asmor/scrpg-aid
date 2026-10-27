@@ -99,6 +99,20 @@ export function setSceneZone(play: PlayState, zone: 'green' | 'yellow' | 'red', 
   return withEntry(zone === 'green' ? rest : { ...rest, sceneZone: zone }, entry(clock, `The scene is now ${ZONE_NAME[zone]}.`))
 }
 
+/** Changes to a Form-Changer form or Modular mode (`key` unset for the base one), named in the history. */
+export function setForm(play: PlayState, key: string | undefined, name: string, clock: Clock): PlayState {
+  if (key === play.form) return play
+  const { form: _, ...rest } = play
+  return withEntry(key ? { ...rest, form: key } : rest, entry(clock, `Changed to ${name}.`))
+}
+
+/** Switches a Divided hero between their civilian and heroic forms. */
+export function setDividedForm(play: PlayState, form: 'civilian' | 'heroic', clock: Clock): PlayState {
+  if (form === (play.dividedForm ?? 'civilian')) return play
+  const { dividedForm: _, ...rest } = play
+  return withEntry(form === 'heroic' ? { ...rest, dividedForm: 'heroic' } : rest, entry(clock, `Changed to ${form} form.`))
+}
+
 /** "+2 high ground" or "-3 tied up", with its kind: "'-3 tied up' penalty (persistent)". */
 export function describeMod(mod: Pick<PlayMod, 'label' | 'value' | 'persistent' | 'exclusive'>): string {
   const sign = mod.value > 0 ? `+${mod.value}` : `${mod.value}`
@@ -144,7 +158,11 @@ export function removeTwist(play: PlayState, id: string, clock: Clock): PlayStat
   return withEntry({ ...play, twists: play.twists.filter((t) => t.id !== id) }, entry(clock, `Cleared the ${twist.kind} twist: ${twist.text}.`))
 }
 
-/** A fresh start for a new issue: full Health, no mods, twists, or hero points; the history keeps a marker. */
+/**
+ * A fresh start for a new issue: full Health, no mods, twists, or hero points; the history
+ * keeps a marker. The hero stays in the form or mode they're in.
+ */
 export function newIssue(play: PlayState, clock: Clock): PlayState {
-  return { ...emptyPlay(), history: [...play.history, entry(clock, 'Started a new issue: Health restored; mods, twists, and hero points cleared.')] }
+  const { form, dividedForm } = play
+  return { ...emptyPlay(), ...(form ? { form } : {}), ...(dividedForm ? { dividedForm } : {}), history: [...play.history, entry(clock, 'Started a new issue: Health restored; mods, twists, and hero points cleared.')] }
 }

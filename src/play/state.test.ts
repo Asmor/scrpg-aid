@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildSheet } from '../creation/sheet'
 import { completeHero } from '../test/heroes'
-import { abilityAvailable, addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, newIssue, removeMod, removeTwist, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
+import { abilityAvailable, addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, newIssue, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
 
 // completeHero: Max Health 30; Green 30–23, Yellow 22–12, Red 11–1; Lone Wolf d8/d8/d8.
 const sheet = buildSheet(completeHero())
@@ -115,5 +115,25 @@ describe('changes and their history', () => {
     expect(play.health).toBeUndefined()
     expect(texts(play).at(-1)).toMatch(/^Started a new issue/)
     expect(play.history).toHaveLength(3)
+  })
+})
+
+describe('forms', () => {
+  const clock = { now: new Date('2026-10-26T20:00:00Z'), newId: () => 'x' }
+
+  it('changes form or mode, and Divided form, noting it', () => {
+    const inBrute = setForm(emptyPlay(), 'form:0', 'Brute', clock)
+    expect(inBrute).toMatchObject({ form: 'form:0', history: [{ text: 'Changed to Brute.' }] })
+    expect(setForm(inBrute, 'form:0', 'Brute', clock)).toBe(inBrute)
+    expect(setForm(inBrute, undefined, 'Base form', clock)).not.toHaveProperty('form')
+    const heroic = setDividedForm(emptyPlay(), 'heroic', clock)
+    expect(heroic).toMatchObject({ dividedForm: 'heroic', history: [{ text: 'Changed to heroic form.' }] })
+    expect(setDividedForm(heroic, 'civilian', clock)).not.toHaveProperty('dividedForm')
+    expect(setDividedForm(emptyPlay(), 'civilian', clock).history).toEqual([])
+  })
+
+  it('stays in the same form for a new issue', () => {
+    expect(newIssue({ ...emptyPlay(), form: 'mode:1', dividedForm: 'heroic', heroPoints: 2 }, clock)).toMatchObject({ form: 'mode:1', dividedForm: 'heroic', heroPoints: 0 })
+    expect(newIssue(emptyPlay(), clock)).not.toHaveProperty('form')
   })
 })

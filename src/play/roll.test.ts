@@ -99,11 +99,11 @@ describe('poolDice', () => {
   const status = { label: 'Green status', die: 'd8' as const }
 
   it('is a power, a quality, and the status die normally', () => {
-    expect(poolDice({ power: speed, quality: fitness, status })).toEqual([{ label: 'Speed', die: 'd12' }, { label: 'Fitness', die: 'd10' }, status])
+    expect(poolDice({ picked: [speed, fitness], status })).toEqual([{ label: 'Speed', die: 'd12' }, { label: 'Fitness', die: 'd10' }, status])
   })
 
   it('is one die for a single-die ability', () => {
-    expect(poolDice({ use: { effects: [], pool: { single: 'trait' }, traits: [fitness.trait] }, power: speed, quality: fitness, status })).toEqual([{ label: 'Fitness', die: 'd10' }])
+    expect(poolDice({ use: { effects: [], pool: { single: 'trait' }, traits: [fitness.trait] }, named: fitness, picked: [speed, fitness], status })).toEqual([{ label: 'Fitness', die: 'd10' }])
     expect(poolDice({ use: { effects: [], pool: { single: 'status' }, traits: [] }, status })).toEqual([status])
     expect(poolDice({ use: { effects: [], pool: { single: 'redStatus' }, traits: [] }, redStatus: 'd10' })).toEqual([{ label: 'Red status', die: 'd10' }])
   })

@@ -318,6 +318,38 @@ These came from questions the user put to the rules-expert agent about an action
 - **Decision:** Yes. All mods stack additively.
 - **Basis:** Interpretation (guess).
 
+## Forms and modes in play (Phase 3)
+
+### 52. A mode without a power an ability uses
+- **Pages:** Modular (p. 96–98).
+- **Question:** A Modular mode keeps only the powers it picks. What does an ability that uses a power the mode lacks roll?
+- **Decision:** A d4 for that power, as ruling 17 does for Form-Changer forms.
+- **Basis:** Default (permissive; not asked).
+
+### 53. Abilities and a mode's "can't" actions
+- **Pages:** Modular (p. 96–98).
+- **Question:** A mode says the hero can't take certain basic actions (e.g. "can't Attack or Hinder"). Does that stop abilities too?
+- **Decision:** Only an ability whose every effect is one of those actions is blocked. An ability that can do something else can still be used.
+- **Basis:** Default (permissive; not asked).
+
+### 54. Powerless mode
+- **Pages:** Modular (p. 96–98).
+- **Question:** Powerless mode has no zone, and allows "only abilities from your principles". Which zone does it need, and can the Out ability be used in it?
+- **Decision:** It can be used in any zone, and the Out ability can be used when Out. An Out hero may also change to any form or mode, Yellow and Red ones included.
+- **Basis:** Default (permissive; not asked).
+
+### 55. The Out ability and Divided's forms
+- **Pages:** Divided (p. 94–95).
+- **Question:** "You cannot use abilities related to a power or quality you don't have access to." Does that block the Out ability when the hero is Out in the form that lacks its power or quality?
+- **Decision:** No. It rolls a d4 for the missing one (as in ruling 17).
+- **Basis:** Default (permissive; not asked).
+
+### 56. Divided Psyche and an ability's own power or quality
+- **Pages:** Divided (p. 94–95).
+- **Question:** With Divided Psyche, the civilian form uses "two qualities instead of a power and a quality" (and the heroic form two powers). Does an ability that names a power, used in civilian form, still roll that power?
+- **Decision:** No. The roll is two qualities and the status die. The ability's own trait fills a slot only when it's of the kind being rolled.
+- **Basis:** Default (permissive; not asked).
+
 ## Data corrections
 
 These fix the data rather than settling an ambiguity.

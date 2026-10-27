@@ -6,23 +6,26 @@
 import { useEffect, useId, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { DieIcon } from '../components/icons'
 import { ACTION_LABEL } from '../creation/effects'
-import type { AbilityUse, HeroSheet } from '../creation/sheet'
+import type { AbilityUse } from '../creation/sheet'
 import type { HeroTrait } from '../creation/traits'
 import type { PlayMod } from '../hero/model'
 import { checkManualResults, rollDice } from '../rules/rolling'
-import type { Action, Die, EffectUse } from '../rules/types'
+import type { Action, BasicAction, Die, EffectUse } from '../rules/types'
 import { activePlans, chosenMods, modFlagsFor, defaultAssignment, defaultModChoice, defaultPlans, describeEffect, describeRolls, hasDoubles, modSize, poolDice, results, USE_LABEL, type EffectPlan, type EffectResult, type GivenValues, type ModChoice, type RollRecord, type Rolled } from './roll'
+import { defaultSlots, traitChoices, type FormDice } from './forms'
 import { describeMod, type PlayZone } from './state'
 
 /** What's being used: an ability (with its effects), or a basic action. */
 export type RollSubject = { kind: 'ability'; name: string; text: string; use: AbilityUse; reaction: boolean } | { kind: 'basic' }
 
-const BASIC_ACTIONS: readonly Action[] = ['attack', 'defend', 'boost', 'hinder', 'overcome']
+const BASIC_ACTIONS: readonly BasicAction[] = ['attack', 'defend', 'boost', 'hinder', 'overcome']
+const KIND_LABEL = { power: 'Power', quality: 'Quality' } as const
 const ZONE_LABEL: Record<PlayZone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red', out: 'Out' }
 
 interface RollDialogProps {
   subject: RollSubject
-  sheet: HeroSheet
+  /** What the hero rolls with in their current form or mode. */
+  dice: FormDice
   zone: PlayZone | undefined
   mods: readonly PlayMod[]
   onConfirm: (record: RollRecord) => void
@@ -45,28 +48,27 @@ function Field({ label, children }: { label: string; children: (id: string) => R
   )
 }
 
-export function RollDialog({ subject, sheet, zone, mods, onConfirm, onAddMod, onClose, random }: RollDialogProps) {
+export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, onClose, random }: RollDialogProps) {
   const titleId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const use = subject.kind === 'ability' ? subject.use : undefined
   const title = subject.kind === 'ability' ? subject.name : 'Basic action'
 
-  // Dice: the ability's own power or quality, and one of the other kind.
-  const used = use?.traits ?? []
-  const pick = (list: readonly HeroTrait[], kind: 'power' | 'quality') => {
-    const named = used.find((t) => t.kind === kind)
-    return (named && list.find((t) => t.trait.kind === kind && t.trait.id === named.id)) ?? list[0]
-  }
-  const [powerKey, setPowerKey] = useState(() => (pick(sheet.powers, 'power') ? traitKeyOf(pick(sheet.powers, 'power')!) : ''))
-  const [qualityKey, setQualityKey] = useState(() => (pick(sheet.qualities, 'quality') ? traitKeyOf(pick(sheet.qualities, 'quality')!) : ''))
-  const power = sheet.powers.find((t) => traitKeyOf(t) === powerKey)
-  const quality = sheet.qualities.find((t) => traitKeyOf(t) === qualityKey)
-  const statusDie = zone && zone !== 'out' ? sheet.statusDice?.[zone] : undefined
-  const pool = poolDice({ use, power, quality, status: statusDie && zone ? { label: `${ZONE_LABEL[zone]} status`, die: statusDie } : undefined, redStatus: sheet.statusDice?.red })
+  // Dice: the ability's own power or quality, and one of the other kind (or two of one kind, with Divided Psyche).
+  const choices = traitChoices(dice, use)
+  const [slotKeys, setSlotKeys] = useState(() => defaultSlots(choices, dice.slots, use).map((t) => (t ? traitKeyOf(t) : '')))
+  const picked = dice.slots.map((kind, i) => choices[kind].find((t) => traitKeyOf(t) === slotKeys[i]))
+  const firstNamed = use?.traits[0]
+  const named = firstNamed && choices[firstNamed.kind].find((t) => t.trait.id === firstNamed.id)
+  const statusDie = zone && zone !== 'out' ? dice.statusDice?.[zone] : undefined
+  const pool = poolDice({ use, picked, named, status: statusDie && zone ? { label: `${ZONE_LABEL[zone]} status`, die: statusDie } : undefined, redStatus: dice.statusDice?.red })
   const single = Boolean(use?.pool)
+  // Every slot needs a trait before rolling.
+  const ready = pool.length > 0 && (single || picked.every(Boolean))
+  const actions = BASIC_ACTIONS.filter((a) => !dice.cannot.includes(a))
 
   // Effects: an ability's, or the basic action chosen.
-  const [basicAction, setBasicAction] = useState<Action>('attack')
+  const [basicAction, setBasicAction] = useState<Action>(() => actions[0] ?? 'attack')
   const effects = use ? use.effects : [{ actions: [basicAction], use: 'mid' as EffectUse }]
   const [plans, setPlans] = useState<EffectPlan[]>(() => defaultPlans(effects))
   const shownPlans = use ? plans : defaultPlans(effects)
@@ -199,7 +201,7 @@ export function RollDialog({ subject, sheet, zone, mods, onConfirm, onAddMod, on
                 <Field label="Action">
                   {(id) => (
                     <select id={id} value={basicAction} onChange={(e) => setBasicAction(e.target.value as Action)}>
-                      {BASIC_ACTIONS.map((a) => (
+                      {actions.map((a) => (
                         <option key={a} value={a}>
                           {ACTION_LABEL[a]}
                         </option>
@@ -210,28 +212,21 @@ export function RollDialog({ subject, sheet, zone, mods, onConfirm, onAddMod, on
               )}
               {!single && (
                 <div className="roll-traits">
-                  <Field label="Power">
-                    {(id) => (
-                      <select id={id} value={powerKey} onChange={(e) => setPowerKey(e.target.value)}>
-                        {sheet.powers.map((t) => (
-                          <option key={traitKeyOf(t)} value={traitKeyOf(t)}>
-                            {t.name} ({t.die})
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </Field>
-                  <Field label="Quality">
-                    {(id) => (
-                      <select id={id} value={qualityKey} onChange={(e) => setQualityKey(e.target.value)}>
-                        {sheet.qualities.map((t) => (
-                          <option key={traitKeyOf(t)} value={traitKeyOf(t)}>
-                            {t.name} ({t.die})
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </Field>
+                  {dice.slots.map((kind, i) => (
+                    <Field key={i} label={dice.slots.slice(0, i).includes(kind) ? `Second ${kind}` : KIND_LABEL[kind]}>
+                      {(id) => (
+                        <select id={id} value={slotKeys[i]} onChange={(e) => setSlotKeys((keys) => keys.map((k, j) => (j === i ? e.target.value : k)))}>
+                          {!picked[i] && <option value="">Choose one</option>}
+                          {choices[kind].map((t) => (
+                            // A trait picked for another slot can't be rolled twice.
+                            <option key={traitKeyOf(t)} value={traitKeyOf(t)} disabled={slotKeys.some((k, j) => j !== i && k === traitKeyOf(t))}>
+                              {t.name} ({t.die})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </Field>
+                  ))}
                 </div>
               )}
               <p className="roll-pool">
@@ -367,10 +362,10 @@ export function RollDialog({ subject, sheet, zone, mods, onConfirm, onAddMod, on
               </form>
             ) : (
               <div className="button-row">
-                <button type="button" className="button button--primary" disabled={pool.length === 0} onClick={() => doRoll(rollDice(pool.map((d) => d.die as Die), random), false)}>
+                <button type="button" className="button button--primary" disabled={!ready} onClick={() => doRoll(rollDice(pool.map((d) => d.die as Die), random), false)}>
                   Roll
                 </button>
-                <button type="button" className="button" disabled={pool.length === 0} onClick={() => setManual(pool.map(() => ''))}>
+                <button type="button" className="button" disabled={!ready} onClick={() => setManual(pool.map(() => ''))}>
                   Enter my own roll
                 </button>
                 <button type="button" className="button" onClick={onClose}>

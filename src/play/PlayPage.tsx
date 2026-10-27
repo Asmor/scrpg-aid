@@ -9,7 +9,9 @@ import { DieIcon } from '../components/icons'
 import { buildSheet } from '../creation/sheet'
 import { useHeroEditor } from '../editor/useHeroEditor'
 import { heroDisplayName, newId, type PlayState } from '../hero/model'
-import { abilityAvailable, addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, MAX_HERO_POINTS, newIssue, removeMod, removeTwist, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock, type PlayZone } from './state'
+import { addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, MAX_HERO_POINTS, newIssue, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock, type PlayZone } from './state'
+import { currentForm, dividedForm, formAvailable, formDice, formNoun, playAbilities, playForms } from './forms'
+import { modeLimits } from '../creation/format'
 import { formatFull, formatWhen } from './time'
 import { ActionIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL } from '../hero/labels'
@@ -81,7 +83,12 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
     })
   const health = currentHealth(sheet, play)
   const zone = effectiveZone(sheet, play)
-  const die = statusDieFor(sheet, zone)
+  const forms = playForms(sheet)
+  const form = currentForm(forms, play)
+  const divided = dividedForm(sheet, play)
+  const dice = formDice(hero, sheet, play)
+  const die = statusDieFor(dice, zone)
+  const noun = formNoun(forms)
   const delta = Number(amount)
   const validAmount = amount.trim() !== '' && Number.isInteger(delta) && delta > 0
 
@@ -162,6 +169,67 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
             Reaction used this round
           </label>
         </Section>
+
+        {(forms.length > 0 || divided) && (
+          <Section title={noun === 'mode' ? 'Mode' : 'Form'}>
+            {forms.length > 0 && (
+              <label className="field" htmlFor={`${formId}-form`}>
+                <span>{noun === 'mode' ? 'Current mode' : 'Current form'}</span>
+                <select
+                  id={`${formId}-form`}
+                  value={form?.key ?? ''}
+                  onChange={(e) => {
+                    const next = forms.find((f) => (f.key ?? '') === e.target.value)
+                    if (next) change((p, c) => setForm(p, next.key, next.name, c))
+                  }}
+                >
+                  {forms.map((f) => (
+                    <option key={f.key ?? ''} value={f.key ?? ''} disabled={f !== form && !formAvailable(f, zone)}>
+                      {f.name}
+                      {f.zone === 'yellow' ? ' (Yellow)' : f.zone === 'red' ? ' (Red)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {form && !formAvailable(form, zone) && <p className="hint">{form.zone === 'red' ? 'This needs the Red zone.' : 'This needs the Yellow or Red zone.'}</p>}
+            {divided && (
+              <fieldset className="play-scene">
+                <legend>Divided form</legend>
+                {(['civilian', 'heroic'] as const).map((f) => (
+                  <label key={f} className="checkbox">
+                    <input type="radio" name={`${formId}-divided`} checked={divided === f} onChange={() => change((p, c) => setDividedForm(p, f, c))} />
+                    {f === 'civilian' ? 'Civilian' : 'Heroic'}
+                  </label>
+                ))}
+              </fieldset>
+            )}
+            <dl className="play-traits">
+              {(
+                [
+                  ['Powers', dice.powers],
+                  ['Qualities', dice.qualities],
+                ] as const
+              ).map(([label, list]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>
+                    {list.length === 0
+                      ? 'None'
+                      : list.map((t) => (
+                          <span key={`${t.trait.kind}:${t.trait.id}`} className="play-trait">
+                            {t.name} <DieIcon die={t.die} />
+                          </span>
+                        ))}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {dice.slots[0] === dice.slots[1] && <p className="hint">Divided Psyche: you roll two {dice.slots[0] === 'power' ? 'powers' : 'qualities'} with your status die.</p>}
+            {form && (form.cannot.length > 0 || form.immobile) && <p>{modeLimits(form.cannot, form.immobile)}</p>}
+            {form?.powerless && <p>Only principle abilities can be used.</p>}
+          </Section>
+        )}
 
         <Section title="Bonuses and penalties">
           {play.mods.length === 0 ? (
@@ -266,10 +334,7 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
           </button>
         </div>
         <ul className="play-abilities">
-          {[...sheet.abilities.map((a) => ({ key: `${a.source}:${a.baseName}`, name: a.name, type: a.type, text: a.text, effects: a.effects, use: a.use, from: a.zone as PlayZone })), ...(sheet.outAbility && sheet.outUse ? [{ key: 'out', name: 'Out ability', type: 'A' as const, text: sheet.outAbility, effects: sheet.outEffects, use: sheet.outUse, from: 'out' as const }] : [])].map((a) => {
-            // A reaction can't be used again until the round's reaction is ready (p. 29).
-            const spent = a.type === 'R' && play.reactionUsed
-            const available = abilityAvailable(a.from, zone) && !spent
+          {playAbilities(hero, sheet, play, zone).map((a) => {
             const usable = a.type !== 'I'
             return (
               <li key={a.key} className={`play-ability zone-${a.from}`}>
@@ -283,14 +348,14 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
                   <button
                     type="button"
                     className="button"
-                    disabled={!available}
+                    disabled={Boolean(a.blocked)}
                     aria-label={`Use ${a.name}`}
                     onClick={() => setRolling({ kind: 'ability', name: a.name, text: a.text, use: a.use, reaction: a.type === 'R' })}
                   >
                     Use
                   </button>
                 )}
-                {usable && !available && <span className="hint">{spent ? 'Reaction used this round' : a.from === 'out' ? 'When Out' : a.from === 'red' ? 'Red zone only' : a.from === 'yellow' ? 'Yellow or Red zone' : 'Not while Out'}</span>}
+                {usable && a.blocked && <span className="hint">{a.blocked}</span>}
               </li>
             )
           })}
@@ -324,7 +389,7 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
       {rolling && (
         <RollDialog
           subject={rolling}
-          sheet={sheet}
+          dice={dice}
           zone={zone}
           mods={play.mods}
           onClose={() => setRolling(null)}
