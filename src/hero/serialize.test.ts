@@ -71,10 +71,29 @@ describe('serialize', () => {
       [{ pendingRolls: [] }, 'hero.pendingRolls should be an object'],
       [{ pendingRolls: { archetype: { dice: ['d8'], results: [2] } } }, 'hero.pendingRolls.archetype.manual should be true or false'],
       [{ pendingRolls: { secondaryArchetype: { dice: ['d8'] } } }, 'hero.pendingRolls.secondaryArchetype.results should be a list'],
+      [{ play: { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [], sceneZone: 'green' } }, 'hero.play.sceneZone has an unknown value'],
+      [{ play: { heroPoints: 'x', reactionUsed: false, mods: [], twists: [], history: [] } }, 'hero.play.heroPoints should be a whole number'],
+      [{ play: { heroPoints: 0, reactionUsed: false, mods: [{ label: 'x', value: 1 }], twists: [], history: [] } }, 'hero.play.mods[0].id is missing'],
+      [{ play: { heroPoints: 0, reactionUsed: false, mods: [], twists: [{ id: 't', kind: 'tiny', text: 'x' }], history: [] } }, 'hero.play.twists[0].kind has an unknown value'],
+      [{ play: { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [{ id: 'h', text: 'x' }] } }, 'hero.play.history[0].at is missing'],
     ]
     for (const [patch, error] of cases) {
       expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: { ...hero(), ...patch } })).toEqual({ ok: false, error })
     }
+  })
+
+  it('keeps a hero’s play state through a save', () => {
+    const play = {
+      health: 12,
+      sceneZone: 'red' as const,
+      heroPoints: 3,
+      reactionUsed: true,
+      mods: [{ id: 'm1', label: 'high ground', value: 2, persistent: true as const, exclusive: true as const }, { id: 'm2', label: 'tied up', value: -3 }],
+      twists: [{ id: 't1', kind: 'major' as const, text: 'Lost the gadget' }],
+      history: [{ id: 'h1', at: '2026-10-26T20:00:00.000Z', text: 'Used ability Inflict:', details: ['Mid: 6 (Fire d8)'] }],
+    }
+    const withPlay = { ...hero(), play }
+    expect(parseSavedJson(JSON.stringify(toSaved(withPlay)))).toEqual({ ok: true, hero: withPlay })
   })
 
   it('accepts fully filled-in heroes', () => {

@@ -9,10 +9,12 @@ export const EMBED_MARKER = 'scrpg-hero'
 
 /**
  * The hero's JSON, safe to put inside an HTML comment or script tag: "--", "<", ">" and "&"
- * only ever appear inside JSON strings, where their \u escapes read back the same.
+ * only ever appear inside JSON strings, where their \u escapes read back the same. A sheet
+ * export carries the hero without their game-aid play state (the JSON backup keeps it).
  */
 export function embeddableJson(hero: Hero): string {
-  return JSON.stringify(toSaved(hero))
+  const { play: _, ...sheetHero } = hero
+  return JSON.stringify(toSaved(sheetHero))
     .replace(/-(?=-)/g, '\\u002d')
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e')

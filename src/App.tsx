@@ -4,6 +4,7 @@ import { StoreContext } from './app/store-context'
 import { HeroList } from './components/HeroList'
 import { HeroPage } from './components/HeroPage'
 import { HeroEditor } from './editor/HeroEditor'
+import { PlayPage } from './play/PlayPage'
 import { ThemeToggle } from './components/ThemeToggle'
 import { createDefaultStore, type HeroStore } from './hero/store'
 import { useTheme } from './theme/useTheme'
@@ -25,6 +26,7 @@ export default function App({ store: given }: { store?: HeroStore }) {
           {route.name === 'list' && <HeroList />}
           {route.name === 'hero' && <HeroPage key={route.id} id={route.id} />}
           {route.name === 'edit' && <HeroEditor key={route.id} id={route.id} step={route.step} />}
+          {route.name === 'play' && <PlayPage key={route.id} id={route.id} />}
           {route.name === 'notFound' && (
             <p role="alert">
               That page doesn't exist. <a href={listPath}>Go to your heroes</a>.

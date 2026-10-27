@@ -180,6 +180,15 @@ const heroShape = object({
   }),
   'currentHealth?': integer,
   'notes?': string,
+  'play?': object({
+    'health?': integer,
+    'sceneZone?': oneOf('yellow', 'red'),
+    heroPoints: integer,
+    reactionUsed: boolean,
+    mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
+    twists: arrayOf(object({ id: nonEmptyString, kind: oneOf('minor', 'major'), text: string })),
+    history: arrayOf(object({ id: nonEmptyString, at: nonEmptyString, text: string, 'details?': arrayOf(string) })),
+  }),
 })
 
 /** Returns a description of the first structural problem, or undefined if the hero is well formed. */

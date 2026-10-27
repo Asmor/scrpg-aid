@@ -105,6 +105,13 @@ describe('heroMarkdown', () => {
 })
 
 describe('embedded JSON', () => {
+  it('leaves out the game aid’s play state', () => {
+    const hero = { ...createHero('guided', { id: 'h1' }), play: { health: 3, heroPoints: 1, reactionUsed: false, mods: [], twists: [], history: [] } }
+    expect(JSON.parse(embeddableJson(hero)).hero.play).toBeUndefined()
+    const { play: _, ...without } = hero
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [without], skipped: [] })
+  })
+
   it('can’t close its comment or script tag, whatever the player typed', () => {
     const hero = createHero('guided', { id: 'h1' })
     hero.details.name = 'a --> b </script> c <!-- d & e ---'

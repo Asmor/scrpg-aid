@@ -20,6 +20,14 @@ describe('heroJson', () => {
   })
 })
 
+describe('play state', () => {
+  it('stays in a hero’s JSON and in backups', () => {
+    const h = { ...hero('a', 'Ann'), play: { health: 4, heroPoints: 2, reactionUsed: false, mods: [], twists: [], history: [] } }
+    expect(readImport(heroJson(h))).toEqual({ ok: true, heroes: [h], skipped: [] })
+    expect(readImport(backupJson([h], now))).toEqual({ ok: true, heroes: [h], skipped: [] })
+  })
+})
+
 describe('backupJson', () => {
   it('wraps every hero in a versioned backup, which reads back in order', () => {
     const heroes = [hero('a', 'Ann'), { ...completeHero(), id: 'b' }]

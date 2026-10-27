@@ -1238,3 +1238,103 @@ a.button {
 a.button--primary {
   color: var(--color-on-primary);
 }
+
+/* Game aid */
+.play-health {
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem;
+}
+
+.play-health strong {
+  font-size: 2rem;
+}
+
+.play-zone {
+  font-weight: 700;
+  margin-left: 0.5rem;
+}
+
+.play-health.zone-green .play-zone {
+  color: var(--zone-green-strong);
+}
+
+.play-health.zone-yellow .play-zone {
+  color: var(--zone-yellow-strong);
+}
+
+.play-health.zone-red .play-zone,
+.play-health.zone-out .play-zone {
+  color: var(--zone-red-strong);
+}
+
+.play-amount {
+  width: 6rem;
+  min-height: 2.75rem;
+}
+
+.play-scene {
+  border: 0;
+  padding: 0;
+  margin: 0.5rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+}
+
+.play-scene legend {
+  font-weight: 600;
+  float: left;
+  margin-right: 0.5rem;
+  line-height: 2.75rem;
+}
+
+.play-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+
+.play-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.play-mod--bonus span {
+  color: var(--zone-green-strong);
+  font-weight: 600;
+}
+
+.play-mod--penalty span {
+  color: var(--zone-red-strong);
+  font-weight: 600;
+}
+
+.play-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+}
+
+.play-add .field {
+  flex: 1 1 8rem;
+}
+
+.play-history {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.play-history > li {
+  padding: 0.25rem 0;
+}
+
+.play-history time {
+  color: var(--color-text-muted);
+  font-size: 0.9em;
+}

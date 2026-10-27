@@ -320,6 +320,47 @@ export interface Hero {
   /** Current Health on the sheet, tracked during play. */
   currentHealth?: number
   notes?: string
+  /** The game aid's state (Phase 3), saved with the hero; sheet exports leave it out. */
+  play?: PlayState
+}
+
+/** A bonus (positive) or penalty (negative) on the hero (p. 26–27). */
+export interface PlayMod {
+  id: string
+  label: string
+  /** e.g. +2 or -3; never 0. */
+  value: number
+  persistent?: true
+  exclusive?: true
+}
+
+export interface PlayTwist {
+  id: string
+  kind: 'minor' | 'major'
+  text: string
+}
+
+/** One line of the game's history, with the details under it (e.g. a roll's dice). */
+export interface PlayHistoryEntry {
+  id: string
+  /** When it happened (ISO 8601). */
+  at: string
+  text: string
+  details?: string[]
+}
+
+/** What the game aid tracks for a hero during play. */
+export interface PlayState {
+  /** Current Health; until set, the hero is at their max. */
+  health?: number
+  /** The scene tracker's zone, when it's past Green (p. 14). */
+  sceneZone?: 'yellow' | 'red'
+  heroPoints: number
+  reactionUsed: boolean
+  mods: PlayMod[]
+  twists: PlayTwist[]
+  /** Newest last. */
+  history: PlayHistoryEntry[]
 }
 
 export function emptyDetails(): HeroDetails {

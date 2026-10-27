@@ -1,0 +1,307 @@
+/**
+ * The game aid (Phase 3): a hero's state during play. Current Health and zone (with the scene
+ * tracker), the status die, hero points, the reaction, mods, twists, and a timestamped
+ * history of every change. It's saved with the hero as it changes (./state.ts has the rules).
+ */
+import { useEffect, useId, useState, type MouseEvent, type ReactNode } from 'react'
+import { editPath, heroPath, listPath, navigate } from '../app/route'
+import { DieIcon } from '../components/icons'
+import { buildSheet } from '../creation/sheet'
+import { useHeroEditor } from '../editor/useHeroEditor'
+import { heroDisplayName, newId, type PlayState } from '../hero/model'
+import { addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, MAX_HERO_POINTS, newIssue, removeMod, removeTwist, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock, type PlayZone } from './state'
+import { formatFull, formatWhen } from './time'
+
+const ZONE_LABEL: Record<PlayZone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red', out: 'Out' }
+const MOD_VALUES = [-4, -3, -2, -1, 1, 2, 3, 4] as const
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="sheet-panel play-section" aria-label={title}>
+      <h3 className="sheet-panel__title">{title}</h3>
+      {children}
+    </section>
+  )
+}
+
+/** Re-renders every half minute, so "3 minutes ago" stays true. */
+function useTick(ms = 30_000): Date {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), ms)
+    return () => clearInterval(timer)
+  }, [ms])
+  return now
+}
+
+export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => newId() }) }: { id: string; clock?: () => Clock }) {
+  const { state, update, saveError, flush } = useHeroEditor(id)
+  const formId = useId()
+  const tick = useTick()
+  const [amount, setAmount] = useState('')
+  const [modLabel, setModLabel] = useState('')
+  const [modValue, setModValue] = useState<number>(-1)
+  const [modPersistent, setModPersistent] = useState(false)
+  const [modExclusive, setModExclusive] = useState(false)
+  const [twistKind, setTwistKind] = useState<'minor' | 'major'>('minor')
+  const [twistText, setTwistText] = useState('')
+  const [confirmIssue, setConfirmIssue] = useState(false)
+
+  if (state.status !== 'ready') {
+    return (
+      <div className="hero-page">
+        <p>
+          <a href={listPath}>← All heroes</a>
+        </p>
+        {state.status === 'loading' && <p>Loading…</p>}
+        {state.status === 'missing' && <p role="alert">There's no saved hero with that link. It may have been deleted.</p>}
+        {state.status === 'unreadable' && <p role="alert">This hero couldn't be read: {state.error}</p>}
+        {state.status === 'error' && <p role="alert">Something went wrong loading this hero: {state.message}</p>}
+      </div>
+    )
+  }
+
+  /** Leaves once the changes made so far are saved, so the next page shows them (as the editor does). */
+  const leave = (path: string) => (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    void flush().then(() => navigate(path))
+  }
+  const hero = state.hero
+  const sheet = buildSheet(hero)
+  const play = hero.play ?? emptyPlay()
+  const change = (fn: (p: PlayState, c: Clock) => PlayState) =>
+    update((h) => {
+      h.play = fn(h.play ?? emptyPlay(), clock())
+    })
+  const health = currentHealth(sheet, play)
+  const zone = effectiveZone(sheet, play)
+  const die = statusDieFor(sheet, zone)
+  const delta = Number(amount)
+  const validAmount = amount.trim() !== '' && Number.isInteger(delta) && delta > 0
+
+  return (
+    <div className="play-page">
+      <div className="hero-editor__top">
+        <a href={heroPath(id)} onClick={leave(heroPath(id))}>
+          ← Sheet
+        </a>
+        <a href={editPath(id)} onClick={leave(editPath(id))}>
+          Edit hero
+        </a>
+      </div>
+      <h2 className="hero-editor__name">{heroDisplayName(hero)}</h2>
+      {saveError && (
+        <p role="alert" className="error">
+          Your last change couldn't be saved: {saveError}
+        </p>
+      )}
+
+      <div className="sheet-grid">
+        <Section title="Health">
+          {health === undefined ? (
+            <p className="sheet-empty">Work out Health in the editor first.</p>
+          ) : (
+            <>
+              <p className={`play-health zone-${zone ?? 'green'}`}>
+                <strong>{health}</strong> / {sheet.maxHealth} <span className="play-zone">{zone ? ZONE_LABEL[zone] : ''}</span>
+              </p>
+              <div className="button-row">
+                <label className="visually-hidden" htmlFor={`${formId}-amount`}>
+                  Amount
+                </label>
+                <input id={`${formId}-amount`} className="play-amount" type="number" inputMode="numeric" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" />
+                <button type="button" className="button" disabled={!validAmount} onClick={() => {
+                    change((p, c) => setHealth(p, sheet, (currentHealth(sheet, p) ?? 0) - delta, c))
+                    setAmount('')
+                  }}>
+                  Lose
+                </button>
+                <button type="button" className="button" disabled={!validAmount} onClick={() => {
+                    change((p, c) => setHealth(p, sheet, (currentHealth(sheet, p) ?? 0) + delta, c))
+                    setAmount('')
+                  }}>
+                  Gain
+                </button>
+              </div>
+            </>
+          )}
+          <fieldset className="play-scene">
+            <legend>Scene</legend>
+            {(['green', 'yellow', 'red'] as const).map((z) => (
+              <label key={z} className="checkbox">
+                <input type="radio" name={`${formId}-scene`} checked={(play.sceneZone ?? 'green') === z} onChange={() => change((p, c) => setSceneZone(p, z, c))} />
+                {ZONE_LABEL[z]}
+              </label>
+            ))}
+          </fieldset>
+          <p>
+            Status die: {die ? <DieIcon die={die} /> : zone === 'out' ? 'none (Out)' : '—'}
+          </p>
+        </Section>
+
+        <Section title="Hero points and reaction">
+          <div className="button-row">
+            <button type="button" className="button" aria-label="Spend a hero point" disabled={play.heroPoints <= 0} onClick={() => change((p, c) => setHeroPoints(p, p.heroPoints - 1, c))}>
+              −
+            </button>
+            <span aria-live="polite">
+              {play.heroPoints} of {MAX_HERO_POINTS} hero points
+            </span>
+            <button type="button" className="button" aria-label="Gain a hero point" disabled={play.heroPoints >= MAX_HERO_POINTS} onClick={() => change((p, c) => setHeroPoints(p, p.heroPoints + 1, c))}>
+              +
+            </button>
+          </div>
+          <label className="checkbox">
+            <input type="checkbox" checked={play.reactionUsed} onChange={(e) => change((p, c) => setReactionUsed(p, e.target.checked, c))} />
+            Reaction used this round
+          </label>
+        </Section>
+
+        <Section title="Bonuses and penalties">
+          {play.mods.length === 0 ? (
+            <p className="sheet-empty">None.</p>
+          ) : (
+            <ul className="play-list">
+              {play.mods.map((m) => (
+                <li key={m.id} className={m.value > 0 ? 'play-mod play-mod--bonus' : 'play-mod play-mod--penalty'}>
+                  <span>{describeMod(m)}</span>
+                  <button type="button" className="button" aria-label={`Remove ${describeMod(m)}`} onClick={() => change((p, c) => removeMod(p, m.id, c))}>
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <form
+            className="play-add"
+            onSubmit={(e) => {
+              e.preventDefault()
+              change((p, c) => addMod(p, { label: modLabel, value: modValue, ...(modPersistent ? { persistent: true } : {}), ...(modExclusive ? { exclusive: true } : {}) }, c))
+              setModLabel('')
+              setModPersistent(false)
+              setModExclusive(false)
+            }}
+          >
+            <label className="field" htmlFor={`${formId}-mod-value`}>
+              <span>Size</span>
+              <select id={`${formId}-mod-value`} value={modValue} onChange={(e) => setModValue(Number(e.target.value))}>
+                {MOD_VALUES.map((v) => (
+                  <option key={v} value={v}>
+                    {v > 0 ? `+${v} bonus` : `${v} penalty`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field" htmlFor={`${formId}-mod-label`}>
+              <span>What it is</span>
+              <input id={`${formId}-mod-label`} type="text" value={modLabel} onChange={(e) => setModLabel(e.target.value)} placeholder="e.g. tied up" />
+            </label>
+            <label className="checkbox">
+              <input type="checkbox" checked={modPersistent} onChange={(e) => setModPersistent(e.target.checked)} />
+              Persistent
+            </label>
+            <label className="checkbox">
+              <input type="checkbox" checked={modExclusive} onChange={(e) => setModExclusive(e.target.checked)} />
+              Exclusive
+            </label>
+            <button type="submit" className="button">
+              Add
+            </button>
+          </form>
+        </Section>
+
+        <Section title="Twists">
+          {play.twists.length === 0 ? (
+            <p className="sheet-empty">None.</p>
+          ) : (
+            <ul className="play-list">
+              {play.twists.map((t) => (
+                <li key={t.id}>
+                  <span>
+                    <strong>{t.kind === 'minor' ? 'Minor' : 'Major'}:</strong> {t.text}
+                  </span>
+                  <button type="button" className="button" aria-label={`Clear the ${t.kind} twist: ${t.text}`} onClick={() => change((p, c) => removeTwist(p, t.id, c))}>
+                    Clear
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <form
+            className="play-add"
+            onSubmit={(e) => {
+              e.preventDefault()
+              change((p, c) => addTwist(p, { kind: twistKind, text: twistText }, c))
+              setTwistText('')
+            }}
+          >
+            <label className="field" htmlFor={`${formId}-twist-kind`}>
+              <span>Kind</span>
+              <select id={`${formId}-twist-kind`} value={twistKind} onChange={(e) => setTwistKind(e.target.value as 'minor' | 'major')}>
+                <option value="minor">Minor</option>
+                <option value="major">Major</option>
+              </select>
+            </label>
+            <label className="field" htmlFor={`${formId}-twist-text`}>
+              <span>Twist</span>
+              <input id={`${formId}-twist-text`} type="text" value={twistText} onChange={(e) => setTwistText(e.target.value)} />
+            </label>
+            <button type="submit" className="button" disabled={!twistText.trim()}>
+              Add
+            </button>
+          </form>
+        </Section>
+      </div>
+
+      <Section title="History">
+        {play.history.length === 0 ? (
+          <p className="sheet-empty">Nothing yet. Changes you make here are recorded.</p>
+        ) : (
+          <ol className="play-history" reversed>
+            {[...play.history].reverse().map((h) => (
+              <li key={h.id}>
+                <time dateTime={h.at} title={formatFull(h.at)}>
+                  {formatWhen(h.at, tick)}
+                </time>{' '}
+                {h.text}
+                {h.details && (
+                  <ul>
+                    {h.details.map((d, i) => (
+                      <li key={i}>{d}</li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
+      </Section>
+
+      <div className="button-row">
+        {confirmIssue ? (
+          <span className="button-row" role="group" aria-label="Start a new issue?">
+            <span>Start a new issue? Health is restored, and mods, twists, and hero points are cleared.</span>
+            <button
+              type="button"
+              className="button button--danger"
+              onClick={() => {
+                change((p, c) => newIssue(p, c))
+                setConfirmIssue(false)
+              }}
+            >
+              Yes, new issue
+            </button>
+            <button type="button" className="button" onClick={() => setConfirmIssue(false)}>
+              Cancel
+            </button>
+          </span>
+        ) : (
+          <button type="button" className="button" onClick={() => setConfirmIssue(true)}>
+            New issue…
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
