@@ -40,17 +40,21 @@
           {
             "name": "Area Alteration",
             "type": "A",
-            "text": "[Boost or Hinder] any number of nearby targets using [power]. Use your Max die."
+            "text": "[Boost or Hinder] any number of nearby targets using [power]. Use your Max die.",
+            "effects": [{"actions": ["boost", "hinder"], "use": "max", "fromBlank": "Boost or Hinder"}]
           },
           {
             "name": "Inflict",
             "type": "A",
-            "text": "Attack using [power]. Hinder that same target using your Min die."
+            "text": "Attack using [power]. Hinder that same target using your Min die.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["hinder"], "use": "min"}]
           },
           {
             "name": "Reflexive Burst",
             "type": "R",
-            "text": "When your personal zone changes, Attack all close enemy targets by rolling your single [power] die."
+            "text": "When your personal zone changes, Attack all close enemy targets by rolling your single [power] die.",
+            "effects": [{"actions": ["attack"], "use": "single"}],
+            "pool": {"single": "trait"}
           }
         ],
         "rule": "differentPowers"
@@ -61,17 +65,22 @@
           {
             "name": "Ambush Awareness",
             "type": "R",
-            "text": "If you haven’t yet acted in an action scene, you may Defend against an Attack by rolling your single [power] die."
+            "text": "If you haven’t yet acted in an action scene, you may Defend against an Attack by rolling your single [power] die.",
+            "effects": [{"actions": ["defend"], "use": "single", "optional": true}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Change in Circumstance",
             "type": "R",
-            "text": "When you change personal zones, you may Boost by rolling your single [power] die."
+            "text": "When you change personal zones, you may Boost by rolling your single [power] die.",
+            "effects": [{"actions": ["boost"], "use": "single", "optional": true}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Immunity",
             "type": "I",
-            "text": "You do not take damage from [energy/element]."
+            "text": "You do not take damage from [energy/element].",
+            "effects": []
           }
         ]
       },
@@ -113,17 +122,20 @@
           {
             "name": "Always Be Prepared",
             "type": "A",
-            "text": "Boost yourself using [power]. That bonus is persistent and exclusive. Then, Attack using your Min die. You may use the bonus you just created on that Attack."
+            "text": "Boost yourself using [power]. That bonus is persistent and exclusive. Then, Attack using your Min die. You may use the bonus you just created on that Attack.",
+            "effects": [{"actions": ["boost"], "use": "mid"}, {"actions": ["attack"], "use": "min"}]
           },
           {
             "name": "Reactive Field",
             "type": "R",
-            "text": "When you are attacked by a nearby enemy, the attacker also takes an equal amount of damage."
+            "text": "When you are attacked by a nearby enemy, the attacker also takes an equal amount of damage.",
+            "effects": []
           },
           {
             "name": "Flowing Fight",
             "type": "A",
-            "text": "Attack using [power]. Use your Mid die to Attack one extra target for each bonus you have. Apply a different bonus to each Attack."
+            "text": "Attack using [power]. Use your Mid die to Attack one extra target for each bonus you have. Apply a different bonus to each Attack.",
+            "effects": [{"actions": ["attack"], "use": "mid"}]
           }
         ],
         "rule": "differentPowers"
@@ -180,17 +192,21 @@
           {
             "name": "Danger Sense",
             "type": "R",
-            "text": "When damaged by an environment target or a surprise Attack, Defend by rolling your single [power] die."
+            "text": "When damaged by an environment target or a surprise Attack, Defend by rolling your single [power] die.",
+            "effects": [{"actions": ["defend"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Adaptive",
             "type": "A",
-            "text": "Boost yourself using [power], then either remove a penalty on yourself or Recover using your Min die."
+            "text": "Boost yourself using [power], then either remove a penalty on yourself or Recover using your Min die.",
+            "effects": [{"actions": ["boost"], "use": "mid"}, {"actions": ["recover"], "use": "min", "optional": true}]
           },
           {
             "name": "Area Assault",
             "type": "A",
-            "text": "Attack multiple targets using [power], using your Min die against each."
+            "text": "Attack multiple targets using [power], using your Min die against each.",
+            "effects": [{"actions": ["attack"], "use": "min"}]
           }
         ],
         "rule": "differentPowers"
@@ -201,12 +217,14 @@
           {
             "name": "Growth",
             "type": "A",
-            "text": "Boost yourself using [quality]. That bonus is persistent and exclusive."
+            "text": "Boost yourself using [quality]. That bonus is persistent and exclusive.",
+            "effects": [{"actions": ["boost"], "use": "mid"}]
           },
           {
             "name": "Rally",
             "type": "A",
-            "text": "Attack using [quality]. Other nearby heroes in the Yellow or Red zone Recover equal to your Min die."
+            "text": "Attack using [quality]. Other nearby heroes in the Yellow or Red zone Recover equal to your Min die.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["recover"], "use": "min"}]
           }
         ]
       },
@@ -252,17 +270,21 @@
           {
             "name": "Personal Upgrade",
             "type": "A",
-            "text": "Boost yourself using [power]. Use your Max die. That bonus is persistent and exclusive."
+            "text": "Boost yourself using [power]. Use your Max die. That bonus is persistent and exclusive.",
+            "effects": [{"actions": ["boost"], "use": "max"}]
           },
           {
             "name": "Misdirection",
             "type": "R",
-            "text": "When a nearby hero in the Yellow or Red zone would take damage, Defend against that damage by rolling your single [power] die, then redirect any remaining damage to a nearby minion of your choice."
+            "text": "When a nearby hero in the Yellow or Red zone would take damage, Defend against that damage by rolling your single [power] die, then redirect any remaining damage to a nearby minion of your choice.",
+            "effects": [{"actions": ["defend"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Throw Minion",
             "type": "A",
-            "text": "Attack a minion using [power] The result of the minion’s save Attacks another target of your choice."
+            "text": "Attack a minion using [power] The result of the minion’s save Attacks another target of your choice.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["attack"], "use": "other"}]
           }
         ],
         "rule": "differentPowers"
@@ -273,12 +295,14 @@
           {
             "name": "Overpower",
             "type": "I",
-            "text": "Whenever you are Boosted, increase that bonus by +1. Then, if that bonus is +5 or higher, take damage equal to that bonus and remove it."
+            "text": "Whenever you are Boosted, increase that bonus by +1. Then, if that bonus is +5 or higher, take damage equal to that bonus and remove it.",
+            "effects": []
           },
           {
             "name": "Unflagging",
             "type": "I",
-            "text": "At the start of your turn, remove a penalty on yourself."
+            "text": "At the start of your turn, remove a penalty on yourself.",
+            "effects": []
           }
         ]
       },
@@ -333,17 +357,21 @@
           {
             "name": "Modification Wave",
             "type": "A",
-            "text": "Boost or Hinder using [power], and apply that mod to multiple nearby targets."
+            "text": "Boost or Hinder using [power], and apply that mod to multiple nearby targets.",
+            "effects": [{"actions": ["boost", "hinder"], "use": "mid"}]
           },
           {
             "name": "Mystic Redirection",
             "type": "R",
-            "text": "When another hero in the Yellow or Red zone would take damage, you may redirect it to yourself and Defend against it by rolling your single [power] die."
+            "text": "When another hero in the Yellow or Red zone would take damage, you may redirect it to yourself and Defend against it by rolling your single [power] die.",
+            "effects": [{"actions": ["defend"], "use": "single", "optional": true}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Sever Link",
             "type": "A",
-            "text": "Overcome an environmental challenge using [power]. Use your Max die. Either remove any penalty in the scene or Boost equal to your Mid die."
+            "text": "Overcome an environmental challenge using [power]. Use your Max die. Either remove any penalty in the scene or Boost equal to your Mid die.",
+            "effects": [{"actions": ["overcome"], "use": "max"}, {"actions": ["boost"], "use": "mid", "optional": true}]
           }
         ],
         "rule": "differentPowers"
@@ -422,17 +450,20 @@
           {
             "name": "Call to the Wild",
             "type": "A",
-            "text": "Gain a d8 minion. It takes its turn before yours, but goes away at the end of the scene. You may only have one such minion at a time."
+            "text": "Gain a d8 minion. It takes its turn before yours, but goes away at the end of the scene. You may only have one such minion at a time.",
+            "effects": []
           },
           {
             "name": "Predator’s Eye",
             "type": "A",
-            "text": "Attack using [power]. Use your Max+Min dice. Then gain a Boost using your Mid die. The target of the Attack gains a bonus of the same size."
+            "text": "Attack using [power]. Use your Max+Min dice. Then gain a Boost using your Mid die. The target of the Attack gains a bonus of the same size.",
+            "effects": [{"actions": ["attack"], "use": "max+min"}, {"actions": ["boost"], "use": "mid"}]
           },
           {
             "name": "Wild Strength",
             "type": "R",
-            "text": "When you defeat a minion, roll that minion’s die and Boost yourself using that roll to create a bonus for your next action."
+            "text": "When you defeat a minion, roll that minion’s die and Boost yourself using that roll to create a bonus for your next action.",
+            "effects": [{"actions": ["boost"], "use": "other"}]
           }
         ]
       },
@@ -442,12 +473,14 @@
           {
             "name": "Grasping Vines",
             "type": "A",
-            "text": "Hinder using [power]. Use your Max die. You may split that penalty across multiple nearby targets."
+            "text": "Hinder using [power]. Use your Max die. You may split that penalty across multiple nearby targets.",
+            "effects": [{"actions": ["hinder"], "use": "max"}]
           },
           {
             "name": "Natural Weapon",
             "type": "A",
-            "text": "Attack using [power]. Use your Max die."
+            "text": "Attack using [power]. Use your Max die.",
+            "effects": [{"actions": ["attack"], "use": "max"}]
           }
         ]
       },
@@ -502,22 +535,27 @@
           {
             "name": "Harvest Life Force",
             "type": "A",
-            "text": "Attack using [power]. Use your Min die. Take damage equal to your Mid die, and one nearby ally Recovers Health equal to your Max die."
+            "text": "Attack using [power]. Use your Min die. Take damage equal to your Mid die, and one nearby ally Recovers Health equal to your Max die.",
+            "effects": [{"actions": ["attack"], "use": "min"}, {"actions": ["recover"], "use": "max"}]
           },
           {
             "name": "Magical Shield",
             "type": "R",
-            "text": "When another hero in the Yellow or Red zone would take damage, you may Defend them by rolling your single [power] die."
+            "text": "When another hero in the Yellow or Red zone would take damage, you may Defend them by rolling your single [power] die.",
+            "effects": [{"actions": ["defend"], "use": "single", "optional": true}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Momentary Power",
             "type": "A",
-            "text": "Boost yourself using [power]. Use your Max die. Hinder a nearby opponent with your Min die."
+            "text": "Boost yourself using [power]. Use your Max die. Hinder a nearby opponent with your Min die.",
+            "effects": [{"actions": ["boost"], "use": "max"}, {"actions": ["hinder"], "use": "min"}]
           },
           {
             "name": "Relic Drain",
             "type": "A",
-            "text": "Hinder using [power]. Also Recover Health equal to your Min die."
+            "text": "Hinder using [power]. Also Recover Health equal to your Min die.",
+            "effects": [{"actions": ["hinder"], "use": "mid"}, {"actions": ["recover"], "use": "min"}]
           }
         ],
         "rule": "differentPowers"
@@ -528,12 +566,14 @@
           {
             "name": "Draw Power",
             "type": "A",
-            "text": "Boost yourself using [power]. That bonus is persistent and exclusive."
+            "text": "Boost yourself using [power]. That bonus is persistent and exclusive.",
+            "effects": [{"actions": ["boost"], "use": "mid"}]
           },
           {
             "name": "Punishment",
             "type": "I",
-            "text": "Whenever you Attack an enemy that has inflicted a penalty on you, treat that penalty as if it were a bonus for the purpose of that Attack."
+            "text": "Whenever you Attack an enemy that has inflicted a penalty on you, treat that penalty as if it were a bonus for the purpose of that Attack.",
+            "effects": []
           }
         ]
       },
@@ -604,12 +644,14 @@
           {
             "name": "Energy Converter",
             "type": "R",
-            "text": "When you take damage from [element/energy], treat the amount of damage you take as a Boost action for yourself."
+            "text": "When you take damage from [element/energy], treat the amount of damage you take as a Boost action for yourself.",
+            "effects": [{"actions": ["boost"], "use": "damage"}]
           },
           {
             "name": "Explosive Attack",
             "type": "A",
-            "text": "Attack up to three different targets using [power]. Apply your Max die to one, your Mid die to another, and your Min die to the third. If you roll doubles, take a minor twist or take irreducible damage equal to that die."
+            "text": "Attack up to three different targets using [power]. Apply your Max die to one, your Mid die to another, and your Min die to the third. If you roll doubles, take a minor twist or take irreducible damage equal to that die.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["attack"], "use": "mid"}, {"actions": ["attack"], "use": "min"}]
           },
           {
             "name": "Onboard Upgrade",
@@ -617,7 +659,8 @@
             "requires": {
               "power": "power-suit"
             },
-            "text": "Boost yourself using Power Suit. Use your Min+Mid dice. That bonus is persistent and exclusive."
+            "text": "Boost yourself using Power Suit. Use your Min+Mid dice. That bonus is persistent and exclusive.",
+            "effects": [{"actions": ["boost"], "use": "mid+min"}]
           }
         ],
         "rule": "differentPowers"
@@ -628,12 +671,14 @@
           {
             "name": "Damage Reduction",
             "type": "I",
-            "text": "Reduce [physical or energy] damage you take by 1 while you are in the Green zone, 2 while in the Yellow zone, and 3 while in the Red zone."
+            "text": "Reduce [physical or energy] damage you take by 1 while you are in the Green zone, 2 while in the Yellow zone, and 3 while in the Red zone.",
+            "effects": []
           },
           {
             "name": "Diagnostic Subroutine",
             "type": "I",
-            "text": "Whenever your status changes due to a change in your current Health, you may remove a penalty on yourself."
+            "text": "Whenever your status changes due to a change in your current Health, you may remove a penalty on yourself.",
+            "effects": []
           }
         ]
       },
@@ -679,17 +724,20 @@
           {
             "name": "Radioactive Recharge",
             "type": "A",
-            "text": "Boost yourself using [power]. Then, either remove a penalty on yourself or Recover using your Min die."
+            "text": "Boost yourself using [power]. Then, either remove a penalty on yourself or Recover using your Min die.",
+            "effects": [{"actions": ["boost"], "use": "mid"}, {"actions": ["recover"], "use": "min", "optional": true}]
           },
           {
             "name": "Unstable Reaction",
             "type": "R",
-            "text": "After rolling during your turn, you may take 1 irreducible damage to reroll your entire dice pool."
+            "text": "After rolling during your turn, you may take 1 irreducible damage to reroll your entire dice pool.",
+            "effects": []
           },
           {
             "name": "Wither",
             "type": "A",
-            "text": "Attack using [power]. Hinder that target using your Max die."
+            "text": "Attack using [power]. Hinder that target using your Max die.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["hinder"], "use": "max"}]
           }
         ],
         "rule": "differentPowers"
@@ -700,17 +748,21 @@
           {
             "name": "Charged Up",
             "type": "I",
-            "text": "Whenever you roll a 1 on one or more dice, you may reroll those dice. You must accept the result of the reroll."
+            "text": "Whenever you roll a 1 on one or more dice, you may reroll those dice. You must accept the result of the reroll.",
+            "effects": []
           },
           {
             "name": "Dangerous Lash",
             "type": "A",
-            "text": "Attack multiple targets using [power], applying your Min die to each. If you roll doubles, also attack an ally using your Mid die."
+            "text": "Attack multiple targets using [power], applying your Min die to each. If you roll doubles, also attack an ally using your Mid die.",
+            "effects": [{"actions": ["attack"], "use": "min"}, {"actions": ["attack"], "use": "mid", "when": "doubles"}]
           },
           {
             "name": "Radioactive Aura",
             "type": "R",
-            "text": "When a new target enters the scene close to you, you may Attack it by rolling your single [power] die."
+            "text": "When a new target enters the scene close to you, you may Attack it by rolling your single [power] die.",
+            "effects": [{"actions": ["attack"], "use": "single", "optional": true}],
+            "pool": {"single": "trait"}
           }
         ]
       },
@@ -759,22 +811,26 @@
           {
             "name": "Energy Burst",
             "type": "A",
-            "text": "Attack multiple targets using [power], using your Min die against each."
+            "text": "Attack multiple targets using [power], using your Min die against each.",
+            "effects": [{"actions": ["attack"], "use": "min"}]
           },
           {
             "name": "Recharge",
             "type": "A",
-            "text": "Boost yourself using [power]. Then, either remove a penalty on yourself or Recover using your Min die."
+            "text": "Boost yourself using [power]. Then, either remove a penalty on yourself or Recover using your Min die.",
+            "effects": [{"actions": ["boost"], "use": "mid"}, {"actions": ["recover"], "use": "min", "optional": true}]
           },
           {
             "name": "Techno-Absorb",
             "type": "I",
-            "text": "When you would take damage from [element/energy], you may Recover that amount of Health instead."
+            "text": "When you would take damage from [element/energy], you may Recover that amount of Health instead.",
+            "effects": [{"actions": ["recover"], "use": "damage", "optional": true}]
           },
           {
             "name": "Tactical Analysis",
             "type": "R",
-            "text": "When Attacked, treat the amount of damage you take as a Boost action for yourself."
+            "text": "When Attacked, treat the amount of damage you take as a Boost action for yourself.",
+            "effects": [{"actions": ["boost"], "use": "damage"}]
           }
         ],
         "rule": "differentPowers"
@@ -785,12 +841,14 @@
           {
             "name": "Indiscriminate Fabrication",
             "type": "A",
-            "text": "Boost using [power], assigning your Min, Mid, and Max dice to 3 different bonuses, one of which must be given to an enemy."
+            "text": "Boost using [power], assigning your Min, Mid, and Max dice to 3 different bonuses, one of which must be given to an enemy.",
+            "effects": [{"actions": ["boost"], "use": "max"}, {"actions": ["boost"], "use": "mid"}, {"actions": ["boost"], "use": "min"}]
           },
           {
             "name": "Organi-Hack",
             "type": "A",
-            "text": "Attack a target using [power]. Hinder that target with your Min die."
+            "text": "Attack a target using [power]. Hinder that target with your Min die.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["hinder"], "use": "min"}]
           }
         ]
       },
@@ -863,22 +921,27 @@
           {
             "name": "Area Healing",
             "type": "A",
-            "text": "Boost an ally using [power]. You and nearby heroes in the Yellow and Red zones Recover Health equal to your Min die."
+            "text": "Boost an ally using [power]. You and nearby heroes in the Yellow and Red zones Recover Health equal to your Min die.",
+            "effects": [{"actions": ["boost"], "use": "mid"}, {"actions": ["recover"], "use": "min"}]
           },
           {
             "name": "Mass Modification",
             "type": "A",
-            "text": "Boost or Hinder using [power], and apply that mod to multiple close targets."
+            "text": "Boost or Hinder using [power], and apply that mod to multiple close targets.",
+            "effects": [{"actions": ["boost", "hinder"], "use": "mid"}]
           },
           {
             "name": "Personal Upgrade",
             "type": "A",
-            "text": "Boost yourself using [power]. Use your Max die. That bonus is persistent and exclusive."
+            "text": "Boost yourself using [power]. Use your Max die. That bonus is persistent and exclusive.",
+            "effects": [{"actions": ["boost"], "use": "max"}]
           },
           {
             "name": "Reach through Veil",
             "type": "R",
-            "text": "When a nearby ally would take damage, Defend that ally by rolling your single status die, and move them elsewhere in the same scene."
+            "text": "When a nearby ally would take damage, Defend that ally by rolling your single status die, and move them elsewhere in the same scene.",
+            "effects": [{"actions": ["defend"], "use": "single"}],
+            "pool": {"single": "status"}
           }
         ],
         "rule": "differentPowers"
@@ -942,17 +1005,20 @@
           {
             "name": "Created Immunity",
             "type": "I",
-            "text": "When you would take damage from [element/energy], you may Recover that amount of Health instead."
+            "text": "When you would take damage from [element/energy], you may Recover that amount of Health instead.",
+            "effects": [{"actions": ["recover"], "use": "damage", "optional": true}]
           },
           {
             "name": "Multiple Assault",
             "type": "A",
-            "text": "Attack using [power] against multiple targets, using your Min die against each."
+            "text": "Attack using [power] against multiple targets, using your Min die against each.",
+            "effects": [{"actions": ["attack"], "use": "min"}]
           },
           {
             "name": "Recalculating...",
             "type": "R",
-            "text": "After rolling during your turn, you may take 1 irreducible damage to reroll your entire dice pool."
+            "text": "After rolling during your turn, you may take 1 irreducible damage to reroll your entire dice pool.",
+            "effects": []
           }
         ],
         "rule": "differentPowers"
@@ -963,12 +1029,14 @@
           {
             "name": "Created Form",
             "type": "I",
-            "text": "Reduce physical damage to yourself by 1 while you are in the Green zone, 2 while in the Yellow zone, and 3 while in the Red zone."
+            "text": "Reduce physical damage to yourself by 1 while you are in the Green zone, 2 while in the Yellow zone, and 3 while in the Red zone.",
+            "effects": []
           },
           {
             "name": "Intentionality",
             "type": "I",
-            "text": "Whenever you roll a 1 on one or more dice, you may reroll those dice. You must accept the result of the reroll."
+            "text": "Whenever you roll a 1 on one or more dice, you may reroll those dice. You must accept the result of the reroll.",
+            "effects": []
           }
         ]
       },
@@ -1011,17 +1079,20 @@
           {
             "name": "Attunement",
             "type": "I",
-            "text": "When you would take damage from [element/energy], you may Recover that amount of Health instead."
+            "text": "When you would take damage from [element/energy], you may Recover that amount of Health instead.",
+            "effects": [{"actions": ["recover"], "use": "damage", "optional": true}]
           },
           {
             "name": "Costly Strength",
             "type": "A",
-            "text": "Boost all nearby allies using [power]. Use your Max+Mid dice. Hinder yourself with your Min die."
+            "text": "Boost all nearby allies using [power]. Use your Max+Mid dice. Hinder yourself with your Min die.",
+            "effects": [{"actions": ["boost"], "use": "max+mid"}, {"actions": ["hinder"], "use": "min"}]
           },
           {
             "name": "Cursed Resolve",
             "type": "A",
-            "text": "Boost yourself using [power]. Then, either remove a penalty on yourself or Recover using your Min die."
+            "text": "Boost yourself using [power]. Then, either remove a penalty on yourself or Recover using your Min die.",
+            "effects": [{"actions": ["boost"], "use": "mid"}, {"actions": ["recover"], "use": "min", "optional": true}]
           }
         ],
         "rule": "differentPowers"
@@ -1032,12 +1103,14 @@
           {
             "name": "Double Edged Luck",
             "type": "I",
-            "text": "Whenever you roll a 1 on one or more dice, you may reroll those dice. You must accept the result of the reroll."
+            "text": "Whenever you roll a 1 on one or more dice, you may reroll those dice. You must accept the result of the reroll.",
+            "effects": []
           },
           {
             "name": "Extremes",
             "type": "I",
-            "text": "Whenever you roll a die’s max value, treat that value as 1 higher. When you roll a 1 on a die, treat that die as if it had rolled a 0."
+            "text": "Whenever you roll a die’s max value, treat that value as 1 higher. When you roll a 1 on a die, treat that die as if it had rolled a 0.",
+            "effects": []
           }
         ]
       },
@@ -1088,17 +1161,21 @@
           {
             "name": "Alien Boost",
             "type": "A",
-            "text": "Boost all nearby allies using [power]. Use your Max+Mid dice. Hinder yourself with your Min die."
+            "text": "Boost all nearby allies using [power]. Use your Max+Mid dice. Hinder yourself with your Min die.",
+            "effects": [{"actions": ["boost"], "use": "max+mid"}, {"actions": ["hinder"], "use": "min"}]
           },
           {
             "name": "Empower and Repair",
             "type": "A",
-            "text": "Boost, Hinder, Defend, or Attack using [power]. You and all nearby heroes in the Yellow or Red zone Recover Health equal to your Min die."
+            "text": "Boost, Hinder, Defend, or Attack using [power]. You and all nearby heroes in the Yellow or Red zone Recover Health equal to your Min die.",
+            "effects": [{"actions": ["boost", "hinder", "defend", "attack"], "use": "mid"}, {"actions": ["recover"], "use": "min"}]
           },
           {
             "name": "Halt",
             "type": "R",
-            "text": "When you are Attacked at close range, Defend yourself by rolling your single [power] die."
+            "text": "When you are Attacked at close range, Defend yourself by rolling your single [power] die.",
+            "effects": [{"actions": ["defend"], "use": "single"}],
+            "pool": {"single": "trait"}
           }
         ],
         "rule": "differentPowers"
@@ -1161,17 +1238,21 @@
           {
             "name": "A Plan For Everything",
             "type": "R",
-            "text": "When you are attacked, first roll your single [power] die. Defend yourself with that roll. Then, Boost yourself using that roll."
+            "text": "When you are attacked, first roll your single [power] die. Defend yourself with that roll. Then, Boost yourself using that roll.",
+            "effects": [{"actions": ["defend"], "use": "single"}, {"actions": ["boost"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Expanded Mind",
             "type": "A",
-            "text": "Boost yourself using [power]. Use your Max die. That bonus is persistent and exclusive. Then Attack using your Min die."
+            "text": "Boost yourself using [power]. Use your Max die. That bonus is persistent and exclusive. Then Attack using your Min die.",
+            "effects": [{"actions": ["boost"], "use": "max"}, {"actions": ["attack"], "use": "min"}]
           },
           {
             "name": "Overwhelming Vision",
             "type": "A",
-            "text": "Attack using [power]. Then, if the target of the Attack survived, also Attack that target with your Max die. Otherwise, Recover an amount of Health equal to your Min die."
+            "text": "Attack using [power]. Then, if the target of the Attack survived, also Attack that target with your Max die. Otherwise, Recover an amount of Health equal to your Min die.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["attack"], "use": "max", "optional": true}, {"actions": ["recover"], "use": "min", "optional": true}]
           }
         ],
         "rule": "differentPowers"
@@ -1239,17 +1320,20 @@
           {
             "name": "Cosmic Ray Absorption",
             "type": "I",
-            "text": "If you would take damage from [element/energy you have a related power for], instead reduce that damage to 0 and Recover that amount of Health."
+            "text": "If you would take damage from [element/energy you have a related power for], instead reduce that damage to 0 and Recover that amount of Health.",
+            "effects": [{"actions": ["recover"], "use": "damage"}]
           },
           {
             "name": "Encourage",
             "type": "A",
-            "text": "Attack using [power]. Boost all nearby heroes taking Attack or Overcome actions using your Min die until your next turn."
+            "text": "Attack using [power]. Boost all nearby heroes taking Attack or Overcome actions using your Min die until your next turn.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["boost"], "use": "min"}]
           },
           {
             "name": "Mass Effect",
             "type": "A",
-            "text": "Boost or Hinder using [power] and apply that mod to multiple close targets."
+            "text": "Boost or Hinder using [power] and apply that mod to multiple close targets.",
+            "effects": [{"actions": ["boost", "hinder"], "use": "mid"}]
           }
         ],
         "rule": "differentPowers"
@@ -1342,17 +1426,20 @@
           {
             "name": "Absorb Essence",
             "type": "R",
-            "text": "When you defeat a minion, roll that minion’s die and Boost yourself using that roll."
+            "text": "When you defeat a minion, roll that minion’s die and Boost yourself using that roll.",
+            "effects": [{"actions": ["boost"], "use": "other"}]
           },
           {
             "name": "Aura of Pain",
             "type": "A",
-            "text": "Attack multiple targets using [power]. Then, take irreducible damage equal to the number of targets hit."
+            "text": "Attack multiple targets using [power]. Then, take irreducible damage equal to the number of targets hit.",
+            "effects": [{"actions": ["attack"], "use": "mid"}]
           },
           {
             "name": "Bizarre Strike",
             "type": "A",
-            "text": "Attack using [power]. Use your Max die. Hinder that target with your Mid die. Hinder yourself with your Min die."
+            "text": "Attack using [power]. Use your Max die. Hinder that target with your Mid die. Hinder yourself with your Min die.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["hinder"], "use": "mid"}, {"actions": ["hinder"], "use": "min"}]
           }
         ],
         "rule": "differentPowers"
@@ -1363,12 +1450,15 @@
           {
             "name": "Attune",
             "type": "A",
-            "text": "Boost yourself using [power]. That bonus is persistent and exclusive. Damage dealt using that bonus is all [energy/element]."
+            "text": "Boost yourself using [power]. That bonus is persistent and exclusive. Damage dealt using that bonus is all [energy/element].",
+            "effects": [{"actions": ["boost"], "use": "mid"}]
           },
           {
             "name": "Extrasensory Awareness",
             "type": "R",
-            "text": "When you would take damage that would change your zone, Defend against that damage by rolling your single [quality] die."
+            "text": "When you would take damage that would change your zone, Defend against that damage by rolling your single [quality] die.",
+            "effects": [{"actions": ["defend"], "use": "single"}],
+            "pool": {"single": "trait"}
           }
         ]
       },
@@ -1410,17 +1500,20 @@
           {
             "name": "Brainstorm",
             "type": "A",
-            "text": "Attack using [power]. Hit one target using your Min die, another target with your Mid die, and Boost using your Max die."
+            "text": "Attack using [power]. Hit one target using your Min die, another target with your Mid die, and Boost using your Max die.",
+            "effects": [{"actions": ["attack"], "use": "min"}, {"actions": ["attack"], "use": "mid"}, {"actions": ["boost"], "use": "max"}]
           },
           {
             "name": "Strange Enhancement",
             "type": "A",
-            "text": "Boost all nearby allies using [power] using your Max+Mid dice. Hinder yourself with your Min die."
+            "text": "Boost all nearby allies using [power] using your Max+Mid dice. Hinder yourself with your Min die.",
+            "effects": [{"actions": ["boost"], "use": "max+mid"}, {"actions": ["hinder"], "use": "min"}]
           },
           {
             "name": "Volatile Creations",
             "type": "R",
-            "text": "When one of your bonuses, penalties, or other creation of your powers is destroyed, deal a target damage equal to the roll of your [power] die."
+            "text": "When one of your bonuses, penalties, or other creation of your powers is destroyed, deal a target damage equal to the roll of your [power] die.",
+            "effects": []
           }
         ],
         "rule": "differentPowers"
@@ -1476,22 +1569,26 @@
           {
             "name": "Command Power",
             "type": "R",
-            "text": "When you take damage from [elemental/energy], you may deal that much damage to another target."
+            "text": "When you take damage from [elemental/energy], you may deal that much damage to another target.",
+            "effects": []
           },
           {
             "name": "Dangerous Explosion",
             "type": "A",
-            "text": "Attack multiple targets using [power]. Use your Mid die. Hinder all targets damaged by this ability with your Min die. Hinder yourself with your Max die."
+            "text": "Attack multiple targets using [power]. Use your Mid die. Hinder all targets damaged by this ability with your Min die. Hinder yourself with your Max die.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["hinder"], "use": "min"}, {"actions": ["hinder"], "use": "max"}]
           },
           {
             "name": "Embolden",
             "type": "A",
-            "text": "Attack using [power], and Boost all nearby heroes taking [choose two basic actions] using your Min die until your next turn."
+            "text": "Attack using [power], and Boost all nearby heroes taking [choose two basic actions] using your Min die until your next turn.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["boost"], "use": "min"}]
           },
           {
             "name": "Resolve",
             "type": "A",
-            "text": "Boost yourself using [power], then remove a penalty on yourself or Recover using your Min die."
+            "text": "Boost yourself using [power], then remove a penalty on yourself or Recover using your Min die.",
+            "effects": [{"actions": ["boost"], "use": "mid"}, {"actions": ["recover"], "use": "min", "optional": true}]
           }
         ],
         "rule": "differentPowers"
@@ -1502,12 +1599,14 @@
           {
             "name": "Resilience",
             "type": "I",
-            "text": "At the start of your turn, remove any -1 penalties on you."
+            "text": "At the start of your turn, remove any -1 penalties on you.",
+            "effects": []
           },
           {
             "name": "Twist Reality",
             "type": "R",
-            "text": "After rolling during your turn, you may take 1 irreducible damage to reroll your entire dice pool."
+            "text": "After rolling during your turn, you may take 1 irreducible damage to reroll your entire dice pool.",
+            "effects": []
           }
         ]
       },
@@ -1556,22 +1655,26 @@
           {
             "name": "Power From Beyond",
             "type": "A",
-            "text": "Boost yourself using [power]. Use your Max die. That bonus is persistent and exclusive. Then, Attack using your Min die."
+            "text": "Boost yourself using [power]. Use your Max die. That bonus is persistent and exclusive. Then, Attack using your Min die.",
+            "effects": [{"actions": ["boost"], "use": "max"}, {"actions": ["attack"], "use": "min"}]
           },
           {
             "name": "Respond In Kind",
             "type": "R",
-            "text": "When you are hit with an Attack at close range, the attacker also takes damage equal to their effect die."
+            "text": "When you are hit with an Attack at close range, the attacker also takes damage equal to their effect die.",
+            "effects": []
           },
           {
             "name": "Dread Pallor",
             "type": "A",
-            "text": "Hinder multiple targets using [power]. Use your Mid die for one and your Min die for the rest."
+            "text": "Hinder multiple targets using [power]. Use your Mid die for one and your Min die for the rest.",
+            "effects": [{"actions": ["hinder"], "use": "mid"}, {"actions": ["hinder"], "use": "min"}]
           },
           {
             "name": "Reality Scorned",
             "type": "A",
-            "text": "Attack using [power]. If your target survived, Hinder them using your Max die."
+            "text": "Attack using [power]. If your target survived, Hinder them using your Max die.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["hinder"], "use": "max", "optional": true}]
           }
         ],
         "rule": "differentPowers"

@@ -38,6 +38,11 @@ OPTION_LIST_KEYS = {"options", "powerOptions", "required", "suggestedPowers",
 USES_FROM = {"archetypeLists", "archetypePowerList"}
 USES_KINDS = {"power", "quality"}
 RESTRICTION_KEYS = {"rule", "usesFrom", "requireAtLeast", "minDifferentPowers", "differentFromGreen", "sameUsePattern"}
+# Ability effects (game aid): the actions an ability produces and which roll sets each one.
+ACTIONS = {"attack", "defend", "boost", "hinder", "overcome", "recover"}
+EFFECT_USES = {"max", "mid", "min", "max+mid", "max+min", "mid+min", "max+mid+min", "single", "damage", "other"}
+EFFECT_KEYS = {"actions", "use", "optional", "when", "doublesUse", "fromBlank"}
+POOL_SINGLES = {"trait", "status", "redStatus"}
 MAX_PAGE = 450  # fallback upper bound for files with no registered span
 BASIC_ACTIONS = {"attack", "defend", "boost", "hinder", "overcome"}
 IF_ALREADY_HAVE = {"skip", "swap", "addDifferentFromCategory"}
@@ -175,6 +180,12 @@ def check_node(node, where, known, approaches, books, spans):
     if is_ability(node):
         if require(node, ["name", "type", "text"], where) and node["type"] not in ABILITY_TYPES:
             err(where, f"bad ability type '{node['type']}'")
+        # Every hero ability lists its effects (an empty list for one that produces none).
+        if "effects" in node or where.startswith("heroes/"):
+            check_effects(node.get("effects"), f"{where}.effects")
+        if "pool" in node:
+            check_pool(node["pool"], f"{where}.pool")
+        check_pool_uses(node.get("effects"), node.get("pool"), where)
         req = node.get("requires")
         if req is not None:
             if not (isinstance(req, dict) and len(REF_KEYS & req.keys()) == 1):
@@ -249,6 +260,52 @@ def is_ref_list(v):
     """A non-empty list of bare option references (one reference key, nothing else)."""
     return isinstance(v, list) and bool(v) and all(
         isinstance(o, dict) and len(o) == 1 and is_ref(o) for o in v)
+
+
+def check_effects(effects, where):
+    """An ability's `effects` list: each names its actions and which roll sets it."""
+    if not isinstance(effects, list):
+        err(where, "effects must be a list")
+        return
+    for i, e in enumerate(effects):
+        w = f"{where}[{i}]"
+        if not isinstance(e, dict):
+            err(w, "an effect must be an object")
+            continue
+        for k in e.keys() - EFFECT_KEYS:
+            err(w, f"unknown effect key '{k}'")
+        acts = e.get("actions")
+        if not (isinstance(acts, list) and acts and all(a in ACTIONS for a in acts) and len(set(acts)) == len(acts)):
+            err(w, f"'actions' must be a non-empty list of distinct actions from {sorted(ACTIONS)}")
+        use = e.get("use")
+        uses = use if isinstance(use, list) else [use]
+        if not (uses and all(u in EFFECT_USES for u in uses)) or (isinstance(use, list) and len(use) < 2):
+            err(w, f"'use' must be one of {sorted(EFFECT_USES)}, or a list of two or more of them")
+        if "doublesUse" in e and e["doublesUse"] not in EFFECT_USES:
+            err(w, "bad 'doublesUse'")
+        if "optional" in e and e["optional"] is not True:
+            err(w, "'optional' must be true when present")
+        if "when" in e and e["when"] != "doubles":
+            err(w, "'when' must be 'doubles'")
+        if "fromBlank" in e and not isinstance(e["fromBlank"], str):
+            err(w, "'fromBlank' must be the blank's label")
+
+
+def check_pool(pool, where):
+    """An ability's `pool`: present only when it rolls a single die instead of the usual three."""
+    if not (isinstance(pool, dict) and set(pool) == {"single"} and pool["single"] in POOL_SINGLES):
+        err(where, f"pool must be {{\"single\": one of {sorted(POOL_SINGLES)}}}")
+
+
+def check_pool_uses(effects, pool, where):
+    """A `single` effect needs a single-die `pool`, and a single-die `pool` needs a `single` effect."""
+    if not isinstance(effects, list):
+        return
+    uses = [u for e in effects if isinstance(e, dict) for u in (e.get("use") if isinstance(e.get("use"), list) else [e.get("use")])]
+    if "single" in uses and not pool:
+        err(where, "an effect uses 'single' but there's no single-die pool")
+    if pool and "single" not in uses:
+        err(where, "a single-die pool but no effect uses 'single'")
 
 
 def check_restrictions(node, where):
@@ -356,6 +413,10 @@ def check_heroes(docs):
         check_entries(entries, "personalities", ["roll", "statusDice", "outAbility"])
         check_rolls(entries, "personalities")
         for e in entries:
+            check_effects(e.get("outEffects"), f"personalities[{e.get('id')}].outEffects")
+            if "outPool" in e:
+                check_pool(e["outPool"], f"personalities[{e.get('id')}].outPool")
+            check_pool_uses(e.get("outEffects"), e.get("outPool"), f"personalities[{e.get('id')}]")
             sd = e.get("statusDice")
             if not isinstance(sd, dict) or set(sd) != {"green", "yellow", "red"} or not set(sd.values()) <= DICE:
                 err(f"personalities[{e.get('id')}]", f"statusDice must map green/yellow/red to dice, got {sd}")

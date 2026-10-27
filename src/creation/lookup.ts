@@ -104,7 +104,7 @@ export function findAbility(hero: Hero, pick: AbilityPick, archetype?: Archetype
   if (pick.source === 'out') {
     const choice = outPersonality(hero)
     const personality = choice && personalitiesById.get(choice.id)
-    return personality ? { name: OUT_ABILITY_NAME, type: 'A', text: personality.outAbility } : undefined
+    return personality ? { name: OUT_ABILITY_NAME, type: 'A', text: personality.outAbility, effects: personality.outEffects, ...(personality.outPool ? { pool: personality.outPool } : {}) } : undefined
   }
   if (pick.source === 'red' || pick.source === 'retcon') {
     const red = findRedAbility(hero, pick)

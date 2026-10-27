@@ -27,6 +27,23 @@ describe('buildSheet', () => {
     expect(sheet.abilities.find((a) => a.name === 'Immunity')?.text).toBe('You do not take damage from Fire.')
   })
 
+  it('gives each ability its effects from the data, narrowed by the player’s choices', () => {
+    const sheet = buildSheet(completeHero())
+    const effects = (name: string) => sheet.abilities.find((a) => a.name === name)!.effects
+    expect(effects('Inflict')).toEqual(['attack', 'hinder'])
+    expect(effects('Immunity')).toEqual([])
+    // "[Boost or Hinder]" filled in as Boost.
+    expect(effects('Area Alteration')).toEqual(['boost'])
+    expect(effects('Paragon Feat')).toEqual(['overcome', 'boost'])
+    expect(sheet.outEffects).toEqual(['boost'])
+  })
+
+  it('works out a custom principle’s effects from its text', () => {
+    const hero = completeHero()
+    hero.background!.principle = { id: 'custom', custom: { category: 'identity', name: 'Grit', roleplaying: 'r', minorTwist: 'm', majorTwist: 'M', greenAbility: { name: 'Grit', text: 'Defend using your Max die.' } } }
+    expect(buildSheet(hero).abilities.find((a) => a.name === 'Grit')!.effects).toEqual(['defend'])
+  })
+
   it('shows principles’ text and twists', () => {
     const sheet = buildSheet(completeHero())
     expect(sheet.principles.map((p) => p.name)).toEqual(['Principle of Business', 'Principle of the Gearhead'])
@@ -104,6 +121,7 @@ describe('buildSheet', () => {
       principles: [],
       abilities: [],
       outAbility: undefined,
+      outEffects: [],
       forms: [],
       minionForms: [],
       modes: [],

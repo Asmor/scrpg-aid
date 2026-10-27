@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { abilityEffects, effectMentions } from './effects'
+import { abilityEffects, actionMentions, effectActions, effectMentions } from './effects'
 
 describe('abilityEffects', () => {
   it('finds "<Action> … using <power, quality, or dice>" (the user’s rule)', () => {
@@ -43,5 +43,25 @@ describe('effectMentions', () => {
   it('gives where each effect word is', () => {
     const text = 'Attack using Fire. Hinder that same target using your Min die.'
     expect(effectMentions(text).map((m) => text.slice(m.start, m.end))).toEqual(['Attack', 'Hinder'])
+  })
+})
+
+describe('effectActions', () => {
+  it('lists the actions once each, narrowing a [blank] choice to the player’s pick', () => {
+    const effects = [{ actions: ['boost', 'hinder'] as const, use: 'max' as const, fromBlank: 'Boost or Hinder' }, { actions: ['attack'] as const, use: 'mid' as const }, { actions: ['boost'] as const, use: 'min' as const }]
+    const e = effects.map((x) => ({ ...x, actions: [...x.actions] }))
+    expect(effectActions(e)).toEqual(['boost', 'hinder', 'attack'])
+    expect(effectActions(e, { 'Boost or Hinder': 'Hinder' })).toEqual(['hinder', 'attack', 'boost'])
+    // A blank that's empty, or matches none of the actions, leaves them all.
+    expect(effectActions(e, { 'Boost or Hinder': '  ' })).toEqual(['boost', 'hinder', 'attack'])
+    expect(effectActions(e, { 'Boost or Hinder': 'Sing' })).toEqual(['boost', 'hinder', 'attack'])
+  })
+})
+
+describe('actionMentions', () => {
+  it('finds the words naming the given actions, skipping nouns, triggers, and brackets', () => {
+    const text = 'When you are Attacked, Defend by rolling your single [power] die. Then Attack the attacker and [Boost or Hinder] an Attack.'
+    expect(actionMentions(text, ['attack', 'defend', 'boost']).map((m) => text.slice(m.start, m.end))).toEqual(['Defend', 'Attack'])
+    expect(actionMentions(text, ['defend']).map((m) => m.action)).toEqual(['defend'])
   })
 })

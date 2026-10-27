@@ -18,7 +18,7 @@ import { DETAIL_LABEL, ZONE_LABEL } from '../../hero/labels'
 import { DETAIL_FIELDS, heroDisplayName, type Hero } from '../../hero/model'
 import type { AbilityType, Die, Zone } from '../../rules/types'
 import type { IconName } from '../../components/icon-source'
-import { abilityEffects, ACTIONS, effectMentions, type Action } from '../../creation/effects'
+import { ACTIONS, actionMentions, type Action } from '../../creation/effects'
 import { DICE } from '../../rules/dice'
 
 export type FontId = 'regular' | 'bold' | 'boldItalic'
@@ -120,12 +120,12 @@ const ICON_GAP = 1.5
  * The text with an icon marker before each action word that's an effect
  * (../../creation/effects.ts), and each die size ("d8") replaced by its die's marker.
  */
-export function markEffects(raw: string): string {
+export function markEffects(raw: string, actions: readonly Action[]): string {
   // The player's own text can't bring its own markers.
   const text = raw.replace(MARKER, '')
   let out = ''
   let at = 0
-  for (const m of effectMentions(text)) {
+  for (const m of actionMentions(text, actions)) {
     out += text.slice(at, m.start) + marker(m.action)
     at = m.start
   }
@@ -509,16 +509,16 @@ function health(canvas: Canvas, sheet: HeroSheet): Block {
 }
 
 /** One ability row: type badge with the effects' icons under it, name, and game text with inline action icons, on the zone's colour. Very long text splits by line. */
-function abilityRow(canvas: Canvas, a: { name: string; type: AbilityType; text: string }, fill: string): Block {
+function abilityRow(canvas: Canvas, a: { name: string; type: AbilityType; text: string; effects: readonly Action[] }, fill: string): Block {
   const typeW = 32
   const EFFECT = 12
-  const effects = abilityEffects(a.text)
+  const effects = a.effects
   // The badge on top, then the effects two to a row.
   const firstCellHeight = LINE + 1 + (effects.length ? 2 + Math.ceil(effects.length / 2) * (EFFECT + 2) : 0)
   const nameW = (w: number) => Math.min(120, w * 0.28)
   const textW = (w: number) => w - typeW - nameW(w) - 2 * PAD - 8
   const measure = richMeasure(canvas)
-  const marked = markEffects(a.text)
+  const marked = markEffects(a.text, a.effects)
   const lines = (w: number) => ({ name: wrap(canvas, a.name, 'bold', BODY, nameW(w)), text: wrap(canvas, marked, 'regular', BODY, textW(w), measure) })
   /** The row from its lines; a continuation (`first` false) has neither badge, effects nor name. */
   const row = (get: (w: number) => { name: string[]; text: string[] }, first: boolean): Block => ({
@@ -593,13 +593,13 @@ function placeAbilities(layout: Layout, sheet: HeroSheet) {
     rows.slice(1).forEach((r) => layout.place(r, 0, continued))
     layout.place(spacer(4), 0)
   })
-  layout.place(keepTogether(zoneBar(canvas, 'Out', COLORS.text, COLORS.zone.out), sheet.outAbility ? outRow(canvas, sheet.outAbility) : abilityRowText(canvas, 'Choose a personality.', COLORS.zone.out)))
+  layout.place(keepTogether(zoneBar(canvas, 'Out', COLORS.text, COLORS.zone.out), sheet.outAbility ? outRow(canvas, sheet.outAbility, sheet.outEffects) : abilityRowText(canvas, 'Choose a personality.', COLORS.zone.out)))
 }
 
 /** The Out ability's row: its text, with an icon before each effect word. */
-function outRow(canvas: Canvas, text: string): Block {
+function outRow(canvas: Canvas, text: string, actions: readonly Action[]): Block {
   const measure = richMeasure(canvas)
-  const lines = (w: number) => wrap(canvas, markEffects(text), 'regular', BODY, w - 2 * PAD, measure)
+  const lines = (w: number) => wrap(canvas, markEffects(text, actions), 'regular', BODY, w - 2 * PAD, measure)
   return {
     height: (w) => lines(w).length * LINE + 8,
     draw: (x, y, w, h) => {

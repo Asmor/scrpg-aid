@@ -70,17 +70,19 @@ describe('wrap', () => {
 })
 
 describe('markEffects', () => {
-  it('puts an icon marker before each effect word', () => {
-    expect(markEffects('Attack using Fire. Hinder that same target using your Min die.')).toBe('\ue000Attack using Fire. \ue003Hinder that same target using your Min die.')
-    expect(markEffects('When you are hit with an Attack, change forms.')).toBe('When you are hit with an Attack, change forms.')
+  it('puts an icon marker before each word naming one of the effects', () => {
+    expect(markEffects('Attack using Fire. Hinder that same target using your Min die.', ['attack', 'hinder'])).toBe('\ue000Attack using Fire. \ue003Hinder that same target using your Min die.')
+    // Only the ability's own effects get one, and never a noun or trigger.
+    expect(markEffects('Attack using Fire. Hinder that same target using your Min die.', ['attack'])).toBe('\ue000Attack using Fire. Hinder that same target using your Min die.')
+    expect(markEffects('When you are hit with an Attack, change forms.', ['attack'])).toBe('When you are hit with an Attack, change forms.')
     // Die sizes become die markers.
-    expect(markEffects('Gain a d8 minion; roll a d12.')).toBe('Gain a \ue012 minion; roll a \ue014.')
+    expect(markEffects('Gain a d8 minion; roll a d12.', [])).toBe('Gain a \ue012 minion; roll a \ue014.')
   })
 
   it('wraps marked text with room for the icons', () => {
     const canvas = new RecordingCanvas(612, 792)
     // Without the icon, "Attack using" (12 characters, 60 points) would fit in 62.
-    expect(wrap(canvas, markEffects('Attack using Fire'), 'regular', 10, 62)).toHaveLength(2)
+    expect(wrap(canvas, markEffects('Attack using Fire', ['attack']), 'regular', 10, 62)).toHaveLength(2)
   })
 })
 

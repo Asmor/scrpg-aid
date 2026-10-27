@@ -13,7 +13,7 @@ import type { HeroTrait } from '../creation/traits'
 import type { StepId } from '../creation/warnings'
 import type { AbilityType, Die, Zone } from '../rules/types'
 import { diceTableRows } from '../creation/dice-table'
-import { abilityEffects } from '../creation/effects'
+import type { Action } from '../creation/effects'
 import { modeLimits } from '../creation/format'
 import { AbilityText, ActionIcon, DiceText, DieIcon } from './icons'
 
@@ -130,8 +130,7 @@ function StatusDice({ dice, label }: { dice: Record<Zone, Die>; label?: string }
   )
 }
 
-function AbilityRow({ name, type, text }: { name: string; type: AbilityType; text: string }) {
-  const effects = abilityEffects(text)
+function AbilityRow({ name, type, text, effects }: { name: string; type: AbilityType; text: string; effects: readonly Action[] }) {
   return (
     <li className="ability">
       <span className="ability__type">
@@ -149,17 +148,17 @@ function AbilityRow({ name, type, text }: { name: string; type: AbilityType; tex
       </span>
       <span className="ability__name">{name}</span>
       <span className="ability__text">
-        <AbilityText text={text} />
+        <AbilityText text={text} actions={effects} />
       </span>
     </li>
   )
 }
 
 /** The Out ability's text, with an icon before each effect word. */
-function OutAbility({ text }: { text: string }) {
+function OutAbility({ text, actions }: { text: string; actions: readonly Action[] }) {
   return (
     <p className="ability__text">
-      <AbilityText text={text} />
+      <AbilityText text={text} actions={actions} />
     </p>
   )
 }
@@ -173,7 +172,7 @@ function AbilityBand({ zone, abilities }: { zone: Zone; abilities: readonly Shee
       {sorted.length ? (
         <ul className="ability-list">
           {sorted.map((a, i) => (
-            <AbilityRow key={`${a.source}:${a.baseName}:${i}`} name={a.name} type={a.type} text={a.text} />
+            <AbilityRow key={`${a.source}:${a.baseName}:${i}`} name={a.name} type={a.type} text={a.text} effects={a.effects} />
           ))}
         </ul>
       ) : (
@@ -383,7 +382,7 @@ export function HeroSheetView({ hero, warnings = true }: { hero: Hero; warnings?
         ))}
         <section className="ability-band zone-out" aria-label="Out ability">
           <h4 className="ability-band__title">Out</h4>
-          {sheet.outAbility ? <OutAbility text={sheet.outAbility} /> : <p className="ability__text">Choose a personality.</p>}
+          {sheet.outAbility ? <OutAbility text={sheet.outAbility} actions={sheet.outEffects} /> : <p className="ability__text">Choose a personality.</p>}
         </section>
       </Panel>
 

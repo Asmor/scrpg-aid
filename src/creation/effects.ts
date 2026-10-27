@@ -1,5 +1,9 @@
 /**
- * The effects an ability produces, worked out from its text (the user's rule, 2026-10-26):
+ * Which actions an ability's effects are, for its icons. Abilities from the rules data list
+ * their effects (data/README.md, "Ability effects"); a player-written ability (a custom
+ * principle's) falls back to the preliminary text rule below.
+ *
+ * The text rule: the effects an ability produces, worked out from its text (the user's rule, 2026-10-26):
  * an action word is an effect when its clause goes on to say what it's rolled with,
  * "<Action> [...] using <power, quality, or dice>", e.g. Inflict's "Attack using Fire.
  * Hinder that same target using your Min die." gives Attack and Hinder. Other ways the
@@ -11,7 +15,10 @@
  * and choices still in brackets ("[Boost or Hinder]") until they're filled in.
  */
 
-export type Action = 'attack' | 'boost' | 'defend' | 'hinder' | 'overcome' | 'recover'
+import type { AbilityPick } from '../hero/model'
+import type { AbilityEffect, Action } from '../rules/types'
+
+export type { Action }
 
 export const ACTIONS: readonly Action[] = ['attack', 'boost', 'defend', 'hinder', 'overcome', 'recover']
 
@@ -103,4 +110,32 @@ export function effectMentions(text: string): EffectMention[] {
 /** Each effect the ability produces, once, in the order the text first gives them. */
 export function abilityEffects(text: string): Action[] {
   return [...new Set(effectMentions(text).map((m) => m.action))]
+}
+
+/**
+ * The actions an ability's effects are, once each, in order. An effect whose actions come
+ * from a [blank] ("[Boost or Hinder]") is narrowed to the player's choice there, if made.
+ */
+export function effectActions(effects: readonly AbilityEffect[], blanks: AbilityPick['blanks'] = {}): Action[] {
+  const actions: Action[] = []
+  for (const e of effects) {
+    const chosen = e.fromBlank ? blanks?.[e.fromBlank] : undefined
+    const picked = typeof chosen === 'string' && chosen.trim() ? e.actions.filter((a) => ACTION_LABEL[a] === chosen.trim()) : []
+    actions.push(...(picked.length ? picked : e.actions))
+  }
+  return [...new Set(actions)]
+}
+
+/**
+ * The action words in the text that name one of `actions` (an ability's effects), for the
+ * inline icons: every one that isn't a noun or trigger ("an Attack", "Attacked") or inside a
+ * [bracketed choice].
+ */
+export function actionMentions(text: string, actions: readonly Action[]): EffectMention[] {
+  const outside = outsideBrackets(text)
+  const inChoice = (i: number) => !outside.some(([s, e]) => i >= s && i < e)
+  return [...text.matchAll(ACTION_WORD)]
+    .filter((m) => !inChoice(m.index) && !NOUN_BEFORE.test(text.slice(Math.max(0, m.index - 12), m.index)) && !NOUN_AFTER.test(text.slice(m.index + m[0].length)))
+    .map((m) => ({ action: m[1]!.toLowerCase() as Action, start: m.index, end: m.index + m[0].length }))
+    .filter((m) => actions.includes(m.action))
 }

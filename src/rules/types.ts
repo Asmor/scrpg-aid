@@ -29,12 +29,44 @@ export type OptionRef =
   | { powerCategory: string }
   | { qualityCategory: string }
 
+/** A basic action an ability's effect can be (Recover only comes from abilities). */
+export type Action = 'attack' | 'defend' | 'boost' | 'hinder' | 'overcome' | 'recover'
+
+/**
+ * Which roll sets an effect: one result of the sorted pool (or a sum of them), the single die
+ * a `pool.single` ability rolls, the damage the hero took, or a value the text describes.
+ */
+export type EffectUse = 'max' | 'mid' | 'min' | 'max+mid' | 'max+min' | 'mid+min' | 'max+mid+min' | 'single' | 'damage' | 'other'
+
+/** One effect an ability produces (data/README.md, "Ability effects"). */
+export interface AbilityEffect {
+  /** More than one: the player picks one when using the ability. */
+  actions: Action[]
+  /** A list: the player picks which. */
+  use: EffectUse | EffectUse[]
+  optional?: true
+  /** Only when the roll has doubles. */
+  when?: 'doubles'
+  /** What the effect uses instead when the roll has doubles. */
+  doublesUse?: EffectUse
+  /** The actions come from this [blank], so the player's choice there narrows them. */
+  fromBlank?: string
+}
+
+/** An ability that rolls one die instead of the usual power, quality, and status dice. */
+export interface AbilityPool {
+  single: 'trait' | 'status' | 'redStatus'
+}
+
 export interface Ability {
   name: string
   type: AbilityType
   text: string
   /** The hero must have this power/quality (or one in this category) to take the ability. */
   requires?: OptionRef
+  /** Every ability in data/ has these; a player-written ability (a custom principle's) may not. */
+  effects?: AbilityEffect[]
+  pool?: AbilityPool
 }
 
 /** A power or quality that must receive some of a step's dice. */
@@ -282,6 +314,8 @@ export interface Personality extends EntryRef {
   name: string
   statusDice: Record<Zone, Die>
   outAbility: string
+  outEffects: AbilityEffect[]
+  outPool?: AbilityPool
   bonuses?: Bonus[]
   healthOptions?: HealthOptions
 }

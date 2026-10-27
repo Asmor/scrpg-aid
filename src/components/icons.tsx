@@ -1,6 +1,6 @@
 /** The die and action icons (public/icons), loaded from the IconSource context (./icon-source.ts). */
 import { useContext, type ReactNode } from 'react'
-import { ACTION_LABEL, effectMentions, type Action } from '../creation/effects'
+import { ACTION_LABEL, actionMentions, effectMentions, type Action } from '../creation/effects'
 import type { Die } from '../rules/types'
 import { IconSource } from './icon-source'
 
@@ -44,14 +44,15 @@ export function ActionIcon({ action, decorative = false }: { action: Action; dec
 }
 
 /**
- * Ability text with an icon before each action word that's one of its effects
- * (../creation/effects.ts), and each die size shown as its icon.
+ * Ability text with an icon before each action word that's one of its effects, and each die
+ * size shown as its icon. Pass the ability's effects' `actions` (../creation/effects.ts);
+ * without them, the preliminary text rule finds the effect words.
  */
-export function AbilityText({ text }: { text: string }) {
+export function AbilityText({ text, actions }: { text: string; actions?: readonly Action[] }) {
   const parts: ReactNode[] = []
   let at = 0
   const plain = (s: string, key: number) => <DiceText key={`t${key}`} text={s} />
-  for (const m of effectMentions(text)) {
+  for (const m of actions ? actionMentions(text, actions) : effectMentions(text)) {
     parts.push(plain(text.slice(at, m.start), at))
     parts.push(
       <span key={m.start} className="effect-word">

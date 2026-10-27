@@ -15,6 +15,7 @@ import { fillText } from '../creation/sheet'
 import { traitLabel, type HeroTrait } from '../creation/traits'
 import type { StepId } from '../creation/warnings'
 import { AbilityText } from '../components/icons'
+import { effectActions } from '../creation/effects'
 
 const TYPE_NAME: Record<Ability['type'], string> = { A: 'Action', R: 'Reaction', I: 'Inherent', 'A/I': 'Action/Inherent' }
 
@@ -174,7 +175,7 @@ function PickFields({ hero, traits, step, ability, pick, nameable, slotLimit, on
       {/* With no blanks, the text above already says it all. */}
       {slots.length > 0 && (
         <p className="ability-pick__preview">
-          <AbilityText text={fillText(hero, ability.text, pick.uses, pick.blanks)} />
+          <AbilityText text={fillText(hero, ability.text, pick.uses, pick.blanks)} actions={ability.effects && effectActions(ability.effects, pick.blanks)} />
         </p>
       )}
     </div>
@@ -200,7 +201,7 @@ export function AbilityPicker({ hero, traits, legend, hint, options, source, ste
                   {ability.name} <span className="choice__note">({TYPE_NAME[ability.type]})</span>
                 </span>
                 <span className="choice__detail">
-                  <AbilityText text={ability.text} />
+                  <AbilityText text={ability.text} actions={ability.effects && effectActions(ability.effects)} />
                 </span>
               </p>
               <PickFields hero={hero} traits={traits} step={step} ability={ability} pick={pick ?? { source, name: ability.name }} nameable={nameable} slotLimit={slotLimit} onChange={(p) => replace(ability.name, p)} />
@@ -216,7 +217,7 @@ export function AbilityPicker({ hero, traits, legend, hint, options, source, ste
                   {ability.name} <span className="choice__note">({TYPE_NAME[ability.type]})</span>
                 </span>
                 <span className="choice__detail">
-                  <AbilityText text={ability.text} />
+                  <AbilityText text={ability.text} actions={ability.effects && effectActions(ability.effects)} />
                 </span>
               </span>
             </label>

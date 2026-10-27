@@ -21,6 +21,7 @@ import { checkForms, formAbilityPick, formLabel, formTraits } from './forms'
 import { checkDivided, heroicTraits, outTraits, splitNames } from './divided'
 import { archetypeName, checkSecondary, dividedChoice, layers, outerLayer, traitLayer } from './layers'
 import { checkModular, findMode, modeAbilityPick, modeTraits } from './modular'
+import { abilityEffects, effectActions, type Action } from './effects'
 import { checkRedAbilities } from './red'
 import { checkRetcon } from './retcons'
 import { deriveTraits, traitLabel, type HeroTrait } from './traits'
@@ -36,6 +37,16 @@ export interface SheetAbility {
   /** The game text with its blanks filled in where the player has chosen. */
   text: string
   source: AbilitySource | 'principle'
+  /** The actions its effects are (./effects.ts), for the icons. */
+  effects: Action[]
+}
+
+/** A form's or mode's own ability. */
+export interface SheetFormAbility {
+  name: string
+  type: AbilityType
+  text: string
+  effects: Action[]
 }
 
 export interface SheetPrinciple {
@@ -51,7 +62,7 @@ export interface SheetForm {
   name: string
   /** The form's powers and qualities, with the Yellow form's upgrades applied. */
   traits: HeroTrait[]
-  ability?: { name: string; type: AbilityType; text: string }
+  ability?: SheetFormAbility
 }
 
 /** A Modular mode as shown on the auxiliary sheet. */
@@ -63,7 +74,7 @@ export interface SheetMode {
   /** Basic actions the hero can't take in this mode. */
   cannot: BasicAction[]
   immobile: boolean
-  ability?: { name: string; type: AbilityType; text: string }
+  ability?: SheetFormAbility
 }
 
 export interface HeroSheet {
@@ -80,6 +91,8 @@ export interface HeroSheet {
   principles: SheetPrinciple[]
   abilities: SheetAbility[]
   outAbility?: string
+  /** The Out ability's effects' actions. */
+  outEffects: Action[]
   /** Divided: the heroic form's personality and traits (when it has its own personality), and Split Form's lists. */
   divided?: {
     heroicPersonality?: string
@@ -143,7 +156,13 @@ function sheetAbility(hero: Hero, ability: Ability, pick: AbilityPick & { source
     type: ability.type,
     text: fillText(hero, ability.text, pick.uses, pick.blanks),
     source: pick.source,
+    effects: actionsOf(ability, pick.blanks),
   }
+}
+
+/** An ability's effects' actions: from the data, or from its text for a player-written one. */
+function actionsOf(ability: Ability, blanks?: AbilityPick['blanks']): Action[] {
+  return ability.effects ? effectActions(ability.effects, blanks) : abilityEffects(ability.text)
 }
 
 /**
@@ -230,12 +249,14 @@ function sheetOf(hero: Hero): HeroSheet {
       type: principle.greenAbility.type,
       text: fillPrinciple(principle.greenAbility.text, choice),
       source: 'principle',
+      effects: actionsOf(principle.greenAbility),
     })
   }
 
   // The Out ability, checked like any ability with blanks (the ability retcon may change it).
   const personality = hero.personality && personalitiesById.get(hero.personality.id)
   let out: string | undefined
+  let outEffects: Action[] = []
   const recorded = outPick(hero)
   const outEntry = recorded && findAbility(hero, recorded)
   if (recorded && outEntry) {
@@ -243,6 +264,7 @@ function sheetOf(hero: Hero): HeroSheet {
     warnings.push(...checkAbilityPick(hero, forOut, ability, recorded, 'personality'))
     const pick = retconnedPick(hero, recorded)
     out = fillText(hero, ability.text, pick.uses, pick.blanks)
+    outEffects = actionsOf(ability, pick.blanks)
   }
 
   // Form-Changer forms and Minion-Maker minion forms.
@@ -261,6 +283,7 @@ function sheetOf(hero: Hero): HeroSheet {
         name: pick.customName?.trim() || entry.name,
         type: entry.type,
         text: fillText(hero, entry.text, pick.uses, pick.blanks),
+        effects: actionsOf(entry, pick.blanks),
       },
     }
   })
@@ -281,7 +304,7 @@ function sheetOf(hero: Hero): HeroSheet {
         cannot: mode.cannot,
         immobile: Boolean(mode.immobile),
         ability: pick && pick.name === mode.ability.name
-          ? { name: pick.customName?.trim() || mode.ability.name, type: mode.ability.type, text: fillText(hero, mode.ability.text, pick.uses, pick.blanks) }
+          ? { name: pick.customName?.trim() || mode.ability.name, type: mode.ability.type, text: fillText(hero, mode.ability.text, pick.uses, pick.blanks), effects: actionsOf(mode.ability, pick.blanks) }
           : undefined,
       },
     ]
@@ -307,6 +330,7 @@ function sheetOf(hero: Hero): HeroSheet {
     principles,
     abilities,
     outAbility: out,
+    outEffects,
     divided: divided && {
       heroicPersonality: divided.heroicPersonality && personalitiesById.get(divided.heroicPersonality.id)?.name,
       heroicTraits: heroicTraits(hero),
