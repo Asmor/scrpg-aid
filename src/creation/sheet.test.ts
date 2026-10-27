@@ -64,6 +64,11 @@ describe('buildSheet', () => {
     const grit = buildSheet(hero).abilities.find((a) => a.name === 'Grit')!
     expect(grit.effects).toEqual(['defend'])
     expect(grit.use).toEqual({ effects: [{ actions: ['defend'], use: 'max' }], traits: [] })
+    // Effects the player set win over the text.
+    hero.background!.principle!.custom!.greenAbility.effects = [{ actions: ['overcome'], use: 'mid' }]
+    const set = buildSheet(hero).abilities.find((a) => a.name === 'Grit')!
+    expect(set.effects).toEqual(['overcome'])
+    expect(set.use.effects).toEqual([{ actions: ['overcome'], use: 'mid' }])
   })
 
   it('shows principles’ text and twists', () => {

@@ -100,6 +100,30 @@ describe('PrinciplePicker', () => {
     })
   })
 
+  it('sets what a custom principle’s Green ability does, starting from its text', async () => {
+    render(<Principle />)
+    await userEvent.selectOptions(screen.getByLabelText('Principle of Esoteric'), 'Write my own principle…')
+    const picker = within(screen.getByRole('group', { name: 'What using it does' }))
+    expect(picker.getByText('Nothing found in the text yet; add what it does.')).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Green ability'), 'Overcome at sea and use your Max die.')
+    // Worked out from the text until changed.
+    expect(picker.getByLabelText('Action for effect 1')).toHaveDisplayValue('Overcome')
+    expect(picker.getByLabelText('Die for effect 1')).toHaveDisplayValue('Max')
+    expect(JSON.parse(screen.getByRole('status').textContent!).custom.greenAbility.effects).toBeUndefined()
+    await userEvent.selectOptions(picker.getByLabelText('Die for effect 1'), 'Max+Min')
+    await userEvent.click(picker.getByRole('button', { name: 'Add an effect' }))
+    await userEvent.selectOptions(picker.getByLabelText('Action for effect 2'), 'Boost')
+    expect(JSON.parse(screen.getByRole('status').textContent!).custom.greenAbility.effects).toEqual([
+      { actions: ['overcome'], use: 'max+min' },
+      { actions: ['boost'], use: 'max' },
+    ])
+    await userEvent.click(picker.getByRole('button', { name: 'Remove effect 2' }))
+    await userEvent.click(picker.getByRole('button', { name: 'Remove effect 1' }))
+    expect(picker.getByText('No effects set: using it rolls nothing.')).toBeInTheDocument()
+    await userEvent.click(picker.getByRole('button', { name: 'Work it out from the text' }))
+    expect(JSON.parse(screen.getByRole('status').textContent!).custom.greenAbility.effects).toBeUndefined()
+  })
+
   it('shows the fields for a custom principle with nothing written yet, and flags one in another category', async () => {
     const { unmount } = render(<Principle initial={{ id: 'custom' }} />)
     expect(screen.getByLabelText('Name')).toBeInTheDocument()

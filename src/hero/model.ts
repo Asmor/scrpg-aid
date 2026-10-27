@@ -23,7 +23,7 @@
  */
 import { traitKey, type TraitRef } from '../rules/catalog'
 import type { RollRecord } from '../rules/rolling'
-import type { Die, PrincipleCategoryId } from '../rules/types'
+import type { AbilityEffect, Die, PrincipleCategoryId } from '../rules/types'
 
 export type { RollRecord }
 
@@ -101,8 +101,12 @@ export interface CustomPrinciple {
   roleplaying: string
   minorTwist: string
   majorTwist: string
-  /** Its Green ability: an Overcome boost in a specific circumstance. */
-  greenAbility: { name: string; text: string }
+  /**
+   * Its Green ability: an Overcome boost in a specific circumstance. `effects`, once the
+   * player sets them, say what using it does in the game aid; until then they're worked
+   * out from the text.
+   */
+  greenAbility: { name: string; text: string; effects?: AbilityEffect[] }
 }
 
 export interface BackgroundChoice {

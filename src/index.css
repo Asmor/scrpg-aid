@@ -1465,3 +1465,21 @@ a.button--primary {
 .roll-mod[draggable='true'] {
   cursor: grab;
 }
+
+.effects-picker {
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.effects-picker__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.effects-picker__row .field {
+  flex: 1 1 8rem;
+}

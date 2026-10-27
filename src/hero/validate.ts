@@ -81,13 +81,20 @@ const abilityPick = object({
   'customName?': string,
   'category?': string,
 })
+const action = oneOf('attack', 'defend', 'boost', 'hinder', 'overcome', 'recover')
+const oneAction: Check = (v, path) => (Array.isArray(v) && v.length === 1 ? action(v[0], `${path}[0]`) : `${path} should name one action`)
 const customPrinciple = object({
   category: oneOf('esoteric', 'expertise', 'ideals', 'identity', 'responsibility'),
   name: string,
   roleplaying: string,
   minorTwist: string,
   majorTwist: string,
-  greenAbility: object({ name: string, text: string }),
+  greenAbility: object({
+    name: string,
+    text: string,
+    // Each effect from the editor names exactly one action.
+    'effects?': arrayOf(object({ actions: oneAction, use: oneOf('max', 'mid', 'min', 'max+mid', 'max+min', 'mid+min', 'max+mid+min') })),
+  }),
 })
 const principle = object({ id: nonEmptyString, 'customization?': string, 'custom?': customPrinciple })
 

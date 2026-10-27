@@ -26,7 +26,7 @@ export function principleOf(choice: PrincipleChoice): PrincipleEntry | undefined
     roleplaying: custom.roleplaying,
     minorTwist: custom.minorTwist,
     majorTwist: custom.majorTwist,
-    greenAbility: { name: custom.greenAbility.name.trim() || name, type: 'A', text: custom.greenAbility.text },
+    greenAbility: { name: custom.greenAbility.name.trim() || name, type: 'A', text: custom.greenAbility.text, ...(custom.greenAbility.effects ? { effects: custom.greenAbility.effects } : {}) },
   }
 }
 

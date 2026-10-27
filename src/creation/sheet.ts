@@ -21,7 +21,7 @@ import { checkForms, formAbilityPick, formLabel, formTraits } from './forms'
 import { checkDivided, heroicTraits, outTraits, splitNames } from './divided'
 import { archetypeName, checkSecondary, dividedChoice, layers, outerLayer, traitLayer } from './layers'
 import { checkModular, findMode, modeAbilityPick, modeTraits } from './modular'
-import { abilityEffects, effectActions, narrowEffect, type Action } from './effects'
+import { abilityEffects, effectActions, narrowEffect, textEffects, type Action } from './effects'
 import { checkRedAbilities } from './red'
 import { checkRetcon } from './retcons'
 import { deriveTraits, traitLabel, type HeroTrait } from './traits'
@@ -176,9 +176,9 @@ function sheetAbility(hero: Hero, ability: Ability, pick: AbilityPick & { source
 
 /** What using an ability takes and gives (see AbilityUse). */
 function abilityUseOf(ability: Ability, pick?: Pick<AbilityPick, 'uses' | 'blanks'>): AbilityUse {
-  // A player-written ability (a custom principle's) has no effects in the data: its text's
-  // effect words stand in, using the Max die as nearly every principle in the data does.
-  const listed: AbilityEffect[] = ability.effects ?? abilityEffects(ability.text).map((action) => ({ actions: [action], use: 'max' }))
+  // A player-written ability (a custom principle's) uses the effects the player set, or until
+  // then the ones worked out from its text.
+  const listed: AbilityEffect[] = ability.effects ?? textEffects(ability.text)
   const effects = listed.map((e) => narrowEffect(e, pick?.blanks))
   const req = ability.requires
   const named: TraitRef[] = req && 'power' in req ? [{ kind: 'power', id: req.power }] : req && 'quality' in req ? [{ kind: 'quality', id: req.quality }] : []

@@ -107,6 +107,11 @@ export function effectMentions(text: string): EffectMention[] {
   return mentions
 }
 
+/** A player-written ability's effects worked out from its text: each effect word, using the Max die as nearly every principle does. */
+export function textEffects(text: string): AbilityEffect[] {
+  return abilityEffects(text).map((action) => ({ actions: [action], use: 'max' }))
+}
+
 /** Each effect the ability produces, once, in the order the text first gives them. */
 export function abilityEffects(text: string): Action[] {
   return [...new Set(effectMentions(text).map((m) => m.action))]
