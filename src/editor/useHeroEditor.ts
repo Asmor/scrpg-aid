@@ -1,17 +1,11 @@
-/**
- * Loads a hero for editing and saves every change straight away. Changes are applied to a
- * copy (the store and other views never see a half-made change), and saves run one after
- * another so an older save can't land after a newer one. Leaving the editor waits for them
- * (`flush`), and closing the page while one is running asks first.
- */
-import { useEffect, useRef, useState } from 'react'
+/** Loads a hero for editing and saves every change straight away (see ./useDocumentEditor.ts). */
+import { useCallback } from 'react'
 import { useStore } from '../app/store-context'
 import type { Hero } from '../hero/model'
 import type { GetResult } from '../hero/store'
+import { useDocumentEditor, type Lookup } from './useDocumentEditor'
 
 export type EditorState = { status: 'loading' } | Exclude<GetResult, { status: 'found' }> | { status: 'error'; message: string } | { status: 'ready'; hero: Hero }
-
-const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 export interface HeroEditor {
   state: EditorState
@@ -25,60 +19,11 @@ export interface HeroEditor {
 
 export function useHeroEditor(id: string, now: () => Date = () => new Date()): HeroEditor {
   const store = useStore()
-  const [state, setState] = useState<EditorState>({ status: 'loading' })
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const latest = useRef<Hero | null>(null)
-  const saving = useRef<Promise<void>>(Promise.resolve())
-  const pending = useRef(0)
-
-  useEffect(() => {
-    // The browser shows its own "leave site?" prompt; the message itself isn't shown.
-    const warn = (e: BeforeUnloadEvent) => {
-      if (pending.current > 0) e.preventDefault()
-    }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [])
-
-  useEffect(() => {
-    let current = true
-    store.get(id).then(
-      (result) => {
-        if (!current) return
-        if (result.status === 'found') {
-          latest.current = result.hero
-          setState({ status: 'ready', hero: result.hero })
-        } else {
-          setState(result)
-        }
-      },
-      (e: unknown) => current && setState({ status: 'error', message: errorText(e) }),
-    )
-    return () => {
-      current = false
-    }
-  }, [store, id])
-
-  const update = (change: (draft: Hero) => void) => {
-    const base = latest.current
-    if (!base) return
-    const next = structuredClone(base)
-    change(next)
-    next.updatedAt = now().toISOString()
-    latest.current = next
-    setState({ status: 'ready', hero: next })
-    pending.current++
-    saving.current = saving.current
-      .then(() =>
-        store.save(next).then(
-          () => setSaveError(null),
-          (e: unknown) => setSaveError(errorText(e)),
-        ),
-      )
-      .finally(() => {
-        pending.current--
-      })
-  }
-
-  return { state, update, saveError, flush: () => saving.current }
+  const load = useCallback(async (heroId: string): Promise<Lookup<Hero>> => {
+    const result = await store.get(heroId)
+    return result.status === 'found' ? { status: 'found', doc: result.hero } : result
+  }, [store])
+  const save = useCallback((hero: Hero) => store.save(hero), [store])
+  const { state, ...rest } = useDocumentEditor(id, load, save, now)
+  return { state: state.status === 'ready' ? { status: 'ready', hero: state.doc } : state, ...rest }
 }

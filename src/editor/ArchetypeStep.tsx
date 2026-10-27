@@ -14,7 +14,7 @@ import type { AbilityChoice, Archetype, IfAlreadyHave } from '../rules/types'
 import { describeOptions } from '../creation/format'
 import type { AbilityPick, AbilitySource, ArchetypeChoice, Hero } from '../hero/model'
 import { setStepRoll, stepRoll, takePendingRoll } from '../creation/rolls'
-import { canSwapRequired, deriveTraits, fillerLists, traitsBefore } from '../creation/traits'
+import { canSwapRequired, deriveTraits, fillerLists, traitsBefore, traitLabel } from '../creation/traits'
 import { takesSplitForm } from '../creation/divided'
 import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
@@ -146,7 +146,7 @@ function ArchetypeDetails({ hero, update, ar, choice, at, skipAbilities = false,
       {ar.required && <RequiredHint ar={ar} />}
       {dice ? (
         <DiceAssigner
-          hero={hero}
+          label={(t) => traitLabel(hero, t)}
           legend={`${ar.name} powers and qualities`}
           dice={dice}
           assignments={choice.traits}
@@ -394,7 +394,7 @@ function FillerPowers({ hero, update, outer }: { hero: Hero; update: Update; out
               : `You have ${have} powers, so you don't need filler powers; clear these.`}
           </p>
           <DiceAssigner
-            hero={hero}
+            label={(t) => traitLabel(hero, t)}
             legend="Filler powers"
             dice={Array.from({ length: rows }, () => spec.fillerPowerDie!)}
             assignments={fillers}

@@ -6,7 +6,7 @@ import { expandRefs, type TraitRef } from '../rules/catalog'
 import type { AbilityPick, PrincipleChoice, TraitAssignment } from '../hero/model'
 import type { Ability, Bonus } from '../rules/types'
 import { archetypesById, powerSourcesById } from '../rules/data'
-import { deriveTraits, type HeroTrait } from '../creation/traits'
+import { deriveTraits, type HeroTrait, traitLabel } from '../creation/traits'
 import { A, P, Q, validHero } from '../test/heroes'
 import { describeOptions } from '../creation/format'
 import { DiceAssigner } from './DiceAssigner'
@@ -22,7 +22,7 @@ function Assigner({ initial, earlierHero = false, earlier, canSwap }: { initial:
   return (
     <>
       <DiceAssigner
-        hero={hero}
+        label={(t) => traitLabel(hero, t)}
         legend="Archetype powers"
         dice={['d12', 'd6']}
         assignments={assignments}

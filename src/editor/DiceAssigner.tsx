@@ -1,27 +1,28 @@
 /**
  * Puts a step's dice on powers or qualities from the step's list, one choice per die. A
- * trait the hero already has from an earlier step can be upgraded with a bigger die
+ * trait the character already has from an earlier step can be upgraded with a bigger die
  * (p. 44), which adds a row for the old die it frees; the rules checks warn about anything
  * that doesn't fit.
  */
 import { useId } from 'react'
 import { getCategory, getTrait, parseTraitKey, traitKey, type CatalogTrait, type TraitRef } from '../rules/catalog'
 import type { Die } from '../rules/types'
-import type { Hero, TraitAssignment } from '../hero/model'
+import type { TraitAssignment } from '../hero/model'
 import { assignStepRow, dieRows, freedDice } from '../creation/assign'
-import { traitLabel, type HeroTrait } from '../creation/traits'
+import type { HeroTrait } from '../creation/traits'
 import { DieIcon } from '../components/icons'
 
 interface DiceAssignerProps {
-  hero: Hero
+  /** A trait's name for this character (the player's name for it, or the catalog's). */
+  label: (trait: TraitRef) => string
   /** e.g. "Background qualities" */
   legend: string
   dice: readonly Die[]
   assignments: readonly TraitAssignment[]
   /** The traits the step's list allows. */
   options: readonly CatalogTrait[]
-  /** The hero's traits from earlier steps, for offering upgrades. */
-  earlier: readonly HeroTrait[]
+  /** The character's traits from earlier steps, for offering upgrades. */
+  earlier: readonly Pick<HeroTrait, 'trait' | 'die' | 'name'>[]
   /** Traits that may swap in any die rather than only a bigger one (an archetype's required trait). */
   canSwap?: (trait: TraitRef) => boolean
   onChange: (assignments: TraitAssignment[]) => void
@@ -39,7 +40,7 @@ function byCategory(traits: readonly CatalogTrait[]): { label: string; traits: C
   return [...groups.values()]
 }
 
-export function DiceAssigner({ hero, legend, dice, assignments, options, earlier, canSwap = () => false, onChange }: DiceAssignerProps) {
+export function DiceAssigner({ label, legend, dice, assignments, options, earlier, canSwap = () => false, onChange }: DiceAssignerProps) {
   const baseId = useId()
   const freed = freedDice(assignments, earlier)
   const all = [...dice, ...freed.map((f) => f.die)]
@@ -71,7 +72,7 @@ export function DiceAssigner({ hero, legend, dice, assignments, options, earlier
               {freedFrom && (
                 <>
                   {' '}
-                  <span className="dice-assigner__freed">(was {traitLabel(hero, freedFrom)}'s)</span>
+                  <span className="dice-assigner__freed">(was {label(freedFrom)}'s)</span>
                 </>
               )}
             </label>
@@ -81,12 +82,12 @@ export function DiceAssigner({ hero, legend, dice, assignments, options, earlier
               onChange={(e) => assign(i, e.target.value ? parseTraitKey(e.target.value) : undefined)}
             >
               <option value="">Choose…</option>
-              {offList && <option value={traitKey(current.trait)}>{traitLabel(hero, current.trait)} (not on this list)</option>}
+              {offList && <option value={traitKey(current.trait)}>{label(current.trait)} (not on this list)</option>}
               {groups.map((g) => (
                 <optgroup key={g.label} label={g.label}>
                   {g.traits.map((t) => (
                     <option key={traitKey(t)} value={traitKey(t)}>
-                      {traitLabel(hero, t)}
+                      {label(t)}
                     </option>
                   ))}
                 </optgroup>

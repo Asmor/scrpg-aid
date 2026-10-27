@@ -66,6 +66,7 @@ export interface VillainUpgrade extends PageRef {
 }
 
 export interface VillainHealthChart {
-  formula: { summary: string }
+  /** Health = the sum of the terms: a field of the approach/archetype/upgrades, or so much per hero. */
+  formula: { summary: string; terms: ({ source: string; field: string; sum?: boolean } | { perHero: number })[] }
   ranges: (HealthRange & { orMore?: true })[]
 }

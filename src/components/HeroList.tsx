@@ -31,7 +31,7 @@ interface DeleteControlProps {
 }
 
 /** A Delete button that turns into an inline "Delete? Yes, delete / Keep" confirmation. */
-function DeleteControl({ id, label, confirming, busy, onAsk, onKeep, onDelete, deleteRef, keepRef }: DeleteControlProps) {
+export function DeleteControl({ id, label, confirming, busy, onAsk, onKeep, onDelete, deleteRef, keepRef }: DeleteControlProps) {
   if (!confirming) {
     return (
       <button type="button" className="button" ref={(el) => deleteRef(id, el)} disabled={busy} onClick={onAsk} aria-label={`Delete ${label}`}>

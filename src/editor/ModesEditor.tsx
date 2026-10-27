@@ -247,7 +247,7 @@ export function ModesEditor({ hero, ar, traits, modular, onChange }: { hero: Her
         </label>
         {modular?.powerless && (
           <DiceAssigner
-            hero={hero}
+            label={(t) => traitLabel(hero, t)}
             legend="Powerless mode powers"
             dice={spec.powerless.dice}
             assignments={modular.powerless}

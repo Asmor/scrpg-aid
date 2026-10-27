@@ -67,7 +67,7 @@ export function primaryUse(ability: Ability, pick: PickLike | AbilityPick): Trai
  */
 export function slotCandidates(hero: Hero, traits: readonly HeroTrait[], slot: TraitSlot, step: StepId, limit?: SlotLimit): HeroTrait[] {
   const ctx = contextFor(hero, traits, step, [])
-  return traits.filter((t) => slotAccepts(ctx, slot, t.trait) && (!limit || !slot.kinds.includes(limit.kind) || refsMatch(limit.refs, t.trait)))
+  return traits.filter((t) => slotAccepts(ctx.archetypeTraits, slot, t.trait) && (!limit || !slot.kinds.includes(limit.kind) || refsMatch(limit.refs, t.trait)))
 }
 
 /** Which trait slot (counting trait slots only) a slot limit applies to: the first of its kind. */
@@ -77,10 +77,19 @@ export function limitedSlotIndex(ability: Ability, limit: SlotLimit): number {
     .findIndex((s) => s.kinds.includes(limit.kind))
 }
 
-function slotAccepts(ctx: Context, slot: TraitSlot, trait: TraitRef): boolean {
+/**
+ * Traits that fit a slot, for any kind of character with no "gained from your archetype"
+ * traits (villains): the slot's kinds and `only` list.
+ */
+export function candidatesFor<T extends { trait: TraitRef }>(traits: readonly T[], slot: TraitSlot): T[] {
+  return traits.filter((t) => slotAccepts(new Set(), slot, t.trait))
+}
+
+/** Whether a trait fits a slot; `archetypeTraits` are the traits a "gained from your archetype" slot allows. */
+function slotAccepts(archetypeTraits: ReadonlySet<string>, slot: TraitSlot, trait: TraitRef): boolean {
   if (!slot.kinds.includes(trait.kind)) return false
   if (slot.only && !refsMatch(slot.only, trait)) return false
-  if (slot.fromStep === 'archetype' && !ctx.archetypeTraits.has(traitKey(trait))) return false
+  if (slot.fromStep === 'archetype' && !archetypeTraits.has(traitKey(trait))) return false
   return true
 }
 
@@ -108,7 +117,7 @@ function checkPick(ctx: Context, ability: Ability, pick: PickLike): void {
         warn(ctx, 'slot-empty', `Fill in [${slot.label}] for ${name}.`)
       } else if (!ctx.traits.has(traitKey(use))) {
         warn(ctx, 'slot-not-held', `${name} uses ${label(ctx, use)}, which you don't have.`)
-      } else if (!slotAccepts(ctx, slot, use)) {
+      } else if (!slotAccepts(ctx.archetypeTraits, slot, use)) {
         warn(ctx, 'slot-wrong-trait', `[${slot.label}] for ${name} can't be ${label(ctx, use)}.`)
       } else if (ctx.slotLimit && !limited && slot.kinds.includes(ctx.slotLimit.kind) && !refsMatch(ctx.slotLimit.refs, use)) {
         warn(ctx, 'slot-wrong-trait', `${name} must use ${ctx.slotLimit.what}, not ${label(ctx, use)}.`)

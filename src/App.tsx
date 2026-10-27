@@ -5,6 +5,11 @@ import { HeroList } from './components/HeroList'
 import { HeroPage } from './components/HeroPage'
 import { HeroEditor } from './editor/HeroEditor'
 import { PlayPage } from './play/PlayPage'
+import { VillainStoreContext } from './app/villain-store-context'
+import { createDefaultVillainStore, type VillainStore } from './villain/store'
+import { VillainEditor } from './villain/VillainEditor'
+import { VillainList } from './villain/VillainList'
+import { VillainPage } from './villain/VillainPage'
 import { GmPage } from './session/GmPage'
 import { JoinPage } from './session/JoinPage'
 import { SessionProvider } from './session/SessionProvider'
@@ -14,13 +19,15 @@ import { ThemeToggle } from './components/ThemeToggle'
 import { createDefaultStore, type HeroStore } from './hero/store'
 import { useTheme } from './theme/useTheme'
 
-/** `store`, `connect`, and `sessionStore` are injectable for tests. */
-export default function App({ store: given, connect, sessionStore }: { store?: HeroStore; connect?: Connect; sessionStore?: SessionStore }) {
+/** `store`, `villainStore`, `connect`, and `sessionStore` are injectable for tests. */
+export default function App({ store: given, villainStore: givenVillains, connect, sessionStore }: { store?: HeroStore; villainStore?: VillainStore; connect?: Connect; sessionStore?: SessionStore }) {
   const [theme, setTheme] = useTheme()
   const [store] = useState(() => given ?? createDefaultStore())
+  const [villainStore] = useState(() => givenVillains ?? createDefaultVillainStore())
   const route = useRoute()
   return (
     <StoreContext.Provider value={store}>
+      <VillainStoreContext.Provider value={villainStore}>
       <SessionProvider {...(connect ? { connect } : {})} {...(sessionStore ? { store: sessionStore } : {})}>
       <div className="app">
         <header className="app-header">
@@ -30,7 +37,14 @@ export default function App({ store: given, connect, sessionStore }: { store?: H
           <ThemeToggle value={theme} onChange={setTheme} />
         </header>
         <main className="app-main">
-          {route.name === 'list' && <HeroList />}
+          {route.name === 'list' && (
+            <>
+              <HeroList />
+              <VillainList />
+            </>
+          )}
+          {route.name === 'villain' && <VillainPage key={route.id} id={route.id} />}
+          {route.name === 'villainEdit' && <VillainEditor key={route.id} id={route.id} step={route.step} />}
           {route.name === 'hero' && <HeroPage key={route.id} id={route.id} />}
           {route.name === 'edit' && <HeroEditor key={route.id} id={route.id} step={route.step} />}
           {route.name === 'play' && <PlayPage key={route.id} id={route.id} />}
@@ -44,6 +58,7 @@ export default function App({ store: given, connect, sessionStore }: { store?: H
         </main>
       </div>
       </SessionProvider>
+      </VillainStoreContext.Provider>
     </StoreContext.Provider>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { editPath, gmPath, heroPath, joinPath, joinUrl, parseRoute, playPath } from './route'
+import { editPath, gmPath, heroPath, joinPath, joinUrl, parseRoute, playPath, villainEditPath, villainPath } from './route'
 
 describe('routes', () => {
   it('parses the list, a hero, and anything else', () => {
@@ -32,5 +32,15 @@ describe('routes', () => {
     expect(parseRoute('#/join/%E0%A4%A')).toEqual({ name: 'notFound' })
     expect(parseRoute('#/join/a/b')).toEqual({ name: 'notFound' })
     expect(joinUrl('ABCD-EFGH')).toBe(`${window.location.origin}${window.location.pathname}#/join/ABCD-EFGH`)
+  })
+
+  it('parses villain sheets and the villain editor', () => {
+    expect(parseRoute('#/villain/x')).toEqual({ name: 'villain', id: 'x' })
+    expect(parseRoute('#/villain/x/edit')).toEqual({ name: 'villainEdit', id: 'x' })
+    expect(parseRoute('#/villain/x/edit/health')).toEqual({ name: 'villainEdit', id: 'x', step: 'health' })
+    for (const bad of ['#/villain/x/edit/a/b', '#/villain/x/editor', '#/villain/', '#/villain/%E0%A4%A']) expect(parseRoute(bad)).toEqual({ name: 'notFound' })
+    const id = 'a/b c?#'
+    expect(parseRoute(villainPath(id))).toEqual({ name: 'villain', id })
+    expect(parseRoute(villainEditPath(id, 'approach'))).toEqual({ name: 'villainEdit', id, step: 'approach' })
   })
 })

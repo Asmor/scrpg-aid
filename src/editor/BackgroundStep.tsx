@@ -1,4 +1,5 @@
 /** Step 1, Background (p. 49–54): choose how to make the hero, then a background, assign its quality dice, take its principle. */
+import { traitLabel } from '../creation/traits'
 import { expandRefs } from '../rules/catalog'
 import { backgrounds, backgroundsById, backgroundStep, principleCategories } from '../rules/data'
 import { formatEntryRef } from '../rules/books'
@@ -54,7 +55,7 @@ export function BackgroundStep({ hero, update }: { hero: Hero; update: (change: 
       {choice && bg && (
         <>
           <DiceAssigner
-            hero={hero}
+            label={(t) => traitLabel(hero, t)}
             legend={`${bg.name} qualities`}
             dice={bg.qualities.dice}
             assignments={choice.qualities}

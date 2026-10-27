@@ -2,7 +2,7 @@
 import type { RuleWarning } from '../creation/warnings'
 import { DiceText } from '../components/icons'
 
-export function StepWarnings({ warnings }: { warnings: readonly RuleWarning[] }) {
+export function StepWarnings({ warnings }: { warnings: readonly Pick<RuleWarning, 'code' | 'message'>[] }) {
   if (warnings.length === 0) return <p className="step-ok">No rule issues so far.</p>
   return (
     <section className="step-warnings" aria-label="Rule issues in this step">

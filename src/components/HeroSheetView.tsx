@@ -29,7 +29,7 @@ const STEP_LABEL: Record<StepId, string> = {
   advancement: 'Advancement',
 }
 
-function Panel({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {
+export function Panel({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {
   return (
     <section className={`sheet-panel ${className}`} aria-label={title}>
       <h3 className="sheet-panel__title">{title}</h3>
@@ -38,7 +38,7 @@ function Panel({ title, className = '', children }: { title: string; className?:
   )
 }
 
-function TraitTable({ caption, traits }: { caption: string; traits: readonly HeroTrait[] }) {
+export function TraitTable({ caption, traits }: { caption: string; traits: readonly Pick<HeroTrait, 'trait' | 'die' | 'name'>[] }) {
   if (traits.length === 0) return <p className="sheet-empty">No {caption.toLowerCase()} yet.</p>
   return (
     <table className="trait-table">
@@ -130,7 +130,7 @@ function StatusDice({ dice, label }: { dice: Record<Zone, Die>; label?: string }
   )
 }
 
-function AbilityRow({ name, type, text, effects }: { name: string; type: AbilityType; text: string; effects: readonly Action[] }) {
+export function AbilityRow({ name, type, text, effects }: { name: string; type: AbilityType; text: string; effects: readonly Action[] }) {
   return (
     <li className="ability">
       <span className="ability__type">

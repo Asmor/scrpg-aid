@@ -11,7 +11,7 @@
  *   the hero checks in ../creation/abilities.ts), the archetype's fixed abilities, each
  *   upgrade's abilities, a Villainous Vehicle's abilities, and a major villain's mastery.
  *   Villains can always use all their abilities (no zones).
- * - Health = approach base + archetype modifier + 5 × heroes + upgrade Health, with zone
+ * - Health = approach base + archetype modifier + per-hero Health × heroes + upgrade Health, with zone
  *   ranges from the chart.
  */
 import { checkChoiceBlock, checkPickFor } from '../creation/abilities'
@@ -54,6 +54,8 @@ export interface VillainSheetAbility {
 export interface VillainHealthInfo {
   max: number
   heroCount: number
+  /** Health each hero adds (p. 239). */
+  perHero: number
   /** How the max adds up, for the sheet. */
   parts: { label: string; value: number }[]
   /** The zone ranges from the chart, when the max is on it. */
@@ -79,6 +81,13 @@ export interface VillainSheet {
 }
 
 const ROLEPLAYING_KEY = traitKey(ROLEPLAYING_QUALITY)
+
+/** Health each hero a villain faces adds, from the formula's per-hero term (p. 239). */
+export const HEALTH_PER_HERO = (() => {
+  const term = villainHealth.formula.terms.find((t) => 'perHero' in t)
+  if (!term || !('perHero' in term)) throw new Error('data/villains/health.json: the Health formula has no per-hero term')
+  return term.perHero
+})()
 
 /** A trait's name for this villain: the GM's, or the catalog's. */
 export function villainTraitLabel(villain: Villain, trait: TraitRef): string {
@@ -272,15 +281,16 @@ export function buildVillainSheet(villain: Villain): VillainSheet {
   let health: VillainHealthInfo | undefined
   if (!Number.isInteger(villain.heroCount) || villain.heroCount < 1) warnAt('health', 'hero-count', 'The villain needs to face at least one hero.')
   else if (approach && archetype) {
+    const perHero = HEALTH_PER_HERO
     const parts = [
       { label: `${approach.name} base`, value: approach.baseHealth },
       { label: `${archetype.name} modifier`, value: archetype.healthModifier },
-      { label: `${villain.heroCount} ${villain.heroCount === 1 ? 'hero' : 'heroes'} × 5`, value: 5 * villain.heroCount },
+      { label: `${villain.heroCount} ${villain.heroCount === 1 ? 'hero' : 'heroes'} × ${perHero}`, value: perHero * villain.heroCount },
       ...upgrades.filter((u) => u.health).map((u) => ({ label: u.name, value: u.health })),
     ]
     const max = parts.reduce((sum, p) => sum + p.value, 0)
     const ranges = villainHealth.ranges.find((r) => r.max === max || (r.orMore && max >= r.max))
-    health = { max, heroCount: villain.heroCount, parts, ...(ranges ? { ranges: { max, green: [max, ranges.green[1]], yellow: ranges.yellow, red: ranges.red } } : {}) }
+    health = { max, heroCount: villain.heroCount, perHero, parts, ...(ranges ? { ranges: { max, green: [max, ranges.green[1]], yellow: ranges.yellow, red: ranges.red } } : {}) }
     if (!ranges) warnAt('health', 'off-chart', `Health ${max} isn't on the villain Health chart, so it has no zone ranges.`)
   }
 

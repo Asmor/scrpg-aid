@@ -9,7 +9,7 @@ import type { AbilityChoice, PowerSource } from '../rules/types'
 import { describeOptions } from '../creation/format'
 import type { AbilityPick, AbilitySource, Hero } from '../hero/model'
 import { setStepRoll, stepRoll, takePendingRoll } from '../creation/rolls'
-import { deriveTraits, traitsBefore } from '../creation/traits'
+import { deriveTraits, traitsBefore, traitLabel } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
 import { DiceAssigner } from './DiceAssigner'
@@ -69,7 +69,7 @@ export function PowerSourceStep({ hero, update }: { hero: Hero; update: (change:
         <>
           {dice ? (
             <DiceAssigner
-              hero={hero}
+              label={(t) => traitLabel(hero, t)}
               legend={`${ps.name} powers`}
               dice={dice}
               assignments={choice.powers}

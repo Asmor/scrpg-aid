@@ -74,7 +74,7 @@ function FormCard({ hero, ar, traits, forms, form, label, onChange, onRemove }: 
         />
       </label>
       <DiceAssigner
-        hero={hero}
+        label={(t) => traitLabel(hero, t)}
         legend={`${name} powers`}
         dice={formDice(traits)}
         assignments={form.powers}
