@@ -53,6 +53,16 @@ export function statusDieFor(sheet: Pick<HeroSheet, 'statusDice'>, zone: PlayZon
   return zone && zone !== 'out' ? sheet.statusDice?.[zone] : undefined
 }
 
+/**
+ * Whether an ability from a zone can be used in the hero's zone (p. 14): Green always,
+ * Yellow in Yellow or Red, Red only in Red; when Out, only the Out ability.
+ */
+export function abilityAvailable(from: Zone | 'out', zone: PlayZone | undefined): boolean {
+  const current = zone ?? 'green'
+  if (from === 'out' || current === 'out') return from === current
+  return ORDER.indexOf(current) >= ORDER.indexOf(from)
+}
+
 /** What each change needs: the time, and a source of new ids. */
 export interface Clock {
   now: Date

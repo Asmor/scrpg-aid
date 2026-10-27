@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildSheet } from '../creation/sheet'
 import { completeHero } from '../test/heroes'
-import { addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, newIssue, removeMod, removeTwist, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
+import { abilityAvailable, addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, newIssue, removeMod, removeTwist, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
 
 // completeHero: Max Health 30; Green 30–23, Yellow 22–12, Red 11–1; Lone Wolf d8/d8/d8.
 const sheet = buildSheet(completeHero())
@@ -30,6 +30,16 @@ describe('zones', () => {
 
   it('shows a stored Health above a max that has since dropped as the max', () => {
     expect(currentHealth(sheet, { ...emptyPlay(), health: 40 })).toBe(30)
+  })
+
+  it('lets abilities be used by zone, and only the Out ability when Out', () => {
+    const table = (['green', 'yellow', 'red', 'out'] as const).map((from) => [undefined, 'green', 'yellow', 'red', 'out'].map((z) => abilityAvailable(from, z as never)))
+    expect(table).toEqual([
+      [true, true, true, true, false],
+      [false, false, true, true, false],
+      [false, false, false, true, false],
+      [false, false, false, false, true],
+    ])
   })
 
   it('gives the zone’s status die, and none when Out', () => {

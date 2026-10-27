@@ -117,13 +117,14 @@ export function abilityEffects(text: string): Action[] {
  * from a [blank] ("[Boost or Hinder]") is narrowed to the player's choice there, if made.
  */
 export function effectActions(effects: readonly AbilityEffect[], blanks: AbilityPick['blanks'] = {}): Action[] {
-  const actions: Action[] = []
-  for (const e of effects) {
-    const chosen = e.fromBlank ? blanks?.[e.fromBlank] : undefined
-    const picked = typeof chosen === 'string' && chosen.trim() ? e.actions.filter((a) => ACTION_LABEL[a] === chosen.trim()) : []
-    actions.push(...(picked.length ? picked : e.actions))
-  }
-  return [...new Set(actions)]
+  return [...new Set(effects.flatMap((e) => narrowEffect(e, blanks).actions))]
+}
+
+/** An effect whose actions come from a [blank], narrowed to the player's choice there (if it names one of them). */
+export function narrowEffect(effect: AbilityEffect, blanks: AbilityPick['blanks'] = {}): AbilityEffect {
+  const chosen = effect.fromBlank ? blanks?.[effect.fromBlank] : undefined
+  const picked = typeof chosen === 'string' && chosen.trim() ? effect.actions.filter((a) => ACTION_LABEL[a] === chosen.trim()) : []
+  return picked.length ? { ...effect, actions: picked } : effect
 }
 
 /**

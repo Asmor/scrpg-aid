@@ -10,7 +10,7 @@ import {
   powerSourcesById,
 } from '../rules/data'
 import { parseSlots } from '../rules/slots'
-import type { Ability, AbilityType, BasicAction, Die, HealthRange, MinionForm, Zone } from '../rules/types'
+import type { Ability, AbilityEffect, AbilityPool, AbilityType, BasicAction, Die, HealthRange, MinionForm, Zone } from '../rules/types'
 import type { AbilityPick, AbilitySource, Collection, Hero, PrincipleChoice } from '../hero/model'
 import { advancedHero, checkAdvancement, describeChange } from './advancement'
 import { checkAbilities, checkAbilityPick, checkAbilityRetcon } from './abilities'
@@ -21,7 +21,7 @@ import { checkForms, formAbilityPick, formLabel, formTraits } from './forms'
 import { checkDivided, heroicTraits, outTraits, splitNames } from './divided'
 import { archetypeName, checkSecondary, dividedChoice, layers, outerLayer, traitLayer } from './layers'
 import { checkModular, findMode, modeAbilityPick, modeTraits } from './modular'
-import { abilityEffects, effectActions, type Action } from './effects'
+import { abilityEffects, effectActions, narrowEffect, type Action } from './effects'
 import { checkRedAbilities } from './red'
 import { checkRetcon } from './retcons'
 import { deriveTraits, traitLabel, type HeroTrait } from './traits'
@@ -39,6 +39,8 @@ export interface SheetAbility {
   source: AbilitySource | 'principle'
   /** The actions its effects are (./effects.ts), for the icons. */
   effects: Action[]
+  /** What using it rolls and produces, for the game aid. */
+  use: AbilityUse
 }
 
 /** A form's or mode's own ability. */
@@ -47,6 +49,16 @@ export interface SheetFormAbility {
   type: AbilityType
   text: string
   effects: Action[]
+  use: AbilityUse
+}
+
+/** What using an ability takes and gives, for the game aid (Phase 3). */
+export interface AbilityUse {
+  /** Its effects, with a [blank] choice of actions narrowed to the player's pick. */
+  effects: AbilityEffect[]
+  pool?: AbilityPool
+  /** The powers and qualities it uses: its filled slots, or the one it names. */
+  traits: TraitRef[]
 }
 
 export interface SheetPrinciple {
@@ -93,6 +105,7 @@ export interface HeroSheet {
   outAbility?: string
   /** The Out ability's effects' actions. */
   outEffects: Action[]
+  outUse?: AbilityUse
   /** Divided: the heroic form's personality and traits (when it has its own personality), and Split Form's lists. */
   divided?: {
     heroicPersonality?: string
@@ -157,7 +170,19 @@ function sheetAbility(hero: Hero, ability: Ability, pick: AbilityPick & { source
     text: fillText(hero, ability.text, pick.uses, pick.blanks),
     source: pick.source,
     effects: actionsOf(ability, pick.blanks),
+    use: abilityUseOf(ability, pick),
   }
+}
+
+/** What using an ability takes and gives (see AbilityUse). */
+function abilityUseOf(ability: Ability, pick?: Pick<AbilityPick, 'uses' | 'blanks'>): AbilityUse {
+  // A player-written ability (a custom principle's) has no effects in the data: its text's
+  // effect words stand in, using the Max die as nearly every principle in the data does.
+  const listed: AbilityEffect[] = ability.effects ?? abilityEffects(ability.text).map((action) => ({ actions: [action], use: 'max' }))
+  const effects = listed.map((e) => narrowEffect(e, pick?.blanks))
+  const req = ability.requires
+  const named: TraitRef[] = req && 'power' in req ? [{ kind: 'power', id: req.power }] : req && 'quality' in req ? [{ kind: 'quality', id: req.quality }] : []
+  return { effects, ...(ability.pool ? { pool: ability.pool } : {}), traits: pick?.uses?.length ? [...pick.uses] : named }
 }
 
 /** An ability's effects' actions: from the data, or from its text for a player-written one. */
@@ -250,6 +275,7 @@ function sheetOf(hero: Hero): HeroSheet {
       text: fillPrinciple(principle.greenAbility.text, choice),
       source: 'principle',
       effects: actionsOf(principle.greenAbility),
+      use: abilityUseOf(principle.greenAbility),
     })
   }
 
@@ -257,6 +283,7 @@ function sheetOf(hero: Hero): HeroSheet {
   const personality = hero.personality && personalitiesById.get(hero.personality.id)
   let out: string | undefined
   let outEffects: Action[] = []
+  let outUse: AbilityUse | undefined
   const recorded = outPick(hero)
   const outEntry = recorded && findAbility(hero, recorded)
   if (recorded && outEntry) {
@@ -265,6 +292,7 @@ function sheetOf(hero: Hero): HeroSheet {
     const pick = retconnedPick(hero, recorded)
     out = fillText(hero, ability.text, pick.uses, pick.blanks)
     outEffects = actionsOf(ability, pick.blanks)
+    outUse = abilityUseOf(ability, pick)
   }
 
   // Form-Changer forms and Minion-Maker minion forms.
@@ -284,6 +312,7 @@ function sheetOf(hero: Hero): HeroSheet {
         type: entry.type,
         text: fillText(hero, entry.text, pick.uses, pick.blanks),
         effects: actionsOf(entry, pick.blanks),
+        use: abilityUseOf(entry, pick),
       },
     }
   })
@@ -304,7 +333,7 @@ function sheetOf(hero: Hero): HeroSheet {
         cannot: mode.cannot,
         immobile: Boolean(mode.immobile),
         ability: pick && pick.name === mode.ability.name
-          ? { name: pick.customName?.trim() || mode.ability.name, type: mode.ability.type, text: fillText(hero, mode.ability.text, pick.uses, pick.blanks), effects: actionsOf(mode.ability, pick.blanks) }
+          ? { name: pick.customName?.trim() || mode.ability.name, type: mode.ability.type, text: fillText(hero, mode.ability.text, pick.uses, pick.blanks), effects: actionsOf(mode.ability, pick.blanks), use: abilityUseOf(mode.ability, pick) }
           : undefined,
       },
     ]
@@ -331,6 +360,7 @@ function sheetOf(hero: Hero): HeroSheet {
     abilities,
     outAbility: out,
     outEffects,
+    ...(outUse ? { outUse } : {}),
     divided: divided && {
       heroicPersonality: divided.heroicPersonality && personalitiesById.get(divided.heroicPersonality.id)?.name,
       heroicTraits: heroicTraits(hero),

@@ -9,8 +9,12 @@ import { DieIcon } from '../components/icons'
 import { buildSheet } from '../creation/sheet'
 import { useHeroEditor } from '../editor/useHeroEditor'
 import { heroDisplayName, newId, type PlayState } from '../hero/model'
-import { addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, MAX_HERO_POINTS, newIssue, removeMod, removeTwist, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock, type PlayZone } from './state'
+import { abilityAvailable, addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, MAX_HERO_POINTS, newIssue, removeMod, removeTwist, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock, type PlayZone } from './state'
 import { formatFull, formatWhen } from './time'
+import { ActionIcon } from '../components/icons'
+import { ABILITY_TYPE_LABEL } from '../hero/labels'
+import { confirmRoll } from './roll'
+import { RollDialog, type RollSubject } from './RollDialog'
 
 const ZONE_LABEL: Record<PlayZone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red', out: 'Out' }
 const MOD_VALUES = [-4, -3, -2, -1, 1, 2, 3, 4] as const
@@ -34,7 +38,7 @@ function useTick(ms = 30_000): Date {
   return now
 }
 
-export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => newId() }) }: { id: string; clock?: () => Clock }) {
+export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => newId() }), random }: { id: string; clock?: () => Clock; random?: () => number }) {
   const { state, update, saveError, flush } = useHeroEditor(id)
   const formId = useId()
   const tick = useTick()
@@ -46,6 +50,7 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
   const [twistKind, setTwistKind] = useState<'minor' | 'major'>('minor')
   const [twistText, setTwistText] = useState('')
   const [confirmIssue, setConfirmIssue] = useState(false)
+  const [rolling, setRolling] = useState<RollSubject | null>(null)
 
   if (state.status !== 'ready') {
     return (
@@ -254,6 +259,44 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
         </Section>
       </div>
 
+      <Section title="Abilities">
+        <div className="button-row">
+          <button type="button" className="button" disabled={zone === 'out'} onClick={() => setRolling({ kind: 'basic' })}>
+            Basic action…
+          </button>
+        </div>
+        <ul className="play-abilities">
+          {[...sheet.abilities.map((a) => ({ key: `${a.source}:${a.baseName}`, name: a.name, type: a.type, text: a.text, effects: a.effects, use: a.use, from: a.zone as PlayZone })), ...(sheet.outAbility && sheet.outUse ? [{ key: 'out', name: 'Out ability', type: 'A' as const, text: sheet.outAbility, effects: sheet.outEffects, use: sheet.outUse, from: 'out' as const }] : [])].map((a) => {
+            // A reaction can't be used again until the round's reaction is ready (p. 29).
+            const spent = a.type === 'R' && play.reactionUsed
+            const available = abilityAvailable(a.from, zone) && !spent
+            const usable = a.type !== 'I'
+            return (
+              <li key={a.key} className={`play-ability zone-${a.from}`}>
+                <span className="play-ability__name">
+                  {a.name} <span className="choice__note">({ABILITY_TYPE_LABEL[a.type]})</span>{' '}
+                  {a.effects.map((e) => (
+                    <ActionIcon key={e} action={e} />
+                  ))}
+                </span>
+                {usable && (
+                  <button
+                    type="button"
+                    className="button"
+                    disabled={!available}
+                    aria-label={`Use ${a.name}`}
+                    onClick={() => setRolling({ kind: 'ability', name: a.name, text: a.text, use: a.use, reaction: a.type === 'R' })}
+                  >
+                    Use
+                  </button>
+                )}
+                {usable && !available && <span className="hint">{spent ? 'Reaction used this round' : a.from === 'out' ? 'When Out' : a.from === 'red' ? 'Red zone only' : a.from === 'yellow' ? 'Yellow or Red zone' : 'Not while Out'}</span>}
+              </li>
+            )
+          })}
+        </ul>
+      </Section>
+
       <Section title="History">
         {play.history.length === 0 ? (
           <p className="sheet-empty">Nothing yet. Changes you make here are recorded.</p>
@@ -277,6 +320,24 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
           </ol>
         )}
       </Section>
+
+      {rolling && (
+        <RollDialog
+          subject={rolling}
+          sheet={sheet}
+          zone={zone}
+          mods={play.mods}
+          onClose={() => setRolling(null)}
+          onConfirm={(record) =>
+            change((p, c) => {
+              const after = confirmRoll(p, record, c)
+              return rolling.kind === 'ability' && rolling.reaction ? setReactionUsed(after, true, c) : after
+            })
+          }
+          onAddMod={(mod) => change((p, c) => addMod(p, mod, c))}
+          random={random}
+        />
+      )}
 
       <div className="button-row">
         {confirmIssue ? (

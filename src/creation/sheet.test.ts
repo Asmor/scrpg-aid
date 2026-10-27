@@ -38,10 +38,32 @@ describe('buildSheet', () => {
     expect(sheet.outEffects).toEqual(['boost'])
   })
 
+  it('gives each ability what using it takes: effects, pool, and traits', () => {
+    const hero = completeHero()
+    const sheet = buildSheet(hero)
+    const use = (name: string) => sheet.abilities.find((a) => a.name === name)!.use
+    // Filled slots give the traits; "[Boost or Hinder]" filled as Boost narrows the effect.
+    expect(use('Inflict')).toEqual({ effects: [{ actions: ['attack'], use: 'mid' }, { actions: ['hinder'], use: 'min' }], traits: [P('fire')] })
+    expect(use('Area Alteration')).toEqual({ effects: [{ actions: ['boost'], use: 'max', fromBlank: 'Boost or Hinder' }], traits: [P('agility')] })
+    // Left unfilled, both actions stay.
+    hero.powerSource!.abilities = hero.powerSource!.abilities.map((a) => (a.name === 'Area Alteration' ? { ...a, blanks: {} } : a))
+    expect(buildSheet(hero).abilities.find((a) => a.name === 'Area Alteration')!.use.effects[0]!.actions).toEqual(['boost', 'hinder'])
+    // The Out ability rolls a single die: its quality.
+    expect(sheet.outUse).toEqual({ effects: [{ actions: ['boost'], use: 'single' }], pool: { single: 'trait' }, traits: [Q('fitness')] })
+  })
+
+  it('takes the trait an ability names when it has no slots', () => {
+    const hero = completeHero()
+    hero.redAbilities = [{ source: 'red', name: 'Major Regeneration', category: 'power:athletic' }]
+    expect(buildSheet(hero).abilities.find((a) => a.name === 'Major Regeneration')!.use.traits).toEqual([P('vitality')])
+  })
+
   it('works out a custom principle’s effects from its text', () => {
     const hero = completeHero()
     hero.background!.principle = { id: 'custom', custom: { category: 'identity', name: 'Grit', roleplaying: 'r', minorTwist: 'm', majorTwist: 'M', greenAbility: { name: 'Grit', text: 'Defend using your Max die.' } } }
-    expect(buildSheet(hero).abilities.find((a) => a.name === 'Grit')!.effects).toEqual(['defend'])
+    const grit = buildSheet(hero).abilities.find((a) => a.name === 'Grit')!
+    expect(grit.effects).toEqual(['defend'])
+    expect(grit.use).toEqual({ effects: [{ actions: ['defend'], use: 'max' }], traits: [] })
   })
 
   it('shows principles’ text and twists', () => {
