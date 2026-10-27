@@ -103,7 +103,7 @@ Output should be kept in `data/`.
       - With roll and effects
     - "Gained '-3 tied up' penalty"
 
-### Phase 4: Peer-to-peer game sessions
+### Phase 4: Peer-to-peer game sessions **(Complete)**
 
 - A GM can host a game session and players can join it
   - Serverless, using Trystero (WebRTC)
@@ -136,9 +136,12 @@ Output should be kept in `data/`.
   - The recipient can remove it
 - Known limitation: some strict networks block peer-to-peer connections without a relay (TURN) server; revisit if real tables hit it
 
-### Future plans
+### Phase 5: Other gameplay elements
+
+Implement all functionality for the following:
 
 - Villains
-- Minions & Lieutenants
+- Minions & Lieutenants (these are similar enough that the difference may as well just be a "lieutenant" checkbox)
 - Environments
-- GM mode?
+- Clocks
+- Skill challenges
