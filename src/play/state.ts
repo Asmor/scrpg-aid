@@ -92,11 +92,15 @@ export function setHealth(play: PlayState, sheet: Pick<HeroSheet, 'healthRanges'
   return withEntry({ ...play, health: next }, entry(clock, parts.join(' ')))
 }
 
-export function setSceneZone(play: PlayState, zone: 'green' | 'yellow' | 'red', clock: Clock): PlayState {
+/** The history entry for a scene change the GM made in a game session (./session). */
+export const sceneByGmText = (zone: Zone) => `The GM set the scene to ${ZONE_NAME[zone]}.`
+
+/** Sets the scene zone; `byGm` when the GM of a game session changed it. */
+export function setSceneZone(play: PlayState, zone: Zone, clock: Clock, byGm = false): PlayState {
   const current = play.sceneZone ?? 'green'
   if (zone === current) return play
   const { sceneZone: _, ...rest } = play
-  return withEntry(zone === 'green' ? rest : { ...rest, sceneZone: zone }, entry(clock, `The scene is now ${ZONE_NAME[zone]}.`))
+  return withEntry(zone === 'green' ? rest : { ...rest, sceneZone: zone }, entry(clock, byGm ? sceneByGmText(zone) : `The scene is now ${ZONE_NAME[zone]}.`))
 }
 
 /** Changes to a Form-Changer form or Modular mode (`key` unset for the base one), named in the history. */
@@ -121,10 +125,11 @@ export function describeMod(mod: Pick<PlayMod, 'label' | 'value' | 'persistent' 
   return `'${label ? `${sign} ${label}` : sign}' ${mod.value > 0 ? 'bonus' : 'penalty'}${flags.length ? ` (${flags.join(', ')})` : ''}`
 }
 
-export function addMod(play: PlayState, mod: Omit<PlayMod, 'id'>, clock: Clock): PlayState {
+/** Adds a bonus or penalty; `from` names who gave it, and `id` sets its id (both from a game session). */
+export function addMod(play: PlayState, mod: Omit<PlayMod, 'id'>, clock: Clock, given: { id?: string; from?: string } = {}): PlayState {
   if (!Number.isInteger(mod.value) || mod.value === 0) return play
-  const added: PlayMod = { id: clock.newId(), label: mod.label.trim(), value: mod.value, ...(mod.persistent ? { persistent: true } : {}), ...(mod.exclusive ? { exclusive: true } : {}) }
-  return withEntry({ ...play, mods: [...play.mods, added] }, entry(clock, `Gained ${describeMod(added)}.`))
+  const added: PlayMod = { id: given.id ?? clock.newId(), label: mod.label.trim(), value: mod.value, ...(mod.persistent ? { persistent: true } : {}), ...(mod.exclusive ? { exclusive: true } : {}) }
+  return withEntry({ ...play, mods: [...play.mods, added] }, entry(clock, `Gained ${describeMod(added)}${given.from ? ` from ${given.from}` : ''}.`))
 }
 
 /** Removes a mod; `why` says how in the history ("Used up", default "Removed"). */
