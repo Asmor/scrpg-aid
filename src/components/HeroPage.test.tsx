@@ -59,7 +59,7 @@ describe('HeroPage', () => {
     const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
     expect(name).toBe('maya-reyes.json')
     expect(type).toBe('application/json')
-    expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], skipped: [] })
+    expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], villains: [], skipped: [] })
   })
 
   it('exports the hero as Markdown that imports back', async () => {
@@ -71,7 +71,7 @@ describe('HeroPage', () => {
     expect(name).toBe('maya-reyes.md')
     expect(type).toBe('text/markdown')
     expect(text).toMatch(/^# Maya Reyes\n/)
-    expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], skipped: [] })
+    expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], villains: [], skipped: [] })
   })
 
   it('exports the hero as an HTML page that imports back', async () => {
@@ -83,7 +83,7 @@ describe('HeroPage', () => {
     const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
     expect(name).toBe('maya-reyes.html')
     expect(type).toBe('text/html')
-    expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], skipped: [] })
+    expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], villains: [], skipped: [] })
   })
 
   it('says when the HTML file couldn’t be made', async () => {

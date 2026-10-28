@@ -3,7 +3,8 @@ import { exampleHero } from '../hero/example'
 import { createHero } from '../hero/model'
 import { formChangerHero } from '../test/heroes'
 import { readImport } from './files'
-import { heroHtml as renderHtml } from './html'
+import { heroHtml as renderHtml, villainHtml } from './html'
+import { adaptiveBruiser } from '../test/villains'
 import { TEST_ICONS } from '../test/icons'
 import type { Hero } from '../hero/model'
 import { heroMarkdown } from './markdown'
@@ -40,7 +41,7 @@ describe('heroHtml', () => {
 
   it('imports back to the same hero', () => {
     const hero = { ...formChangerHero(), id: 'f1' }
-    expect(readImport(heroHtml(hero))).toEqual({ ok: true, heroes: [hero], skipped: [] })
+    expect(readImport(heroHtml(hero))).toEqual({ ok: true, heroes: [hero], villains: [], skipped: [] })
   })
 
   it('keeps the player’s text as text, and the real payload findable', () => {
@@ -52,8 +53,22 @@ describe('heroHtml', () => {
     expect(doc.title).toBe(hero.details.name)
     expect(doc.querySelectorAll('script')).toHaveLength(1)
     expect(doc.querySelectorAll('img[onerror], img[src="x"]')).toHaveLength(0)
-    expect(readImport(html)).toEqual({ ok: true, heroes: [hero], skipped: [] })
+    expect(readImport(html)).toEqual({ ok: true, heroes: [hero], villains: [], skipped: [] })
     // A Markdown export with the same text still finds its own comment.
-    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], skipped: [] })
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], villains: [], skipped: [] })
+  })
+})
+
+describe('villainHtml', () => {
+  it('is a standalone villain sheet, without rule issues, that imports back', () => {
+    const v = adaptiveBruiser()
+    v.upgrades = [{ id: 'mook-squad', abilities: [] }]
+    const html = villainHtml(v, TEST_ICONS)
+    const doc = parse(html)
+    expect(doc.title).toBe('Ironclad')
+    expect(doc.querySelector('[aria-label="Ironclad villain sheet"]')).not.toBeNull()
+    // It needs a mastery, but exports leave rule issues out.
+    expect(doc.querySelector('.sheet-warnings')).toBeNull()
+    expect(readImport(html)).toEqual({ ok: true, heroes: [], villains: [v], skipped: [] })
   })
 })

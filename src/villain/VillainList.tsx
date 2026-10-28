@@ -11,7 +11,8 @@ type State = { status: 'loading' } | { status: 'ready'; list: List } | { status:
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-export function VillainList() {
+/** `refresh` reloads the list (after an import elsewhere on the page); `onChanged` says a villain was added or deleted. */
+export function VillainList({ refresh = 0, onChanged }: { refresh?: number; onChanged?: () => void } = {}) {
   const store = useVillainStore()
   const [state, setState] = useState<State>({ status: 'loading' })
   const [version, setVersion] = useState(0)
@@ -30,7 +31,7 @@ export function VillainList() {
     return () => {
       live = false
     }
-  }, [store, version])
+  }, [store, version, refresh])
 
   useEffect(() => {
     if (confirming) keepRef.current?.focus()
@@ -57,6 +58,7 @@ export function VillainList() {
       await store.remove(id)
       setConfirming(null)
       setVersion((v) => v + 1)
+      onChanged?.()
     } catch (e) {
       setActionError(`Couldn't delete it: ${errorText(e)}`)
     } finally {

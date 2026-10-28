@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { villainArchetypesById } from '../rules/villain-data'
 import type { VillainStatusRule } from '../rules/villain-types'
-import { statusSummary } from './status'
+import { statusDetailLines, statusSummary } from './status'
 import { StatusRuleText } from './StatusRule'
 
 const rule = (id: string) => villainArchetypesById.get(id)!.status
@@ -35,5 +35,14 @@ describe('a villain’s status rule', () => {
     render(<StatusRuleText rule={rule('indomitable')} />)
     expect(screen.getByRole('img', { name: 'd8' })).toBeInTheDocument()
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
+  })
+})
+
+describe('statusDetailLines', () => {
+  it('gives each rule’s details as text, for the sheet and the exports', () => {
+    expect(statusDetailLines(rule('bruiser'))).toEqual(['Green d6, Yellow d8, Red d10'])
+    expect(statusDetailLines(rule('indomitable'))).toEqual([])
+    expect(statusDetailLines(rule('titan'))[1]).toMatch(/\(1 success\)$/)
+    expect(statusDetailLines(rule('formidable'))).toHaveLength(3)
   })
 })

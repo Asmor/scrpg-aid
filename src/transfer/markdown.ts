@@ -1,5 +1,5 @@
 /**
- * The hero sheet as Markdown: headings, lists and tables only, laid out to read well as
+ * The hero sheet (and a villain's) as Markdown: headings, lists and tables only, laid out to read well as
  * plain text and rendered. It ends with the hero's JSON in an HTML comment (the one HTML
  * allowed), so the file can be imported back. Rule warnings are left out.
  */
@@ -10,7 +10,11 @@ import { modeLimits } from '../creation/format'
 import { ABILITY_TYPE_LABEL, DETAIL_LABEL, ZONE_LABEL } from '../hero/labels'
 import { DETAIL_FIELDS, heroDisplayName, type Hero } from '../hero/model'
 import type { AbilityType, Die, Zone } from '../rules/types'
-import { markdownPayload } from './embed'
+import type { VillainStatusRule } from '../rules/villain-types'
+import { villainDisplayName, type Villain } from '../villain/model'
+import { buildVillainSheet } from '../villain/sheet'
+import { statusDetailLines, statusSummary } from '../villain/status'
+import { embeddableJson, embeddableVillainJson, markdownPayload } from './embed'
 
 const ZONES = ['green', 'yellow', 'red'] as const
 
@@ -52,7 +56,7 @@ function table(header: readonly string[], rows: readonly (readonly string[])[]):
   return [line(cells[0]!), `| ${widths.map((w) => '-'.repeat(w)).join(' | ')} |`, ...cells.slice(1).map(line)].join('\n')
 }
 
-function traitTable(kind: string, traits: readonly HeroTrait[]): string {
+function traitTable(kind: string, traits: readonly Pick<HeroTrait, 'name' | 'die'>[]): string {
   if (traits.length === 0) return `No ${kind === 'Quality' ? 'qualities' : `${kind.toLowerCase()}s`} yet.`
   return table([kind, 'Die'], traits.map((t) => [escapeInline(t.name), t.die]))
 }
@@ -173,6 +177,52 @@ export function heroMarkdown(hero: Hero): string {
     blocks.push('No principles yet.')
   }
 
-  blocks.push(...abilities(sheet), ...auxiliary(sheet), ...advancement(sheet), markdownPayload(hero))
+  blocks.push(...abilities(sheet), ...auxiliary(sheet), ...advancement(sheet), markdownPayload(embeddableJson(hero)))
+  return `${blocks.join('\n\n')}\n`
+}
+
+const statusLines = (rule: VillainStatusRule): string => [escapeInline(statusSummary(rule)), ...statusDetailLines(rule).map((i) => `- ${escapeInline(i)}`)].join('\n')
+
+/** A villain as a Markdown document (Phase 5), carrying its JSON so it can be imported back. */
+export function villainMarkdown(villain: Villain): string {
+  const sheet = buildVillainSheet(villain)
+  const { details } = villain
+  const blocks: string[] = [heading(1, villainDisplayName(villain))]
+  if (sheet.alias && sheet.alias !== sheet.name) blocks.push(`**Alias:** ${text(sheet.alias)}`)
+  blocks.push(
+    '## Characteristics',
+    [field('Approach', sheet.approach ?? '—'), field('Archetype', sheet.archetype ?? '—'), field('Kind', sheet.major ? 'Major villain' : 'Minor villain')].join('\n'),
+  )
+  const detailRows = (
+    [
+      ['Concept', details.concept],
+      ['Appearance', details.appearance],
+      ['Costume', details.costume],
+      ['Mannerisms', details.mannerisms],
+      ['Motivation', details.motivation],
+      ['Ties to the heroes', details.ties],
+      ['Notes', villain.notes ?? ''],
+    ] as const
+  ).filter(([, v]) => v.trim())
+  if (detailRows.length) blocks.push('## Details', detailRows.map(([k, v]) => field(k, v)).join('\n'))
+  blocks.push('## Powers', traitTable('Power', sheet.powers), '## Qualities', traitTable('Quality', sheet.qualities))
+  blocks.push('## Health')
+  if (sheet.health) {
+    const h = sheet.health
+    blocks.push(`**Max Health:** ${h.max} (built for ${h.heroCount} ${h.heroCount === 1 ? 'hero' : 'heroes'}, ${h.perHero} Health each)`)
+    const ranges = h.ranges
+    if (ranges) blocks.push(ZONES.map((z) => `- **${ZONE_LABEL[z]}:** ${ranges[z][0]}–${ranges[z][1]}`).join('\n'))
+  } else {
+    blocks.push('Not worked out yet.')
+  }
+  if (sheet.status) blocks.push('## Status die', statusLines(sheet.status))
+  blocks.push('## Abilities', sheet.abilities.length ? sheet.abilities.map((a) => abilityItem(a.upgrade ? { ...a, name: `${a.name} (${a.upgrade})` } : a)).join('\n') : 'None yet.')
+  if (sheet.upgrades.length || sheet.mastery) {
+    blocks.push('## Upgrades and mastery')
+    if (sheet.upgrades.length) blocks.push(sheet.upgrades.map((u) => `- **${escapeInline(u.name)}**${u.summary ? `: ${text(u.summary, '  ')}` : ''}`).join('\n'))
+    if (sheet.vehicle) blocks.push(`### Vehicle${sheet.vehicle.die ? ` (${sheet.vehicle.die})` : ''}`, sheet.vehicle.abilities.length ? sheet.vehicle.abilities.map(abilityItem).join('\n') : 'None yet.')
+    if (sheet.mastery) blocks.push('### Mastery', abilityItem(sheet.mastery))
+  }
+  blocks.push(markdownPayload(embeddableVillainJson(villain)))
   return `${blocks.join('\n\n')}\n`
 }

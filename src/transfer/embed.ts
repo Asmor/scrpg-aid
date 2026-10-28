@@ -1,9 +1,12 @@
 /**
- * The hero's JSON carried inside a readable export, so the file can be imported back: in an
- * HTML comment at the end of a Markdown file, or in a JSON script tag in an HTML file.
+ * A document's JSON (a hero's or a villain's) carried inside a readable export, so the file
+ * can be imported back: in an HTML comment at the end of a Markdown file, or in a JSON
+ * script tag in an HTML file. The saved envelope's `format` says which kind it is.
  */
 import type { Hero } from '../hero/model'
 import { toSaved } from '../hero/serialize'
+import type { Villain } from '../villain/model'
+import { villainToSaved } from '../villain/serialize'
 
 export const EMBED_MARKER = 'scrpg-hero'
 
@@ -14,16 +17,25 @@ export const EMBED_MARKER = 'scrpg-hero'
  */
 export function embeddableJson(hero: Hero): string {
   const { play: _, ...sheetHero } = hero
-  return JSON.stringify(toSaved(sheetHero))
+  return embeddable(toSaved(sheetHero))
+}
+
+/** A villain's JSON, made safe the same way. */
+export function embeddableVillainJson(villain: Villain): string {
+  return embeddable(villainToSaved(villain))
+}
+
+function embeddable(saved: unknown): string {
+  return JSON.stringify(saved)
     .replace(/-(?=-)/g, '\\u002d')
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e')
     .replace(/&/g, '\\u0026')
 }
 
-/** The comment that ends a Markdown export. */
-export function markdownPayload(hero: Hero): string {
-  return `<!-- ${EMBED_MARKER}\n${embeddableJson(hero)}\n-->`
+/** The comment that ends a Markdown export, carrying `json` (from embeddableJson or embeddableVillainJson). */
+export function markdownPayload(json: string): string {
+  return `<!-- ${EMBED_MARKER}\n${json}\n-->`
 }
 
 const OPEN = `<!-- ${EMBED_MARKER}`

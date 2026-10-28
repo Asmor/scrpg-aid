@@ -44,7 +44,8 @@ function Warnings({ warnings }: { warnings: VillainSheet['warnings'] }) {
   )
 }
 
-export function VillainSheetView({ villain }: { villain: Villain }) {
+/** `warnings: false` leaves out the rule issues (exports). */
+export function VillainSheetView({ villain, warnings = true }: { villain: Villain; warnings?: boolean }) {
   const sheet = buildVillainSheet(villain)
   const { details } = villain
   return (
@@ -53,7 +54,7 @@ export function VillainSheetView({ villain }: { villain: Villain }) {
         <h2>{sheet.name}</h2>
         {sheet.alias && sheet.alias !== sheet.name && <p className="hero-sheet__alias">{sheet.alias}</p>}
       </header>
-      <Warnings warnings={sheet.warnings} />
+      {warnings && <Warnings warnings={sheet.warnings} />}
       <div className="sheet-grid">
         <Panel title="Characteristics">
           <dl className="fields">

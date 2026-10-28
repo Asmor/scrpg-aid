@@ -3,7 +3,9 @@ import { exampleHero } from '../../hero/example'
 import { createHero } from '../../hero/model'
 import { dividedHero, formChangerHero, minionMakerHero, modularHero } from '../../test/heroes'
 import type { IconName } from '../../components/icon-source'
-import { layoutHero, markEffects, wrap, type Box, type Canvas, type FontId } from './layout'
+import { adaptiveBruiser } from '../../test/villains'
+import { createVillain } from '../../villain/model'
+import { layoutHero, layoutVillain, markEffects, wrap, type Box, type Canvas, type FontId } from './layout'
 import { PAGE_SIZES } from './page-size'
 
 interface TextOp {
@@ -273,5 +275,30 @@ describe('layoutHero', () => {
     expect(text).toContain('Advancement')
     expect(text).toContain('Origins')
     expect(text).toContain('First arc')
+  })
+})
+
+describe('layoutVillain', () => {
+  it('lays out a villain’s sheet: characteristics, Health and status, dice, abilities, upgrades, and details', () => {
+    const v = adaptiveBruiser()
+    v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd12', abilities: [{ source: 'vehicle', name: 'Sturdy' }] } }]
+    v.mastery = { source: 'mastery', name: 'Master of Annihilation' }
+    v.details.motivation = 'Revenge'
+    const canvas = new RecordingCanvas(PAGE_SIZES.letter.width, PAGE_SIZES.letter.height)
+    layoutVillain(canvas, v)
+    const all = canvas.texts.map((t) => t.text).join(' ')
+    for (const expected of ['Ironclad', 'Adaptive', 'Bruiser', 'Major villain', 'Max Health 70', 'Built for 4 heroes (5 Health each).', 'Status die: Status follows its Health zone.', 'Robotics', 'Relentless', 'Lash Out', 'Villainous Vehicle', 'Vehicle (d12)', 'Sturdy', 'Master of Annihilation', 'Revenge']) {
+      expect(all).toContain(expected)
+    }
+    expect(all).toMatch(/Ironclad · page 1 of \d/)
+  })
+
+  it('lays out a blank villain', () => {
+    const canvas = new RecordingCanvas(PAGE_SIZES.a4.width, PAGE_SIZES.a4.height)
+    layoutVillain(canvas, createVillain({ id: 'v' }))
+    const all = canvas.texts.map((t) => t.text).join(' ')
+    expect(all).toContain('Unnamed villain')
+    expect(all).toContain('Not worked out yet.')
+    expect(all).toContain('No powers yet.')
   })
 })

@@ -177,17 +177,17 @@ describe('HeroList', () => {
       const store = new MemoryHeroStore()
       await store.save(exampleHero({ id: 'maya' }))
       renderList(store)
-      await userEvent.click(await screen.findByRole('button', { name: 'Back up all heroes' }))
+      await userEvent.click(await screen.findByRole('button', { name: 'Back up all heroes and villains' }))
       const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
-      expect(name).toMatch(/^scrpg-heroes-\d{4}-\d{2}-\d{2}\.json$/)
+      expect(name).toMatch(/^scrpg-aid-backup-\d{4}-\d{2}-\d{2}\.json$/)
       expect(type).toBe('application/json')
-      expect(readImport(text as string)).toMatchObject({ ok: true, heroes: [{ id: 'maya', details: { name: 'Maya Reyes' } }], skipped: [] })
+      expect(readImport(text as string)).toMatchObject({ ok: true, heroes: [{ id: 'maya', details: { name: 'Maya Reyes' } }], villains: [], skipped: [] })
     })
 
     it('offers no backup with no heroes', async () => {
       renderList(new MemoryHeroStore())
       await screen.findByText(/No heroes yet/)
-      expect(screen.queryByRole('button', { name: 'Back up all heroes' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Back up all heroes and villains' })).not.toBeInTheDocument()
     })
 
     it('imports a new hero straight away', async () => {
@@ -215,7 +215,7 @@ describe('HeroList', () => {
     it('explains a file it can’t import', async () => {
       renderList(new MemoryHeroStore())
       await upload('not json')
-      expect(await screen.findByRole('alert')).toHaveTextContent("This file isn't a hero or a backup the app can read.")
+      expect(await screen.findByRole('alert')).toHaveTextContent("This file isn't a hero, villain, or backup the app can read.")
     })
 
     it('says which heroes in a backup couldn’t be read', async () => {
@@ -298,7 +298,7 @@ describe('HeroList', () => {
         await save(hero)
       }
       await upload(backupJson([named('a', 'A'), named('b', 'B')]))
-      expect(await screen.findByRole('alert')).toHaveTextContent('The import stopped after one hero of 2: disk full')
+      expect(await screen.findByRole('alert')).toHaveTextContent('The import stopped after one hero of 2 heroes: disk full')
       expect(await screen.findByRole('link', { name: /^A/ })).toBeInTheDocument()
     })
   })

@@ -6,7 +6,8 @@ import { exampleHero } from '../../hero/example'
 import type { IconName } from '../../components/icon-source'
 import { ICON_NAMES } from '../icons'
 import { defaultPageSize, PAGE_SIZES } from './page-size'
-import { heroPdf, type PdfAssets } from './render'
+import { adaptiveBruiser } from '../../test/villains'
+import { heroPdf, villainPdf, type PdfAssets } from './render'
 
 const file = (path: string) => new Uint8Array(readFileSync(path))
 const fonts = 'node_modules/dejavu-fonts-ttf/ttf/'
@@ -48,4 +49,13 @@ describe('defaultPageSize', () => {
     expect(defaultPageSize(undefined)).toBe('letter')
     expect(defaultPageSize('not a locale!')).toBe('letter')
   })
+})
+
+describe('villainPdf', () => {
+  it('makes a villain sheet PDF titled with its name', async () => {
+    const doc = await PDFDocument.load(await villainPdf(adaptiveBruiser(), 'letter', assets, new Date('2026-10-27T12:00:00Z')))
+    expect(doc.getPageCount()).toBeGreaterThanOrEqual(1)
+    expect(doc.getTitle()).toBe('Ironclad')
+    expect(doc.getSubject()).toBe('Sentinel Comics RPG villain sheet')
+  }, 30_000)
 })

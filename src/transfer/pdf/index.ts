@@ -10,7 +10,8 @@ import type { Hero } from '../../hero/model'
 import { fetchBytes } from '../fetch-bytes'
 import { loadIconBytes } from '../icons'
 import type { PageSize } from './page-size'
-import { heroPdf, type PdfAssets } from './render'
+import type { Villain } from '../../villain/model'
+import { heroPdf, villainPdf, type PdfAssets } from './render'
 
 async function loadAssets(): Promise<PdfAssets> {
   const [regular, bold, boldItalic, icons] = await Promise.all([fetchBytes(regularUrl), fetchBytes(boldUrl), fetchBytes(boldItalicUrl), loadIconBytes()])
@@ -19,4 +20,8 @@ async function loadAssets(): Promise<PdfAssets> {
 
 export async function exportPdf(hero: Hero, pageSize: PageSize): Promise<Uint8Array<ArrayBuffer>> {
   return (await heroPdf(hero, pageSize, await loadAssets())) as Uint8Array<ArrayBuffer>
+}
+
+export async function exportVillainPdf(villain: Villain, pageSize: PageSize): Promise<Uint8Array<ArrayBuffer>> {
+  return (await villainPdf(villain, pageSize, await loadAssets())) as Uint8Array<ArrayBuffer>
 }

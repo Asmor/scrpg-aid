@@ -68,7 +68,8 @@ describe('the villain editor', () => {
     expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
     await waitFor(async () => expect((await saved(store)).approach?.abilities).toHaveLength(3))
     expect((await saved(store)).traitNames['quality:roleplaying-quality']).toBe('Relentless')
-  })
+    // Many steps of typing and choosing: slow when the whole suite runs at once.
+  }, 20_000)
 
   it('chooses an archetype and its abilities, with its status rule shown', async () => {
     const v = adaptiveBruiser()

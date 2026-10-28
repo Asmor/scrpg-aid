@@ -11,6 +11,9 @@
  * points), so it's pure and testable; ./render.ts draws it with pdf-lib.
  */
 import { diceTableRows, type DiceTableRow } from '../../creation/dice-table'
+import type { Villain } from '../../villain/model'
+import { buildVillainSheet } from '../../villain/sheet'
+import { statusDetailLines, statusSummary } from '../../villain/status'
 import { buildSheet, type HeroSheet } from '../../creation/sheet'
 import type { HeroTrait } from '../../creation/traits'
 import { modeLimits } from '../../creation/format'
@@ -402,11 +405,11 @@ function drawDie(canvas: Canvas, die: Die, right: number, y: number) {
 }
 
 /** Name and die rows, as on the sheet's Powers and Qualities tables. */
-function traitTable(canvas: Canvas, traits: readonly HeroTrait[], empty: string): Block {
+function traitTable(canvas: Canvas, traits: readonly Pick<HeroTrait, 'name' | 'die'>[], empty: string): Block {
   if (traits.length === 0) return paragraph(canvas, empty, { color: COLORS.muted })
   const dieWidth = ICON + 6
-  const nameLines = (w: number, t: HeroTrait) => wrap(canvas, t.name, 'regular', BODY, w - dieWidth)
-  const rowHeight = (w: number, t: HeroTrait) => Math.max(ROW, nameLines(w, t).length * LINE + 6)
+  const nameLines = (w: number, t: Pick<HeroTrait, 'name'>) => wrap(canvas, t.name, 'regular', BODY, w - dieWidth)
+  const rowHeight = (w: number, t: Pick<HeroTrait, 'name'>) => Math.max(ROW, nameLines(w, t).length * LINE + 6)
   return {
     height: (w) => traits.reduce((sum, t) => sum + rowHeight(w, t), 0),
     draw: (x, y, w) => {
@@ -483,7 +486,7 @@ function statusDice(canvas: Canvas, dice: Record<Zone, Die>): Block {
   }
 }
 
-function health(canvas: Canvas, sheet: HeroSheet): Block {
+function health(canvas: Canvas, sheet: Pick<HeroSheet, 'maxHealth' | 'healthRanges'>): Block {
   if (sheet.maxHealth === undefined) return paragraph(canvas, 'Not worked out yet.', { color: COLORS.muted })
   const ranges = sheet.healthRanges
   const max = paragraph(canvas, `Max Health ${sheet.maxHealth}`, { font: 'bold', size: 12 })
@@ -718,4 +721,60 @@ export function layoutHero(canvas: Canvas, hero: Hero): void {
   }
 
   layout.footers(name)
+}
+
+/** Lays a villain's sheet out on the canvas (Phase 5), with the hero sheet's building blocks. */
+export function layoutVillain(canvas: Canvas, villain: Villain): void {
+  const sheet = buildVillainSheet(villain)
+  const layout = new Layout(canvas)
+  const { details } = villain
+
+  const header: Block[] = [paragraph(canvas, sheet.name, { font: 'boldItalic', size: 22, color: COLORS.heading })]
+  if (sheet.alias && sheet.alias !== sheet.name) header.push(paragraph(canvas, sheet.alias, { color: COLORS.muted }))
+  layout.place(stack(header, 2))
+
+  const characteristics = panel(canvas, 'Characteristics', fields(canvas, [
+    ['Approach', sheet.approach ?? '—'],
+    ['Archetype', sheet.archetype ?? '—'],
+    ['Kind', sheet.major ? 'Major villain' : 'Minor villain'],
+  ]))
+  const h = sheet.health
+  const healthParts: Block[] = [health(canvas, { maxHealth: h?.max, healthRanges: h?.ranges })]
+  if (h) healthParts.push(paragraph(canvas, `Built for ${h.heroCount} ${h.heroCount === 1 ? 'hero' : 'heroes'} (${h.perHero} Health each).`, { color: COLORS.muted }))
+  if (sheet.status) {
+    healthParts.push(paragraph(canvas, `Status die: ${statusSummary(sheet.status)}`, { font: 'bold' }))
+    statusDetailLines(sheet.status).forEach((line) => healthParts.push(paragraph(canvas, `• ${line}`)))
+  }
+  layout.place(columns([characteristics, panel(canvas, 'Health', stack(healthParts, 4))]))
+  layout.place(columns([panel(canvas, 'Powers', traitTable(canvas, sheet.powers, 'No powers yet.')), panel(canvas, 'Qualities', traitTable(canvas, sheet.qualities, 'No qualities yet.'))]))
+
+  const row = (a: { name: string; type: AbilityType; text: string; upgrade?: string }) => abilityRow(canvas, { ...a, name: a.upgrade ? `${a.name} (${a.upgrade})` : a.name, effects: [] }, COLORS.panel)
+  layout.place(sectionHeading(canvas, 'Abilities'), 4)
+  if (sheet.abilities.length) sheet.abilities.forEach((a) => layout.place(row(a), 2))
+  else layout.place(paragraph(canvas, 'None yet.', { color: COLORS.muted }))
+
+  if (sheet.upgrades.length || sheet.mastery) {
+    const parts: Block[] = sheet.upgrades.map((u) => paragraph(canvas, `${u.name}${u.summary ? `: ${u.summary}` : ''}`))
+    if (sheet.vehicle) {
+      parts.push(paragraph(canvas, `Vehicle${sheet.vehicle.die ? ` (${sheet.vehicle.die})` : ''}`, { font: 'bold' }))
+      sheet.vehicle.abilities.forEach((a) => parts.push(row(a)))
+    }
+    if (sheet.mastery) parts.push(paragraph(canvas, 'Mastery', { font: 'bold' }), row(sheet.mastery))
+    layout.place(panel(canvas, 'Upgrades and mastery', stack(parts)))
+  }
+
+  const detailRows = (
+    [
+      ['Concept', details.concept],
+      ['Appearance', details.appearance],
+      ['Costume', details.costume],
+      ['Mannerisms', details.mannerisms],
+      ['Motivation', details.motivation],
+      ['Ties to the heroes', details.ties],
+      ['Notes', villain.notes ?? ''],
+    ] as const
+  ).filter(([, v]) => v.trim())
+  if (detailRows.length) layout.place(panel(canvas, 'Details', fields(canvas, detailRows.map(([k, v]) => [k, v.trim()] as const))))
+
+  layout.footers(sheet.name)
 }

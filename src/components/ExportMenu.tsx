@@ -1,10 +1,11 @@
-/** Saving a hero to a file in each export format. */
+/** Saving a hero or a villain to a file in each export format. */
 import { useId, useState } from 'react'
 import type { Hero } from '../hero/model'
+import type { Villain } from '../villain/model'
 import { downloadFile } from '../transfer/download'
-import { heroFileName, heroJson } from '../transfer/files'
+import { heroFileName, heroJson, villainFileName, villainJson } from '../transfer/files'
 import { loadIconDataUris } from '../transfer/icons'
-import { heroMarkdown } from '../transfer/markdown'
+import { heroMarkdown, villainMarkdown } from '../transfer/markdown'
 import { defaultPageSize, type PageSize } from '../transfer/pdf/page-size'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -28,8 +29,13 @@ const asDownloadError = (e: unknown): never => {
   throw Object.assign(e instanceof Error ? e : new Error(String(e)), { name: 'DownloadError' })
 }
 
-export function ExportMenu({ hero }: { hero: Hero }) {
+/** What's exported: a hero, or a villain (Phase 5). */
+type Exported = { hero: Hero; villain?: undefined } | { villain: Villain; hero?: undefined }
+
+export function ExportMenu(props: Exported) {
+  const { hero, villain } = props
   const id = useId()
+  const fileName = (ext: string) => (hero ? heroFileName(hero, ext) : villainFileName(villain!, ext))
   const [error, setError] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState<PageSize>(() => defaultPageSize(navigator.language))
   const [makingPdf, setMakingPdf] = useState(false)
@@ -38,8 +44,8 @@ export function ExportMenu({ hero }: { hero: Hero }) {
     setError(null)
     try {
       // pdf-lib, the fonts and the icons are only downloaded when a PDF is made (then cached).
-      const { exportPdf } = await import('../transfer/pdf').catch(asDownloadError)
-      downloadFile(heroFileName(hero, 'pdf'), await exportPdf(hero, pageSize), 'application/pdf')
+      const pdfMaker = await import('../transfer/pdf').catch(asDownloadError)
+      downloadFile(fileName('pdf'), hero ? await pdfMaker.exportPdf(hero, pageSize) : await pdfMaker.exportVillainPdf(villain!, pageSize), 'application/pdf')
     } catch (e) {
       setError(exportErrorText('PDF', e))
     } finally {
@@ -51,8 +57,8 @@ export function ExportMenu({ hero }: { hero: Hero }) {
     try {
       // The HTML export renders the sheet to a string, which needs React's server renderer; load it
       // only when asked. The icons are embedded so the file stands alone.
-      const [{ heroHtml }, icons] = await Promise.all([import('../transfer/html').catch(asDownloadError), loadIconDataUris()])
-      downloadFile(heroFileName(hero, 'html'), heroHtml(hero, icons), 'text/html')
+      const [htmlMaker, icons] = await Promise.all([import('../transfer/html').catch(asDownloadError), loadIconDataUris()])
+      downloadFile(fileName('html'), hero ? htmlMaker.heroHtml(hero, icons) : htmlMaker.villainHtml(villain!, icons), 'text/html')
     } catch (e) {
       setError(exportErrorText('HTML file', e))
     }
@@ -61,10 +67,10 @@ export function ExportMenu({ hero }: { hero: Hero }) {
     <section className="export-menu" aria-labelledby="export-title">
       <h3 id="export-title">Export</h3>
       <div className="button-row">
-        <button type="button" className="button" onClick={() => downloadFile(heroFileName(hero, 'json'), heroJson(hero), 'application/json')}>
+        <button type="button" className="button" onClick={() => downloadFile(fileName('json'), hero ? heroJson(hero) : villainJson(villain!), 'application/json')}>
           Download JSON
         </button>
-        <button type="button" className="button" onClick={() => downloadFile(heroFileName(hero, 'md'), heroMarkdown(hero), 'text/markdown')}>
+        <button type="button" className="button" onClick={() => downloadFile(fileName('md'), hero ? heroMarkdown(hero) : villainMarkdown(villain!), 'text/markdown')}>
           Download Markdown
         </button>
         <button type="button" className="button" onClick={() => void html()}>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { listPath, villainEditPath } from '../app/route'
 import { useVillainStore } from '../app/villain-store-context'
 import type { VillainGetResult } from './store'
+import { ExportMenu } from '../components/ExportMenu'
 import { VillainSheetView } from './VillainSheetView'
 
 type State = { status: 'loading' } | VillainGetResult | { status: 'error'; message: string }
@@ -36,7 +37,12 @@ export function VillainPage({ id }: { id: string }) {
       {state.status === 'missing' && <p role="alert">There's no saved villain with that link. It may have been deleted.</p>}
       {state.status === 'unreadable' && <p role="alert">This villain couldn't be read: {state.error}</p>}
       {state.status === 'error' && <p role="alert">Something went wrong loading this villain: {state.message}</p>}
-      {state.status === 'found' && <VillainSheetView villain={state.villain} />}
+      {state.status === 'found' && (
+        <>
+          <VillainSheetView villain={state.villain} />
+          <ExportMenu villain={state.villain} />
+        </>
+      )}
     </div>
   )
 }

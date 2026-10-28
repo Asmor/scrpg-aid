@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type Ref } from 'react'
 import { editPath, gmPath, heroPath, joinPath, navigate } from '../app/route'
 import { useStore } from '../app/store-context'
+import { useOptionalVillainStore } from '../app/villain-store-context'
 import { archetypeName } from '../creation/layers'
 import { exampleHero } from '../hero/example'
 import { createHero, heroDisplayName, type Hero } from '../hero/model'
@@ -52,8 +53,12 @@ export function DeleteControl({ id, label, confirming, busy, onAsk, onKeep, onDe
   )
 }
 
-export function HeroList() {
+/** `onImported` lets the home page refresh its villain list after an import; `refresh` reloads this one. */
+export function HeroList({ onImported, refresh = 0 }: { onImported?: () => void; refresh?: number } = {}) {
   const store = useStore()
+  const villainStore = useOptionalVillainStore()
+  // Whether there are villains to back up too (Phase 5).
+  const [hasVillains, setHasVillains] = useState(false)
   const [state, setState] = useState<State>({ status: 'loading' })
   const [actionError, setActionError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
@@ -86,6 +91,28 @@ export function HeroList() {
       current = false
     }
   }, [store, version])
+
+  useEffect(() => {
+    let current = true
+    villainStore?.list().then(
+      (list) => current && setHasVillains(list.villains.length > 0),
+      () => current && setHasVillains(false),
+    )
+    return () => {
+      current = false
+    }
+  }, [villainStore, version, refresh])
+
+  /** Downloads one file with every hero, and every villain when there's a villain store. */
+  const backUp = async (heroes: readonly Hero[]) => {
+    setActionError(null)
+    try {
+      const villains = villainStore ? (await villainStore.list()).villains : []
+      downloadFile(backupFileName(), backupJson(heroes, villains), 'application/json')
+    } catch (e) {
+      setActionError(`Couldn't make the backup: ${errorText(e)}`)
+    }
+  }
 
   // Keeps keyboard focus in place as the confirmation opens and closes (and after the list reloads).
   useEffect(() => {
@@ -183,11 +210,14 @@ export function HeroList() {
         unreadableIds={new Set(state.status === 'ready' ? state.list.unreadable.map((u) => u.id) : [])}
         disabled={busy || state.status !== 'ready'}
         onBusyChange={setImporting}
-        onImported={() => setVersion((v) => v + 1)}
+        onImported={() => {
+          setVersion((v) => v + 1)
+          onImported?.()
+        }}
       >
-        {state.status === 'ready' && state.list.heroes.length > 0 && (
-          <button type="button" className="button" disabled={busy || importing} onClick={() => downloadFile(backupFileName(), backupJson(state.list.heroes), 'application/json')}>
-            Back up all heroes
+        {state.status === 'ready' && (state.list.heroes.length > 0 || hasVillains) && (
+          <button type="button" className="button" disabled={busy || importing} onClick={() => void backUp(state.list.heroes)}>
+            Back up all heroes and villains
           </button>
         )}
       </ImportControl>

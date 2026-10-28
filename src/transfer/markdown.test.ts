@@ -4,7 +4,9 @@ import { createHero } from '../hero/model'
 import { dividedHero, formChangerHero, minionMakerHero, modularHero } from '../test/heroes'
 import { embeddableJson, extractEmbedded, markdownPayload, SCRIPT_OPEN } from './embed'
 import { readImport } from './files'
-import { heroMarkdown } from './markdown'
+import { heroMarkdown, villainMarkdown } from './markdown'
+import { adaptiveBruiser } from '../test/villains'
+import { createVillain } from '../villain/model'
 
 /** The Markdown before the import comment. */
 const body = (md: string) => md.slice(0, md.indexOf('<!--'))
@@ -44,7 +46,7 @@ describe('heroMarkdown', () => {
 
   it('imports back to the same hero', () => {
     const hero = { ...dividedHero(), id: 'd1' }
-    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], skipped: [] })
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], villains: [], skipped: [] })
   })
 
   it('escapes the player’s text so it stays plain', () => {
@@ -109,7 +111,7 @@ describe('embedded JSON', () => {
     const hero = { ...createHero('guided', { id: 'h1' }), play: { health: 3, heroPoints: 1, reactionUsed: false, mods: [], twists: [], history: [] } }
     expect(JSON.parse(embeddableJson(hero)).hero.play).toBeUndefined()
     const { play: _, ...without } = hero
-    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [without], skipped: [] })
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [without], villains: [], skipped: [] })
   })
 
   it('can’t close its comment or script tag, whatever the player typed', () => {
@@ -118,8 +120,8 @@ describe('embedded JSON', () => {
     const json = embeddableJson(hero)
     expect(json).not.toMatch(/--|<|>|&/)
     expect(JSON.parse(json).hero.details.name).toBe(hero.details.name)
-    expect(extractEmbedded(`text\n\n${markdownPayload(hero)}\n`)?.trim()).toBe(json)
-    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], skipped: [] })
+    expect(extractEmbedded(`text\n\n${markdownPayload(embeddableJson(hero))}\n`)?.trim()).toBe(json)
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], villains: [], skipped: [] })
   })
 
   it('finds the real comment when the player’s text looks like one', () => {
@@ -127,13 +129,13 @@ describe('embedded JSON', () => {
     hero.details.name = 'Agent <!-- scrpg-hero #'
     hero.details.costume = '<!-- scrpg-hero {"format":"scrpg-hero"} -->'
     hero.background = { id: 'upper-class', qualities: [], principle: { id: 'custom', custom: { category: 'identity', name: '<!-- scrpg-hero', roleplaying: 'x -->', minorTwist: '', majorTwist: '', greenAbility: { name: 'a --> b', text: '' } } } }
-    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], skipped: [] })
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], villains: [], skipped: [] })
   })
 
   it('explains a Markdown file without a readable hero', () => {
-    expect(readImport('# Just notes')).toEqual({ ok: false, error: "This file isn't a hero or a backup the app can read." })
-    expect(readImport('# Hero\n\n<!-- scrpg-hero\n{"unclosed": 1')).toEqual({ ok: false, error: "This file isn't a hero or a backup the app can read." })
-    expect(readImport('# Hero\n\n<!-- scrpg-hero\n{broken\n-->')).toEqual({ ok: false, error: "This file's hero data is damaged, so it can't be imported." })
+    expect(readImport('# Just notes')).toEqual({ ok: false, error: "This file isn't a hero, villain, or backup the app can read." })
+    expect(readImport('# Hero\n\n<!-- scrpg-hero\n{"unclosed": 1')).toEqual({ ok: false, error: "This file isn't a hero, villain, or backup the app can read." })
+    expect(readImport('# Hero\n\n<!-- scrpg-hero\n{broken\n-->')).toEqual({ ok: false, error: "This file's data is damaged, so it can't be imported." })
   })
 })
 
@@ -151,5 +153,33 @@ describe('extractEmbedded', () => {
     expect(extractEmbedded('# Notes')).toBeUndefined()
     expect(extractEmbedded('<!-- scrpg-hero {"a": 1}')).toBeUndefined()
     expect(extractEmbedded(`${SCRIPT_OPEN}{"a": 1}`)).toBeUndefined()
+  })
+})
+
+describe('villainMarkdown', () => {
+  it('writes the villain’s sheet as Markdown that imports back', () => {
+    const v = adaptiveBruiser()
+    v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd12', abilities: [{ source: 'vehicle', name: 'Sturdy' }] } }]
+    v.mastery = { source: 'mastery', name: 'Master of Annihilation' }
+    v.details.motivation = 'Revenge'
+    const md = villainMarkdown(v)
+    for (const expected of ['# Ironclad', '- **Approach:** Adaptive', '- **Kind:** Major villain', '- **Motivation:** Revenge', '| Robotics', '**Max Health:** 70 (built for 4 heroes, 5 Health each)', '## Status die', 'Status follows its Health zone.', '- Green d6', '- **Lash Out** (Action)', '### Vehicle (d12)', '- **Sturdy** (Inherent)', '### Mastery']) {
+      expect(md).toContain(expected)
+    }
+    expect(readImport(md)).toEqual({ ok: true, heroes: [], villains: [v], skipped: [] })
+  })
+
+  it('writes a blank villain, and each kind of status rule', () => {
+    expect(villainMarkdown(createVillain({ id: 'x' }))).toContain('Not worked out yet.')
+    for (const [id, line] of [
+      ['domain', '- 3 or more: d10'],
+      ['inventor', '- 1: d8'],
+      ['formidable', '- Has no penalties related to its weakness: d12'],
+      ['titan', '(1 success)'],
+    ] as const) {
+      const v = adaptiveBruiser()
+      v.archetype = { id, abilities: [] }
+      expect(villainMarkdown(v)).toContain(line)
+    }
   })
 })

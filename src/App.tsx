@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { listPath, useRoute } from './app/route'
 import { StoreContext } from './app/store-context'
-import { HeroList } from './components/HeroList'
+import { Home } from './components/Home'
 import { HeroPage } from './components/HeroPage'
 import { HeroEditor } from './editor/HeroEditor'
 import { PlayPage } from './play/PlayPage'
 import { VillainStoreContext } from './app/villain-store-context'
 import { createDefaultVillainStore, type VillainStore } from './villain/store'
 import { VillainEditor } from './villain/VillainEditor'
-import { VillainList } from './villain/VillainList'
 import { VillainPage } from './villain/VillainPage'
 import { GmPage } from './session/GmPage'
 import { JoinPage } from './session/JoinPage'
@@ -37,12 +36,7 @@ export default function App({ store: given, villainStore: givenVillains, connect
           <ThemeToggle value={theme} onChange={setTheme} />
         </header>
         <main className="app-main">
-          {route.name === 'list' && (
-            <>
-              <HeroList />
-              <VillainList />
-            </>
-          )}
+          {route.name === 'list' && <Home />}
           {route.name === 'villain' && <VillainPage key={route.id} id={route.id} />}
           {route.name === 'villainEdit' && <VillainEditor key={route.id} id={route.id} step={route.step} />}
           {route.name === 'hero' && <HeroPage key={route.id} id={route.id} />}

@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { createHero, type Hero } from '../hero/model'
 import { CURRENT_VERSION, HERO_FORMAT, toSaved } from '../hero/serialize'
 import { completeHero, dividedHero } from '../test/heroes'
-import { BACKUP_FORMAT, BACKUP_VERSION, backupFileName, backupJson, conflicts, heroesToSave, heroFileName, heroJson, readImport } from './files'
+import { adaptiveBruiser } from '../test/villains'
+import { createVillain } from '../villain/model'
+import { villainToSaved, VILLAIN_FORMAT } from '../villain/serialize'
+import { BACKUP_FORMAT, BACKUP_VERSION, backupFileName, backupJson, conflicts, heroesToSave, heroFileName, heroJson, readImport, villainFileName, villainJson } from './files'
 
 const now = new Date('2026-10-26T12:00:00Z')
 const hero = (id: string, name = '') => {
@@ -16,24 +19,24 @@ describe('heroJson', () => {
     const h = { ...dividedHero(), id: 'd1' }
     const text = heroJson(h)
     expect(JSON.parse(text)).toEqual({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: h })
-    expect(readImport(text)).toEqual({ ok: true, heroes: [h], skipped: [] })
+    expect(readImport(text)).toEqual({ ok: true, heroes: [h], villains: [], skipped: [] })
   })
 })
 
 describe('play state', () => {
   it('stays in a hero’s JSON and in backups', () => {
     const h = { ...hero('a', 'Ann'), play: { health: 4, heroPoints: 2, reactionUsed: false, mods: [], twists: [], history: [] } }
-    expect(readImport(heroJson(h))).toEqual({ ok: true, heroes: [h], skipped: [] })
-    expect(readImport(backupJson([h], now))).toEqual({ ok: true, heroes: [h], skipped: [] })
+    expect(readImport(heroJson(h))).toEqual({ ok: true, heroes: [h], villains: [], skipped: [] })
+    expect(readImport(backupJson([h], [], now))).toEqual({ ok: true, heroes: [h], villains: [], skipped: [] })
   })
 })
 
 describe('backupJson', () => {
   it('wraps every hero in a versioned backup, which reads back in order', () => {
     const heroes = [hero('a', 'Ann'), { ...completeHero(), id: 'b' }]
-    const text = backupJson(heroes, now)
-    expect(JSON.parse(text)).toEqual({ format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt: '2026-10-26T12:00:00.000Z', heroes: heroes.map(toSaved) })
-    expect(readImport(text)).toEqual({ ok: true, heroes, skipped: [] })
+    const text = backupJson(heroes, [], now)
+    expect(JSON.parse(text)).toEqual({ format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt: '2026-10-26T12:00:00.000Z', heroes: heroes.map(toSaved), villains: [] })
+    expect(readImport(text)).toEqual({ ok: true, heroes, villains: [], skipped: [] })
   })
 })
 
@@ -49,13 +52,13 @@ describe('file names', () => {
   })
 
   it('dates a backup in local time', () => {
-    expect(backupFileName(new Date(2026, 0, 5, 23, 30))).toBe('scrpg-heroes-2026-01-05.json')
+    expect(backupFileName(new Date(2026, 0, 5, 23, 30))).toBe('scrpg-aid-backup-2026-01-05.json')
   })
 })
 
 describe('readImport', () => {
   it('explains files it can’t read', () => {
-    const notOurs = "This file isn't a hero or a backup the app can read."
+    const notOurs = "This file isn't a hero, villain, or backup the app can read."
     expect(readImport('{nope')).toEqual({ ok: false, error: notOurs })
     expect(readImport('[1, 2]')).toEqual({ ok: false, error: notOurs })
     expect(readImport(JSON.stringify({ format: 'other' }))).toEqual({ ok: false, error: notOurs })
@@ -81,9 +84,10 @@ describe('readImport', () => {
     expect(readImport(text)).toEqual({
       ok: true,
       heroes: [good],
+      villains: [],
       skipped: [
-        { index: 1, error: 'not a saved hero' },
-        { index: 3, error: expect.stringContaining('method') },
+        { kind: 'hero', index: 1, error: 'not a saved hero' },
+        { kind: 'hero', index: 3, error: expect.stringContaining('method') },
       ],
     })
   })
@@ -117,5 +121,38 @@ describe('import conflicts', () => {
   it('copies a repeat of an id within the same file', () => {
     n = 0
     expect(heroesToSave([hero('c'), hero('c'), hero('a'), hero('a')], saved, { a: 'replace' }, makeId).map((h) => h.id)).toEqual(['c', 'new1', 'a', 'new2'])
+  })
+})
+
+describe('villains in files', () => {
+  it('reads a villain’s JSON back, and names its file after it', () => {
+    const v = adaptiveBruiser()
+    expect(readImport(villainJson(v))).toEqual({ ok: true, heroes: [], villains: [v], skipped: [] })
+    expect(villainFileName(v, 'pdf')).toBe('ironclad.pdf')
+    expect(villainFileName(createVillain({ id: 'x' }), 'json')).toBe('villain.json')
+  })
+
+  it('backs up heroes and villains together, and still reads a version-1 backup of heroes', () => {
+    const v = adaptiveBruiser()
+    const h = hero('a', 'Ann')
+    const text = backupJson([h], [v], now)
+    expect(JSON.parse(text)).toMatchObject({ version: 2, villains: [villainToSaved(v)] })
+    expect(readImport(text)).toEqual({ ok: true, heroes: [h], villains: [v], skipped: [] })
+    const v1 = JSON.stringify({ format: BACKUP_FORMAT, version: 1, exportedAt: 'x', heroes: [toSaved(h)] })
+    expect(readImport(v1)).toEqual({ ok: true, heroes: [h], villains: [], skipped: [] })
+  })
+
+  it('lists villains in a backup it can’t read, and explains a damaged villain file', () => {
+    const v = adaptiveBruiser()
+    const text = JSON.stringify({ format: BACKUP_FORMAT, version: 2, exportedAt: 'x', heroes: [], villains: [{ nope: 1 }, villainToSaved(v)] })
+    expect(readImport(text)).toEqual({ ok: true, heroes: [], villains: [v], skipped: [{ kind: 'villain', index: 1, error: 'not a saved villain' }] })
+    expect(readImport(JSON.stringify({ format: BACKUP_FORMAT, version: 2, exportedAt: 'x', heroes: [] }))).toEqual({ ok: false, error: "This backup couldn't be read: it has no list of villains." })
+    expect(readImport(JSON.stringify({ format: VILLAIN_FORMAT, version: 99, villain: {} }))).toEqual({ ok: false, error: "This villain couldn't be read: saved by a newer version of the app (format 99)." })
+  })
+
+  it('finds conflicts and copies for villains the same way', () => {
+    const v = adaptiveBruiser()
+    expect(conflicts([v], new Set(['v1']))).toEqual([v])
+    expect(heroesToSave([v], new Set(['v1']), {}, () => 'new')).toEqual([{ ...v, id: 'new' }])
   })
 })

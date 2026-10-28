@@ -8,7 +8,8 @@ import fontkit from '@pdf-lib/fontkit'
 import { PDFDocument, rgb, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib'
 import { heroDisplayName, type Hero } from '../../hero/model'
 import type { IconName } from '../../components/icon-source'
-import { layoutHero, type Box, type Canvas, type FontId } from './layout'
+import { villainDisplayName, type Villain } from '../../villain/model'
+import { layoutHero, layoutVillain, type Box, type Canvas, type FontId } from './layout'
 import { PAGE_SIZES, type PageSize } from './page-size'
 
 export interface PdfAssets {
@@ -91,6 +92,15 @@ class PdfCanvas implements Canvas {
 
 /** The hero's sheet as PDF bytes. `now` is injectable for tests. */
 export async function heroPdf(hero: Hero, pageSize: PageSize, assets: PdfAssets, now: Date = new Date()): Promise<Uint8Array> {
+  return makePdf({ title: heroDisplayName(hero), subject: 'Sentinel Comics RPG hero sheet', layout: (canvas) => layoutHero(canvas, hero) }, pageSize, assets, now)
+}
+
+/** A villain's sheet as PDF bytes (Phase 5). */
+export async function villainPdf(villain: Villain, pageSize: PageSize, assets: PdfAssets, now: Date = new Date()): Promise<Uint8Array> {
+  return makePdf({ title: villainDisplayName(villain), subject: 'Sentinel Comics RPG villain sheet', layout: (canvas) => layoutVillain(canvas, villain) }, pageSize, assets, now)
+}
+
+async function makePdf(content: { title: string; subject: string; layout: (canvas: Canvas) => void }, pageSize: PageSize, assets: PdfAssets, now: Date): Promise<Uint8Array> {
   const doc = await PDFDocument.create()
   doc.registerFontkit(fontkit)
   const fonts = {
@@ -99,11 +109,11 @@ export async function heroPdf(hero: Hero, pageSize: PageSize, assets: PdfAssets,
     boldItalic: await doc.embedFont(assets.fonts.boldItalic, { subset: true }),
   }
   const icons = Object.fromEntries(await Promise.all(Object.entries(assets.icons).map(async ([name, bytes]) => [name, await doc.embedPng(bytes)] as const))) as Record<IconName, PDFImage>
-  doc.setTitle(heroDisplayName(hero))
-  doc.setSubject('Sentinel Comics RPG hero sheet')
+  doc.setTitle(content.title)
+  doc.setSubject(content.subject)
   doc.setCreator('SCRPG Aid')
   doc.setCreationDate(now)
   doc.setModificationDate(now)
-  layoutHero(new PdfCanvas(doc, PAGE_SIZES[pageSize], fonts, icons), hero)
+  content.layout(new PdfCanvas(doc, PAGE_SIZES[pageSize], fonts, icons))
   return doc.save()
 }
