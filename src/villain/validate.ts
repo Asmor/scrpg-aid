@@ -2,7 +2,7 @@
  * Structural checks for a villain read from storage or an imported file, which are untrusted.
  * Shape only, like ../hero/validate.ts: rule problems are warnings (./sheet.ts).
  */
-import { arrayOf, integer, nonEmptyString, nullable, object, recordOf, string } from '../shape'
+import { arrayOf, boolean, integer, nonEmptyString, nullable, object, oneOf, recordOf, string } from '../shape'
 import { assignment, blanks, die, traitRef } from '../hero/validate'
 import { VILLAIN_DETAIL_FIELDS } from './model'
 
@@ -22,6 +22,19 @@ const villainShape = object({
   mastery: nullable(pick),
   heroCount,
   'notes?': string,
+  'play?': object({
+    'health?': integer,
+    'heroCount?': heroCount,
+    reactionUsed: boolean,
+    'sceneAdvanced?': oneOf(true),
+    mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
+    // Villains take minor twists only (the page adds no others), but the shared twist shape is read as is.
+    twists: arrayOf(object({ id: nonEmptyString, kind: oneOf('minor', 'major'), text: string })),
+    history: arrayOf(object({ id: nonEmptyString, at: nonEmptyString, text: string, 'details?': arrayOf(string) })),
+    'statusCount?': integer,
+    'weaknessTier?': integer,
+    'challengeParts?': integer,
+  }),
 })
 
 /** Returns a description of the first structural problem, or undefined if the villain is well formed. */

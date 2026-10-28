@@ -36,6 +36,7 @@ describe('saving villains', () => {
     ]
     v.mastery = { source: 'mastery', name: 'Master of Annihilation' }
     v.notes = 'Hates the heroes.'
+    v.play = { health: 20, heroCount: 3, reactionUsed: true, sceneAdvanced: true, mods: [{ id: 'm', label: 'x', value: -2 }], twists: [{ id: 't', kind: 'minor', text: 'Cornered' }], history: [], statusCount: 2, weaknessTier: 1, challengeParts: 1 }
     return v
   }
 
@@ -61,6 +62,8 @@ describe('saving villains', () => {
     expect(bad((v) => (v.upgrades = [{ id: 'x' }]))).toEqual({ ok: false, error: 'villain.upgrades[0].abilities should be a list' })
     expect(bad((v) => ((v.approach as { traits: unknown[] }).traits = [{ trait: { kind: 'power', id: 'x' }, die: 'd7' }]))).toEqual({ ok: false, error: 'villain.approach.traits[0].die has an unknown value' })
     expect(bad((v) => (v.mastery = { name: 'x' }))).toEqual({ ok: false, error: 'villain.mastery.source is missing' })
+    expect(bad((v) => (v.play = { reactionUsed: false, mods: [], twists: [], history: [], heroCount: 0 }))).toEqual({ ok: false, error: 'villain.play.heroCount should be at least 1' })
+    expect(bad((v) => (v.play = { reactionUsed: false, mods: [], twists: [], history: [], sceneAdvanced: false }))).toEqual({ ok: false, error: 'villain.play.sceneAdvanced has an unknown value' })
     expect(bad((v) => (v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd7', abilities: [] } }]))).toEqual({ ok: false, error: 'villain.upgrades[0].vehicle.die has an unknown value' })
     expect(bad((v) => (v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd10' } }]))).toEqual({ ok: false, error: 'villain.upgrades[0].vehicle.abilities should be a list' })
   })

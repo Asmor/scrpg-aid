@@ -8,9 +8,9 @@
 import type { AbilityUse } from '../creation/sheet'
 import { ACTION_LABEL } from '../creation/effects'
 import type { HeroTrait } from '../creation/traits'
-import type { PlayMod, PlayState } from '../hero/model'
+import type { PlayMod } from '../hero/model'
 import type { Action, AbilityEffect, Die, EffectUse } from '../rules/types'
-import { describeMod, type Clock } from './state'
+import { describeMod, type Clock, type PlayCore } from './state'
 
 /** A die in the pool and what it stands for ("Speed d12", "Green status d8"). */
 export interface PoolDie {
@@ -192,14 +192,17 @@ export function describeEffect(r: EffectResult): string {
   }
 }
 
+/** A power or quality as a roll needs it: its name and die. */
+type RolledTrait = Pick<HeroTrait, 'name' | 'die'>
+
 /**
  * The pool for using an ability: the two traits picked (normally its own power or quality
  * and one of the other kind) and the status die; or, for a single-die ability, that one die
  * (`named`: the power or quality it names). Basic actions pass no `use`.
  */
-export function poolDice(opts: { use?: AbilityUse; picked?: readonly (HeroTrait | undefined)[]; named?: HeroTrait; status?: PoolDie; redStatus?: Die }): PoolDie[] {
+export function poolDice(opts: { use?: AbilityUse; picked?: readonly (RolledTrait | undefined)[]; named?: RolledTrait; status?: PoolDie; redStatus?: Die }): PoolDie[] {
   const single = opts.use?.pool?.single
-  const trait = (t?: HeroTrait) => (t ? [{ label: t.name, die: t.die }] : [])
+  const trait = (t?: RolledTrait) => (t ? [{ label: t.name, die: t.die }] : [])
   if (single === 'status') return opts.status ? [opts.status] : []
   if (single === 'redStatus') return opts.redStatus ? [{ label: 'Red status', die: opts.redStatus }] : []
   if (single === 'trait') return trait(opts.named)
@@ -226,7 +229,7 @@ export interface RollRecord {
 }
 
 /** Writes the roll to the history and uses up the non-persistent mods it used (p. 26). */
-export function confirmRoll(play: PlayState, record: RollRecord, clock: Clock): PlayState {
+export function confirmRoll<P extends PlayCore>(play: P, record: RollRecord, clock: Clock): P {
   const used = record.results.flatMap((r) => r.mods)
   const details = [
     ...describeRolls(record.rolled).map((d) => (record.manual ? `${d} (typed in)` : d)),

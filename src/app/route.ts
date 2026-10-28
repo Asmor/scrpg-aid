@@ -11,13 +11,14 @@ export type Route =
   | { name: 'list' }
   | { name: 'villain'; id: string }
   | { name: 'villainEdit'; id: string; step?: string }
+  | { name: 'villainPlay'; id: string }
   | { name: 'gm' } | { name: 'join'; room?: string } | { name: 'hero'; id: string } | { name: 'edit'; id: string; step?: string } | { name: 'play'; id: string } | { name: 'notFound' }
 
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#/, '') || '/'
   if (path === '/') return { name: 'list' }
   if (path === '/gm') return { name: 'gm' }
-  const villain = /^\/villain\/([^/]+)(\/edit(?:\/([^/]+))?)?$/.exec(path)
+  const villain = /^\/villain\/([^/]+)(\/edit(?:\/([^/]+))?|\/play)?$/.exec(path)
   if (villain) {
     let id: string
     try {
@@ -26,6 +27,7 @@ export function parseRoute(hash: string): Route {
       return { name: 'notFound' }
     }
     if (!villain[2]) return { name: 'villain', id }
+    if (villain[2] === '/play') return { name: 'villainPlay', id }
     return villain[3] ? { name: 'villainEdit', id, step: villain[3] } : { name: 'villainEdit', id }
   }
   const join = /^\/join(?:\/([^/]+))?$/.exec(path)
@@ -66,6 +68,10 @@ export function playPath(id: string): string {
 
 export function villainPath(id: string): string {
   return `#/villain/${encodeURIComponent(id)}`
+}
+
+export function villainPlayPath(id: string): string {
+  return `${villainPath(id)}/play`
 }
 
 export function villainEditPath(id: string, step?: string): string {

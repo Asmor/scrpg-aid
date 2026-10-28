@@ -1,6 +1,6 @@
 /** One saved villain, loaded by id and shown as a sheet (Phase 5). Give it `key={id}`. */
 import { useEffect, useState } from 'react'
-import { listPath, villainEditPath } from '../app/route'
+import { listPath, villainEditPath, villainPlayPath } from '../app/route'
 import { useVillainStore } from '../app/villain-store-context'
 import type { VillainGetResult } from './store'
 import { ExportMenu } from '../components/ExportMenu'
@@ -29,6 +29,7 @@ export function VillainPage({ id }: { id: string }) {
         <a href={listPath}>← Home</a>
         {state.status === 'found' && (
           <span className="button-row">
+            <a href={villainPlayPath(id)}>Play</a>
             <a href={villainEditPath(id)}>Edit villain</a>
           </span>
         )}

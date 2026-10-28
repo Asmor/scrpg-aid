@@ -169,6 +169,12 @@ describe('villainMarkdown', () => {
     expect(readImport(md)).toEqual({ ok: true, heroes: [], villains: [v], skipped: [] })
   })
 
+  it('leaves a villain’s play state out of its sheet exports', () => {
+    const v = { ...adaptiveBruiser(), play: { health: 3, reactionUsed: false, mods: [], twists: [], history: [] } }
+    const { play: _, ...withoutPlay } = v
+    expect(readImport(villainMarkdown(v))).toEqual({ ok: true, heroes: [], villains: [withoutPlay], skipped: [] })
+  })
+
   it('writes a blank villain, and each kind of status rule', () => {
     expect(villainMarkdown(createVillain({ id: 'x' }))).toContain('Not worked out yet.')
     for (const [id, line] of [

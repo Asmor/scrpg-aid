@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { editPath, gmPath, heroPath, joinPath, joinUrl, parseRoute, playPath, villainEditPath, villainPath } from './route'
+import { editPath, gmPath, heroPath, joinPath, joinUrl, parseRoute, playPath, villainEditPath, villainPath, villainPlayPath } from './route'
 
 describe('routes', () => {
   it('parses the list, a hero, and anything else', () => {
@@ -38,6 +38,7 @@ describe('routes', () => {
     expect(parseRoute('#/villain/x')).toEqual({ name: 'villain', id: 'x' })
     expect(parseRoute('#/villain/x/edit')).toEqual({ name: 'villainEdit', id: 'x' })
     expect(parseRoute('#/villain/x/edit/health')).toEqual({ name: 'villainEdit', id: 'x', step: 'health' })
+    expect(parseRoute(villainPlayPath('x'))).toEqual({ name: 'villainPlay', id: 'x' })
     for (const bad of ['#/villain/x/edit/a/b', '#/villain/x/editor', '#/villain/', '#/villain/%E0%A4%A']) expect(parseRoute(bad)).toEqual({ name: 'notFound' })
     const id = 'a/b c?#'
     expect(parseRoute(villainPath(id))).toEqual({ name: 'villain', id })

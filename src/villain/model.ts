@@ -15,7 +15,7 @@
  * Versioning (./serialize.ts) follows the hero's rules. Until the first public release
  * there are no real saves, so v1 may still change freely.
  */
-import { newId, type TraitAssignment } from '../hero/model'
+import { newId, type PlayHistoryEntry, type PlayMod, type PlayTwist, type TraitAssignment } from '../hero/model'
 import { traitKey, type TraitRef } from '../rules/catalog'
 import type { Die } from '../rules/types'
 
@@ -79,6 +79,29 @@ export interface Villain {
   /** How many heroes the villain is built to face: 5 Health each (p. 239). */
   heroCount: number
   notes?: string
+  /** The game aid's state (stage 6), saved with the villain; sheet exports leave it out. */
+  play?: VillainPlayState
+}
+
+/** A villain in play: like a hero's play state, plus what its archetype's status rule needs. */
+export interface VillainPlayState {
+  /** Current Health; until set, the villain is at its max. */
+  health?: number
+  /** Heroes in this scene, when different from the number it's built for (5 Health each). */
+  heroCount?: number
+  reactionUsed: boolean
+  /** It has used its once-per-scene Overcome to advance the scene tracker (p. 154). */
+  sceneAdvanced?: true
+  mods: PlayMod[]
+  /** Minor twists only: villains never take major twists (p. 154–155). */
+  twists: PlayTwist[]
+  history: PlayHistoryEntry[]
+  /** A count-based status rule's count, e.g. minions in the scene. */
+  statusCount?: number
+  /** A weakness-based status rule's tier (index into the archetype's tiers). */
+  weaknessTier?: number
+  /** The Titan: how many parts of its challenge are complete. */
+  challengeParts?: number
 }
 
 export function emptyVillainDetails(): VillainDetails {

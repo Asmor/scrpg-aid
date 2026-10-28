@@ -34,12 +34,14 @@ interface RollDialogProps {
   onAddMod: (mod: Omit<PlayMod, 'id'>, to?: string) => boolean | void
   /** Other heroes in a game session it can go to. */
   targets?: readonly ModTarget[]
+  /** What the status die is called in the roll; by default its zone's ("Green status"). A villain's is just "Status". */
+  statusLabel?: string
   onClose: () => void
   /** Injectable for tests. */
   random?: () => number
 }
 
-const traitKeyOf = (t: HeroTrait) => `${t.trait.kind}:${t.trait.id}`
+const traitKeyOf = (t: Pick<HeroTrait, 'trait'>) => `${t.trait.kind}:${t.trait.id}`
 
 function Field({ label, children }: { label: string; children: (id: string) => ReactNode }) {
   const id = useId()
@@ -51,7 +53,7 @@ function Field({ label, children }: { label: string; children: (id: string) => R
   )
 }
 
-export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, targets = [], onClose, random }: RollDialogProps) {
+export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, targets = [], statusLabel, onClose, random }: RollDialogProps) {
   const titleId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const use = subject.kind === 'ability' ? subject.use : undefined
@@ -66,7 +68,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, tar
   const firstNamed = use?.traits[0]
   const named = firstNamed && choices[firstNamed.kind].find((t) => t.trait.id === firstNamed.id)
   const statusDie = zone && zone !== 'out' ? dice.statusDice?.[zone] : undefined
-  const pool = poolDice({ use, picked, named, status: statusDie && zone ? { label: `${ZONE_LABEL[zone]} status`, die: statusDie } : undefined, redStatus: dice.statusDice?.red })
+  const pool = poolDice({ use, picked, named, status: statusDie && zone ? { label: statusLabel ?? `${ZONE_LABEL[zone]} status`, die: statusDie } : undefined, redStatus: dice.statusDice?.red })
   const single = Boolean(use?.pool)
   // Every slot needs a trait before rolling.
   const ready = pool.length > 0 && (single || picked.every(Boolean))

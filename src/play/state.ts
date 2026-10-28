@@ -22,7 +22,7 @@ export function emptyPlay(): PlayState {
 }
 
 /** Current Health: the recorded value, or the max until one is recorded. */
-export function currentHealth(sheet: Pick<HeroSheet, 'maxHealth'>, play: PlayState | undefined): number | undefined {
+export function currentHealth(sheet: Pick<HeroSheet, 'maxHealth'>, play: Pick<PlayState, 'health'> | undefined): number | undefined {
   const max = sheet.maxHealth
   const health = play?.health
   // A stored value above a max that has since dropped (the hero was edited) shows as the max.
@@ -76,10 +76,13 @@ const entry = (clock: Clock, text: string, details?: string[]): PlayHistoryEntry
   ...(details?.length ? { details } : {}),
 })
 
-const withEntry = (play: PlayState, e: PlayHistoryEntry): PlayState => ({ ...play, history: [...play.history, e] })
+const withEntry = <P extends { history: PlayHistoryEntry[] }>(play: P, e: PlayHistoryEntry): P => ({ ...play, history: [...play.history, e] })
+
+/** The play state a hero and a villain (Phase 5) share: Health, the reaction, mods, twists, and history. */
+export type PlayCore = Pick<PlayState, 'health' | 'reactionUsed' | 'mods' | 'twists' | 'history'>
 
 /** Sets current Health (kept between 0 and the max), noting a change of zone. */
-export function setHealth(play: PlayState, sheet: Pick<HeroSheet, 'healthRanges' | 'maxHealth'>, value: number, clock: Clock): PlayState {
+export function setHealth<P extends PlayCore>(play: P, sheet: Pick<HeroSheet, 'healthRanges' | 'maxHealth'>, value: number, clock: Clock): P {
   const max = sheet.maxHealth
   const before = currentHealth(sheet, play)
   const next = Math.max(0, max === undefined ? Math.round(value) : Math.min(max, Math.round(value)))
@@ -126,19 +129,19 @@ export function describeMod(mod: Pick<PlayMod, 'label' | 'value' | 'persistent' 
 }
 
 /** Adds a bonus or penalty; `from` names who gave it, and `id` sets its id (both from a game session). */
-export function addMod(play: PlayState, mod: Omit<PlayMod, 'id'>, clock: Clock, given: { id?: string; from?: string } = {}): PlayState {
+export function addMod<P extends PlayCore>(play: P, mod: Omit<PlayMod, 'id'>, clock: Clock, given: { id?: string; from?: string } = {}): P {
   if (!Number.isInteger(mod.value) || mod.value === 0) return play
   const added: PlayMod = { id: given.id ?? clock.newId(), label: mod.label.trim(), value: mod.value, ...(mod.persistent ? { persistent: true } : {}), ...(mod.exclusive ? { exclusive: true } : {}) }
   return withEntry({ ...play, mods: [...play.mods, added] }, entry(clock, `Gained ${describeMod(added)}${given.from ? ` from ${given.from}` : ''}.`))
 }
 
 /** Notes in the history a bonus or penalty given to another hero in a game session. */
-export function noteGivenMod(play: PlayState, mod: Omit<PlayMod, 'id'>, to: string, clock: Clock): PlayState {
+export function noteGivenMod<P extends PlayCore>(play: P, mod: Omit<PlayMod, 'id'>, to: string, clock: Clock): P {
   return withEntry(play, entry(clock, `Gave ${describeMod(mod)} to ${to}.`))
 }
 
 /** Removes a mod; `why` says how in the history ("Used up", default "Removed"). */
-export function removeMod(play: PlayState, id: string, clock: Clock, why = 'Removed'): PlayState {
+export function removeMod<P extends PlayCore>(play: P, id: string, clock: Clock, why = 'Removed'): P {
   const mod = play.mods.find((m) => m.id === id)
   if (!mod) return play
   return withEntry({ ...play, mods: play.mods.filter((m) => m.id !== id) }, entry(clock, `${why} ${describeMod(mod)}.`))
@@ -151,18 +154,18 @@ export function setHeroPoints(play: PlayState, value: number, clock: Clock): Pla
   return withEntry({ ...play, heroPoints: next }, entry(clock, text))
 }
 
-export function setReactionUsed(play: PlayState, used: boolean, clock: Clock): PlayState {
+export function setReactionUsed<P extends PlayCore>(play: P, used: boolean, clock: Clock): P {
   if (used === play.reactionUsed) return play
   return withEntry({ ...play, reactionUsed: used }, entry(clock, used ? 'Used this round’s reaction.' : 'Reaction ready again.'))
 }
 
-export function addTwist(play: PlayState, twist: Omit<PlayTwist, 'id'>, clock: Clock): PlayState {
+export function addTwist<P extends PlayCore>(play: P, twist: Omit<PlayTwist, 'id'>, clock: Clock): P {
   const text = twist.text.trim()
   if (!text) return play
   return withEntry({ ...play, twists: [...play.twists, { id: clock.newId(), kind: twist.kind, text }] }, entry(clock, `Took a ${twist.kind} twist: ${text}.`))
 }
 
-export function removeTwist(play: PlayState, id: string, clock: Clock): PlayState {
+export function removeTwist<P extends PlayCore>(play: P, id: string, clock: Clock): P {
   const twist = play.twists.find((t) => t.id === id)
   if (!twist) return play
   return withEntry({ ...play, twists: play.twists.filter((t) => t.id !== id) }, entry(clock, `Cleared the ${twist.kind} twist: ${twist.text}.`))

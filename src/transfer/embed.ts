@@ -20,9 +20,10 @@ export function embeddableJson(hero: Hero): string {
   return embeddable(toSaved(sheetHero))
 }
 
-/** A villain's JSON, made safe the same way. */
+/** A villain's JSON, made safe the same way, also without its play state. */
 export function embeddableVillainJson(villain: Villain): string {
-  return embeddable(villainToSaved(villain))
+  const { play: _, ...sheetVillain } = villain
+  return embeddable(villainToSaved(sheetVillain))
 }
 
 function embeddable(saved: unknown): string {

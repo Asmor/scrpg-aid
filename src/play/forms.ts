@@ -71,16 +71,19 @@ export function currentForm(forms: readonly PlayForm[], play: Pick<PlayState, 'f
 
 type Kind = TraitRef['kind']
 
-/** What the hero rolls with right now. */
+/** A power or quality a roll can use: what it is, its die, and its name (a hero's or a villain's). */
+export type RollTrait = Pick<HeroTrait, 'trait' | 'die' | 'name'>
+
+/** What the hero (or a villain) rolls with right now. */
 export interface FormDice {
-  powers: HeroTrait[]
-  qualities: HeroTrait[]
+  powers: RollTrait[]
+  qualities: RollTrait[]
   statusDice?: Record<Zone, Die>
   /** The kinds of the two traits rolled with the status die: a power and a quality, unless Divided Psyche changes it. */
   slots: readonly [Kind, Kind]
   cannot: readonly BasicAction[]
   /** Every power and quality the hero has in any form, for naming one missing from this form. */
-  known: readonly HeroTrait[]
+  known: readonly RollTrait[]
 }
 
 /** The Divided form the hero is in, or undefined for a hero who isn't Divided. */
@@ -111,15 +114,15 @@ export function formDice(hero: Hero, sheet: HeroSheet, play: PlayState): FormDic
   }
 }
 
-const has = (list: readonly HeroTrait[], ref: TraitRef) => list.some((t) => traitKey(t.trait) === traitKey(ref))
+const has = (list: readonly RollTrait[], ref: TraitRef) => list.some((t) => traitKey(t.trait) === traitKey(ref))
 const nameOf = (dice: Pick<FormDice, 'known'>, ref: TraitRef) => dice.known.find((t) => traitKey(t.trait) === traitKey(ref))?.name ?? ref.id
 
 /**
  * The traits a roll can choose from: this form's, plus a d4 for each power or quality the
  * ability names that the form doesn't have (rulings 17 and 52).
  */
-export function traitChoices(dice: FormDice, use: AbilityUse | undefined): Record<Kind, HeroTrait[]> {
-  const add = (kind: Kind, list: HeroTrait[]) => [
+export function traitChoices(dice: FormDice, use: AbilityUse | undefined): Record<Kind, RollTrait[]> {
+  const add = (kind: Kind, list: RollTrait[]): RollTrait[] => [
     ...list,
     ...(use?.traits ?? []).filter((r) => r.kind === kind && !has(list, r)).map((r) => ({ trait: r, die: 'd4' as const, step: 'archetype' as const, name: `${nameOf(dice, r)} (not in this form)` })),
   ]
@@ -128,7 +131,7 @@ export function traitChoices(dice: FormDice, use: AbilityUse | undefined): Recor
 
 /** A slot's trait, and whether it's fixed: the power or quality chosen for the ability, which must be used. */
 export interface Slot {
-  trait?: HeroTrait
+  trait?: RollTrait
   fixed: boolean
 }
 
@@ -136,8 +139,8 @@ export interface Slot {
  * Each slot's starting trait: the ability's own power or quality where its kind fits (fixed),
  * then the largest die not already picked; none when every trait of that kind is taken.
  */
-export function defaultSlots(choices: Record<Kind, readonly HeroTrait[]>, slots: readonly Kind[], use: AbilityUse | undefined): Slot[] {
-  const picked: HeroTrait[] = []
+export function defaultSlots(choices: Record<Kind, readonly RollTrait[]>, slots: readonly Kind[], use: AbilityUse | undefined): Slot[] {
+  const picked: RollTrait[] = []
   return slots.map((kind) => {
     const free = choices[kind].filter((t) => !picked.includes(t))
     const named = free.find((t) => use?.traits.some((r) => traitKey(r) === traitKey(t.trait)))

@@ -9,6 +9,7 @@ import { VillainStoreContext } from './app/villain-store-context'
 import { createDefaultVillainStore, type VillainStore } from './villain/store'
 import { VillainEditor } from './villain/VillainEditor'
 import { VillainPage } from './villain/VillainPage'
+import { VillainPlayPage } from './villain/VillainPlayPage'
 import { GmPage } from './session/GmPage'
 import { JoinPage } from './session/JoinPage'
 import { SessionProvider } from './session/SessionProvider'
@@ -38,6 +39,7 @@ export default function App({ store: given, villainStore: givenVillains, connect
         <main className="app-main">
           {route.name === 'list' && <Home />}
           {route.name === 'villain' && <VillainPage key={route.id} id={route.id} />}
+          {route.name === 'villainPlay' && <VillainPlayPage key={route.id} id={route.id} />}
           {route.name === 'villainEdit' && <VillainEditor key={route.id} id={route.id} step={route.step} />}
           {route.name === 'hero' && <HeroPage key={route.id} id={route.id} />}
           {route.name === 'edit' && <HeroEditor key={route.id} id={route.id} step={route.step} />}
