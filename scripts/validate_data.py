@@ -180,8 +180,8 @@ def check_node(node, where, known, approaches, books, spans):
     if is_ability(node):
         if require(node, ["name", "type", "text"], where) and node["type"] not in ABILITY_TYPES:
             err(where, f"bad ability type '{node['type']}'")
-        # Every hero ability lists its effects (an empty list for one that produces none).
-        if "effects" in node or where.startswith("heroes/"):
+        # Every hero and villain ability lists its effects (an empty list for one that produces none).
+        if "effects" in node or where.startswith(("heroes/", "villains/")):
             check_effects(node.get("effects"), f"{where}.effects")
         if "pool" in node:
             check_pool(node["pool"], f"{where}.pool")

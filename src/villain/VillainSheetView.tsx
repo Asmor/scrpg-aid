@@ -12,7 +12,7 @@ function Abilities({ abilities }: { abilities: readonly VillainSheetAbility[] })
   return (
     <ul className="ability-list">
       {abilities.map((a, i) => (
-        <AbilityRow key={`${a.source}:${a.baseName}:${i}`} name={a.upgrade ? `${a.name} (${a.upgrade})` : a.name} type={a.type} text={a.text} effects={[]} />
+        <AbilityRow key={`${a.source}:${a.baseName}:${i}`} name={a.upgrade ? `${a.name} (${a.upgrade})` : a.name} type={a.type} text={a.text} effects={a.effects} />
       ))}
     </ul>
   )

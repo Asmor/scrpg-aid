@@ -24,6 +24,16 @@ describe('the villain sheet', () => {
       ['archetype', 'Grin and Bear It'],
     ])
     expect(sheet.abilities[0]!.text).toBe('When Attacked, Defend by rolling your single Power Suit die. Also Boost yourself with the result of that die.')
+    // Effects from the data, for icons and the game aid.
+    expect(sheet.abilities[0]).toMatchObject({ effects: ['defend', 'boost'], use: { pool: { single: 'trait' }, traits: [{ kind: 'power', id: 'power-suit' }] } })
+    const fragile = adaptiveBruiser()
+    fragile.archetype = { id: 'fragile', abilities: [{ source: 'archetype', name: 'Cheese It!' }] }
+    expect(buildVillainSheet(fragile).abilities.find((a) => a.name === 'Cheese It!')?.use).toEqual({ effects: [{ actions: ['defend'], use: 'single' }], pool: { single: 'status' }, traits: [] })
+    expect(sheet.abilities.find((a) => a.name === 'Initiate Upgrade Procedure')?.use.effects).toEqual([
+      { actions: ['boost'], use: 'max' },
+      { actions: ['attack'], use: 'mid' },
+      { actions: ['defend'], use: 'min' },
+    ])
     // Adaptive 15 + Bruiser 20 + 4 heroes × 5 = 55.
     expect(sheet.health).toMatchObject({ max: 55, heroCount: 4, ranges: { green: [55, expect.any(Number)] } })
     expect(sheet.health!.parts.map((p) => p.value)).toEqual([15, 20, 20])

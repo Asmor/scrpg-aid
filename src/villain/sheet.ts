@@ -15,12 +15,12 @@
  *   ranges from the chart.
  */
 import { checkChoiceBlock, checkPickFor } from '../creation/abilities'
-import { fillTextWith } from '../creation/sheet'
+import { abilityUseOf, actionsOf, fillTextWith, type AbilityUse } from '../creation/sheet'
 import { ROLEPLAYING_QUALITY } from '../creation/traits'
 import { getTrait, traitKey, type TraitRef } from '../rules/catalog'
 import { compareDice, sortDice, stepDie } from '../rules/dice'
 import { parseSlots } from '../rules/slots'
-import type { Ability, AbilityChoice, AbilityType, Die, HealthRange, TraitKind } from '../rules/types'
+import type { Ability, AbilityChoice, AbilityType, Action, Die, HealthRange, TraitKind } from '../rules/types'
 import { villainApproachesById, villainArchetypesById, villainHealth, villainMasteries, villainRoleplayingQuality, villainUpgradesById } from '../rules/villain-data'
 import type { VillainStatusRule, VillainUpgrade } from '../rules/villain-types'
 import { villainDisplayName, type Villain, type VillainAbilityPick, type VillainAbilitySource } from './model'
@@ -47,6 +47,10 @@ export interface VillainSheetAbility {
   type: AbilityType
   /** The game text with its blanks filled in. */
   text: string
+  /** The actions its effects are, for the icons. */
+  effects: Action[]
+  /** What using it rolls and produces, for the game aid. */
+  use: AbilityUse
   /** The upgrade it comes with, for upgrade and vehicle abilities. */
   upgrade?: string
 }
@@ -180,6 +184,8 @@ export function buildVillainSheet(villain: Villain): VillainSheet {
     baseName: ability.name,
     type: ability.type,
     text: fillTextWith(label, ability.text, pick?.uses, pick?.blanks),
+    effects: actionsOf(ability, pick?.blanks),
+    use: abilityUseOf(ability, pick),
     ...(upgrade ? { upgrade } : {}),
   })
   const abilities: VillainSheetAbility[] = []

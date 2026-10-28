@@ -60,32 +60,39 @@
           {
             "name": "Adapt and Thrive",
             "type": "R",
-            "text": "When Attacked, Defend by rolling your single [Power] die. Also Boost yourself with the result of that die."
+            "text": "When Attacked, Defend by rolling your single [Power] die. Also Boost yourself with the result of that die.",
+            "effects": [{"actions": ["defend"], "use": "single"}, {"actions": ["boost"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Diversity through Adversity",
             "type": "I",
-            "text": "On your turn, whenever you Attack a target you haven’t dealt damage to yet this scene, also Boost yourself using your Max die."
+            "text": "On your turn, whenever you Attack a target you haven’t dealt damage to yet this scene, also Boost yourself using your Max die.",
+            "effects": [{"actions": ["boost"], "use": "max"}]
           },
           {
             "name": "Efficient Reconfiguration",
             "type": "A",
-            "text": "Lower two of your powers by one die size each. Increase one of your other powers to d12. Then take a basic action using that power."
+            "text": "Lower two of your powers by one die size each. Increase one of your other powers to d12. Then take a basic action using that power.",
+            "effects": [{"actions": ["attack", "defend", "boost", "hinder", "overcome"], "use": "mid"}]
           },
           {
             "name": "Initiate Upgrade Procedure",
             "type": "A",
-            "text": "Boost using [power] and use your Max die. Attack with your Mid die. Defend with your Min die."
+            "text": "Boost using [power] and use your Max die. Attack with your Mid die. Defend with your Min die.",
+            "effects": [{"actions": ["boost"], "use": "max"}, {"actions": ["attack"], "use": "mid"}, {"actions": ["defend"], "use": "min"}]
           },
           {
             "name": "Powerful Imitation",
             "type": "A",
-            "text": "Use an action ability of one of your allies."
+            "text": "Use an action ability of one of your allies.",
+            "effects": []
           },
           {
             "name": "The Pain of Perfection",
             "type": "A",
-            "text": "Take d6 irreducible damage. Increase all your powers by one die size each until the end of the scene."
+            "text": "Take d6 irreducible damage. Increase all your powers by one die size each until the end of the scene.",
+            "effects": []
           }
         ]
       }
@@ -143,32 +150,39 @@
           {
             "name": "Behold My Immortal Glory",
             "type": "A",
-            "text": "Hinder using [power] against multiple targets and use your Max die. Attack each using your Mid+Min dice."
+            "text": "Hinder using [power] against multiple targets and use your Max die. Attack each using your Mid+Min dice.",
+            "effects": [{"actions": ["hinder"], "use": "max"}, {"actions": ["attack"], "use": "mid+min"}]
           },
           {
             "name": "From Before Space and Time",
             "type": "R",
-            "text": "Take 1 irreducible damage to reroll a dice pool of someone Attacking or Hindering you."
+            "text": "Take 1 irreducible damage to reroll a dice pool of someone Attacking or Hindering you.",
+            "effects": []
           },
           {
             "name": "Immortal Vitality",
             "type": "I",
-            "text": "If you would be reduced to 0 Health and you don’t have a penalty, roll your single [power] die and become that Health."
+            "text": "If you would be reduced to 0 Health and you don’t have a penalty, roll your single [power] die and become that Health.",
+            "effects": [{"actions": ["recover"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Ideal Action",
             "type": "A",
-            "text": "Take a basic action using [quality] and use your Max die."
+            "text": "Take a basic action using [quality] and use your Max die.",
+            "effects": [{"actions": ["attack", "defend", "boost", "hinder", "overcome"], "use": "max"}]
           },
           {
             "name": "Out of Time",
             "type": "A",
-            "text": "Boost yourself using [power]. If there are any heroes with their Health in the Yellow zone, use your Mid+Min dice. If there are any heroes with their Health in the Red zone, use your Max+Mid+Min dice."
+            "text": "Boost yourself using [power]. If there are any heroes with their Health in the Yellow zone, use your Mid+Min dice. If there are any heroes with their Health in the Red zone, use your Max+Mid+Min dice.",
+            "effects": [{"actions": ["boost"], "use": ["mid", "mid+min", "max+mid+min"]}]
           },
           {
             "name": "Unknowable Pain",
             "type": "A",
-            "text": "Attack using [power] and use your Max die. Hinder a target dealt damage this way using your Max+Min dice."
+            "text": "Attack using [power] and use your Max die. Hinder a target dealt damage this way using your Max+Min dice.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["hinder"], "use": "max+min"}]
           }
         ]
       }
@@ -223,32 +237,38 @@
           {
             "name": "Bust Their Heads",
             "type": "A",
-            "text": "Attack two nearby targets using [power], using your Max die against one and your Mid+Min against the other. If either target Defends against the Attack, the Defend works against both attacks."
+            "text": "Attack two nearby targets using [power], using your Max die against one and your Mid+Min against the other. If either target Defends against the Attack, the Defend works against both attacks.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["attack"], "use": "mid+min"}]
           },
           {
             "name": "Cruel and Unusual",
             "type": "I",
-            "text": "Whenever you or your nearby allies Hinder, increase the penalty created by 1."
+            "text": "Whenever you or your nearby allies Hinder, increase the penalty created by 1.",
+            "effects": []
           },
           {
             "name": "Crush the Small",
             "type": "A",
-            "text": "Attack using [power] and use your Max die. Defend against all Attacks from that target using your Mid die until the start of your next turn."
+            "text": "Attack using [power] and use your Max die. Defend against all Attacks from that target using your Mid die until the start of your next turn.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["defend"], "use": "mid"}]
           },
           {
             "name": "Injured Tantrum",
             "type": "A",
-            "text": "Attack using [power] and use your Max die. Also Hinder that target: if the target has a d6 or less status die, use your Max+Min dice; if the target has a d8 status die, use your Max die; and if the target has larger than a d8, use your Mid die."
+            "text": "Attack using [power] and use your Max die. Also Hinder that target: if the target has a d6 or less status die, use your Max+Min dice; if the target has a d8 status die, use your Max die; and if the target has larger than a d8, use your Mid die.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["hinder"], "use": ["max+min", "max", "mid"]}]
           },
           {
             "name": "Punish Weakness",
             "type": "A",
-            "text": "Boost yourself using [power]. If there are any heroes with their Health in the Yellow zone, use your Mid+Min dice. If there are any heroes with their Health in the Red zone, use your Max+Mid+Min dice."
+            "text": "Boost yourself using [power]. If there are any heroes with their Health in the Yellow zone, use your Mid+Min dice. If there are any heroes with their Health in the Red zone, use your Max+Mid+Min dice.",
+            "effects": [{"actions": ["boost"], "use": ["mid", "mid+min", "max+mid+min"]}]
           },
           {
             "name": "Thick",
             "type": "I",
-            "text": "Reduce all damage dealt to you by 2."
+            "text": "Reduce all damage dealt to you by 2.",
+            "effects": []
           }
         ]
       }
@@ -303,32 +323,38 @@
           {
             "name": "Harvest their Power",
             "type": "R",
-            "text": "When one of your minions is destroyed, roll its die and you recover that much Health."
+            "text": "When one of your minions is destroyed, roll its die and you recover that much Health.",
+            "effects": [{"actions": ["recover"], "use": "other"}]
           },
           {
             "name": "Retributive Lash",
             "type": "R",
-            "text": "When one of your minions is destroyed, roll its die and deal damage equal to that roll to another target."
+            "text": "When one of your minions is destroyed, roll its die and deal damage equal to that roll to another target.",
+            "effects": [{"actions": ["attack"], "use": "other"}]
           },
           {
             "name": "Powerful Ally",
             "type": "A",
-            "text": "Use [power/quality] to create a lieutenant of the same die size as your Max die."
+            "text": "Use [power/quality] to create a lieutenant of the same die size as your Max die.",
+            "effects": []
           },
           {
             "name": "Shared Power",
             "type": "A",
-            "text": "Boost one of your minions using [power] and use your Max die. If it is your only minion, also Boost yourself using your Mid die. If not, Boost each of your other minions using your Min die."
+            "text": "Boost one of your minions using [power] and use your Max die. If it is your only minion, also Boost yourself using your Mid die. If not, Boost each of your other minions using your Min die.",
+            "effects": [{"actions": ["boost"], "use": "max"}, {"actions": ["boost"], "use": ["mid", "min"]}]
           },
           {
             "name": "Summon Mob",
             "type": "A",
-            "text": "Use [power/quality] to create a number of minions equal to the value of your Max die. The starting die size for those minions is the same as the size of your Min die."
+            "text": "Use [power/quality] to create a number of minions equal to the value of your Max die. The starting die size for those minions is the same as the size of your Min die.",
+            "effects": []
           },
           {
             "name": "Swarm Attack",
             "type": "A",
-            "text": "Attack using [power] and use your Max die, with a bonus equal to the number of minions you control."
+            "text": "Attack using [power] and use your Max die, with a bonus equal to the number of minions you control.",
+            "effects": [{"actions": ["attack"], "use": "max"}]
           }
         ]
       }
@@ -381,32 +407,39 @@
           {
             "name": "Capitalize on their Failure",
             "type": "R",
-            "text": "When a nearby hero that you can see invokes a twist, roll your [power] die as a Hinder against them."
+            "text": "When a nearby hero that you can see invokes a twist, roll your [power] die as a Hinder against them.",
+            "effects": [{"actions": ["hinder"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Curse of Weakness",
             "type": "A",
-            "text": "Hinder using [power] and use your Max die; that penalty is persistent and exclusive. As long as that penalty is on the target, reduce their highest power die of your choice by one die size. Attack using your Mid die."
+            "text": "Hinder using [power] and use your Max die; that penalty is persistent and exclusive. As long as that penalty is on the target, reduce their highest power die of your choice by one die size. Attack using your Mid die.",
+            "effects": [{"actions": ["hinder"], "use": "max"}, {"actions": ["attack"], "use": "mid"}]
           },
           {
             "name": "Field of Woe",
             "type": "A",
-            "text": "Hinder multiple targets using [power]. While a hero has this penalty, reduce all their power dice by one size."
+            "text": "Hinder multiple targets using [power]. While a hero has this penalty, reduce all their power dice by one size.",
+            "effects": [{"actions": ["hinder"], "use": "mid"}]
           },
           {
             "name": "Nullifying Backlash",
             "type": "R",
-            "text": "When Attacked by a hero with a penalty, ignore their damage and remove a penalty on that hero."
+            "text": "When Attacked by a hero with a penalty, ignore their damage and remove a penalty on that hero.",
+            "effects": []
           },
           {
             "name": "Scrambling Strike",
             "type": "A",
-            "text": "Attack using [power]. Reduce all the target’s quality dice by one size until your next turn."
+            "text": "Attack using [power]. Reduce all the target’s quality dice by one size until your next turn.",
+            "effects": [{"actions": ["attack"], "use": "mid"}]
           },
           {
             "name": "Terror of Inadequacy",
             "type": "A",
-            "text": "Attack using [quality] and use your Max die. Hinder each opponent that can see or hear the target of your Attack using your Min die."
+            "text": "Attack using [quality] and use your Max die. Hinder each opponent that can see or hear the target of your Attack using your Min die.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["hinder"], "use": "min"}]
           }
         ]
       }
@@ -463,32 +496,39 @@
           {
             "name": "Beneficial Chaos",
             "type": "A",
-            "text": "Hinder using [power]. Use your Max die. Recover using your Min+Mid dice."
+            "text": "Hinder using [power]. Use your Max die. Recover using your Min+Mid dice.",
+            "effects": [{"actions": ["hinder"], "use": "max"}, {"actions": ["recover"], "use": "mid+min"}]
           },
           {
             "name": "Covering Fire",
             "type": "A",
-            "text": "Hinder multiple targets using [quality]. You and any nearby allies Defend using your Max die."
+            "text": "Hinder multiple targets using [quality]. You and any nearby allies Defend using your Max die.",
+            "effects": [{"actions": ["hinder"], "use": "mid"}, {"actions": ["defend"], "use": "max"}]
           },
           {
             "name": "Enraging Touch",
             "type": "A",
-            "text": "Attack using [power]. Use your Max die. A target dealt damage this way Attacks an ally by rolling their single largest power die."
+            "text": "Attack using [power]. Use your Max die. A target dealt damage this way Attacks an ally by rolling their single largest power die.",
+            "effects": [{"actions": ["attack"], "use": "max"}]
           },
           {
             "name": "Heedless Explosion",
             "type": "A",
-            "text": "Attack multiple targets using [quality]. Use your Min die. Hinder each target with your Max die. If one of those targets rolls doubles on their next turn, they take damage equal to the penalty."
+            "text": "Attack multiple targets using [quality]. Use your Min die. Hinder each target with your Max die. If one of those targets rolls doubles on their next turn, they take damage equal to the penalty.",
+            "effects": [{"actions": ["attack"], "use": "min"}, {"actions": ["hinder"], "use": "max"}]
           },
           {
             "name": "Painful Disruption",
             "type": "R",
-            "text": "When Attacked by a hero with a penalty, that hero takes damage equal to the size of that penalty."
+            "text": "When Attacked by a hero with a penalty, that hero takes damage equal to the size of that penalty.",
+            "effects": []
           },
           {
             "name": "Taste the Madness",
             "type": "R",
-            "text": "Whenever a target takes a Hinder action against you, you may first roll your [power] die as a Hinder on them."
+            "text": "Whenever a target takes a Hinder action against you, you may first roll your [power] die as a Hinder on them.",
+            "effects": [{"actions": ["hinder"], "use": "single", "optional": true}],
+            "pool": {"single": "trait"}
           }
         ]
       }
@@ -541,32 +581,39 @@
           {
             "name": "Elemental Absorption",
             "type": "R",
-            "text": "When Attacked with [energy/element], recover that amount of Health instead of taking damage. When Hindered with [energy/element], Boost yourself instead."
+            "text": "When Attacked with [energy/element], recover that amount of Health instead of taking damage. When Hindered with [energy/element], Boost yourself instead.",
+            "effects": [{"actions": ["recover"], "use": "damage"}, {"actions": ["boost"], "use": "other"}]
           },
           {
             "name": "Defensive Charging",
             "type": "A",
-            "text": "Defend yourself using [power]. This Defend lasts until your next turn. If an Attack deals more damage than the Defend’s value, end the Defend and Attack the attacker equal to the Defend."
+            "text": "Defend yourself using [power]. This Defend lasts until your next turn. If an Attack deals more damage than the Defend’s value, end the Defend and Attack the attacker equal to the Defend.",
+            "effects": [{"actions": ["defend"], "use": "mid"}, {"actions": ["attack"], "use": "mid"}]
           },
           {
             "name": "Perfect Alignment",
             "type": "I",
-            "text": "Ignore all damage from [energy/element]."
+            "text": "Ignore all damage from [energy/element].",
+            "effects": []
           },
           {
             "name": "Pour it On",
             "type": "A",
-            "text": "Attack one target using [power]. Use your Max die. That target cannot Defend or use reactions against this Attack. Attack multiple other nearby targets using your Min die."
+            "text": "Attack one target using [power]. Use your Max die. That target cannot Defend or use reactions against this Attack. Attack multiple other nearby targets using your Min die.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["attack"], "use": "min"}]
           },
           {
             "name": "Sympathetic Shield",
             "type": "R",
-            "text": "Defend against an Attack against only you by rolling your single [power] die. Boost yourself by the damage reduced."
+            "text": "Defend against an Attack against only you by rolling your single [power] die. Boost yourself by the damage reduced.",
+            "effects": [{"actions": ["defend"], "use": "single"}, {"actions": ["boost"], "use": "other"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Vicious Entanglement",
             "type": "A",
-            "text": "Hinder one target using [power]. Use your Max die. Attack that target using your Mid die."
+            "text": "Hinder one target using [power]. Use your Max die. Attack that target using your Mid die.",
+            "effects": [{"actions": ["hinder"], "use": "max"}, {"actions": ["attack"], "use": "mid"}]
           }
         ]
       }
@@ -623,32 +670,39 @@
           {
             "name": "Bodyguard",
             "type": "R",
-            "text": "When an ally is Attacked, Defend them by rolling your single [power] die. Boost yourself by that amount."
+            "text": "When an ally is Attacked, Defend them by rolling your single [power] die. Boost yourself by that amount.",
+            "effects": [{"actions": ["defend"], "use": "single"}, {"actions": ["boost"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Dependable",
             "type": "I",
-            "text": "Whenever you roll a 1 on a die, reroll that die once."
+            "text": "Whenever you roll a 1 on a die, reroll that die once.",
+            "effects": []
           },
           {
             "name": "Heavy Hitter",
             "type": "A",
-            "text": "Attack using [quality]. Use your Max die. Recover Health equal to your Min die."
+            "text": "Attack using [quality]. Use your Max die. Recover Health equal to your Min die.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["recover"], "use": "min"}]
           },
           {
             "name": "Stalwart Combatant",
             "type": "A",
-            "text": "Boost using [power]. Use your Max die. Defend with your Mid die."
+            "text": "Boost using [power]. Use your Max die. Defend with your Mid die.",
+            "effects": [{"actions": ["boost"], "use": "max"}, {"actions": ["defend"], "use": "mid"}]
           },
           {
             "name": "Tough Customer",
             "type": "I",
-            "text": "Reduce physical and energy damage dealt to you by 1 if the scene is in the Green zone, 2 in the Yellow zone, or 3 in the Red zone."
+            "text": "Reduce physical and energy damage dealt to you by 1 if the scene is in the Green zone, 2 in the Yellow zone, or 3 in the Red zone.",
+            "effects": []
           },
           {
             "name": "Wracking Aura",
             "type": "A",
-            "text": "Hinder multiple nearby targets using [power]. Boost yourself using your Max die."
+            "text": "Hinder multiple nearby targets using [power]. Boost yourself using your Max die.",
+            "effects": [{"actions": ["hinder"], "use": "mid"}, {"actions": ["boost"], "use": "max"}]
           }
         ]
       }
@@ -701,32 +755,39 @@
           {
             "name": "Hypnotic Gaze",
             "type": "R",
-            "text": "When Attacked, Defend yourself by rolling your single [power] die. If this negates the Attack entirely, Hinder that target and Boost yourself with that same die roll."
+            "text": "When Attacked, Defend yourself by rolling your single [power] die. If this negates the Attack entirely, Hinder that target and Boost yourself with that same die roll.",
+            "effects": [{"actions": ["defend"], "use": "single"}, {"actions": ["hinder"], "use": "single"}, {"actions": ["boost"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Life Drain",
             "type": "A",
-            "text": "Attack using [power/quality]. Use your Max die. Hinder that target with your Mid die. Recover Health equal to your Min die."
+            "text": "Attack using [power/quality]. Use your Max die. Hinder that target with your Mid die. Recover Health equal to your Min die.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["hinder"], "use": "mid"}, {"actions": ["recover"], "use": "min"}]
           },
           {
             "name": "Power Consumption",
             "type": "R",
-            "text": "When a bonus is used against you in an Attack or Hinder, you may first destroy that bonus. If you do, roll your single [power] die and Recover Health equal to the roll plus the destroyed bonus."
+            "text": "When a bonus is used against you in an Attack or Hinder, you may first destroy that bonus. If you do, roll your single [power] die and Recover Health equal to the roll plus the destroyed bonus.",
+            "effects": [{"actions": ["recover"], "use": "other", "optional": true}]
           },
           {
             "name": "Siphoning Wither",
             "type": "A",
-            "text": "Hinder using [power]. Use your Max+Min dice. Boost with your Mid die."
+            "text": "Hinder using [power]. Use your Max+Min dice. Boost with your Mid die.",
+            "effects": [{"actions": ["hinder"], "use": "max+min"}, {"actions": ["boost"], "use": "mid"}]
           },
           {
             "name": "Unnerving Whispers",
             "type": "A",
-            "text": "Hinder multiple targets using [power]. Recover Health equal to your Min die. If you roll doubles, also Attack one of those targets using your Max die."
+            "text": "Hinder multiple targets using [power]. Recover Health equal to your Min die. If you roll doubles, also Attack one of those targets using your Max die.",
+            "effects": [{"actions": ["hinder"], "use": "mid"}, {"actions": ["recover"], "use": "min"}, {"actions": ["attack"], "use": "max", "when": "doubles"}]
           },
           {
             "name": "Violent Vitality",
             "type": "A",
-            "text": "Attack using [power]. Use your Max die. Boost with your Min die. This bonus is persistent and exclusive."
+            "text": "Attack using [power]. Use your Max die. Boost with your Min die. This bonus is persistent and exclusive.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["boost"], "use": "min"}]
           }
         ]
       }
@@ -787,32 +848,39 @@
           {
             "name": "Contingencies upon Contingencies",
             "type": "A",
-            "text": "Boost yourself using [quality] and use your Max die. Either make that bonus persistent and exclusive, or Boost yourself again using your Min+Mid dice."
+            "text": "Boost yourself using [quality] and use your Max die. Either make that bonus persistent and exclusive, or Boost yourself again using your Min+Mid dice.",
+            "effects": [{"actions": ["boost"], "use": "max"}, {"actions": ["boost"], "use": "mid+min", "optional": true}]
           },
           {
             "name": "If My Calculations Are Correct…",
             "type": "R",
-            "text": "Take 1 irreducible damage to reroll your dice pool on your turn or the dice pool of a hero Attacking or Hindering you."
+            "text": "Take 1 irreducible damage to reroll your dice pool on your turn or the dice pool of a hero Attacking or Hindering you.",
+            "effects": []
           },
           {
             "name": "Exploit Weakness",
             "type": "A",
-            "text": "Attack one hero using [quality]. Hinder all heroes using your Max die."
+            "text": "Attack one hero using [quality]. Hinder all heroes using your Max die.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["hinder"], "use": "max"}]
           },
           {
             "name": "Reversal of Fortune",
             "type": "R",
-            "text": "When Attacked, Boost yourself using the attacker’s Max die."
+            "text": "When Attacked, Boost yourself using the attacker’s Max die.",
+            "effects": [{"actions": ["boost"], "use": "other"}]
           },
           {
             "name": "Prepared for Anything",
             "type": "R",
-            "text": "At the start of your turn, if you have no bonuses in play, roll your single [quality] die as a Boost for yourself."
+            "text": "At the start of your turn, if you have no bonuses in play, roll your single [quality] die as a Boost for yourself.",
+            "effects": [{"actions": ["boost"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Villainous Monologue",
             "type": "A",
-            "text": "Hinder all opponents that can see or hear you using [quality]. Boost yourself using your Max die."
+            "text": "Hinder all opponents that can see or hear you using [quality]. Boost yourself using your Max die.",
+            "effects": [{"actions": ["hinder"], "use": "mid"}, {"actions": ["boost"], "use": "max"}]
           }
         ]
       }
@@ -871,32 +939,39 @@
           {
             "name": "Deadly Blink",
             "type": "A",
-            "text": "Attack multiple nearby targets using [quality]. Then, end up wherever you want in the scene."
+            "text": "Attack multiple nearby targets using [quality]. Then, end up wherever you want in the scene.",
+            "effects": [{"actions": ["attack"], "use": "mid"}]
           },
           {
             "name": "Defensive Dash",
             "type": "R",
-            "text": "When Attacked, Defend yourself by rolling for your single [quality] die. Boost yourself with the amount of damage reduced."
+            "text": "When Attacked, Defend yourself by rolling for your single [quality] die. Boost yourself with the amount of damage reduced.",
+            "effects": [{"actions": ["defend"], "use": "single"}, {"actions": ["boost"], "use": "other"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Fade From Sight",
             "type": "I",
-            "text": "If you take an action on your turn that does not involve an Attack or Hinder, also use your Min die to Defend against all Attacks against you until your next turn."
+            "text": "If you take an action on your turn that does not involve an Attack or Hinder, also use your Min die to Defend against all Attacks against you until your next turn.",
+            "effects": [{"actions": ["defend"], "use": "min"}]
           },
           {
             "name": "Rising Winds, Crashing Waves",
             "type": "A",
-            "text": "Attack using [quality], using your Max die against one target, Mid die against another, and Min die against any target."
+            "text": "Attack using [quality], using your Max die against one target, Mid die against another, and Min die against any target.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["attack"], "use": "mid"}, {"actions": ["attack"], "use": "min"}]
           },
           {
             "name": "Sever the Tendons",
             "type": "A",
-            "text": "Attack using [quality]. Hinder that target using your Max+Min dice."
+            "text": "Attack using [quality]. Hinder that target using your Max+Min dice.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["hinder"], "use": "max+min"}]
           },
           {
             "name": "Shadow’s Blade",
             "type": "A",
-            "text": "Attack using [quality] and use your Max die. Defend against all Attacks against you with your Mid die until the start of your next turn."
+            "text": "Attack using [quality] and use your Max die. Defend against all Attacks against you with your Mid die until the start of your next turn.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["defend"], "use": "mid"}]
           }
         ]
       }
@@ -948,32 +1023,39 @@
           {
             "name": "Do Not Dare to Touch Me",
             "type": "R",
-            "text": "When Attacked, Defend yourself by rolling your single [power] die. Deal that much damage to a different nearby target."
+            "text": "When Attacked, Defend yourself by rolling your single [power] die. Deal that much damage to a different nearby target.",
+            "effects": [{"actions": ["defend"], "use": "single"}, {"actions": ["attack"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Face My Full Might",
             "type": "A",
-            "text": "Attack using [power]. Use your Max+Mid+Min dice. Hinder yourself using your Max die. Take damage equal to your Mid+Min dice."
+            "text": "Attack using [power]. Use your Max+Mid+Min dice. Hinder yourself using your Max die. Take damage equal to your Mid+Min dice.",
+            "effects": [{"actions": ["attack"], "use": "max+mid+min"}, {"actions": ["hinder"], "use": "max"}]
           },
           {
             "name": "Fear My Overwhelming Power",
             "type": "A",
-            "text": "Hinder using [power] and use your Max die. Attack that target using your Mid+Min dice."
+            "text": "Hinder using [power] and use your Max die. Attack that target using your Mid+Min dice.",
+            "effects": [{"actions": ["hinder"], "use": "max"}, {"actions": ["attack"], "use": "mid+min"}]
           },
           {
             "name": "Raw Power",
             "type": "I",
-            "text": "Whenever you roll a 1, reroll that die."
+            "text": "Whenever you roll a 1, reroll that die.",
+            "effects": []
           },
           {
             "name": "Rejoice, My Followers",
             "type": "A",
-            "text": "Boost using [power]. Recover Health equal to your Max die. Each of your nearby allies Recovers Health equal to your Min die. Each of your nearby minions and lieutenants whose die sizes have degraded at all are increased one die size."
+            "text": "Boost using [power]. Recover Health equal to your Max die. Each of your nearby allies Recovers Health equal to your Min die. Each of your nearby minions and lieutenants whose die sizes have degraded at all are increased one die size.",
+            "effects": [{"actions": ["boost"], "use": "mid"}, {"actions": ["recover"], "use": "max"}, {"actions": ["recover"], "use": "min"}]
           },
           {
             "name": "You Are Not Worthy of My Power",
             "type": "A",
-            "text": "Attack multiple targets using [power] and use your Max die. Hinder each target using your Mid die."
+            "text": "Attack multiple targets using [power] and use your Max die. Hinder each target using your Mid die.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["hinder"], "use": "mid"}]
           }
         ]
       }
@@ -1032,32 +1114,40 @@
           {
             "name": "I Know Your Weakness",
             "type": "R",
-            "text": "When a nearby hero rolls a 1 on one of their dice during their turn, roll your single [power/quality] die as an Attack against them."
+            "text": "When a nearby hero rolls a 1 on one of their dice during their turn, roll your single [power/quality] die as an Attack against them.",
+            "effects": [{"actions": ["attack"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "I Will Deal With the Rest of You Later",
             "type": "A",
-            "text": "Attack one target using [power/quality]. Use your Max+Min dice. Defend against all Attacks against you by all other targets until the start of your next turn with your Mid die."
+            "text": "Attack one target using [power/quality]. Use your Max+Min dice. Defend against all Attacks against you by all other targets until the start of your next turn with your Mid die.",
+            "effects": [{"actions": ["attack"], "use": "max+min"}, {"actions": ["defend"], "use": "mid"}]
           },
           {
             "name": "My Greatness Cannot Be Denied",
             "type": "A",
-            "text": "Attack one target using [power/quality] and use your Max+Min dice. If that Attack causes the target to change zones, Boost using your Mid die. That bonus is persistent and exclusive."
+            "text": "Attack one target using [power/quality] and use your Max+Min dice. If that Attack causes the target to change zones, Boost using your Mid die. That bonus is persistent and exclusive.",
+            "effects": [{"actions": ["attack"], "use": "max+min"}, {"actions": ["boost"], "use": "mid"}]
           },
           {
             "name": "Sustained Mockery",
             "type": "A",
-            "text": "Hinder using [power/quality]. Use your Max die. That penalty is persistent and exclusive."
+            "text": "Hinder using [power/quality]. Use your Max die. That penalty is persistent and exclusive.",
+            "effects": [{"actions": ["hinder"], "use": "max"}]
           },
           {
             "name": "Unquestionable Might",
             "type": "I",
-            "text": "Reduce all damage dealt to you by 2."
+            "text": "Reduce all damage dealt to you by 2.",
+            "effects": []
           },
           {
             "name": "You Cannot Survive",
             "type": "R",
-            "text": "If an opponent ends their turn near you, you may roll your single [power] die as a Hinder against them."
+            "text": "If an opponent ends their turn near you, you may roll your single [power] die as a Hinder against them.",
+            "effects": [{"actions": ["hinder"], "use": "single", "optional": true}],
+            "pool": {"single": "trait"}
           }
         ],
         "rule": "differentPowersOrQualities"
@@ -1114,32 +1204,40 @@
           {
             "name": "Dogged Pursuit",
             "type": "R",
-            "text": "When an opponent moves away from you, you may follow them and roll your single status die as a Hinder against them."
+            "text": "When an opponent moves away from you, you may follow them and roll your single status die as a Hinder against them.",
+            "effects": [{"actions": ["hinder"], "use": "single", "optional": true}],
+            "pool": {"single": "status"}
           },
           {
             "name": "Prey on the Weak",
             "type": "A",
-            "text": "Attack and Hinder using [quality]. If the target has: a d6 or less status die, use your Max+Min dice; a d8 status die, use your Max die; larger than a d8, use your Mid die."
+            "text": "Attack and Hinder using [quality]. If the target has: a d6 or less status die, use your Max+Min dice; a d8 status die, use your Max die; larger than a d8, use your Mid die.",
+            "effects": [{"actions": ["attack"], "use": ["max+min", "max", "mid"]}, {"actions": ["hinder"], "use": ["max+min", "max", "mid"]}]
           },
           {
             "name": "Repeated Punishment",
             "type": "R",
-            "text": "After making an Attack action on your turn, use your Mid die to make another Attack against one target of the initial Attack."
+            "text": "After making an Attack action on your turn, use your Mid die to make another Attack against one target of the initial Attack.",
+            "effects": [{"actions": ["attack"], "use": "mid"}]
           },
           {
             "name": "Too Close for Comfort",
             "type": "I",
-            "text": "Whenever a nearby opponent would Attack you, you may destroy a bonus on yourself or a penalty on that opponent to reduce the Attack by the value of the destroyed mod."
+            "text": "Whenever a nearby opponent would Attack you, you may destroy a bonus on yourself or a penalty on that opponent to reduce the Attack by the value of the destroyed mod.",
+            "effects": []
           },
           {
             "name": "Twist the Knife",
             "type": "R",
-            "text": "When one of your allies Attacks an opponent, roll your single [quality] die and add that amount of damage to the Attack."
+            "text": "When one of your allies Attacks an opponent, roll your single [quality] die and add that amount of damage to the Attack.",
+            "effects": [{"actions": ["attack"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Up in Your Face",
             "type": "A",
-            "text": "Attack using [quality]. Use your Max die. If the target does not Attack you on their next turn, Hinder them using your Mid die."
+            "text": "Attack using [quality]. Use your Max die. If the target does not Attack you on their next turn, Hinder them using your Mid die.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["hinder"], "use": "mid"}]
           }
         ]
       }
@@ -1185,32 +1283,39 @@
           {
             "name": "Best in the Biz",
             "type": "A",
-            "text": "Hinder using [power]. Use your Min die. Boost yourself using your Max die."
+            "text": "Hinder using [power]. Use your Min die. Boost yourself using your Max die.",
+            "effects": [{"actions": ["hinder"], "use": "min"}, {"actions": ["boost"], "use": "max"}]
           },
           {
             "name": "Dodge and Weave",
             "type": "R",
-            "text": "When Attacked, Defend yourself by rolling your single [quality] die. Deal that much damage to another target."
+            "text": "When Attacked, Defend yourself by rolling your single [quality] die. Deal that much damage to another target.",
+            "effects": [{"actions": ["defend"], "use": "single"}, {"actions": ["attack"], "use": "single"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Consistently Capable",
             "type": "I",
-            "text": "Whenever you gain a penalty, reduce the size of that penalty by 1."
+            "text": "Whenever you gain a penalty, reduce the size of that penalty by 1.",
+            "effects": []
           },
           {
             "name": "Flexible Expertise",
             "type": "A",
-            "text": "Take any basic action using your Max die. Recover Health equal to your Mid die."
+            "text": "Take any basic action using your Max die. Recover Health equal to your Mid die.",
+            "effects": [{"actions": ["attack", "defend", "boost", "hinder", "overcome"], "use": "max"}, {"actions": ["recover"], "use": "mid"}]
           },
           {
             "name": "Incomparable Inequity",
             "type": "A",
-            "text": "Hinder using [quality] and use your Max+Min dice. This penalty is persistent and exclusive."
+            "text": "Hinder using [quality] and use your Max+Min dice. This penalty is persistent and exclusive.",
+            "effects": [{"actions": ["hinder"], "use": "max+min"}]
           },
           {
             "name": "Misdirection",
             "type": "A",
-            "text": "Hinder multiple targets using [quality] and use your Max die. If you roll doubles, also Attack each target with your Mid die."
+            "text": "Hinder multiple targets using [quality] and use your Max die. If you roll doubles, also Attack each target with your Mid die.",
+            "effects": [{"actions": ["hinder"], "use": "max"}, {"actions": ["attack"], "use": "mid", "when": "doubles"}]
           }
         ]
       }
@@ -1260,32 +1365,39 @@
           {
             "name": "Active Cover",
             "type": "R",
-            "text": "Defend against an Attack where you’re the only target by rolling your single [quality] die. One other nearby target takes an amount of damage equal to the damage reduced."
+            "text": "Defend against an Attack where you’re the only target by rolling your single [quality] die. One other nearby target takes an amount of damage equal to the damage reduced.",
+            "effects": [{"actions": ["defend"], "use": "single"}, {"actions": ["attack"], "use": "other"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Cleaving Slash",
             "type": "A",
-            "text": "Attack using [quality] against one target with your Max die, another with your Mid die, and a third with your Min die."
+            "text": "Attack using [quality] against one target with your Max die, another with your Mid die, and a third with your Min die.",
+            "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["attack"], "use": "mid"}, {"actions": ["attack"], "use": "min"}]
           },
           {
             "name": "Focused Attack",
             "type": "A",
-            "text": "Attack using [quality] and use your Max+Min dice. Defend yourself using your Mid die."
+            "text": "Attack using [quality] and use your Max+Min dice. Defend yourself using your Mid die.",
+            "effects": [{"actions": ["attack"], "use": "max+min"}, {"actions": ["defend"], "use": "mid"}]
           },
           {
             "name": "Known Target",
             "type": "I",
-            "text": "Whenever you Attack a target that you have dealt damage to at least once already in this scene, gain a +1 persistent and exclusive bonus against that target."
+            "text": "Whenever you Attack a target that you have dealt damage to at least once already in this scene, gain a +1 persistent and exclusive bonus against that target.",
+            "effects": []
           },
           {
             "name": "Neutralizing Strike",
             "type": "A",
-            "text": "Attack one target using [quality] and use your Max+Min dice. That target cannot Defend or use reactions against this attack."
+            "text": "Attack one target using [quality] and use your Max+Min dice. That target cannot Defend or use reactions against this attack.",
+            "effects": [{"actions": ["attack"], "use": "max+min"}]
           },
           {
             "name": "Tangled Torment",
             "type": "A",
-            "text": "Hinder one target using [quality] and use your Max die. Attack that target using your Mid die."
+            "text": "Hinder one target using [quality] and use your Max die. Attack that target using your Mid die.",
+            "effects": [{"actions": ["hinder"], "use": "max"}, {"actions": ["attack"], "use": "mid"}]
           }
         ]
       }
@@ -1342,32 +1454,39 @@
           {
             "name": "Group Up",
             "type": "A",
-            "text": "Attack using [quality] and use your Max die. Add 1 to the Attack for each other ally that Attacked that target since your last turn."
+            "text": "Attack using [quality] and use your Max die. Add 1 to the Attack for each other ally that Attacked that target since your last turn.",
+            "effects": [{"actions": ["attack"], "use": "max"}]
           },
           {
             "name": "I’ll Back You Up",
             "type": "R",
-            "text": "When a nearby ally makes an Attack, you may also Attack the same target by rolling your single [quality] die."
+            "text": "When a nearby ally makes an Attack, you may also Attack the same target by rolling your single [quality] die.",
+            "effects": [{"actions": ["attack"], "use": "single", "optional": true}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Joint Action",
             "type": "A",
-            "text": "Make a basic action using [quality] and use your Max die. One nearby ally also makes that same basic action as their reaction."
+            "text": "Make a basic action using [quality] and use your Max die. One nearby ally also makes that same basic action as their reaction.",
+            "effects": [{"actions": ["attack", "defend", "boost", "hinder", "overcome"], "use": "max"}]
           },
           {
             "name": "Organized March",
             "type": "A",
-            "text": "Boost using [quality] and use your Max die. That bonus applies to every ally’s action until the beginning of your next turn."
+            "text": "Boost using [quality] and use your Max die. That bonus applies to every ally’s action until the beginning of your next turn.",
+            "effects": [{"actions": ["boost"], "use": "max"}]
           },
           {
             "name": "Try Again",
             "type": "R",
-            "text": "Take 1 irreducible damage to reroll an ally’s dice pool."
+            "text": "Take 1 irreducible damage to reroll an ally’s dice pool.",
+            "effects": []
           },
           {
             "name": "Working Together",
             "type": "I",
-            "text": "As long as you have at least 1 nearby ally, you may reroll all 1s on your dice."
+            "text": "As long as you have at least 1 nearby ally, you may reroll all 1s on your dice.",
+            "effects": []
           }
         ]
       }
@@ -1420,32 +1539,39 @@
           {
             "name": "Avoid the Inevitable",
             "type": "I",
-            "text": "Whenever you would be reduced to 0 or fewer Health, prevent that damage and reduce all your power dice by one size. If this reduces any dice to below a d4, you are knocked out."
+            "text": "Whenever you would be reduced to 0 or fewer Health, prevent that damage and reduce all your power dice by one size. If this reduces any dice to below a d4, you are knocked out.",
+            "effects": []
           },
           {
             "name": "Do Not Underestimate Me",
             "type": "A",
-            "text": "Attack using [power]. Use your Max+Mid dice. Take irreducible damage equal to your Min die. If you roll doubles, you cannot use this ability again for the rest of the scene."
+            "text": "Attack using [power]. Use your Max+Mid dice. Take irreducible damage equal to your Min die. If you roll doubles, you cannot use this ability again for the rest of the scene.",
+            "effects": [{"actions": ["attack"], "use": "max+mid"}]
           },
           {
             "name": "I Can Do Anything",
             "type": "A",
-            "text": "Boost using [quality]. Use your Max die. Hinder using your Mid die. Attack using your Min die."
+            "text": "Boost using [quality]. Use your Max die. Hinder using your Mid die. Attack using your Min die.",
+            "effects": [{"actions": ["boost"], "use": "max"}, {"actions": ["hinder"], "use": "mid"}, {"actions": ["attack"], "use": "min"}]
           },
           {
             "name": "Last Ditch Effort",
             "type": "R",
-            "text": "When Attacked, Defend yourself by rolling your single [power] die. If your roll reduces the damage to exactly 0, Recover Health equal to the damage reduced, Boost using that amount, and Hinder the source of the Attack using that amount."
+            "text": "When Attacked, Defend yourself by rolling your single [power] die. If your roll reduces the damage to exactly 0, Recover Health equal to the damage reduced, Boost using that amount, and Hinder the source of the Attack using that amount.",
+            "effects": [{"actions": ["defend"], "use": "single"}, {"actions": ["recover"], "use": "other"}, {"actions": ["boost"], "use": "other"}, {"actions": ["hinder"], "use": "other"}],
+            "pool": {"single": "trait"}
           },
           {
             "name": "Luck? Or Genius?",
             "type": "A",
-            "text": "Attack using [power]. If you roll doubles, add that value to your Attack. If you roll triples, add all three dice to your Attack."
+            "text": "Attack using [power]. If you roll doubles, add that value to your Attack. If you roll triples, add all three dice to your Attack.",
+            "effects": [{"actions": ["attack"], "use": "mid"}]
           },
           {
             "name": "Still a Threat",
             "type": "A",
-            "text": "Attack multiple targets using [quality]. Defend against all Attacks against you until your next turn using your Min die."
+            "text": "Attack multiple targets using [quality]. Defend against all Attacks against you until your next turn using your Min die.",
+            "effects": [{"actions": ["attack"], "use": "mid"}, {"actions": ["defend"], "use": "min"}]
           }
         ]
       }

@@ -748,7 +748,7 @@ export function layoutVillain(canvas: Canvas, villain: Villain): void {
   layout.place(columns([characteristics, panel(canvas, 'Health', stack(healthParts, 4))]))
   layout.place(columns([panel(canvas, 'Powers', traitTable(canvas, sheet.powers, 'No powers yet.')), panel(canvas, 'Qualities', traitTable(canvas, sheet.qualities, 'No qualities yet.'))]))
 
-  const row = (a: { name: string; type: AbilityType; text: string; upgrade?: string }) => abilityRow(canvas, { ...a, name: a.upgrade ? `${a.name} (${a.upgrade})` : a.name, effects: [] }, COLORS.panel)
+  const row = (a: { name: string; type: AbilityType; text: string; effects: readonly Action[]; upgrade?: string }) => abilityRow(canvas, { ...a, name: a.upgrade ? `${a.name} (${a.upgrade})` : a.name }, COLORS.panel)
   layout.place(sectionHeading(canvas, 'Abilities'), 4)
   if (sheet.abilities.length) sheet.abilities.forEach((a) => layout.place(row(a), 2))
   else layout.place(paragraph(canvas, 'None yet.', { color: COLORS.muted }))

@@ -180,7 +180,7 @@ function sheetAbility(hero: Hero, ability: Ability, pick: AbilityPick & { source
 }
 
 /** What using an ability takes and gives (see AbilityUse). */
-function abilityUseOf(ability: Ability, pick?: Pick<AbilityPick, 'uses' | 'blanks'>): AbilityUse {
+export function abilityUseOf(ability: Ability, pick?: Pick<AbilityPick, 'uses' | 'blanks'>): AbilityUse {
   // A player-written ability (a custom principle's) uses the effects the player set, or until
   // then the ones worked out from its text.
   const listed: AbilityEffect[] = ability.effects ?? textEffects(ability.text)
@@ -191,7 +191,7 @@ function abilityUseOf(ability: Ability, pick?: Pick<AbilityPick, 'uses' | 'blank
 }
 
 /** An ability's effects' actions: from the data, or from its text for a player-written one. */
-function actionsOf(ability: Ability, blanks?: AbilityPick['blanks']): Action[] {
+export function actionsOf(ability: Ability, blanks?: AbilityPick['blanks']): Action[] {
   return ability.effects ? effectActions(ability.effects, blanks) : abilityEffects(ability.text)
 }
 
