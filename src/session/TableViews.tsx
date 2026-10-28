@@ -7,7 +7,8 @@ import { formatFull, formatWhen } from '../play/time'
 import { PLAY_ZONE_LABEL } from '../hero/labels'
 import { describeMod } from '../play/state'
 import { memberName } from './gm'
-import type { FeedEntry, Member } from './types'
+import { DieIcon } from '../components/icons'
+import type { FeedEntry, Member, SceneVillain } from './types'
 
 /** The party, one card per player; `actions` adds controls to a member's card (the GM's). */
 export function Party({ members, me, actions }: { members: readonly Member[]; me?: string; actions?: (member: Member) => ReactNode }) {
@@ -51,6 +52,48 @@ export function Party({ members, me, actions }: { members: readonly Member[]; me
           </li>
         )
       })}
+    </ul>
+  )
+}
+
+/** The villains in the game (Phase 5), as everyone sees them; `actions` adds the GM's controls. */
+export function Villains({ villains, actions }: { villains: readonly SceneVillain[]; actions?: (villain: SceneVillain) => ReactNode }) {
+  if (!villains.length) return null
+  return (
+    <ul className="party">
+      {villains.map((v) => (
+        <li key={v.id} className={`party-member zone-${v.zone === 'out' ? 'out' : (v.zone ?? 'green')}`} aria-label={v.name}>
+          <div className="party-member__top">
+            <strong>{v.name}</strong>
+            {v.statusDie && (
+              <span className="party-status">
+                Status <DieIcon die={v.statusDie} />
+              </span>
+            )}
+          </div>
+          <p className="party-member__health">
+            {v.health !== undefined && v.maxHealth !== undefined ? `${v.health} / ${v.maxHealth}` : 'Health not set'}
+            {v.zone && <> · {v.zone === 'out' ? 'Defeated' : PLAY_ZONE_LABEL[v.zone]}</>}
+          </p>
+          {v.mods.length > 0 && (
+            <ul className="party-member__list" aria-label="Bonuses and penalties">
+              {v.mods.map((mod) => (
+                <li key={mod.id}>{describeMod(mod)}</li>
+              ))}
+            </ul>
+          )}
+          {v.twists.length > 0 && (
+            <ul className="party-member__list" aria-label="Twists">
+              {v.twists.map((t) => (
+                <li key={t.id}>
+                  {t.kind === 'minor' ? 'Minor' : 'Major'} twist: {t.text}
+                </li>
+              ))}
+            </ul>
+          )}
+          {actions?.(v)}
+        </li>
+      ))}
     </ul>
   )
 }

@@ -6,7 +6,7 @@ import { joinPath, playPath } from '../app/route'
 import { useTick } from '../play/useTick'
 import { useOnline } from './useOnline'
 import type { PlayerSession, PlayerSnapshot } from './controller'
-import { Feed, Party } from './TableViews'
+import { Feed, Party, Villains } from './TableViews'
 
 interface Props {
   heroId: string
@@ -59,6 +59,12 @@ export function PlayerPanel({ heroId, player, snapshot, hosting, onLeave, lastRo
         <>
           <h4>Party</h4>
           <Party members={snapshot.state.members} me={player.clientId} />
+          {(snapshot.state.villains ?? []).length > 0 && (
+            <>
+              <h4>Villains</h4>
+              <Villains villains={snapshot.state.villains!} />
+            </>
+          )}
           <h4>Feed</h4>
           <Feed entries={snapshot.state.feed} now={now} />
         </>

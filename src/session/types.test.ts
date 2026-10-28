@@ -44,6 +44,9 @@ describe('reading messages', () => {
     const state = { ...newSession('ABCD-EFGH'), members: [{ clientId: 'c1', hero, connected: true }] }
     expect(readGmMessage({ v: 1, type: 'state', state })).toEqual({ v: 1, type: 'state', state })
     expect(readGmMessage({ v: 1, type: 'state', state: { ...state, scene: 'out' } })).toBeUndefined()
+    const withVillain = { ...state, villains: [{ id: 'v1', name: 'Ironclad', health: 30, maxHealth: 55, zone: 'yellow', statusDie: 'd8', mods: [], twists: [] }], inbox: [{ id: 'c1:g', to: 'villain:v1', from: 'Ace', mod: { label: 'x', value: -1 } }] }
+    expect(readGmMessage({ v: 1, type: 'state', state: withVillain })).toBeTruthy()
+    expect(readGmMessage({ v: 1, type: 'state', state: { ...withVillain, villains: [{ id: 'v1', name: 'x', statusDie: 'd7', mods: [], twists: [] }] } })).toBeUndefined()
     expect(readGmMessage({ v: 1, type: 'hello', clientId: 'c1' })).toBeUndefined()
     expect(readGmMessage({ v: 2, type: 'state', state })).toBeUndefined()
     expect(readGmMessage(undefined)).toBeUndefined()

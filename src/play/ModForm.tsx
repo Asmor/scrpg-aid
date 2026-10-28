@@ -79,7 +79,7 @@ export function ModForm({ targets = [], self = true, submitLabel, onSubmit }: Pr
       </label>
       <label className="field" htmlFor={`${id}-label`}>
         <span>What it is</span>
-        <input id={`${id}-label`} type="text" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. tied up" />
+        <input id={`${id}-label`} type="text" maxLength={200} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. tied up" />
       </label>
       <label className="checkbox">
         <input type="checkbox" checked={persistent} onChange={(e) => setPersistent(e.target.checked)} />

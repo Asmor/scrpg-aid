@@ -6,10 +6,10 @@
 import type { PlayMod, PlayHistoryEntry, PlayState } from '../hero/model'
 import type { Clock } from '../play/state'
 import type { Zone } from '../rules/types'
-import { gmGiveMod, gmReceive, gmRemoveMember, gmSetConnected, gmSetScene, newSession } from './gm'
+import { gmAddVillain, gmGiveMod, gmReceive, gmRemoveMember, gmRemoveVillain, gmSetConnected, gmSetScene, gmShareVillain, gmTakeVillainMods, gmUpdateVillain, newSession } from './gm'
 import { applySession, entriesToShare } from './player'
 import { quietAfterLeave, type Connect, type Transport } from './transport'
-import { FEED_BATCH, INBOX_LIMIT, readGmMessage, readPlayerMessage, SAVED_VERSION, SESSION_VERSION, type GmMessage, type GmSaved, type HeroSummary, type PlayerMessage, type PlayerSaved, type SessionState } from './types'
+import { FEED_BATCH, INBOX_LIMIT, readGmMessage, readPlayerMessage, SAVED_VERSION, SESSION_VERSION, type GmMessage, type GmSaved, type HeroSummary, type InboxMod, type PlayerMessage, type PlayerSaved, type SceneVillain, type SessionState } from './types'
 
 type Listener = () => void
 
@@ -89,6 +89,34 @@ export class GmSession extends Subscribable<SessionState> {
 
   removeMember(clientId: string): void {
     this.apply(gmRemoveMember(this.snapshot, clientId, this.clock()))
+  }
+
+  /** Villains in the game (Phase 5). */
+  addVillain(villain: SceneVillain): void {
+    this.apply(gmAddVillain(this.snapshot, villain, this.clock()))
+  }
+
+  removeVillain(id: string): void {
+    this.apply(gmRemoveVillain(this.snapshot, id, this.clock()))
+  }
+
+  updateVillain(summary: Omit<SceneVillain, 'sharedUpTo'>): void {
+    this.apply(gmUpdateVillain(this.snapshot, summary))
+  }
+
+  /** Shares a villain's history entries after the last one shared (the feed keeps the latest). */
+  shareVillain(id: string, history: readonly PlayHistoryEntry[]): void {
+    const villain = this.snapshot.villains?.find((v) => v.id === id)
+    const last = history.at(-1)
+    if (!villain || !last || villain.sharedUpTo === last.id) return
+    this.apply(gmShareVillain(this.snapshot, id, entriesToShare(history, villain.sharedUpTo), last.id, this.clock()))
+  }
+
+  /** The mods players gave a villain, taken out of the inbox for its Play page to add. */
+  takeVillainMods(id: string): InboxMod[] {
+    const { state, mods } = gmTakeVillainMods(this.snapshot, id)
+    this.apply(state)
+    return mods
   }
 
   leave(): void {

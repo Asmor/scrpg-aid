@@ -7,8 +7,9 @@
 import { stepDie } from '../rules/dice'
 import type { Die, HealthRange } from '../rules/types'
 import type { VillainStatusRule } from '../rules/villain-types'
-import { healthZone, type Clock, type PlayZone } from '../play/state'
-import type { Villain, VillainPlayState } from './model'
+import { currentHealth, healthZone, type Clock, type PlayZone } from '../play/state'
+import type { SceneVillain } from '../session/types'
+import { villainDisplayName, type Villain, type VillainPlayState } from './model'
 import { buildVillainSheet } from './sheet'
 
 export function emptyVillainPlay(): VillainPlayState {
@@ -90,4 +91,24 @@ export function newScene(play: VillainPlayState, clock: Clock): VillainPlayState
 /** Starts over: full Health, no mods, twists, or counts; the history keeps a marker. */
 export function resetVillain(play: VillainPlayState, clock: Clock): VillainPlayState {
   return noted({ ...emptyVillainPlay(), history: play.history }, clock, 'Started over: Health restored; mods, twists, and counts cleared.')
+}
+
+/** What a game session's table sees of the villain (Phase 5): its Health, zone, status die, mods, and twists. */
+export function villainSummary(villain: Villain): Omit<SceneVillain, 'sharedUpTo'> {
+  const play = villain.play ?? emptyVillainPlay()
+  const health = villainHealth(villain, play)
+  const current = currentHealth(health, play)
+  const zone = villainZone(health, play)
+  const rule = buildVillainSheet(villain).status
+  const statusDie = rule ? villainStatusDie(rule, { ...play, zone }) : undefined
+  return {
+    id: villain.id,
+    name: villainDisplayName(villain),
+    ...(current !== undefined ? { health: current } : {}),
+    ...(health.maxHealth !== undefined ? { maxHealth: health.maxHealth } : {}),
+    ...(zone ? { zone } : {}),
+    ...(statusDie ? { statusDie } : {}),
+    mods: play.mods,
+    twists: play.twists,
+  }
 }

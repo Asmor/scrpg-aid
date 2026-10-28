@@ -4,7 +4,7 @@
  * advance, its abilities (all usable, no zones), basic actions, and a timestamped history.
  * Saved with the villain as it changes (./play.ts has the rules).
  */
-import { useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { listPath, villainPath } from '../app/route'
 import { ActionIcon, DieIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL, PLAY_ZONE_LABEL } from '../hero/labels'
@@ -16,7 +16,8 @@ import { addMod, addTwist, currentHealth, describeMod, removeMod, removeTwist, s
 import { formatFull, formatWhen } from '../play/time'
 import { useTick } from '../play/useTick'
 import { villainDisplayName, type VillainPlayState } from './model'
-import { advanceScene, emptyVillainPlay, newScene, resetVillain, setChallengeParts, setSceneHeroes, setStatusCount, setWeaknessTier, villainHealth, villainStatusDie, villainZone } from './play'
+import { useGmState, useSession } from '../session/context'
+import { advanceScene, villainSummary, emptyVillainPlay, newScene, resetVillain, setChallengeParts, setSceneHeroes, setStatusCount, setWeaknessTier, villainHealth, villainStatusDie, villainZone } from './play'
 import { buildVillainSheet, villainTraits } from './sheet'
 import { statusSummary } from './status'
 import { useVillainEditor } from './useVillainEditor'
@@ -41,6 +42,29 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
   // What's typed for the heroes in this scene, so the field can be cleared and retyped.
   const [heroesDraft, setHeroesDraft] = useState<string | null>(null)
   const [countDraft, setCountDraft] = useState<string | null>(null)
+
+  // In a game the GM is hosting (Phase 5): the table sees this villain, its history goes to the
+  // feed, and mods players gave it are added here.
+  const session = useSession()
+  const gm = session.gm
+  const gmState = useGmState(gm)
+  const loaded = state.status === 'ready' ? state.doc : undefined
+  const inGame = Boolean(gm && gmState?.villains?.some((v) => v.id === id))
+  useEffect(() => {
+    if (!gm || !inGame || !loaded) return
+    const given = gm.takeVillainMods(id)
+    if (given.length) {
+      update((v) => {
+        let p = v.play ?? emptyVillainPlay()
+        for (const item of given) p = addMod(p, item.mod, clock(), { id: item.id, from: item.from })
+        v.play = p
+      })
+      return
+    }
+    gm.updateVillain(villainSummary(loaded))
+    gm.shareVillain(id, loaded.play?.history ?? [])
+    // `update` and `clock` are new each render, so this runs each render; with nothing new it changes nothing.
+  }, [gm, gmState, inGame, loaded, id, update, clock])
 
   if (state.status !== 'ready') {
     return (
@@ -88,6 +112,7 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
         <a href={villainPath(id)}>← Sheet</a>
       </div>
       <h2 className="hero-editor__name">{villainDisplayName(villain)}</h2>
+      {inGame && <p className="hint">In your game: the table sees it, and its rolls go to the feed.</p>}
       {saveError && (
         <p role="alert" className="error">
           Your last change couldn't be saved: {saveError}

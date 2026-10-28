@@ -6,7 +6,7 @@
  */
 import type { PlayMod, PlayTwist } from '../hero/model'
 import type { PlayZone } from '../play/state'
-import type { Zone } from '../rules/types'
+import type { Die, Zone } from '../rules/types'
 import { arrayOf, boolean, integer, nonEmptyString, object, oneOf, type Check } from '../shape'
 
 /** The message format's version; peers ignore messages of another version. */
@@ -57,12 +57,32 @@ export interface InboxMod {
   mod: Omit<PlayMod, 'id'>
 }
 
+/** A villain the GM has added to the game (Phase 5): what the table sees of it. */
+export interface SceneVillain {
+  /** The villain's id in the GM's store. */
+  id: string
+  name: string
+  health?: number
+  maxHealth?: number
+  zone?: PlayZone
+  statusDie?: Die
+  mods: PlayMod[]
+  twists: PlayTwist[]
+  /** The last history entry of the villain's shared to the feed (the GM's bookkeeping). */
+  sharedUpTo?: string
+}
+
+/** An inbox item's recipient for a villain: "villain:<id>" (players are their client id). */
+export const villainTarget = (id: string) => `villain:${id}`
+
 export interface SessionState {
   room: string
   scene: Zone
   members: Member[]
   feed: FeedEntry[]
   inbox: InboxMod[]
+  /** Villains in the game (Phase 5); missing in sessions saved before them. */
+  villains?: SceneVillain[]
 }
 
 /** A history entry a player shares with the table. */
@@ -82,15 +102,21 @@ export type PlayerMessage =
 
 export type GmMessage = { v: 1; type: 'state'; state: SessionState }
 
-// Limits, so one peer can't flood the others.
-const MAX_TEXT = 2000
-const MAX_LIST = 200
+// Limits, so one peer can't flood the others (the GM's reducers keep its own data within them too).
+export const MAX_TEXT = 2000
+export const MAX_NAME = 200
+export const MAX_LIST = 200
+export const MAX_DETAILS = 50
 
 const text =
   (max = MAX_TEXT): Check =>
   (v, path) =>
     typeof v !== 'string' ? `${path} should be text` : v.length > max ? `${path} is too long` : undefined
-const id: Check = (v, path) => nonEmptyString(v, path) ?? text(100)(v, path)
+/** The longest id players accept. */
+export const MAX_ID = 100
+const id: Check = (v, path) => nonEmptyString(v, path) ?? text(MAX_ID)(v, path)
+/** An inbox recipient: a client id, or "villain:<id>". */
+const target: Check = (v, path) => nonEmptyString(v, path) ?? text(120)(v, path)
 const list =
   (item: Check, max = MAX_LIST): Check =>
   (v, path) =>
@@ -98,22 +124,22 @@ const list =
 const modValue: Check = (v, path) => integer(v, path) ?? (v === 0 || Math.abs(v as number) > 12 ? `${path} is out of range` : undefined)
 
 const zone = oneOf('green', 'yellow', 'red')
-const mod = object({ label: text(200), value: modValue, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })
+const mod = object({ label: text(MAX_NAME), value: modValue, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })
 const heroSummary = object({
-  name: text(200),
+  name: text(MAX_NAME),
   'health?': integer,
   'maxHealth?': integer,
   'zone?': oneOf('green', 'yellow', 'red', 'out'),
-  mods: list(object({ id, label: text(200), value: modValue, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
+  mods: list(object({ id, label: text(MAX_NAME), value: modValue, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
   twists: list(object({ id, kind: oneOf('minor', 'major'), text: text() })),
 })
-const sharedEntry = object({ id, at: text(40), text: text(), 'details?': list(text(), 50) })
+const sharedEntry = object({ id, at: text(40), text: text(), 'details?': list(text(), MAX_DETAILS) })
 
 const playerChecks: Record<PlayerMessage['type'], Check> = {
   hello: object({ clientId: id, 'hero?': heroSummary }),
   hero: object({ hero: heroSummary }),
   feed: object({ entries: list(sharedEntry, FEED_BATCH) }),
-  giveMod: object({ id, to: id, mod }),
+  giveMod: object({ id, to: target, mod }),
   ack: object({ ids: list(id) }),
 }
 
@@ -121,8 +147,22 @@ const stateCheck = object({
   room: id,
   scene: zone,
   members: list(object({ clientId: id, 'hero?': heroSummary, connected: boolean }), MEMBER_LIMIT),
-  feed: list(object({ id, at: text(40), by: text(200), text: text(), 'details?': list(text(), 50) }), FEED_LIMIT),
-  inbox: list(object({ id, to: id, from: text(200), mod }), INBOX_LIMIT),
+  feed: list(object({ id, at: text(40), by: text(MAX_NAME), text: text(), 'details?': list(text(), MAX_DETAILS) }), FEED_LIMIT),
+  inbox: list(object({ id, to: target, from: text(MAX_NAME), mod }), INBOX_LIMIT),
+  'villains?': list(
+    object({
+      id,
+      name: text(MAX_NAME),
+      'health?': integer,
+      'maxHealth?': integer,
+      'zone?': oneOf('green', 'yellow', 'red', 'out'),
+      'statusDie?': oneOf('d4', 'd6', 'd8', 'd10', 'd12'),
+      mods: list(object({ id, label: text(MAX_NAME), value: modValue, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
+      twists: list(object({ id, kind: oneOf('minor', 'major'), text: text() })),
+      'sharedUpTo?': id,
+    }),
+    MEMBER_LIMIT,
+  ),
 })
 
 const envelope = object({ v: oneOf(SESSION_VERSION), type: nonEmptyString })
@@ -169,8 +209,8 @@ export interface PlayerSaved {
   applied: string[]
 }
 
-const gmSaved = object({ v: oneOf(SAVED_VERSION), room: id, 'password?': text(200), state: stateCheck })
-const playerSaved = object({ v: oneOf(SAVED_VERSION), room: id, 'password?': text(200), clientId: id, heroId: nonEmptyString, 'sharedUpTo?': id, applied: list(id, INBOX_LIMIT) })
+const gmSaved = object({ v: oneOf(SAVED_VERSION), room: id, 'password?': text(MAX_NAME), state: stateCheck })
+const playerSaved = object({ v: oneOf(SAVED_VERSION), room: id, 'password?': text(MAX_NAME), clientId: id, heroId: nonEmptyString, 'sharedUpTo?': id, applied: list(id, INBOX_LIMIT) })
 
 /** A stored GM session, or undefined if it's malformed or from another version. */
 export function readGmSaved(value: unknown): GmSaved | undefined {
@@ -189,7 +229,7 @@ export interface LastGame {
   password?: string
 }
 
-const lastGame = object({ v: oneOf(SAVED_VERSION), room: id, 'password?': text(200) })
+const lastGame = object({ v: oneOf(SAVED_VERSION), room: id, 'password?': text(MAX_NAME) })
 
 /** A stored last game, or undefined if it's malformed or from another version. */
 export function readLastGame(value: unknown): LastGame | undefined {

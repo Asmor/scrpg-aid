@@ -22,6 +22,7 @@ import { ModForm, type ModTarget } from './ModForm'
 import { usePlayerSnapshot, useSession } from '../session/context'
 import { heroSummary } from '../session/player'
 import { memberName } from '../session/gm'
+import { villainTarget } from '../session/types'
 import { PlayerPanel } from '../session/PlayerPanel'
 
 
@@ -88,7 +89,13 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
     })
   // In a game, a mod can go to another hero (through the GM).
   const targets: ModTarget[] =
-    snapshot?.status === 'connected' && player ? (snapshot.state?.members ?? []).filter((m) => m.clientId !== player.clientId && m.hero).map((m) => ({ id: m.clientId, name: memberName(m) })) : []
+    snapshot?.status === 'connected' && player
+      ? [
+          ...(snapshot.state?.members ?? []).filter((m) => m.clientId !== player.clientId && m.hero).map((m) => ({ id: m.clientId, name: memberName(m) })),
+          // Villains in the game take mods too (a Hinder); the GM's browser adds them.
+          ...(snapshot.state?.villains ?? []).map((v) => ({ id: villainTarget(v.id), name: v.name })),
+        ]
+      : []
   /** Adds a mod to the hero, or gives it to another; false when it couldn't be sent. */
   const giveOrAdd = (mod: Omit<PlayMod, 'id'>, to?: string): boolean => {
     if (!to) {

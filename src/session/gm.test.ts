@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { gmGiveMod, gmReceive, gmRemoveMember, gmSetConnected, gmSetScene, memberName, newSession } from './gm'
-import { FEED_LIMIT, INBOX_LIMIT, MEMBER_LIMIT, type HeroSummary } from './types'
+import { gmAddVillain, gmGiveMod, gmReceive, gmRemoveMember, gmRemoveVillain, gmSetConnected, gmSetScene, gmShareVillain, gmTakeVillainMods, gmUpdateVillain, memberName, newSession } from './gm'
+import { FEED_LIMIT, INBOX_LIMIT, MEMBER_LIMIT, readGmMessage, readGmSaved, type HeroSummary } from './types'
 
 let n = 0
 const clock = () => ({ now: new Date('2026-10-27T10:00:00Z'), newId: () => `id${++n}` })
@@ -107,4 +107,58 @@ describe('the GM’s session', () => {
     s = gmReceive(s, 'c1', { v: 1, type: 'hero', hero: { ...hero('Ace'), health: 3 } }, clock())
     expect(s.feed.map((e) => e.text)).toEqual(['Ace joined the game.'])
   })
+
+  it('adds villains to the game, updates and shares them, and holds mods players give them', () => {
+    const villain = { id: 'v1', name: 'Ironclad', health: 55, maxHealth: 55, zone: 'green' as const, statusDie: 'd6' as const, mods: [], twists: [] }
+    let s = gmAddVillain(joined(), { ...villain, sharedUpTo: 'old' }, clock())
+    expect(s.villains).toEqual([{ ...villain, sharedUpTo: 'old' }])
+    expect(s.feed.at(-1)?.text).toBe('Ironclad joined the scene.')
+    expect(gmAddVillain(s, villain, clock())).toBe(s)
+    // A player's Hinder on the villain waits in the inbox for its Play page.
+    s = gmReceive(s, 'c1', { v: 1, type: 'giveMod', id: 'g1', to: 'villain:v1', mod: { label: 'tangled', value: -2 } }, clock())
+    expect(s.inbox).toEqual([{ id: 'c1:g1', to: 'villain:v1', from: 'Ace', mod: { label: 'tangled', value: -2 } }])
+    expect(gmReceive(s, 'c1', { v: 1, type: 'giveMod', id: 'g2', to: 'villain:nobody', mod: { label: 'x', value: 1 } }, clock())).toBe(s)
+    const taken = gmTakeVillainMods(s, 'v1')
+    expect(taken.mods.map((m) => m.id)).toEqual(['c1:g1'])
+    expect(taken.state.inbox).toEqual([])
+    expect(gmTakeVillainMods(taken.state, 'v1').state).toBe(taken.state)
+    s = gmUpdateVillain(taken.state, { ...villain, health: 30, zone: 'yellow' })
+    expect(s.villains![0]).toMatchObject({ health: 30, zone: 'yellow', sharedUpTo: 'old' })
+    expect(gmUpdateVillain(s, { ...villain, health: 30, zone: 'yellow' })).toBe(s)
+    expect(gmUpdateVillain(s, { ...villain, id: 'nobody' })).toBe(s)
+    s = gmShareVillain(s, 'v1', [{ id: 'h1', at: 'x', text: 'Lost 25 HP (55 → 30).' }], 'h1', clock())
+    expect(s.feed.at(-1)).toMatchObject({ id: 'villain:v1:h1', by: 'Ironclad', text: 'Lost 25 HP (55 → 30).' })
+    expect(gmShareVillain(s, 'v1', [], 'h1', clock())).toBe(s)
+    s = gmGiveMod(s, 'c1', { label: 'x', value: 1 }, clock())
+    s = gmReceive(s, 'c2', { v: 1, type: 'giveMod', id: 'g3', to: 'villain:v1', mod: { label: 'y', value: -1 } }, clock())
+    s = gmRemoveVillain(s, 'v1', clock())
+    expect(s.villains).toEqual([])
+    expect(s.inbox.map((i) => i.to)).toEqual(['c1'])
+    expect(s.feed.at(-1)?.text).toBe('Ironclad left the scene.')
+    expect(gmRemoveVillain(s, 'v1', clock())).toBe(s)
+  })
+
+  it('keeps the GM’s own villain data within what players accept', () => {
+    const long = 'x'.repeat(5000)
+    const villain = { id: 'v1', name: long, mods: [{ id: 'm', label: long, value: -2 }], twists: [{ id: 't', kind: 'minor' as const, text: long }] }
+    let s = gmAddVillain(joined(), villain, clock())
+    s = gmUpdateVillain(s, villain)
+    s = gmShareVillain(s, 'v1', [{ id: 'h', at: 'x', text: long, details: Array.from({ length: 80 }, () => long) }], 'h', clock())
+    s = gmGiveMod(s, 'c1', { label: long, value: 1 }, clock())
+    expect(readGmMessage({ v: 1, type: 'state', state: s })).toBeTruthy()
+    expect(readGmSaved({ v: 1, room: s.room, state: s })).toBeTruthy()
+  })
+
+  it('won’t take a player whose id names a villain', () => {
+    const s = joined()
+    expect(gmReceive(s, 'villain:v1', { v: 1, type: 'hello', clientId: 'villain:v1' }, clock())).toBe(s)
+  })
+
+  it('refuses ids that would grow past what players accept', () => {
+    const s = joined()
+    const long = 'x'.repeat(99)
+    expect(gmReceive(s, 'c1', { v: 1, type: 'giveMod', id: long, to: 'c2', mod: { label: 'x', value: 1 } }, clock())).toBe(s)
+    expect(gmReceive(s, 'c1', { v: 1, type: 'feed', entries: [{ id: long, at: 'x', text: 'hi' }] }, clock()).feed).toEqual(s.feed)
+  })
 })
+
