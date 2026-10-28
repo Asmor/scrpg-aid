@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Edit hero summary</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.theme-light{--bg:#F6F7FB;--surface:#FFFFFF;--surface2:#EEF0F6;--text:#1A1D2B;--muted:#565C70;--border:#DDE0EA;--accent:#4347C9;--on-accent:#FFFFFF;--accent-soft:#E8E9FA;--danger:#8E2BA0;--danger-soft:#F6E8F8;--g:#72CC82;--g-ink:#1A1D2B;--y:#F5D044;--y-ink:#1A1D2B;--r:#F28A80;--r-ink:#1A1D2B}
+.theme-dark{--bg:#12141C;--surface:#1B1E2A;--surface2:#232736;--text:#E8EAF2;--muted:#A3A9BF;--border:#2C3042;--accent:#9599FF;--on-accent:#12141C;--accent-soft:#262A4A;--danger:#D07BE0;--danger-soft:#2E2236;--g:#1D6E31;--g-ink:#E8EAF2;--y:#E3B600;--y-ink:#12141C;--r:#A8261F;--r-ink:#E8EAF2}
+.app{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5;min-height:1160px}
+.app h1,.app h2,.app h3{font-family:'Barlow Condensed',sans-serif;font-weight:700;margin:0}
+.app button{font:inherit;color:inherit}
+.app a{color:var(--accent)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 32px;background:var(--surface);border-bottom:1px solid var(--border)}
+.brand{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;padding:2px;background:var(--surface2)}
+.seg button{border:0;background:transparent;padding:6px 12px;border-radius:6px;cursor:pointer;min-height:32px;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--border)}
+.btn{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:8px 14px;min-height:40px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:600}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--danger);border-color:var(--danger);background:transparent}
+.btn[aria-disabled="true"]{color:var(--muted);cursor:default}
+.pagehead{max-width:1440px;margin:0 auto;padding:20px 32px 0;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.crumb{font-size:14px;color:var(--muted);margin-bottom:4px}
+.layout{max-width:1440px;margin:0 auto;padding:20px 32px 48px;display:grid;grid-template-columns:240px minmax(0,1fr) 360px;gap:24px;align-items:start}
+.rail{display:flex;flex-direction:column;gap:2px}
+.rail-item{display:flex;align-items:center;gap:10px;border-radius:8px;padding:8px 10px;min-height:40px}
+.rail-item.current{background:var(--accent-soft);font-weight:600}
+.rail-num{width:20px;text-align:right;color:var(--muted);font-size:14px}
+.rail-label{flex:1}
+.st-done{color:var(--accent);display:inline-flex}
+.st-issue{color:var(--danger);border:1px solid var(--danger);border-radius:999px;font-size:12px;font-weight:600;padding:0 7px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px}
+.savebar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);margin:16px 0 8px}
+.confirm{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;border:1px solid var(--danger);border-radius:10px;background:var(--danger-soft);margin-bottom:8px}
+.row{display:grid;grid-template-columns:28px 170px minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 4px;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:0}
+.row-num{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px;color:var(--muted);text-align:right}
+.row-name{font-weight:600;display:flex;align-items:center;gap:8px}
+.row-body{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:14px;min-width:0}
+.item{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.di{height:20px;width:auto;vertical-align:middle}
+.ai-set{display:inline-flex;gap:2px}
+.ai-set img{height:16px;width:auto}
+.muted{color:var(--muted)}
+.issue-line{color:var(--danger);font-weight:500}
+.zchip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:1px 8px;font-size:13px;font-weight:600}
+.zg{background:var(--g);color:var(--g-ink)}.zy{background:var(--y);color:var(--y-ink)}.zr{background:var(--r);color:var(--r-ink)}
+.zchip img{height:16px;width:auto}
+.preview{position:sticky;top:16px}
+.sheet{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.sheet h3{font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pq{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;font-size:14px}
+.pq ul{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.pq li{display:flex;justify-content:space-between;align-items:center}
+.band{border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.band-head{font-size:12px;font-weight:600;letter-spacing:.08em;padding:3px 10px}
+.band-row{padding:6px 10px;font-size:13px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:8px}
+.band-row .ai-set{margin-right:6px;vertical-align:-3px}
+.formtag{font-size:11px;color:var(--muted)}
+@media (max-width:1180px){.layout{grid-template-columns:220px minmax(0,1fr)}.preview{display:none}}
+@media (max-width:760px){.layout{grid-template-columns:minmax(0,1fr);padding:16px}.rail{display:none}.row{grid-template-columns:24px minmax(0,1fr) auto}.row-body{grid-column:2/-1}}
+</style>
+</helmet>
+<div class="app {{themeClass}}">
+  <header class="topbar">
+    <span class="brand">SCRPG Aid</span>
+    <div class="seg" role="group" aria-label="Theme">
+      <button type="button" class="{{lightCls}}" onClick="{{setLight}}">Light</button>
+      <button type="button" class="{{darkCls}}" onClick="{{setDark}}">Dark</button>
+    </div>
+  </header>
+
+  <div class="pagehead">
+    <div>
+      <div class="crumb"><a href="#">Your heroes</a> / <a href="#">Maya Reyes</a> / Edit</div>
+      <h1 style="font-size:36px">Maya Reyes <span class="muted" style="font-family:Inter,sans-serif;font-weight:400;font-size:18px">Afterimage</span></h1>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="btn ghost">Hide preview</button>
+      <button type="button" class="btn primary">Done editing</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <nav aria-label="Steps">
+      <div class="rail">
+        <div class="rail-item current"><span class="rail-num"></span><span class="rail-label">Summary</span></div>
+        <sc-for list="{{steps}}" as="s" hint-placeholder-count="9">
+          <div class="rail-item">
+            <span class="rail-num">{{s.n}}</span><span class="rail-label">{{s.name}}</span>
+            <sc-if value="{{s.ok}}" hint-placeholder-val="{{true}}"><span class="st-done" aria-label="Complete"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></sc-if>
+            <sc-if value="{{s.bad}}" hint-placeholder-val="{{false}}"><span class="st-issue" aria-label="Has issues">{{s.issues}}</span></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </nav>
+
+    <main class="panel">
+      <h2 style="font-size:30px">Summary</h2>
+      <p class="muted" style="margin:4px 0 0">Everything this hero is made of. Change opens that step; nothing later in the wizard is erased.</p>
+
+      <div class="savebar">
+        <span>Changes save as you go. <span class="muted">{{changeNote}}</span></span>
+        <button type="button" class="btn danger" aria-disabled="{{revertDisabled}}" onClick="{{askRevert}}">Revert changes</button>
+      </div>
+      <sc-if value="{{confirming}}" hint-placeholder-val="{{false}}">
+        <div class="confirm" role="alertdialog" aria-label="Revert changes">
+          <span style="flex:1">Put Maya Reyes back the way she was when you opened edit? {{changeCount}}</span>
+          <button type="button" class="btn" onClick="{{cancelRevert}}">Keep changes</button>
+          <button type="button" class="btn danger" onClick="{{doRevert}}">Revert</button>
+        </div>
+      </sc-if>
+
+      <div>
+        <sc-for list="{{steps}}" as="s" hint-placeholder-count="9">
+          <div class="row">
+            <span class="row-num">{{s.n}}</span>
+            <span class="row-name">{{s.name}}
+              <sc-if value="{{s.ok}}" hint-placeholder-val="{{true}}"><span class="st-done" aria-label="Complete"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></sc-if>
+              <sc-if value="{{s.bad}}" hint-placeholder-val="{{false}}"><span class="st-issue" aria-label="Has issues">{{s.issues}}</span></sc-if>
+            </span>
+            <span class="row-body">
+              <sc-for list="{{s.items}}" as="it" hint-placeholder-count="3">
+                <span class="{{it.cls}}">
+                  <sc-if value="{{it.hasActs}}" hint-placeholder-val="{{false}}"><span class="ai-set"><sc-for list="{{it.acts}}" as="a" hint-placeholder-count="1"><img src="{{a.src}}" alt="{{a.alt}}" title="{{a.alt}}"></sc-for></span></sc-if>
+                  {{it.text}}
+                  <sc-for list="{{it.dice}}" as="d" hint-placeholder-count="0"><img class="di" src="{{d.src}}" alt="{{d.die}}" title="{{d.die}}"></sc-for>
+                </span>
+              </sc-for>
+            </span>
+            <button type="button" class="btn" onClick="{{s.change}}">Change</button>
+          </div>
+        </sc-for>
+      </div>
+
+      <p style="margin:20px 0 0;font-size:14px" class="muted">Back issues, collections and swaps moved out of the wizard: <a href="#">Advancement</a> is on the hero's page.</p>
+    </main>
+
+    <aside class="preview" aria-label="Sheet preview">
+      <h2 style="font-size:20px;margin-bottom:10px">Sheet preview</h2>
+      <div class="sheet">
+        <div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:24px">Maya Reyes</div>
+          <div class="muted" style="font-size:13px">Upper Class · Accident · Speedster · Lone Wolf</div>
+        </div>
+        <div class="pq">
+          <div><h3>Powers</h3><ul>
+            <sc-for list="{{powers}}" as="p" hint-placeholder-count="5"><li><span>{{p.name}}</span><img class="di" src="{{p.src}}" alt="{{p.die}}" title="{{p.die}}"></li></sc-for>
+          </ul></div>
+          <div><h3>Qualities</h3><ul>
+            <sc-for list="{{quals}}" as="p" hint-placeholder-count="3"><li><span>{{p.name}}</span><img class="di" src="{{p.src}}" alt="{{p.die}}" title="{{p.die}}"></li></sc-for>
+          </ul></div>
+        </div>
+        <sc-for list="{{bands}}" as="b" hint-placeholder-count="3">
+          <div class="band">
+            <div class="band-head" style="{{b.style}}">{{b.label}}</div>
+            <sc-for list="{{b.rows}}" as="a" hint-placeholder-count="2">
+              <div class="band-row"><span><sc-if value="{{a.hasActs}}" hint-placeholder-val="{{true}}"><span class="ai-set"><sc-for list="{{a.acts}}" as="x" hint-placeholder-count="1"><img src="{{x.src}}" alt="{{x.alt}}" title="{{x.alt}}"></sc-for></span></sc-if>{{a.name}}</span><span class="formtag">{{a.type}}</span></div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1160}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { dark: null, changes: 0, confirming: false };
+  }
+  renderVals() {
+    const st = this.state;
+    const dark = st.dark ?? (this.props.dark ?? false);
+    const I = {
+      d6: '/icons/die/d6.png', d8: '/icons/die/d8.png',
+      d10: '/icons/die/d10.png', d12: '/icons/die/d12.png',
+      attack: '/icons/action/attack.png', boost: '/icons/action/boost.png', defend: '/icons/action/defend.png',
+      hinder: '/icons/action/hinder.png', overcome: '/icons/action/overcome.png'
+    };
+    const L = { attack: 'Attack', boost: 'Boost', defend: 'Defend', hinder: 'Hinder', overcome: 'Overcome' };
+    const acts = a => a.map(k => ({ src: I[k], alt: L[k] }));
+    const dice = d => d.map(x => ({ die: x, src: I[x] }));
+    const it = (text, d, a, cls) => ({ text, dice: dice(d || []), acts: acts(a || []), hasActs: !!(a && a.length), cls: cls || 'item' });
+    const z = (cls, die) => ({ text: '', dice: dice([die]), acts: [], hasActs: false, cls: 'zchip ' + cls });
+    const touch = () => this.setState({ changes: this.state.changes + 1, confirming: false });
+
+    const steps = [
+      { n: '', name: 'Start', issues: 0, items: [it('Guided, rolled in the app')] },
+      { n: 1, name: 'Background', issues: 0, items: [it('Upper Class'), it('Fitness', ['d10']), it('Alertness', ['d8']), it('Principle of Business', [], ['overcome'])] },
+      { n: 2, name: 'Power source', issues: 0, items: [it('Accident'), it('Fire', ['d8']), it('Flight', ['d6']), it('Immunity'), it('Inflict', [], ['attack', 'hinder']), it('Area Alteration', [], ['boost'])] },
+      { n: 3, name: 'Archetype', issues: 0, items: [it('Speedster'), it('Speed', ['d12']), it('Agility', ['d10']), it('Awareness', ['d8']), it('Always on the Move', [], ['attack', 'defend']), it('Non-stop Assault', [], ['attack', 'hinder']), it('Speedy Analysis', [], ['boost']), it('Principle of the Gearhead', [], ['overcome'])] },
+      { n: 4, name: 'Personality', issues: 0, items: [it('Lone Wolf'), z('zg', 'd8'), z('zy', 'd8'), z('zr', 'd8'), it('Old Money', ['d8']), it('Out: Fitness', [], ['boost'])] },
+      { n: 5, name: 'Red abilities', issues: 0, items: [it('Paragon Feat', [], ['overcome', 'boost']), it('Push Your Limits')] },
+      { n: 6, name: 'Retcon', issues: 1, items: [it('No retcon chosen yet.', [], [], 'item issue-line')] },
+      { n: 7, name: 'Health', issues: 0, items: [it('Max 30'), { text: '30–23', dice: [], acts: [], hasActs: false, cls: 'zchip zg' }, { text: '22–12', dice: [], acts: [], hasActs: false, cls: 'zchip zy' }, { text: '11–1', dice: [], acts: [], hasActs: false, cls: 'zchip zr' }] },
+      { n: 8, name: 'Details', issues: 0, items: [it('Age 24'), it('Lean'), it('Heat-resistant running suit in orange and white', [], [], 'item muted')] }
+    ].map(s => ({ ...s, ok: s.issues === 0, bad: s.issues > 0, change: touch }));
+
+    const powers = [['Speed', 'd12'], ['Agility', 'd10'], ['Awareness', 'd8'], ['Fire', 'd8'], ['Flight', 'd6']].map(([name, die]) => ({ name, die, src: I[die] }));
+    const quals = [['Fitness', 'd10'], ['Alertness', 'd8'], ['Old Money', 'd8']].map(([name, die]) => ({ name, die, src: I[die] }));
+    const ab = (name, type, a) => ({ name, type, acts: acts(a), hasActs: a.length > 0 });
+    const bands = [
+      { label: 'GREEN', style: 'background:var(--g);color:var(--g-ink)', rows: [ab('Immunity', 'Inherent', []), ab('Always on the Move', 'Action', ['attack', 'defend']), ab('Non-stop Assault', 'Action', ['attack', 'hinder'])] },
+      { label: 'YELLOW', style: 'background:var(--y);color:var(--y-ink)', rows: [ab('Inflict', 'Action', ['attack', 'hinder']), ab('Area Alteration', 'Action', ['boost']), ab('Speedy Analysis', 'Action', ['boost'])] },
+      { label: 'RED', style: 'background:var(--r);color:var(--r-ink)', rows: [ab('Paragon Feat', 'Action', ['overcome', 'boost']), ab('Push Your Limits', 'Inherent', [])] }
+    ];
+
+    const n = st.changes;
+    return {
+      themeClass: dark ? 'theme-dark' : 'theme-light', lightCls: dark ? '' : 'on', darkCls: dark ? 'on' : '',
+      setLight: () => this.setState({ dark: false }), setDark: () => this.setState({ dark: true }),
+      steps, powers, quals, bands,
+      changeNote: n === 0 ? 'No changes since you opened edit.' : (n === 1 ? '1 change since you opened edit.' : n + ' changes since you opened edit.'),
+      changeCount: n === 1 ? '1 change will be undone.' : n + ' changes will be undone.',
+      revertDisabled: n === 0 ? 'true' : 'false',
+      confirming: st.confirming,
+      askRevert: () => { if (this.state.changes > 0) this.setState({ confirming: true }); },
+      cancelRevert: () => this.setState({ confirming: false }),
+      doRevert: () => this.setState({ changes: 0, confirming: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

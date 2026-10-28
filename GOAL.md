@@ -145,3 +145,7 @@ Implement all functionality for the following:
 - Environments
 - Clocks
 - Skill challenges
+
+### Phase 6: UI Pass
+
+- Ongoing
