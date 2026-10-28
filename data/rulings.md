@@ -358,6 +358,14 @@ These came from questions the user put to the rules-expert agent about an action
 - **Decision:** No. The pattern covers the approach's usual number of abilities; an extra one may use any power or quality.
 - **Basis:** Default (permissive; not asked).
 
+## Minions and lieutenants (p. 16–17, 204–207)
+
+### 58. What makes a minion's save successful
+- **Pages:** Opposition basics (p. 16–17).
+- **Question:** A failed save defeats a minion, and a successful one lowers its die, but the data doesn't give the threshold. For lieutenants, the die drops when the save is lower than the damage. Does a minion's save succeed on a tie?
+- **Decision:** Yes. A save succeeds when it's at least the damage, the same comparison as for lieutenants.
+- **Basis:** Interpretation (the user's ruling).
+
 ## Data corrections
 
 These fix the data rather than settling an ambiguity.

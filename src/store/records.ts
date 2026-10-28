@@ -1,13 +1,13 @@
 /**
  * The browser's IndexedDB database the app saves its documents in: one object store per
- * kind of document (heroes, villains), each holding `{ id, saved }` records, where `saved` is
- * the document's versioned envelope. ../hero/store.ts and ../villain/store.ts build on this.
+ * kind of document (heroes, villains, minions), each holding `{ id, saved }` records, where `saved` is
+ * the document's versioned envelope. ../hero/store.ts, ../villain/store.ts, and ../minion/store.ts build on this.
  */
 
 export const DB_NAME = 'scrpg-aid'
-/** Version 2 added the villains store. */
-export const DB_VERSION = 2
-export const OBJECT_STORES = ['heroes', 'villains'] as const
+/** Version 2 added the villains store, and version 3 the minions store. */
+export const DB_VERSION = 3
+export const OBJECT_STORES = ['heroes', 'villains', 'minions'] as const
 export type ObjectStoreName = (typeof OBJECT_STORES)[number]
 
 /** A stored record: the document's id next to its saved envelope. */

@@ -33,7 +33,7 @@ export interface ChoiceSlot {
 
 export type Slot = TraitSlot | ChoiceSlot
 
-const BASIC_ACTIONS: readonly BasicAction[] = ['attack', 'defend', 'boost', 'hinder', 'overcome']
+export const BASIC_ACTIONS: readonly BasicAction[] = ['attack', 'defend', 'boost', 'hinder', 'overcome']
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 /** Bracket text (lowercased) → slot. */
