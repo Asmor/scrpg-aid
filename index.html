@@ -6,7 +6,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1f3a93" />
+    <meta name="theme-color" content="#ffffff" />
     <title>SCRPG Aid</title>
     <script>
       // Apply the color theme before the first paint, so it never flashes the wrong one.
@@ -19,11 +19,11 @@
         } catch (e) {}
         var light = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
         var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-        var theme = pref === 'system' ? (light && !dark ? 'light' : 'dark') : pref
+        var theme = pref === 'system' ? (dark && !light ? 'dark' : 'light') : pref
         document.documentElement.dataset.theme = theme
         document.documentElement.style.colorScheme = theme
         var meta = document.querySelector('meta[name="theme-color"]')
-        if (meta) meta.setAttribute('content', theme === 'dark' ? '#2c4aa8' : '#1f3a93')
+        if (meta) meta.setAttribute('content', theme === 'dark' ? '#1b1e2a' : '#ffffff')
       })()
     </script>
   </head>

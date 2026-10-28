@@ -1,0 +1,93 @@
+/*
+ * The app's colors and typefaces. Every color in the app comes from a token here; nothing
+ * else names a color value (docs/design/hero-wizard/spec.md, "Theme tokens").
+ *
+ * Light is the base. Dark applies when data-theme="dark" is on <html> (src/theme/theme.ts
+ * sets it; index.html sets it before the first paint), or, with no data-theme at all (scripts
+ * disabled), when the browser prefers dark.
+ *
+ * --game-* colors are only for things the game itself colors green, yellow or red (zone
+ * bands, status dice, Health ranges, the scene tracker). Text on a game fill uses that
+ * fill's -ink token.
+ *
+ * src/theme/theme.ts (THEME_COLORS) and vite.config.ts (the manifest) repeat --ui-surface and
+ * --ui-bg for the browser chrome, which can't read CSS. Keep them in sync. The typefaces
+ * themselves are bundled by ./fonts.css, so they work offline.
+ */
+:root {
+  --ui-bg: #f6f7fb;
+  --ui-surface: #ffffff;
+  --ui-surface-2: #eef0f6;
+  --ui-text: #1a1d2b;
+  --ui-muted: #565c70;
+  --ui-border: #dde0ea;
+  --ui-accent: #4347c9;
+  --ui-on-accent: #ffffff;
+  --ui-accent-soft: #e8e9fa;
+  --ui-danger: #8e2ba0;
+  --ui-danger-soft: #f6e8f8;
+  --ui-scrim: rgb(18 20 28 / 0.55);
+  --ui-shadow: rgb(18 20 28 / 0.18);
+  --game-green: #72cc82;
+  --game-green-ink: #1a1d2b;
+  --game-yellow: #f5d044;
+  --game-yellow-ink: #1a1d2b;
+  --game-red: #f28a80;
+  --game-red-ink: #1a1d2b;
+
+  --font-body: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+
+  color-scheme: light;
+}
+
+/* The dark values appear twice: here, and in the no-script fallback below. Keep them in sync. */
+:root[data-theme='dark'] {
+  --ui-bg: #12141c;
+  --ui-surface: #1b1e2a;
+  --ui-surface-2: #232736;
+  --ui-text: #e8eaf2;
+  --ui-muted: #a3a9bf;
+  --ui-border: #2c3042;
+  --ui-accent: #9599ff;
+  --ui-on-accent: #12141c;
+  --ui-accent-soft: #262a4a;
+  --ui-danger: #d07be0;
+  --ui-danger-soft: #2e2236;
+  --ui-scrim: rgb(0 0 0 / 0.6);
+  --ui-shadow: rgb(0 0 0 / 0.45);
+  --game-green: #1d6e31;
+  --game-green-ink: #e8eaf2;
+  --game-yellow: #e3b600;
+  --game-yellow-ink: #12141c;
+  --game-red: #a8261f;
+  --game-red-ink: #e8eaf2;
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --ui-bg: #12141c;
+    --ui-surface: #1b1e2a;
+    --ui-surface-2: #232736;
+    --ui-text: #e8eaf2;
+    --ui-muted: #a3a9bf;
+    --ui-border: #2c3042;
+    --ui-accent: #9599ff;
+    --ui-on-accent: #12141c;
+    --ui-accent-soft: #262a4a;
+    --ui-danger: #d07be0;
+    --ui-danger-soft: #2e2236;
+    --ui-scrim: rgb(0 0 0 / 0.6);
+    --ui-shadow: rgb(0 0 0 / 0.45);
+    --game-green: #1d6e31;
+    --game-green-ink: #e8eaf2;
+    --game-yellow: #e3b600;
+    --game-yellow-ink: #12141c;
+    --game-red: #a8261f;
+    --game-red-ink: #e8eaf2;
+
+    color-scheme: dark;
+  }
+}

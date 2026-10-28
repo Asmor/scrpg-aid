@@ -1,89 +1,20 @@
-/*
- * Color tokens. Light is the base; dark overrides it. The theme is chosen by the
- * data-theme attribute on <html> (see src/theme/theme.ts), which index.html sets before
- * the first paint. Without it (e.g. scripts disabled), prefers-color-scheme decides, and
- * dark is the fallback when the browser reports no preference.
- */
+/* Colors and typefaces come from ./theme/tokens.css (imported first, in main.tsx). */
 :root {
-  --color-bg: #fbf7ef;
-  --color-surface: #ffffff;
-  --color-text: #1a1a1a;
-  --color-text-muted: #555555;
-  --color-border: #c9c2b4;
-  --color-primary: #1f3a93;
-  --color-on-primary: #ffffff;
-  --color-focus: #c2410c;
-  --color-link: #1f3a93;
-  --color-panel: #fde7d3;
-  --color-panel-border: #2b2118;
-  --color-heading: #c2361b;
-  --color-danger: #b42318;
-  --color-on-danger: #ffffff;
-  --zone-green: #dff3d6;
-  --zone-yellow: #fdf3c4;
-  --zone-red: #fbd9d6;
-  --zone-out: #e4e4e4;
-  --zone-green-strong: #276b2a;
-  --zone-yellow-strong: #735b00;
-  --zone-red-strong: #b42318;
   --space: 1rem;
 
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-body);
   line-height: 1.5;
-  color: var(--color-text);
-  background: var(--color-bg);
+  color: var(--ui-text);
+  background: var(--ui-bg);
 }
 
-/* The dark values appear twice: here, and in the no-script fallback below. Keep them in sync. */
-:root[data-theme='dark'] {
-  --color-bg: #15171c;
-  --color-surface: #1f232b;
-  --color-text: #e8e6e1;
-  --color-text-muted: #a9a59c;
-  --color-border: #3a3f4a;
-  --color-primary: #2c4aa8;
-  --color-on-primary: #ffffff;
-  --color-focus: #fb923c;
-  --color-link: #8fb0ff;
-  --color-panel: #2a231d;
-  --color-panel-border: #8a7259;
-  --color-heading: #ff8a65;
-  --color-danger: #ff7b72;
-  --color-on-danger: #1a1a1a;
-  --zone-green: #1f3322;
-  --zone-yellow: #36301a;
-  --zone-red: #3b2222;
-  --zone-out: #2c2c2c;
-  --zone-green-strong: #7bd389;
-  --zone-yellow-strong: #f0cf5a;
-  --zone-red-strong: #ff8a80;
-}
-
-@media not all and (prefers-color-scheme: light) {
-  :root:not([data-theme]) {
-    --color-bg: #15171c;
-    --color-surface: #1f232b;
-    --color-text: #e8e6e1;
-    --color-text-muted: #a9a59c;
-    --color-border: #3a3f4a;
-    --color-primary: #2c4aa8;
-    --color-on-primary: #ffffff;
-    --color-focus: #fb923c;
-    --color-link: #8fb0ff;
-    --color-panel: #2a231d;
-    --color-panel-border: #8a7259;
-    --color-heading: #ff8a65;
-    --color-danger: #ff7b72;
-    --color-on-danger: #1a1a1a;
-    --zone-green: #1f3322;
-    --zone-yellow: #36301a;
-    --zone-red: #3b2222;
-    --zone-out: #2c2c2c;
-    --zone-green-strong: #7bd389;
-    --zone-yellow-strong: #f0cf5a;
-    --zone-red-strong: #ff8a80;
-    color-scheme: dark;
-  }
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 *,
@@ -98,11 +29,9 @@ body {
 }
 
 .app-header {
-  /* The page focus color doesn't show up on the blue header; white does in both themes. */
-  --color-focus: var(--color-on-primary);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  padding: calc(var(--space) * 0.75) var(--space);
+  background: var(--ui-surface);
+  border-bottom: 1px solid var(--ui-border);
+  padding: 0.75rem var(--space);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -112,7 +41,7 @@ body {
 
 .app-header h1 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.375rem;
 }
 
 .visually-hidden {
@@ -131,8 +60,9 @@ body {
   display: inline-flex;
   margin: 0;
   padding: 2px;
-  border: 1px solid rgb(255 255 255 / 0.5);
-  border-radius: 999px;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.5rem;
+  background: var(--ui-surface-2);
 }
 
 .theme-toggle__option {
@@ -150,20 +80,22 @@ body {
 .theme-toggle__option span {
   display: flex;
   align-items: center;
-  min-height: 2.75rem;
-  padding: 0 0.875rem;
-  border-radius: 999px;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  border-radius: 0.375rem;
   font-size: 0.875rem;
+  color: var(--ui-muted);
 }
 
 .theme-toggle__option input:checked + span {
-  background: var(--color-on-primary);
-  color: var(--color-primary);
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  box-shadow: 0 0 0 1px var(--ui-border);
   font-weight: 600;
 }
 
 .theme-toggle__option input:focus-visible + span {
-  outline: 2px solid var(--color-focus);
+  outline: 2px solid var(--ui-accent);
   outline-offset: 2px;
 }
 
@@ -181,10 +113,10 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem var(--space);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
   border-radius: 0.5rem;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
+  box-shadow: 0 2px 8px var(--ui-shadow);
 }
 
 .update-banner span {
@@ -197,11 +129,11 @@ body {
 }
 
 a {
-  color: var(--color-link);
+  color: var(--ui-accent);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-focus);
+  outline: 2px solid var(--ui-accent);
   outline-offset: 2px;
 }
 
@@ -214,12 +146,17 @@ a {
 }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   min-height: 2.75rem;
   padding: 0 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
-  background: var(--color-surface);
-  color: var(--color-text);
+  border: 1px solid var(--ui-border);
+  border-radius: 0.5rem;
+  text-decoration: none;
+  background: var(--ui-surface);
+  color: var(--ui-text);
   font: inherit;
   cursor: pointer;
 }
@@ -230,18 +167,19 @@ a {
 }
 
 .button--primary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+  color: var(--ui-on-accent);
+  font-weight: 600;
 }
 
 .button--danger {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
+  border-color: var(--ui-danger);
+  color: var(--ui-danger);
 }
 
 .error {
-  color: var(--color-danger);
+  color: var(--ui-danger);
 }
 
 /* Export and import */
@@ -275,7 +213,7 @@ a {
 
 .import-conflicts {
   margin: var(--space) 0 0;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--ui-border);
   border-radius: 0.375rem;
   padding: 0.75rem var(--space);
 }
@@ -317,8 +255,8 @@ a {
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.75rem var(--space);
-  background: var(--color-panel);
-  border: 2px solid var(--color-panel-border);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
   border-radius: 0.375rem;
 }
 
@@ -326,7 +264,7 @@ a {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  color: var(--color-text);
+  color: var(--ui-text);
   text-decoration: none;
 }
 
@@ -336,20 +274,19 @@ a {
 }
 
 .hero-card__meta {
-  color: var(--color-text-muted);
+  color: var(--ui-muted);
 }
 
 /* Hero sheet */
 .hero-sheet__header h2 {
   margin: 0;
-  color: var(--color-heading);
-  font-style: italic;
-  font-size: 1.75rem;
+  color: var(--ui-text);
+  font-size: 2rem;
 }
 
 .hero-sheet__alias {
   margin: 0;
-  color: var(--color-text-muted);
+  color: var(--ui-muted);
 }
 
 .sheet-grid {
@@ -360,10 +297,9 @@ a {
 }
 
 .sheet-panel {
-  background: var(--color-panel);
-  border: 2px solid var(--color-panel-border);
-  border-radius: 0.375rem;
-  box-shadow: 3px 3px 0 var(--color-panel-border);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: 0.75rem;
   padding: 0.75rem var(--space);
   margin-bottom: var(--space);
   min-width: 0;
@@ -375,16 +311,14 @@ a {
 
 .sheet-panel__title {
   margin: 0 0 0.5rem;
-  color: var(--color-heading);
-  font-style: italic;
-  font-weight: 800;
+  color: var(--ui-muted);
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
   font-size: 1rem;
 }
 
 .sheet-empty {
-  color: var(--color-text-muted);
+  color: var(--ui-muted);
   margin: 0;
 }
 
@@ -428,7 +362,7 @@ a {
 .trait-table td {
   text-align: left;
   padding: 0.25rem 0.5rem 0.25rem 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--ui-border);
 }
 
 .die {
@@ -467,7 +401,7 @@ a {
   flex-direction: column;
   align-items: center;
   padding: 0.5rem;
-  border: 2px solid var(--color-panel-border);
+  border: 1px solid var(--ui-border);
   border-radius: 0.375rem;
   font-weight: 700;
 }
@@ -487,20 +421,46 @@ a {
   font-size: 1.5rem;
 }
 
+/* Game colors, only on things the game itself colors; text on them uses the fill's ink. */
 .zone-green {
-  background: var(--zone-green);
+  background: var(--game-green);
+  color: var(--game-green-ink);
 }
 
 .zone-yellow {
-  background: var(--zone-yellow);
+  background: var(--game-yellow);
+  color: var(--game-yellow-ink);
 }
 
 .zone-red {
-  background: var(--zone-red);
+  background: var(--game-red);
+  color: var(--game-red-ink);
 }
 
 .zone-out {
-  background: var(--zone-out);
+  background: var(--ui-surface-2);
+}
+
+/*
+ * Cards that belong to a zone (a form or mode, a party member, an ability in play) keep the
+ * surface, so their muted text stays readable, and show the zone as a stripe in its game color.
+ */
+:is(.aux-group, .party-member, .play-ability):is(.zone-green, .zone-yellow, .zone-red, .zone-out) {
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  border-left: 6px solid var(--ui-surface-2);
+}
+
+:is(.aux-group, .party-member, .play-ability).zone-green {
+  border-left-color: var(--game-green);
+}
+
+:is(.aux-group, .party-member, .play-ability).zone-yellow {
+  border-left-color: var(--game-yellow);
+}
+
+:is(.aux-group, .party-member, .play-ability).zone-red {
+  border-left-color: var(--game-red);
 }
 
 .principles {
@@ -516,7 +476,7 @@ a {
 /* A line between "During roleplaying", "Minor twist", and "Major twist", so they don't run together. */
 .principle .fields dt:not(:first-of-type),
 .principle .fields dt:not(:first-of-type) + dd {
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--ui-border);
   padding-top: 0.375rem;
 }
 
@@ -551,7 +511,7 @@ a {
 .dice-table th:not(:first-child),
 .dice-table td:nth-child(3),
 .dice-table td:nth-child(5) {
-  border-left: 1px solid var(--color-border);
+  border-left: 1px solid var(--ui-border);
   padding-left: 0.5rem;
 }
 
@@ -582,41 +542,45 @@ a {
   }
 }
 
-.dice-table td.zone-green {
-  background: var(--zone-green);
-}
-
-.dice-table td.zone-yellow {
-  background: var(--zone-yellow);
-}
-
-.dice-table td.zone-red {
-  background: var(--zone-red);
-}
-
-.ability-band {
-  border: 2px solid var(--color-panel-border);
-  border-radius: 0.375rem;
-  padding: 0.5rem 0.75rem;
+/* A band's header carries the game color and its label; the rows sit on the surface. */
+.ability-band,
+.ability-band:is(.zone-green, .zone-yellow, .zone-red, .zone-out) {
+  border: 1px solid var(--ui-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
   margin-bottom: 0.75rem;
+  background: var(--ui-surface);
+  color: var(--ui-text);
+}
+
+.ability-band > :not(.ability-band__title) {
+  margin: 0.5rem 0.75rem;
 }
 
 .ability-band__title {
-  margin: 0 0 0.25rem;
-  font-style: italic;
+  margin: 0;
+  padding: 0.2rem 0.75rem;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  background: var(--ui-surface-2);
 }
 
 .ability-band.zone-green .ability-band__title {
-  color: var(--zone-green-strong);
+  background: var(--game-green);
+  color: var(--game-green-ink);
 }
 
 .ability-band.zone-yellow .ability-band__title {
-  color: var(--zone-yellow-strong);
+  background: var(--game-yellow);
+  color: var(--game-yellow-ink);
 }
 
 .ability-band.zone-red .ability-band__title {
-  color: var(--zone-red-strong);
+  background: var(--game-red);
+  color: var(--game-red-ink);
 }
 
 .ability-list {
@@ -630,7 +594,7 @@ a {
   grid-template-columns: 5.5rem minmax(7rem, 12rem) 1fr;
   gap: 0.25rem 0.75rem;
   padding: 0.375rem 0;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--ui-border);
 }
 
 .ability:first-child {
@@ -654,10 +618,10 @@ a {
   justify-content: center;
   width: 1.75rem;
   height: 1.75rem;
-  border: 2px solid var(--color-panel-border);
+  border: 1px solid var(--ui-border);
   border-radius: 50%;
   font-weight: 800;
-  background: var(--color-surface);
+  background: var(--ui-surface);
 }
 
 /* The effects the ability produces, after its type. */
@@ -670,7 +634,7 @@ a {
   height: 1.25rem;
 }
 
-/* Icons: black line art with white edges; inverted in the dark theme so the lines show. */
+/* Icons: black and white, so they read on both themes. Never recolor, invert or tint them. */
 .die-icon,
 .action-icon {
   display: inline-block;
@@ -680,21 +644,23 @@ a {
   vertical-align: -0.2em;
 }
 
-:root[data-theme='dark'] :is(.die-icon, .action-icon) {
-  filter: invert(1);
-}
-
-@media not all and (prefers-color-scheme: light) {
-  :root:not([data-theme]) :is(.die-icon, .action-icon) {
-    filter: invert(1);
-  }
-}
-
-/* A die stands alone (no size written beside it), so it's drawn larger than an action icon. */
+/* Dice: 24px in dice rows, assign slots and tables; 18px in compact lists; 16px inline in a sentence. */
 .die-icon {
-  width: 1.6em;
-  height: 1.6em;
+  width: 24px;
+  height: 24px;
   vertical-align: middle;
+}
+
+.die-icon--compact {
+  width: 18px;
+  height: 18px;
+  vertical-align: -4px;
+}
+
+.die-icon--inline {
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
 }
 
 .effect-word .action-icon {
@@ -722,15 +688,15 @@ a {
 .sheet-warnings {
   margin: var(--space) 0;
   padding: 0.75rem var(--space);
-  border: 2px solid var(--color-danger);
+  border: 2px solid var(--ui-danger);
   border-radius: 0.375rem;
-  background: var(--color-surface);
+  background: var(--ui-surface);
 }
 
 .sheet-warnings summary {
   cursor: pointer;
   font-weight: 700;
-  color: var(--color-danger);
+  color: var(--ui-danger);
 }
 
 .sheet-warnings h3 {
@@ -741,7 +707,7 @@ a {
 .aux-group {
   padding: 0.5rem 0.75rem;
   margin-bottom: 0.75rem;
-  border: 1px solid var(--color-panel-border);
+  border: 1px solid var(--ui-border);
   border-radius: 0.375rem;
 }
 
@@ -751,7 +717,7 @@ a {
 
 .aux-zone {
   font-weight: 400;
-  color: var(--color-text-muted);
+  color: var(--ui-muted);
 }
 
 .mode-limits {
@@ -788,7 +754,7 @@ a {
 }
 
 .hero-list h2:focus-visible {
-  outline: 2px solid var(--color-focus);
+  outline: 2px solid var(--ui-accent);
 }
 
 /* Editor */
@@ -802,8 +768,7 @@ a {
 
 .hero-editor__name {
   margin: 0.5rem 0;
-  color: var(--color-heading);
-  font-style: italic;
+  color: var(--ui-text);
 }
 
 .step-nav ol {
@@ -821,17 +786,17 @@ a {
   gap: 0.375rem;
   min-height: 2.75rem;
   padding: 0 0.75rem;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--ui-border);
   border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: var(--ui-surface);
+  color: var(--ui-text);
   text-decoration: none;
 }
 
 .step-nav a[aria-current='step'] {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+  color: var(--ui-on-accent);
   font-weight: 700;
 }
 
@@ -843,26 +808,25 @@ a {
 .step-nav__count {
   min-width: 1.5rem;
   padding: 0 0.375rem;
+  border: 1px solid var(--ui-danger);
   border-radius: 999px;
-  background: var(--color-danger);
-  color: var(--color-on-danger);
+  color: var(--ui-danger);
+  background: var(--ui-surface);
   font-size: 0.8rem;
   font-weight: 700;
   text-align: center;
 }
 
 .editor-step {
-  background: var(--color-panel);
-  border: 2px solid var(--color-panel-border);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
   border-radius: 0.375rem;
   padding: 0.75rem var(--space) var(--space);
 }
 
 .editor-step > h3 {
   margin: 0 0 0.75rem;
-  color: var(--color-heading);
-  font-style: italic;
-  text-transform: uppercase;
+  color: var(--ui-text);
 }
 
 .step-form {
@@ -871,7 +835,7 @@ a {
 }
 
 .step-form fieldset {
-  border: 1px solid var(--color-panel-border);
+  border: 1px solid var(--ui-border);
   border-radius: 0.375rem;
   padding: 0.5rem 0.75rem 0.75rem;
   margin: 0;
@@ -894,7 +858,7 @@ a {
   align-items: flex-start;
   padding: 0.5rem;
   border-radius: 0.375rem;
-  background: var(--color-surface);
+  background: var(--ui-surface);
   cursor: pointer;
 }
 
@@ -907,7 +871,7 @@ a {
 }
 
 .choice:has(input:checked) {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--ui-accent);
 }
 
 .choice__body {
@@ -923,7 +887,7 @@ a {
 .choice__roll {
   display: inline-block;
   min-width: 1.75rem;
-  color: var(--color-text-muted);
+  color: var(--ui-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -931,7 +895,7 @@ a {
 .choice__detail,
 .hint,
 .page-ref {
-  color: var(--color-text-muted);
+  color: var(--ui-muted);
   font-weight: 400;
 }
 
@@ -958,10 +922,10 @@ textarea,
 select {
   min-height: 2.75rem;
   padding: 0.375rem 0.5rem;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--ui-border);
   border-radius: 0.375rem;
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: var(--ui-surface);
+  color: var(--ui-text);
   font: inherit;
   max-width: 100%;
 }
@@ -991,7 +955,7 @@ select {
   /* The die label doesn't wrap, but a long trait name here must. */
   white-space: normal;
   overflow-wrap: anywhere;
-  color: var(--color-text-muted);
+  color: var(--ui-muted);
   font-size: 0.875rem;
   font-weight: 400;
 }
@@ -1095,7 +1059,7 @@ select {
 .second-archetype,
 .outer-archetype {
   padding-top: 0.75rem;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--ui-border);
 }
 
 .split-form > .hint {
@@ -1159,7 +1123,7 @@ select {
   margin: 0;
   padding: 0.5rem;
   border-radius: 0.375rem;
-  background: var(--color-surface);
+  background: var(--ui-surface);
 }
 
 .ability-pick__fixed + .ability-pick__fields {
@@ -1169,8 +1133,8 @@ select {
 .ability-pick__preview {
   margin: 0;
   padding: 0.5rem;
-  border-left: 3px solid var(--color-primary);
-  background: var(--color-surface);
+  border-left: 3px solid var(--ui-accent);
+  background: var(--ui-surface);
 }
 
 .step-form .ability-pick__multi {
@@ -1200,21 +1164,20 @@ select {
 
 .step-ok {
   margin: var(--space) 0 0;
-  color: var(--zone-green-strong);
-  font-weight: 600;
+  color: var(--ui-muted);
 }
 
 .step-warnings {
   margin-top: var(--space);
   padding: 0.5rem 0.75rem;
-  border: 2px solid var(--color-danger);
+  border: 2px solid var(--ui-danger);
   border-radius: 0.375rem;
-  background: var(--color-surface);
+  background: var(--ui-surface);
 }
 
 .step-warnings h4 {
   margin: 0;
-  color: var(--color-danger);
+  color: var(--ui-danger);
 }
 
 .step-warnings ul {
@@ -1236,7 +1199,7 @@ a.button {
 }
 
 a.button--primary {
-  color: var(--color-on-primary);
+  color: var(--ui-on-accent);
 }
 
 /* Game aid */
@@ -1249,22 +1212,33 @@ a.button--primary {
   font-size: 2rem;
 }
 
+.play-health:is(.zone-green, .zone-yellow, .zone-red, .zone-out) {
+  background: none;
+  color: inherit;
+}
+
+/* The zone label is a chip in the zone's game color. */
 .play-zone {
   font-weight: 700;
   margin-left: 0.5rem;
+  padding: 0 0.5rem;
+  border-radius: 0.375rem;
 }
 
 .play-health.zone-green .play-zone {
-  color: var(--zone-green-strong);
+  background: var(--game-green);
+  color: var(--game-green-ink);
 }
 
 .play-health.zone-yellow .play-zone {
-  color: var(--zone-yellow-strong);
+  background: var(--game-yellow);
+  color: var(--game-yellow-ink);
 }
 
 .play-health.zone-red .play-zone,
 .play-health.zone-out .play-zone {
-  color: var(--zone-red-strong);
+  background: var(--game-red);
+  color: var(--game-red-ink);
 }
 
 .play-amount {
@@ -1298,7 +1272,7 @@ a.button--primary {
 }
 
 .party-member {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--ui-border);
   border-radius: 0.375rem;
   padding: 0.5rem 0.625rem;
 }
@@ -1313,7 +1287,7 @@ a.button--primary {
 .party-status {
   margin-left: auto;
   font-size: 0.875rem;
-  color: var(--color-text-muted);
+  color: var(--ui-muted);
 }
 
 .party-status--on {
@@ -1380,16 +1354,16 @@ a.button--primary {
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.25rem 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--ui-border);
 }
 
 .play-mod--bonus span {
-  color: var(--zone-green-strong);
+  color: var(--ui-accent);
   font-weight: 600;
 }
 
 .play-mod--penalty span {
-  color: var(--zone-red-strong);
+  color: var(--ui-danger);
   font-weight: 600;
 }
 
@@ -1414,7 +1388,7 @@ a.button--primary {
 }
 
 .play-history time {
-  color: var(--color-text-muted);
+  color: var(--ui-muted);
   font-size: 0.9em;
 }
 
@@ -1431,7 +1405,7 @@ a.button--primary {
   justify-content: space-between;
   gap: 0.25rem 0.5rem;
   padding: 0.375rem 0.5rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--ui-border);
 }
 
 .play-ability__name {
@@ -1450,7 +1424,7 @@ a.button--primary {
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(0 0 0 / 55%);
+  background: var(--ui-scrim);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -1460,9 +1434,9 @@ a.button--primary {
 }
 
 .dialog {
-  background: var(--color-bg);
-  color: var(--color-text);
-  border: 2px solid var(--color-panel-border);
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  border: 1px solid var(--ui-border);
   border-radius: 0.5rem;
   padding: var(--space);
   width: min(100%, 40rem);
@@ -1470,11 +1444,11 @@ a.button--primary {
 
 .dialog h3 {
   margin-top: 0;
-  color: var(--color-heading);
+  color: var(--ui-text);
 }
 
 .roll-section {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--ui-border);
   border-radius: 0.375rem;
   margin: 0 0 0.75rem;
   padding: 0.5rem 0.75rem;
@@ -1529,7 +1503,7 @@ a.button--primary {
 }
 
 .roll-target {
-  border: 2px dashed var(--color-border);
+  border: 2px dashed var(--ui-border);
   border-radius: 0.375rem;
   padding: 0.5rem 0.75rem;
 }
@@ -1549,10 +1523,10 @@ a.button--primary {
 }
 
 .roll-mod {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--ui-border);
   border-radius: 1rem;
   padding: 0.125rem 0.625rem;
-  background: var(--color-surface);
+  background: var(--ui-surface);
 }
 
 .roll-mod[draggable='true'] {
@@ -1560,7 +1534,7 @@ a.button--primary {
 }
 
 .effects-picker {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--ui-border);
   border-radius: 0.375rem;
   padding: 0.5rem 0.75rem;
 }

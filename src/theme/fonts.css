@@ -1,0 +1,11 @@
+/*
+ * The app's typefaces, bundled with the app (not loaded from a font service) so they work
+ * offline: Barlow Condensed for headings and step numbers, Inter for everything else.
+ * ./tokens.css names them (--font-heading, --font-body).
+ */
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-400-italic.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/barlow-condensed/latin-600.css';
+@import '@fontsource/barlow-condensed/latin-700.css';

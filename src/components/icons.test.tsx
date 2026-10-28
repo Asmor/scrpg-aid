@@ -11,6 +11,18 @@ describe('icons', () => {
     expect(screen.getByRole('img', { name: 'd8' })).toHaveAttribute('src', '/icons/die/d8.png')
   })
 
+  it('sizes dice: normal by default, inline in sentences, compact on request', () => {
+    const { container } = render(
+      <>
+        <DieIcon die="d8" />
+        <DieIcon die="d8" size="compact" />
+        <DiceList dice={['d6']} />
+        <DiceText text="a d4" />
+      </>,
+    )
+    expect([...container.querySelectorAll('img')].map((i) => i.className)).toEqual(['die-icon', 'die-icon die-icon--compact', 'die-icon die-icon--inline', 'die-icon die-icon--inline'])
+  })
+
   it('lists dice with their icons', () => {
     const { container } = render(<DiceList dice={['d10', 'd10', 'd6']} />)
     expect(readable(container)).toBe('d10, d10 and d6')

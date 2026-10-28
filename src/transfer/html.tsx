@@ -10,6 +10,7 @@ import { HeroSheetView } from '../components/HeroSheetView'
 import { IconSource, type IconName } from '../components/icon-source'
 import { heroDisplayName, type Hero } from '../hero/model'
 import appCss from '../index.css?inline'
+import tokensCss from '../theme/tokens.css?inline'
 import { villainDisplayName, type Villain } from '../villain/model'
 import { VillainSheetView } from '../villain/VillainSheetView'
 import { embeddableJson, embeddableVillainJson, SCRIPT_OPEN } from './embed'
@@ -35,7 +36,7 @@ function page(title: string, sheet: ReactElement, json: string, icons: Readonly<
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     `<title>${escapeHtml(title)}</title>`,
-    `<style>${appCss}</style>`,
+    `<style>${tokensCss}\n${appCss}</style>`,
     '</head>',
     '<body>',
     `<main class="app-main">${body}</main>`,

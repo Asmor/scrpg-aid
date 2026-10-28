@@ -4,23 +4,26 @@ import { ACTION_LABEL, actionMentions, effectMentions, type Action } from '../cr
 import type { Die } from '../rules/types'
 import { IconSource } from './icon-source'
 
+/** How big a die is drawn: 24px in dice rows, slots and tables; 18px in compact lists; 16px inline in a sentence. */
+export type DieSize = 'normal' | 'compact' | 'inline'
+
 /**
  * A die, shown as its icon alone, with its size ("d8") as the alt text. The size is only
- * written out where an image can't go (dropdown options, Markdown).
+ * written out where an image can't go (dropdown options, aria-labels, Markdown).
  */
-export function DieIcon({ die }: { die: Die }) {
+export function DieIcon({ die, size = 'normal' }: { die: Die; size?: DieSize }) {
   const src = useContext(IconSource)(`die/${die}`)
-  return <img className="die-icon" src={src} alt={die} title={die} />
+  return <img className={size === 'normal' ? 'die-icon' : `die-icon die-icon--${size}`} src={src} alt={die} title={die} />
 }
 
 /** "[d10] and [d10]": the dice as icons, joined like words. */
-export function DiceList({ dice }: { dice: readonly Die[] }) {
+export function DiceList({ dice, size = 'inline' }: { dice: readonly Die[]; size?: DieSize }) {
   return (
     <>
       {dice.map((d, i) => (
         <span key={i}>
           {i > 0 && (i === dice.length - 1 ? ' and ' : ', ')}
-          <DieIcon die={d} />
+          <DieIcon die={d} size={size} />
         </span>
       ))}
     </>
@@ -28,10 +31,10 @@ export function DiceList({ dice }: { dice: readonly Die[] }) {
 }
 
 /** Text with each die size in it ("d4" to "d12") shown as the die's icon instead, e.g. a rule message. */
-export function DiceText({ text }: { text: string }) {
+export function DiceText({ text, size = 'inline' }: { text: string; size?: DieSize }) {
   return (
     <>
-      {text.split(/\b(d(?:4|6|8|10|12))\b/).map((part, i) => (i % 2 === 1 ? <DieIcon key={i} die={part as Die} /> : part))}
+      {text.split(/\b(d(?:4|6|8|10|12))\b/).map((part, i) => (i % 2 === 1 ? <DieIcon key={i} die={part as Die} size={size} /> : part))}
     </>
   )
 }

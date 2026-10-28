@@ -17,9 +17,9 @@ export default defineConfig({
         name: 'Sentinel Comics RPG Aid',
         short_name: 'SCRPG Aid',
         description: 'Create heroes and run games for the Sentinel Comics RPG.',
-        theme_color: '#1f3a93',
-        // Dark, since dark is the default whenever the system has no preference.
-        background_color: '#15171c',
+        // --ui-surface and --ui-bg from src/theme/tokens.css (light, the default when the system has no preference).
+        theme_color: '#ffffff',
+        background_color: '#f6f7fb',
         display: 'standalone',
         start_url: base,
         scope: base,

@@ -1,6 +1,6 @@
 /**
  * Color theme: the player chooses System, Light, or Dark (default System). System follows
- * the browser's prefers-color-scheme, and falls back to dark when the browser reports no
+ * the browser's prefers-color-scheme, and falls back to light when the browser reports no
  * preference.
  *
  * The preference is a per-device convenience, so it lives in localStorage. Every access is
@@ -24,10 +24,10 @@ export function isThemePreference(value: unknown): value is ThemePreference {
   return typeof value === 'string' && (THEME_PREFERENCES as readonly string[]).includes(value)
 }
 
-/** The theme to show. System with no browser preference falls back to dark. */
+/** The theme to show. System with no browser preference falls back to light. */
 export function resolveTheme(preference: ThemePreference, system: SystemScheme): Theme {
   if (preference !== 'system') return preference
-  return system === 'light' ? 'light' : 'dark'
+  return system === 'dark' ? 'dark' : 'light'
 }
 
 /** Reads the browser's color scheme preference. */
@@ -65,8 +65,11 @@ export function writePreference(preference: ThemePreference, storage: StorageLik
   }
 }
 
-/** The browser/app chrome color for each theme (the header color). index.html uses the same values. */
-export const THEME_COLORS: Record<Theme, string> = { light: '#1f3a93', dark: '#2c4aa8' }
+/**
+ * The browser/app chrome color for each theme: the header's --ui-surface from ./tokens.css,
+ * repeated here because the meta tag can't read CSS. index.html uses the same values.
+ */
+export const THEME_COLORS: Record<Theme, string> = { light: '#ffffff', dark: '#1b1e2a' }
 
 /**
  * Applies a theme to the document: the data-theme attribute that the CSS keys off,

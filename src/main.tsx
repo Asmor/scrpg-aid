@@ -1,6 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { enableDragDropTouch } from '@dragdroptouch/drag-drop-touch'
+import './theme/fonts.css'
+import './theme/tokens.css'
 import './index.css'
 import App from './App'
 import PwaUpdater from './PwaUpdater'

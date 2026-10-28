@@ -39,10 +39,10 @@ afterEach(() => {
 })
 
 describe('theme', () => {
-  it('follows the system preference, falling back to dark when there is none', () => {
+  it('follows the system preference, falling back to light when there is none', () => {
     expect(resolveTheme('system', 'light')).toBe('light')
     expect(resolveTheme('system', 'dark')).toBe('dark')
-    expect(resolveTheme('system', 'none')).toBe('dark')
+    expect(resolveTheme('system', 'none')).toBe('light')
   })
 
   it('uses an explicit choice regardless of the system', () => {
@@ -139,11 +139,11 @@ describe('theme', () => {
       meta.remove()
     })
 
-    it('falls back to dark when storage and matchMedia are unavailable', () => {
+    it('falls back to light when storage and matchMedia are unavailable', () => {
       vi.stubGlobal('localStorage', throwingStorage)
       vi.stubGlobal('matchMedia', undefined)
       new Function(script)()
-      expect(document.documentElement.dataset.theme).toBe('dark')
+      expect(document.documentElement.dataset.theme).toBe('light')
     })
   })
 

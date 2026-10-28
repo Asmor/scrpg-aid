@@ -31,14 +31,14 @@ beforeEach(() => localStorage.clear())
 afterEach(() => vi.unstubAllGlobals())
 
 describe('useTheme (through the app header)', () => {
-  it('defaults to System, which follows the browser and falls back to dark', () => {
+  it('defaults to System, which follows the browser and falls back to light', () => {
     const media = fakeMedia('none')
     vi.stubGlobal('matchMedia', media.matchMedia)
     render(<App />)
     expect(screen.getByRole('radio', { name: 'System' })).toBeChecked()
-    expect(theme()).toBe('dark')
-    act(() => media.set('light'))
     expect(theme()).toBe('light')
+    act(() => media.set('dark'))
+    expect(theme()).toBe('dark')
   })
 
   it('applies and remembers an explicit choice', async () => {
@@ -65,6 +65,6 @@ describe('useTheme (through the app header)', () => {
   it('works without matchMedia', () => {
     vi.stubGlobal('matchMedia', undefined)
     render(<App />)
-    expect(theme()).toBe('dark')
+    expect(theme()).toBe('light')
   })
 })
