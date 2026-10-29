@@ -25,6 +25,7 @@ import { abilityEffects, effectActions, narrowEffect, textEffects, type Action }
 import { checkRedAbilities } from './red'
 import { checkRetcon } from './retcons'
 import { deriveTraits, traitLabel, type HeroTrait } from './traits'
+import { checkRolls } from './rolls'
 import type { RuleWarning } from './warnings'
 
 export interface SheetAbility {
@@ -224,6 +225,7 @@ function sheetOf(hero: Hero): HeroSheet {
     ...checkSecondary(hero),
     ...checkDivided(hero, traits),
     ...checkModular(hero, traits),
+    ...checkRolls(hero),
   ]
 
   // Ability picks, with the ability retcon's new traits applied.

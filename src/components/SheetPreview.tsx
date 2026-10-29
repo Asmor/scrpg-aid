@@ -9,7 +9,7 @@ import { buildSheet, type HeroSheet, type SheetAbility } from '../creation/sheet
 import type { HeroTrait } from '../creation/traits'
 import { ABILITY_TYPE_LABEL, ZONE_LABEL } from '../hero/labels'
 import { heroDisplayName, type Hero } from '../hero/model'
-import type { Zone } from '../rules/types'
+import type { Die, HealthRange, Zone } from '../rules/types'
 import { AbilityIcons, DieIcon } from './icons'
 
 /** A part not filled in yet, and the step that fills it. */
@@ -84,6 +84,41 @@ export function AbilityBandCompact({ zone, abilities, empty }: { zone: Zone; abi
         </p>
       )}
     </section>
+  )
+}
+
+/** Status dice in their zones' game colors, each labelled, with its die. */
+export function StatusDiceRow({ dice, label = 'Status dice' }: { dice: Record<Zone, Die>; label?: string }) {
+  return (
+    <ul className="game-chips" aria-label={label}>
+      {(['green', 'yellow', 'red'] as const).map((zone) => (
+        <li key={zone} className={`game-chip game-chip--${zone}`}>
+          <span className="game-chip__label">{ZONE_LABEL[zone]}</span>
+          <DieIcon die={dice[zone]} size="compact" />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Max Health and its three ranges, as chips in the zones' game colors. */
+export function HealthChips({ max, ranges }: { max: number; ranges: HealthRange | undefined }) {
+  return (
+    <p className="health-chips">
+      <span>
+        Max <strong>{max}</strong>
+      </span>
+      {ranges && (
+        <span className="game-chips" role="list" aria-label="Health ranges">
+          {(['green', 'yellow', 'red'] as const).map((zone) => (
+            <span key={zone} role="listitem" className={`game-chip game-chip--${zone}`}>
+              <span className="visually-hidden">{ZONE_LABEL[zone]} </span>
+              {ranges[zone][0]}–{ranges[zone][1]}
+            </span>
+          ))}
+        </span>
+      )}
+    </p>
   )
 }
 

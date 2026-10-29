@@ -8,6 +8,7 @@ import { describeOptions } from '../creation/format'
 import { setStepRoll, stepRoll, takePendingRoll } from '../creation/rolls'
 import type { Hero } from '../hero/model'
 import { DiceAssigner } from './DiceAssigner'
+import { DiceOut } from './StepSection'
 import { PrinciplePicker } from './PrinciplePicker'
 import { TablePicker } from './TablePicker'
 import { DiceText } from '../components/icons'
@@ -34,6 +35,7 @@ export function BackgroundStep({ hero, update }: { hero: Hero; update: (change: 
       <TablePicker
         what="background"
         method={hero.method}
+        rollMode={hero.rollMode}
         dice={backgroundStep.startingDice}
         table={backgrounds}
         roll={roll}
@@ -76,6 +78,7 @@ export function BackgroundStep({ hero, update }: { hero: Hero; update: (change: 
               })
             }
           />
+          <DiceOut to="Power source" dice={bg.powerSourceDice} />
         </>
       )}
     </div>

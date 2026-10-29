@@ -13,6 +13,7 @@ import { deriveTraits, traitsBefore, traitLabel } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
 import { DiceAssigner } from './DiceAssigner'
+import { DiceIn, DiceOut } from './StepSection'
 import { TablePicker } from './TablePicker'
 import { DiceText } from '../components/icons'
 
@@ -43,11 +44,13 @@ export function PowerSourceStep({ hero, update }: { hero: Hero; update: (change:
   return (
     <div className="step-form">
       {!dice && <p className="hint">Choose a background first: it sets the dice for this step.</p>}
+      {dice && hero.method === 'constructed' && <DiceIn from="Background" dice={dice} />}
       {/* Without a background a Guided hero has no dice to roll, so the list only shows once there's a choice to keep. */}
       {(dice || hero.method === 'constructed' || choice) && (
         <TablePicker
           what="power source"
           method={dice ? hero.method : 'constructed'}
+          rollMode={hero.rollMode}
           dice={dice ?? []}
           table={powerSources}
           roll={roll}
@@ -127,6 +130,7 @@ export function PowerSourceStep({ hero, update }: { hero: Hero; update: (change:
               }
             />
           )}
+          <DiceOut to="Archetype" dice={ps.archetypeDice} />
         </>
       )}
     </div>

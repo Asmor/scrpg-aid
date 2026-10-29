@@ -14,6 +14,7 @@ import { healthTraitOptions, healthTraitTerm } from '../creation/health'
 import { buildSheet } from '../creation/sheet'
 import { deriveTraits, traitLabel } from '../creation/traits'
 import { DiceText, DieIcon } from '../components/icons'
+import { HealthChips } from '../components/SheetPreview'
 
 type Update = (change: (draft: Hero) => void) => void
 
@@ -75,7 +76,7 @@ export function HealthStep({ hero, update, random }: { hero: Hero; update: Updat
   const offList = choice?.trait && !options.some((o) => traitKey(o.trait) === traitKey(choice.trait!))
 
   return (
-    <div className="step-form">
+    <div className="step-form" data-section="choose">
       <p className="hint">
         <DiceText text={healthFormula.summary} /> <span className="page-ref">{formatEntryRef(healthStep)}</span>
       </p>
@@ -178,12 +179,10 @@ export function HealthStep({ hero, update, random }: { hero: Hero; update: Updat
         ))}
 
       {sheet.maxHealth !== undefined && (
-        <p className="health-result">
-          Max Health <strong>{sheet.maxHealth}</strong>
-          {sheet.healthRanges &&
-            `: Green ${sheet.healthRanges.green[0]}–${sheet.healthRanges.green[1]}, Yellow ${sheet.healthRanges.yellow[0]}–${sheet.healthRanges.yellow[1]}, Red ${sheet.healthRanges.red[0]}–${sheet.healthRanges.red[1]}`}
-          .
-        </p>
+        <section className="step-section" aria-label="Health">
+          <h4>Health</h4>
+          <HealthChips max={sheet.maxHealth} ranges={sheet.healthRanges} />
+        </section>
       )}
     </div>
   )

@@ -80,7 +80,7 @@ export function PrinciplePicker({ category, label = 'Principle', choice, onChang
   const principle = choice && !isCustom ? principlesById.get(choice.id) : undefined
   const offList = principle && category && principle.category !== category
   return (
-    <div className="principle-picker">
+    <div className="principle-picker" data-section="principle">
       <label htmlFor={`${id}-principle`}>{category ? `Principle of ${categoryName}` : label}</label>
       <select
         id={`${id}-principle`}

@@ -142,7 +142,7 @@ export function BonusPicker({ hero, legend, bonus, listed, before, archetypeQual
     }
   }
   return (
-    <fieldset className="bonus-picker">
+    <fieldset className="bonus-picker" data-section="bonus">
       <legend>{legend}</legend>
       <p>
         <DiceText text={bonus.summary} />

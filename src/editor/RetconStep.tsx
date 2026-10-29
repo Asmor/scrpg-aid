@@ -192,7 +192,7 @@ export function RetconStep({ hero, update }: { hero: Hero; update: Update }) {
   }
 
   return (
-    <div className="step-form">
+    <div className="step-form" data-section="choose">
       <p className="hint">
         Choose {retconStep.count} change to your hero. <span className="page-ref">{formatEntryRef(retconStep)}</span>
       </p>

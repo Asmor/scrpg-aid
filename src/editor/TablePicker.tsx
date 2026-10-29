@@ -1,13 +1,16 @@
 /**
- * Choosing a table entry (background, power source, archetype, personality). Guided: roll
- * the step's dice (in the app, or typed in from real dice), then pick an entry one die or
- * the sum of two reaches, with one reroll per step. Constructed: pick any entry.
+ * Choosing a table entry (background, power source, archetype, personality): the step's
+ * Dice in and Choose sections. Guided: roll the step's dice (in the app, or typed in from
+ * real dice), then pick an entry one die or the sum of two reaches, with one re-roll per
+ * step; each option says how the roll reached it. Constructed: pick any entry. A choice the
+ * roll no longer reaches stays chosen (the rule checks flag it).
  */
-import { useId, useState, type ReactNode } from 'react'
-import { canReroll, checkManualResults, newRoll, reroll, rollDice, rolledOn, tableOptions, type RollRecord, type RollSource } from '../rules/rolling'
+import { useId, type ReactNode } from 'react'
+import { canReroll, newRoll, reroll, rollDice, rolledOn, tableOptions, type RollRecord, type RollSource } from '../rules/rolling'
 import type { Die } from '../rules/types'
-import type { CreationMethod } from '../hero/model'
-import { DiceList, DieIcon } from '../components/icons'
+import type { CreationMethod, RollMode } from '../hero/model'
+import { DiceRoll } from '../components/DiceRoll'
+import { DiceList } from '../components/icons'
 
 interface Entry {
   id: string
@@ -19,6 +22,8 @@ interface TablePickerProps<T extends Entry> {
   /** What's being chosen, e.g. "background". */
   what: string
   method: CreationMethod
+  /** Who rolls in Guided creation; with 'manual', entering a roll comes first. */
+  rollMode?: RollMode
   dice: readonly Die[]
   table: readonly T[]
   roll: RollRecord | undefined
@@ -38,75 +43,24 @@ interface TablePickerProps<T extends Entry> {
 }
 
 const listAnd = (xs: readonly (string | number)[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : String(xs[0] ?? ''))
+const plural = (what: string) => (what.endsWith('y') ? `${what.slice(0, -1)}ies` : `${what}s`)
 
+/** How a roll reaches an entry: "Rolled 7", "Sum, 7 + 3" (the larger die first, so equal sums read the same). */
 function sourceText(roll: RollRecord, source: RollSource): string {
-  return 'die' in source ? `${roll.results[source.die]}` : `${roll.results[source.sum[0]]} + ${roll.results[source.sum[1]]}`
+  if ('die' in source) return `Rolled ${roll.results[source.die]}`
+  const [a, b] = [roll.results[source.sum[0]]!, roll.results[source.sum[1]]!]
+  return `Sum, ${Math.max(a, b)} + ${Math.min(a, b)}`
 }
 
-/** Typed-in results for real dice. */
-function ManualRoll({ dice, label, onDone, onCancel }: { dice: readonly Die[]; label: string; onDone: (results: number[]) => void; onCancel: () => void }) {
-  const [values, setValues] = useState<string[]>(() => dice.map(() => ''))
-  const [error, setError] = useState<string | null>(null)
-  const errorId = useId()
-  const submit = () => {
-    const checked = checkManualResults(
-      dice,
-      values.map((v) => (v.trim() === '' ? Number.NaN : Number(v))),
-    )
-    if (checked.ok) onDone(checked.results)
-    else setError(checked.error)
-  }
-  return (
-    <form
-      className="manual-roll"
-      // The results are checked here, with messages that explain the dice (a d10's 0 is a 10).
-      noValidate
-      onSubmit={(e) => {
-        e.preventDefault()
-        submit()
-      }}
-    >
-      <fieldset>
-        <legend>{label}</legend>
-        <div className="manual-roll__dice">
-          {dice.map((die, i) => (
-            <label key={i}>
-              <DieIcon die={die} /> #{i + 1}
-              <input
-                type="number"
-                inputMode="numeric"
-                min={die === 'd10' ? 0 : 1}
-                max={Number(die.slice(1))}
-                value={values[i]}
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? errorId : undefined}
-                onChange={(e) => setValues(values.map((v, j) => (j === i ? e.target.value : v)))}
-              />
-            </label>
-          ))}
-        </div>
-        {error && (
-          <p id={errorId} className="error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="button-row">
-          <button type="submit" className="button button--primary">
-            Use these results
-          </button>
-          <button type="button" className="button" onClick={onCancel}>
-            Cancel
-          </button>
-        </div>
-      </fieldset>
-    </form>
-  )
+/** "Pick 7, 3, or their sum, 10." */
+function pickText(results: readonly number[]): string {
+  if (results.length === 2) return `Pick ${results[0]}, ${results[1]}, or their sum, ${results[0]! + results[1]!}.`
+  return `Pick one die, or the sum of two.`
 }
 
-export function TablePicker<T extends Entry>({ what, method, dice, table, roll, selectedId, onRoll, onSelect, describe, inherited, random }: TablePickerProps<T>) {
+export function TablePicker<T extends Entry>({ what, method, rollMode, dice, table, roll, selectedId, onRoll, onSelect, describe, inherited, random }: TablePickerProps<T>) {
   const name = useId()
-  const [manual, setManual] = useState<'roll' | 'reroll' | null>(null)
-  const diceText = `${listAnd(dice)}`
+  const article = /^[aeiou]/.test(what) ? 'an' : 'a'
 
   // A roll made on other dice (an earlier step changed them) doesn't count: roll afresh,
   // keeping the step's reroll (the user's ruling 42 in data/rulings.md).
@@ -120,89 +74,82 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
     else onRoll(newRoll(dice, rollDice(dice, random), false))
   }
 
-  let options: { entry: T; note?: string }[] = []
+  let options: { entry: T; notes: string[]; reached?: boolean }[] = []
   if (method === 'constructed') {
-    options = [...table].sort((a, b) => a.roll - b.roll).map((entry) => ({ entry }))
+    options = [...table].sort((a, b) => a.roll - b.roll).map((entry) => ({ entry, notes: [] }))
   } else if (shown) {
-    options = tableOptions(table, shown.results).map(({ entry, sources }) => ({ entry, note: `rolled ${sources.map((s) => sourceText(shown, s)).join(' or ')}` }))
+    // One tag per way the roll reaches the entry; two dice of the same number reach it the same way.
+    options = tableOptions(table, shown.results).map(({ entry, sources }) => ({ entry, notes: [...new Set(sources.map((s) => sourceText(shown, s)))], reached: true }))
   }
+  const reachedCount = options.length
   const selected = table.find((t) => t.id === selectedId)
   if (selected && !options.some((o) => o.entry.id === selected.id)) {
-    options.unshift({ entry: selected, note: method === 'guided' ? (shown ? 'your current choice; not reached by this roll' : 'your current choice') : undefined })
+    options.unshift({ entry: selected, notes: method === 'guided' ? [shown ? 'Not reached by this roll' : 'Your current choice'] : [] })
   }
 
   return (
     <div className="table-picker">
       {method === 'guided' && (
-        <div className="table-picker__roll">
-          {current ? (
+        <section className="step-section" aria-label="Dice in">
+          <h4>Dice in</h4>
+          {borrowed && (
             <p>
-              You rolled <strong>{listAnd(current.results)}</strong> on <DiceList dice={current.dice} />
-              {current.manual ? ' (typed in)' : ''}
-              {current.rerolled ? ', after using your reroll' : ''}. Pick a {what} matching one die or the sum of two.
-            </p>
-          ) : borrowed ? (
-            <p>
-              Your {borrowed.from} roll was <strong>{listAnd(borrowed.roll.results)}</strong> on <DiceList dice={borrowed.roll.dice} />. Pick a {what} it reaches, or roll <DiceList dice={dice} /> for a fresh roll (which gets a reroll of its own).
-            </p>
-          ) : stale ? (
-            <p role="alert">
-              You rolled {listAnd(stale.results)} on <DiceList dice={stale.dice} />, but this step's dice are now <DiceList dice={dice} />, because an earlier choice changed. Roll again; this doesn't use your reroll.
-            </p>
-          ) : (
-            <p>
-              Roll <DiceList dice={dice} /> to see which {what}s you can choose from.
+              Your {borrowed.from} roll was <strong>{listAnd(borrowed.roll.results)}</strong> on <DiceList dice={borrowed.roll.dice} />. Pick a {what} it reaches, or roll <DiceList dice={dice} /> for a fresh roll (which gets a re-roll of its own).
             </p>
           )}
-          {manual ? (
-            <ManualRoll
-              dice={manual === 'reroll' && current ? current.dice : dice}
-              label={manual === 'reroll' ? 'Your reroll' : 'Your roll'}
-              onCancel={() => setManual(null)}
-              onDone={(results) => {
-                onRoll(manual === 'reroll' && current ? reroll(current, results, true) : newRoll(dice, results, true))
-                setManual(null)
-              }}
-            />
-          ) : !current ? (
-            <div className="button-row">
-              <button type="button" className="button button--primary" onClick={() => doRoll(false)}>
-                Roll {diceText}
-              </button>
-              <button type="button" className="button" onClick={() => setManual('roll')}>
-                Enter my own roll
-              </button>
-            </div>
-          ) : canReroll(current) ? (
-            <div className="button-row">
-              <span>Don't like these? You can reroll once:</span>
-              <button type="button" className="button" onClick={() => doRoll(true)}>
-                Reroll
-              </button>
-              <button type="button" className="button" onClick={() => setManual('reroll')}>
-                Enter my own reroll
-              </button>
-            </div>
-          ) : null}
-        </div>
+          {stale && (
+            <p role="alert">
+              You rolled {listAnd(stale.results)} on <DiceList dice={stale.dice} />, but this step's dice are now <DiceList dice={dice} />, because an earlier choice changed. Roll again; this doesn't use your re-roll.
+            </p>
+          )}
+          <DiceRoll
+            dice={dice}
+            roll={current}
+            canReroll={canReroll(current)}
+            manualFirst={rollMode === 'manual'}
+            onRoll={doRoll}
+            onManual={(results, again) => onRoll(again && current ? reroll(current, results, true) : newRoll(dice, results, true))}
+          >
+            {current && pickText(current.results)}
+          </DiceRoll>
+        </section>
       )}
 
       {options.length > 0 && (
-        <fieldset className="choice-list">
-          <legend className="visually-hidden">Choose a {what}</legend>
-          {options.map(({ entry, note }) => (
-            <label key={entry.id} className="choice">
-              <input type="radio" name={name} checked={entry.id === selectedId} onChange={() => onSelect(entry)} />
-              <span className="choice__body">
-                <span className="choice__title">
-                  <span className="choice__roll">{entry.roll}</span> {entry.name}
-                  {note && <span className="choice__note"> ({note})</span>}
+        <section className="step-section" data-section="choose" aria-labelledby={`${name}-title`}>
+          <h4 id={`${name}-title`}>
+            Choose {article} {what}
+          </h4>
+          {method === 'guided' && shown && (
+            <p className="lede">
+              Showing the {reachedCount} {reachedCount === 1 ? what : plural(what)} your roll allows.
+            </p>
+          )}
+          <fieldset className="option-list">
+            <legend className="visually-hidden">Choose {article} {what}</legend>
+            {options.map(({ entry, notes, reached }) => (
+              <label key={entry.id} className="option">
+                <span className="option__n">{entry.roll}</span>
+                <span className="option__body">
+                  <span className="option__name">{entry.name}</span>
+                  {describe && <span className="option__sub">{describe(entry)}</span>}
                 </span>
-                {describe && <span className="choice__detail">{describe(entry)}</span>}
-              </span>
-            </label>
-          ))}
-        </fieldset>
+                {notes.length > 0 && (
+                  <span className="option__tags">
+                    {notes.map((note) => (
+                      <span key={note} className={reached ? 'tag tag--strong' : 'tag'}>
+                        {note}
+                      </span>
+                    ))}
+                  </span>
+                )}
+                <span className="option__end">
+                  <input type="radio" name={name} checked={entry.id === selectedId} onChange={() => onSelect(entry)} />
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        </section>
       )}
       {method === 'guided' && borrowed && options.length === 0 && (
         <p>
@@ -212,7 +159,7 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
       {method === 'guided' && current && options.length === 0 && (
         <p>
           That roll doesn't reach any {what}.{' '}
-          {canReroll(current) ? 'Use your reroll.' : 'Switch this hero to Constructed (in the Start step) to pick any.'}
+          {canReroll(current) ? 'Use your re-roll.' : 'Switch this hero to Constructed (in the Start step) to pick any.'}
         </p>
       )}
     </div>

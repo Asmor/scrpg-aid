@@ -127,7 +127,7 @@ export function FormChangerForms({ hero, ar, traits, forms, onChange }: { hero: 
     { zone: 'yellow', count: spec.yellowFormCount },
   ] as const
   return (
-    <div className="forms-editor">
+    <div className="forms-editor" data-section="parts">
       <h4>Forms</h4>
       <p className="hint">
         <DiceText text={spec.summary} />
@@ -163,7 +163,7 @@ export function MinionForms({ hero, ar, traits, choice, onChange }: { hero: Hero
   const offList = choice?.quality && !quality
   const set = (next: Partial<MinionFormsChoice>) => onChange({ forms: chosen, ...(choice?.quality ? { quality: choice.quality } : {}), ...next })
   return (
-    <fieldset className="minion-forms">
+    <fieldset className="minion-forms" data-section="parts">
       <legend>Minion forms</legend>
       <p className="hint">
         {spec.selection} <span className="page-ref">{formatEntryRef(spec)}</span>

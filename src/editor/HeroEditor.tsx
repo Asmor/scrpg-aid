@@ -37,7 +37,8 @@ import { RedAbilitiesStep } from './RedAbilitiesStep'
 import { RetconStep } from './RetconStep'
 import { StartStep } from './StartStep'
 import { StepMarkIcon, StepRail } from './StepRail'
-import { StepWarnings } from './StepWarnings'
+import { focusIssue } from './issue-targets'
+import { StepIssues } from './StepSection'
 import { useHeroEditor } from './useHeroEditor'
 
 type Update = (change: (draft: Hero) => void) => void
@@ -73,7 +74,7 @@ function savedText(savedAt: Date, now: Date): string {
 const stepTitle = (index: number, label: string) => (index > 0 ? `${index} · ${label}` : label)
 
 /** Before finishing a hero with rule issues: each issue, with a way to it, and Finish anyway. */
-function FinishDialog({ issues, href, onFinish, onClose }: { issues: readonly { step: WizardStepId; label: string; warning: RuleWarning }[]; href: (id: WizardStepId) => string; onFinish: () => void; onClose: () => void }) {
+function FinishDialog({ issues, href, onGo, onFinish, onClose }: { issues: readonly { step: WizardStepId; label: string; warning: RuleWarning }[]; href: (id: WizardStepId) => string; onGo: (issue: { step: WizardStepId; code: string }) => void; onFinish: () => void; onClose: () => void }) {
   return (
     <Modal title="Finish with rule issues?" onClose={onClose}>
       <p>
@@ -85,7 +86,7 @@ function FinishDialog({ issues, href, onFinish, onClose }: { issues: readonly { 
             <span>
               <span className="finish-issues__step">{label}:</span> <DiceText text={warning.message} />
             </span>
-            <a className="button button--small" href={href(step)} onClick={onClose}>
+            <a className="button button--small" href={href(step)} onClick={() => onGo({ step, code: warning.code })}>
               Go to issue
             </a>
           </li>
@@ -112,6 +113,8 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
   const [previewOpen, setPreviewOpen] = useState(false)
   const [stepsOpen, setStepsOpen] = useState(false)
   const [finishing, setFinishing] = useState(false)
+  // An issue chosen in the Finish dialog, to focus once its step is on screen.
+  const [goTo, setGoTo] = useState<{ step: WizardStepId; code: string } | null>(null)
   // Advancement left the wizard for a page of its own.
   const movedAdvancement = stepId === 'advancement'
   const found = wizardStepIndex(stepId)
@@ -129,6 +132,12 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
     if (movedAdvancement) window.location.replace(advancementPath(id))
     else if (stepId !== undefined && found < 0) window.location.replace(editPath(id, WIZARD_STEPS[0].id))
   }, [id, stepId, found, movedAdvancement])
+  useEffect(() => {
+    if (!goTo || goTo.step !== WIZARD_STEPS[index]!.id) return
+    const panel = document.querySelector<HTMLElement>('.wizard__step')
+    if (panel) focusIssue(panel, goTo.code)
+    setGoTo(null)
+  }, [goTo, index])
   // Reaching a later step counts as progress on a saved draft (an unsaved one waits for a choice).
   const behind = loaded !== undefined && stored && isDraft(loaded) && index > (loaded.furthestStep ?? 0)
   useEffect(() => {
@@ -281,7 +290,7 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
             {view.ref && <span className="page-ref">{formatEntryRef(view.ref)}</span>}
           </div>
           {view.render(hero, update)}
-          {step.id !== 'start' && <StepWarnings warnings={current.issues} />}
+          {step.id !== 'start' && <StepIssues issues={current.issues} />}
           <div className="stepnav">
             {prev ? (
               <a className="button" href={href(prev.id)}>
@@ -330,6 +339,10 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
         <FinishDialog
           issues={states.flatMap((s) => s.issues.map((warning) => ({ step: s.id, label: stepTitle(s.index, s.label), warning })))}
           href={href}
+          onGo={(issue) => {
+            setFinishing(false)
+            setGoTo(issue)
+          }}
           onFinish={complete}
           onClose={() => setFinishing(false)}
         />

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StoreContext } from '../app/store-context'
 import { createHero, type Hero } from '../hero/model'
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
+import { backgrounds } from '../rules/data'
 import { completeHero } from '../test/heroes'
 import { HeroEditor } from './HeroEditor'
 import { PREVIEW_KEY, readPreviewShown, writePreviewShown } from './preview-preference'
@@ -127,6 +128,87 @@ describe('the wizard shell', () => {
     renderEditor(store, 'start')
     expect(await screen.findByText('Draft · saved just now')).toBeInTheDocument()
     expect(screen.getByText('Guided method · rolling your own dice.')).toBeInTheDocument()
+  })
+})
+
+describe('step anatomy', () => {
+  it('lists only what a Guided roll of 7 and 3 allows, each tagged with how it was reached', async () => {
+    const store = await storeWith({ ...createHero('guided'), pendingRolls: { background: { dice: ['d10', 'd10'], results: [7, 3], manual: false } } })
+    renderEditor(store, 'background')
+    const choose = await screen.findByRole('region', { name: 'Choose a background' })
+    expect(within(choose).getByText('Showing the 3 backgrounds your roll allows.')).toBeInTheDocument()
+    const radios = within(choose).getAllByRole('radio')
+    expect(radios.map((r) => r.closest('label')!.querySelector('.option__name')!.textContent)).toEqual(['Struggling', 'Academic', 'Military'])
+    expect(radios.map((r) => [...r.closest('label')!.querySelectorAll('.tag')].map((t) => t.textContent))).toEqual([['Rolled 3'], ['Rolled 7'], ['Sum, 7 + 3']])
+    expect(screen.getByText(/You rolled/)).toHaveTextContent('Pick 7, 3, or their sum, 10.')
+  })
+
+  it('tags each different way a three-dice roll reaches an option', async () => {
+    const bg = backgrounds.find((b) => b.powerSourceDice.length === 3 && b.powerSourceDice.every((d) => Number(d.slice(1)) >= 8))!
+    const hero = { ...createHero('guided'), background: { id: bg.id, qualities: [] }, pendingRolls: { powerSource: { dice: bg.powerSourceDice, results: [4, 3, 4], manual: false } } }
+    renderEditor(await storeWith(hero), 'power-source')
+    const choose = await screen.findByRole('region', { name: 'Choose a power source' })
+    const seven = within(choose).getAllByRole('radio').find((r) => r.closest('label')!.querySelector('.option__n')!.textContent === '7')!
+    // 4 + 3 twice reads once.
+    expect([...seven.closest('label')!.querySelectorAll('.tag')].map((t) => t.textContent)).toEqual(['Sum, 4 + 3'])
+    const eight = within(choose).getAllByRole('radio').find((r) => r.closest('label')!.querySelector('.option__n')!.textContent === '8')
+    if (eight) expect([...eight.closest('label')!.querySelectorAll('.tag')].map((t) => t.textContent)).toEqual(['Sum, 4 + 4'])
+    const four = within(choose).getAllByRole('radio').find((r) => r.closest('label')!.querySelector('.option__n')!.textContent === '4')!
+    expect([...four.closest('label')!.querySelectorAll('.tag')].map((t) => t.textContent)).toEqual(['Rolled 4'])
+  })
+
+  it('asks for the player’s own roll first when they roll their own dice', async () => {
+    renderEditor(await storeWith({ ...createHero('guided'), rollMode: 'manual' }), 'background')
+    expect(await screen.findByRole('spinbutton', { name: 'd10 #1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Roll in the app instead' })).toBeInTheDocument()
+  })
+
+  it('shows the dice in and out, and counts assigned dice', async () => {
+    const hero = { ...createHero('constructed'), background: { id: 'upper-class', qualities: [] } }
+    renderEditor(await storeWith(hero), 'power-source')
+    const diceIn = await screen.findByRole('region', { name: 'Dice in' })
+    expect(within(diceIn).getByText('From Background')).toBeInTheDocument()
+    expect(within(diceIn).getAllByRole('img').length).toBeGreaterThan(0)
+    await userEvent.click(screen.getByRole('radio', { name: /Accident/ }))
+    const out = screen.getByRole('region', { name: 'Dice out' })
+    expect(out).toHaveTextContent('Archetype rolls')
+    expect(screen.getByText(/0 of \d dice assigned/)).toBeInTheDocument()
+  })
+
+  it('takes the player to the field an issue is about', async () => {
+    const hero = { ...createHero('constructed'), background: { id: 'upper-class', qualities: [] } }
+    renderEditor(await storeWith(hero), 'background')
+    const issues = await screen.findByRole('region', { name: '2 things to look at' })
+    await userEvent.click(within(issues).getByRole('button', { name: /no dice are assigned yet/ }))
+    expect(screen.getByRole('combobox', { name: 'd10' })).toHaveFocus()
+    await userEvent.click(within(issues).getByRole('button', { name: /Choose a principle/ }))
+    expect(screen.getByRole('combobox', { name: /Principle of Responsibility/ })).toHaveFocus()
+  })
+
+  it('goes to an issue from the Finish dialog, focusing its field', async () => {
+    const draft = { ...createHero('constructed'), status: 'draft' as const, background: { id: 'upper-class', qualities: [] } }
+    const store = await storeWith(draft)
+    const view = renderEditor(store, 'details')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Finish hero' }))[0]!)
+    const go = within(screen.getByRole('dialog')).getAllByRole('link', { name: 'Go to issue' })[0]!
+    expect(go).toHaveAttribute('href', '#/hero/h1/edit/background')
+    await userEvent.click(go)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // The app follows the link's address to the step; here the test passes the new step itself.
+    view.rerender(
+      <StoreContext.Provider value={store}>
+        <HeroEditor id="h1" step="background" />
+      </StoreContext.Provider>,
+    )
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'd10' })).toHaveFocus())
+  })
+
+  it('shows status dice and Health ranges in their game colors, with their labels', async () => {
+    const hero = completeHero()
+    renderEditor(await storeWith(hero), 'personality')
+    const status = await screen.findByRole('list', { name: 'Status dice' })
+    expect(within(status).getAllByRole('listitem').map((li) => li.className)).toEqual(['game-chip game-chip--green', 'game-chip game-chip--yellow', 'game-chip game-chip--red'])
+    expect(status).toHaveTextContent('GreenYellowRed')
   })
 })
 

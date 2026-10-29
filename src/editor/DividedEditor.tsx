@@ -25,7 +25,7 @@ export function TransitionPicker({ hero, ar, traits, divided, onChange }: { hero
   const method = methods.find((m) => m.id === divided?.transitionMethod)
   return (
     <>
-      <fieldset className="choice-list">
+      <fieldset className="choice-list" data-section="parts">
         <legend>Transition method</legend>
         {methods.map((m) => (
           <label key={m.id} className="choice">
@@ -84,7 +84,7 @@ export function SplitFormEditor({ hero, traits, split, onChange }: { hero: Hero;
   const stray = placed.filter((t, i) => !candidates.some((c) => traitKey(c.trait) === traitKey(t)) && placed.findIndex((x) => traitKey(x) === traitKey(t)) === i)
   const always = split?.always ?? []
   return (
-    <fieldset className="split-form">
+    <fieldset className="split-form" data-section="parts">
       <legend>Split Form</legend>
       <p className="hint">
         Choose two powers and two qualities you always have (you have {always.filter((t) => t.kind === 'power').length} and {always.filter((t) => t.kind === 'quality').length}), and put the rest in one form or the other. Your roleplaying quality works in both forms.

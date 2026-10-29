@@ -190,7 +190,7 @@ describe('HeroEditor', () => {
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'd10' }), 'Fitness')
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'd8' }), 'Persuasion')
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Principle of Responsibility' }), 'Principle of Business')
-    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    expect(await screen.findByText('No rule issues in this step.')).toBeInTheDocument()
     await waitFor(async () =>
       expect((await saved(store)).background).toEqual({
         id: 'upper-class',
@@ -223,7 +223,7 @@ describe('HeroEditor', () => {
     reachable.forEach((name, i) => expect(radios[i]).toContain(name))
 
     // Bad typed-in values are explained.
-    await userEvent.click(screen.getByRole('button', { name: 'Enter my own reroll' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Enter my own re-roll' }))
     const [a, b] = screen.getAllByRole('spinbutton')
     await userEvent.type(a!, '11')
     await userEvent.type(b!, '2')
@@ -232,8 +232,8 @@ describe('HeroEditor', () => {
     await userEvent.clear(a!)
     await userEvent.type(a!, '3')
     await userEvent.click(screen.getByRole('button', { name: 'Use these results' }))
-    expect(screen.getByText(/You rolled/)).toHaveTextContent('after using your reroll')
-    expect(screen.queryByRole('button', { name: 'Reroll' })).not.toBeInTheDocument()
+    expect(screen.getByText(/You rolled/)).toHaveTextContent('after using your re-roll')
+    expect(screen.queryByRole('button', { name: 'Re-roll (1 left)' })).not.toBeInTheDocument()
 
     // The roll is saved with the chosen background.
     await userEvent.click(backgroundRadios()[0]!)
@@ -253,11 +253,11 @@ describe('HeroEditor', () => {
       }
     })
     renderEditor(store, 'background')
-    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    expect(await screen.findByText('No rule issues in this step.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('radio', { name: /Adventurer/ }))
     // Persuasion isn't on Adventurer's list, but it's kept and offered as the current choice.
     expect(screen.getByRole('combobox', { name: 'd8' })).toHaveDisplayValue('Persuasion (not on this list)')
-    expect(screen.getByRole('region', { name: 'Rule issues in this step' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /things? to look at/ })).toBeInTheDocument()
     await waitFor(async () =>
       expect((await saved(store)).background).toEqual({
         id: 'adventurer',
@@ -275,14 +275,16 @@ describe('HeroEditor', () => {
       h.background = { id: 'upper-class', qualities: [], roll: { dice: ['d10', 'd10'], results: [1, 5], manual: false, rerolled: false } }
     })
     renderEditor(store, 'background')
-    await userEvent.click(await screen.findByRole('button', { name: 'Enter my own reroll' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Enter my own re-roll' }))
     const [a, b] = screen.getAllByRole('spinbutton')
     await userEvent.type(a!, '4')
     await userEvent.type(b!, '6')
     await userEvent.click(screen.getByRole('button', { name: 'Use these results' }))
     await waitFor(async () => expect((await saved(store)).background).toEqual({ id: 'upper-class', qualities: [], roll: { dice: ['d10', 'd10'], results: [4, 6], manual: true, rerolled: true } }))
     // Upper Class (1) isn't reached by 4 and 6 any more, so it's flagged as the current choice.
-    expect(screen.getByRole('radio', { name: /Upper Class.*not reached by this roll/ })).toBeChecked()
+    expect(screen.getByRole('radio', { name: /Upper Class.*Not reached by this roll/ })).toBeChecked()
+    // It stays chosen, and the roll check flags it.
+    expect(screen.getByRole('region', { name: /things? to look at/ })).toHaveTextContent("Your background roll (4 and 6) doesn't reach Upper Class.")
   })
 
   it('labels the current choice plainly when a guided hero has no roll yet', async () => {
@@ -293,8 +295,9 @@ describe('HeroEditor', () => {
       'background',
     )
     const label = (await screen.findByRole('radio', { name: /Upper Class/, checked: true })).closest('label')!
-    expect(label).toHaveTextContent('Upper Class (your current choice)')
-    expect(label).not.toHaveTextContent('not reached')
+    expect(label).toHaveTextContent('Upper Class')
+    expect(label).toHaveTextContent('Your current choice')
+    expect(label).not.toHaveTextContent('Not reached')
   })
 
   it('tells apart dice of the same size', async () => {
@@ -334,7 +337,7 @@ describe('HeroEditor', () => {
     renderEditor(store, 'background')
     await userEvent.click(await screen.findByRole('button', { name: 'Roll d10 and d10' }))
     expect(screen.getByText(/You rolled/)).not.toHaveTextContent('typed in')
-    expect(screen.getByRole('button', { name: 'Reroll' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Re-roll (1 left)' })).toBeInTheDocument()
   })
 
   it('asks for a background before rolling for a power source', async () => {
@@ -362,7 +365,7 @@ describe('HeroEditor', () => {
     await userEvent.selectOptions(second!, 'Teleportation (d8)')
 
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Quality' }), 'History at d10')
-    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    expect(await screen.findByText('No rule issues in this step.')).toBeInTheDocument()
     await waitFor(async () =>
       expect((await saved(store)).powerSource).toEqual({
         id: 'mystical',
@@ -397,7 +400,7 @@ describe('HeroEditor', () => {
       ]),
     )
     // Only one Yellow ability so far, and dice are missing.
-    expect(screen.getByRole('region', { name: 'Rule issues in this step' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /things? to look at/ })).toBeInTheDocument()
   })
 
   it('rolls for a power source with the background’s dice, keeping the roll', async () => {
@@ -426,7 +429,7 @@ describe('HeroEditor', () => {
     await userEvent.type(inputs[1]!, '5')
     await userEvent.click(screen.getByRole('button', { name: 'Use these results' }))
     expect(readable(screen.getByText(/You rolled/))).toContain('You rolled 4 and 5 on d10 and d8 (typed in).')
-    expect(screen.getByRole('button', { name: 'Reroll' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Re-roll (1 left)' })).toBeInTheDocument()
     await waitFor(async () => expect((await saved(store)).pendingRolls?.powerSource).toEqual({ dice: ['d10', 'd8'], results: [4, 5], manual: true }))
   })
 
@@ -469,7 +472,7 @@ describe('HeroEditor', () => {
     await userEvent.selectOptions(within(yellow).getByRole('combobox', { name: '[power]' }), 'Flight (d6)')
     await userEvent.selectOptions(screen.getByLabelText('Principle of Expertise'), 'Principle of the Gearhead')
 
-    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    expect(await screen.findByText('No rule issues in this step.')).toBeInTheDocument()
     await waitFor(async () =>
       expect((await saved(store)).archetype).toEqual({
         id: 'speedster',
@@ -595,7 +598,7 @@ describe('HeroEditor', () => {
     expect(within(second).queryByRole('radio', { name: /Divided/ })).not.toBeInTheDocument()
     expect(within(second).getByRole('group', { name: 'Green abilities: choose 2' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /Controllable Transition/ })).toBeChecked()
-    expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
+    expect(screen.getByText('No rule issues in this step.')).toBeInTheDocument()
   })
 
   it('builds Divided’s own choices: second archetype, transition, and Split Form', async () => {
@@ -636,7 +639,7 @@ describe('HeroEditor', () => {
     await userEvent.click(within(second).getByRole('button', { name: 'Roll d12 and d6' }))
     await waitFor(async () => expect((await saved(store)).pendingRolls?.secondaryArchetype?.dice).toEqual(['d12', 'd6']))
     // A roll of its own, with its own reroll (ruling 46).
-    expect(within(second).getByRole('button', { name: 'Reroll' })).toBeInTheDocument()
+    expect(within(second).getByRole('button', { name: 'Re-roll (1 left)' })).toBeInTheDocument()
   })
 
   it('picks Modular’s base archetype from the archetype roll, or a fresh one (ruling 47), and adds filler powers', async () => {
@@ -684,7 +687,7 @@ describe('HeroEditor', () => {
     renderEditor(store, 'archetype')
     expect(await screen.findByText("Divided doesn't use these earlier choices: Split Form's division of your powers and qualities.")).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Remove them' }))
-    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    expect(await screen.findByText('No rule issues in this step.')).toBeInTheDocument()
     await waitFor(async () => expect((await saved(store)).archetype?.divided?.split).toBeUndefined())
   })
 
@@ -752,14 +755,14 @@ describe('HeroEditor', () => {
       expect(modular.modes[3]!.ability).toEqual({ source: 'archetype.mode', name: 'Destroyer' })
       expect(modular.powerless).toBeUndefined()
     })
-    const issues = screen.getByRole('region', { name: 'Rule issues in this step' })
+    const issues = screen.getByRole('region', { name: /things? to look at/ })
     expect(issues).not.toHaveTextContent('Fill in Destroyer')
   })
 
   it('shows a legal Modular hero with no issues', async () => {
     renderEditor(await storeWith((h) => Object.assign(h, { ...modularHero(), id: 'h1' })), 'archetype')
     expect(await screen.findByRole('group', { name: 'Patch Job' })).toBeInTheDocument()
-    expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
+    expect(screen.getByText('No rule issues in this step.')).toBeInTheDocument()
   })
 
   it('asks for an archetype before rolling for a personality, then rolls its dice', async () => {
@@ -788,7 +791,7 @@ describe('HeroEditor', () => {
     const out = screen.getByRole('group', { name: 'Out ability' })
     expect(within(out).queryByLabelText('Your name for it (optional)')).not.toBeInTheDocument()
     await userEvent.selectOptions(within(out).getByRole('combobox', { name: '[quality]' }), 'Fitness (d10)')
-    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    expect(await screen.findByText('No rule issues in this step.')).toBeInTheDocument()
     await waitFor(async () => {
       const hero = await saved(store)
       expect(hero.personality).toEqual({ id: 'lone-wolf', bonus: [], outUses: [Q('fitness')] })
@@ -855,7 +858,7 @@ describe('HeroEditor', () => {
     await userEvent.click(within(athletic).getByRole('checkbox', { name: /Push Your Limits/ }))
     // Categories the hero has nothing in are tucked away.
     expect(screen.getByText('Categories you have no power or quality in')).toBeInTheDocument()
-    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+    expect(await screen.findByText('No rule issues in this step.')).toBeInTheDocument()
     await waitFor(async () =>
       expect((await saved(store)).redAbilities).toEqual([
         { source: 'red', name: 'Paragon Feat', category: 'power:athletic', uses: [P('agility')] },
@@ -896,7 +899,7 @@ describe('HeroEditor', () => {
       expect(within(gain).queryByRole('option', { name: 'Speed (power)' })).not.toBeInTheDocument()
       await userEvent.selectOptions(gain, 'Leaping (power)')
       await waitFor(async () => expect(await savedRetcon(store)).toEqual({ id: 'add-d6-trait', kind: 'gainPowerOrQuality', gained: A(P('leaping'), 'd6') }))
-      expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
+      expect(await screen.findByText('No rule issues in this step.')).toBeInTheDocument()
     })
 
     it('changes what an ability uses', async () => {
@@ -971,8 +974,8 @@ describe('HeroEditor', () => {
       expect(formula.textContent).not.toMatch(/\bd(4|8)\b/)
       await userEvent.click(screen.getByRole('radio', { name: 'Take 4' }))
       // 8 + Lone Wolf's d8 Red status die + Agility's d10 + 4.
-      expect(await screen.findByText(/Max Health/, { selector: '.health-result' })).toHaveTextContent('Max Health 30')
-      expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
+      expect(await screen.findByRole('region', { name: 'Health' })).toHaveTextContent('Max 30')
+      expect(screen.getByText('No rule issues in this step.')).toBeInTheDocument()
       await waitFor(async () => expect((await saved(store)).health).toEqual({ mode: 'fixed', trait: P('agility') }))
     })
 
@@ -992,7 +995,7 @@ describe('HeroEditor', () => {
       await userEvent.selectOptions(select, 'Choose…')
       await waitFor(async () => expect((await saved(store)).health).toEqual({ mode: 'fixed' }))
       expect(screen.queryByLabelText('Power or quality for Health')).not.toBeInTheDocument()
-      expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
+      expect(screen.getByText('No rule issues in this step.')).toBeInTheDocument()
     })
 
     it('rolls once in the app, after which the flat value is off the table', async () => {

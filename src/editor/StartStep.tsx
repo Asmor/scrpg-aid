@@ -14,7 +14,7 @@ const ROLL_MODES: { id: RollMode; label: string; hint: string }[] = [
 export function StartStep({ hero, update }: { hero: Hero; update: (change: (draft: Hero) => void) => void }) {
   const id = useId()
   return (
-    <div className="step-form">
+    <div className="step-form start-step">
       <MethodPicker hero={hero} update={update} />
       {hero.method === 'guided' && (
         <fieldset className="choice-list">

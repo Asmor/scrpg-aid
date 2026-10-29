@@ -17,7 +17,10 @@ import { OUT_ABILITY_NAME } from '../creation/lookup'
 import { deriveTraits, ROLEPLAYING_QUALITY, traitsBefore } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
+import { DiceIn } from './StepSection'
 import { TablePicker } from './TablePicker'
+import { StatusDiceRow } from '../components/SheetPreview'
+import { buildSheet } from '../creation/sheet'
 import { DiceText, DieIcon } from '../components/icons'
 
 type Update = (change: (draft: Hero) => void) => void
@@ -25,7 +28,7 @@ type Update = (change: (draft: Hero) => void) => void
 function PersonalitySummary({ p }: { p: Personality }) {
   return (
     <>
-      Status dice: Green {p.statusDice.green}, Yellow {p.statusDice.yellow}, Red {p.statusDice.red}. Out: {p.outAbility} <span className="page-ref">{formatEntryRef(p)}</span>
+      Status dice: Green <DieIcon die={p.statusDice.green} size="inline" />, Yellow <DieIcon die={p.statusDice.yellow} size="inline" />, Red <DieIcon die={p.statusDice.red} size="inline" />. Out: <DiceText text={p.outAbility} /> <span className="page-ref">{formatEntryRef(p)}</span>
     </>
   )
 }
@@ -128,15 +131,18 @@ export function PersonalityStep({ hero, update }: { hero: Hero; update: Update }
   const outChoice = outIsHeroic ? divided!.heroicPersonality! : choice
   const outEntry = outChoice && personalitiesById.get(outChoice.id)
   const rpKey = traitKey(ROLEPLAYING_QUALITY)
+  const sheet = buildSheet(hero)
 
   return (
     <div className="step-form">
       {!dice && <p className="hint">Choose an archetype first: it sets the dice for this step.</p>}
+      {dice && hero.method === 'constructed' && <DiceIn from="Archetype" dice={dice} />}
       {/* Without an archetype a Guided hero has no dice to roll, so the list only shows once there's a choice to keep. */}
       {(dice || hero.method === 'constructed' || choice) && (
         <TablePicker
           what="personality"
           method={dice ? hero.method : 'constructed'}
+          rollMode={hero.rollMode}
           dice={dice ?? []}
           table={personalities}
           roll={roll}
@@ -175,6 +181,14 @@ export function PersonalityStep({ hero, update }: { hero: Hero; update: Update }
           <p className="hint">
             <DiceText text={personalityStep.roleplayingQuality.summary} /> <span className="page-ref">{formatEntryRef(personalityStep.roleplayingQuality)}</span>
           </p>
+
+          {sheet.statusDice && (
+            <section className="step-section" aria-label="Status dice">
+              <h4>Status dice</h4>
+              <StatusDiceRow dice={sheet.statusDice} label={sheet.heroicStatusDice ? 'Civilian form status dice' : 'Status dice'} />
+              {sheet.heroicStatusDice && <StatusDiceRow dice={sheet.heroicStatusDice} label="Heroic form status dice" />}
+            </section>
+          )}
 
           <PersonalityBonus
             hero={hero}

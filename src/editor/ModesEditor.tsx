@@ -193,7 +193,7 @@ export function ModesEditor({ hero, ar, traits, modular, onChange }: { hero: Her
   const set = (next: Partial<ModularChoice>) => onChange({ modes, ...(modular?.powerless ? { powerless: modular.powerless } : {}), ...next })
   const defaultPowers = traits.filter((t) => t.trait.kind === 'power')
   return (
-    <div className="modes-editor">
+    <div className="modes-editor" data-section="parts">
       <h4>Modes</h4>
       <p className="hint">
         <DiceText text={`${spec.summary} Your default ${ZONE_NAME[spec.default.zone]} mode: ${spec.default.summary}`} />

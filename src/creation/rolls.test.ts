@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createHero } from '../hero/model'
-import { setStepRoll, stepRoll, takePendingRoll } from './rolls'
+import { backgrounds } from '../rules/data'
+import { tableOptions } from '../rules/rolling'
+import { checkRolls, setStepRoll, stepRoll, takePendingRoll } from './rolls'
 
 const roll = (results: number[]) => ({ dice: ['d10' as const, 'd10' as const], results, manual: false })
 
@@ -49,5 +51,31 @@ describe('table step rolls', () => {
     expect(hero.pendingRolls).toBeUndefined()
     setStepRoll(hero, 'secondaryArchetype', roll([3, 4]))
     expect(hero.archetype.secondary.roll).toEqual(roll([3, 4]))
+  })
+})
+
+describe('rolls that no longer reach the choice', () => {
+  const unreached = backgrounds.find((b) => !tableOptions(backgrounds, [7, 3]).some((o) => o.entry.id === b.id))!
+
+  it('flags a Guided choice its roll doesn’t reach, after a reroll say', () => {
+    const hero = createHero('guided')
+    hero.background = { id: unreached.id, qualities: [], roll: { ...roll([7, 3]), rerolled: true } }
+    expect(checkRolls(hero)).toEqual([
+      { step: 'background', code: 'not-rolled', message: `Your background roll (7 and 3) doesn't reach ${unreached.name}. Choose one it reaches, or keep it if your table allows.` },
+    ])
+  })
+
+  it('leaves alone reached choices, Constructed heroes, choices with no roll, and rolls on other dice', () => {
+    const reached = tableOptions(backgrounds, [7, 3])[0]!.entry
+    const hero = createHero('guided')
+    hero.background = { id: reached.id, qualities: [], roll: roll([7, 3]) }
+    expect(checkRolls(hero)).toEqual([])
+    hero.background = { id: unreached.id, qualities: [] }
+    expect(checkRolls(hero)).toEqual([])
+    hero.background = { id: unreached.id, qualities: [], roll: { dice: ['d8', 'd8'], results: [7, 3], manual: false } }
+    expect(checkRolls(hero)).toEqual([])
+    hero.background = { id: unreached.id, qualities: [], roll: roll([7, 3]) }
+    hero.method = 'constructed'
+    expect(checkRolls(hero)).toEqual([])
   })
 })

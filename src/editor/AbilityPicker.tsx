@@ -217,7 +217,7 @@ export function AbilityChooser<P extends EditablePick>({ filling, legend, hint, 
   const stray = picks.filter((p) => !options.some((o) => o.name === p.name))
   const replace = (name: string, next: P | undefined) => onChange(replacePick(picks, name, next))
   return (
-    <fieldset className="ability-picker">
+    <fieldset className="ability-picker" data-section="abilities">
       <legend>{legend}</legend>
       {hint && <p className="hint">{hint}</p>}
       {options.map((ability) => {

@@ -47,8 +47,9 @@ export function DiceAssigner({ label, legend, dice, assignments, options, earlie
   const rows = dieRows(all, assignments)
   const assign = (index: number, trait: TraitRef | undefined, upgrades = false) => onChange(assignStepRow(dice, earlier, assignments, index, trait, upgrades))
   const groups = byCategory(options)
+  const assigned = rows.filter((r) => r.assignment).length
   return (
-    <fieldset className="dice-assigner">
+    <fieldset className="dice-assigner" data-section="assign">
       <legend>{legend}</legend>
       {rows.map((row, i) => {
         const current = row.assignment
@@ -106,6 +107,9 @@ export function DiceAssigner({ label, legend, dice, assignments, options, earlie
           </div>
         )
       })}
+      <p className="count">
+        {assigned} of {rows.length} {rows.length === 1 ? 'die' : 'dice'} assigned
+      </p>
     </fieldset>
   )
 }

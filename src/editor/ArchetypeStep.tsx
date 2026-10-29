@@ -16,9 +16,11 @@ import type { AbilityPick, AbilitySource, ArchetypeChoice, Hero } from '../hero/
 import { setStepRoll, stepRoll, takePendingRoll } from '../creation/rolls'
 import { canSwapRequired, deriveTraits, fillerLists, traitsBefore, traitLabel } from '../creation/traits'
 import { takesSplitForm } from '../creation/divided'
+import { outerLayer } from '../creation/layers'
 import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
 import { DiceAssigner } from './DiceAssigner'
+import { DiceIn, DiceOut } from './StepSection'
 import { SplitFormEditor, TransitionPicker } from './DividedEditor'
 import { FormChangerForms, MinionForms } from './FormsEditor'
 import { ModesEditor } from './ModesEditor'
@@ -327,6 +329,7 @@ function SecondArchetype({ hero, update, outer }: { hero: Hero; update: Update; 
         <TablePicker
           what={outer.transitionMethods ? 'second archetype' : 'base archetype'}
           method={dice ? hero.method : 'constructed'}
+          rollMode={hero.rollMode}
           dice={dice ?? []}
           table={table}
           roll={stepRoll(hero, 'secondaryArchetype')}
@@ -506,15 +509,18 @@ export function ArchetypeStep({ hero, update }: { hero: Hero; update: Update }) 
   const ps = hero.powerSource ? powerSourcesById.get(hero.powerSource.id) : undefined
   const dice = ps?.archetypeDice
   const roll = stepRoll(hero, 'archetype')
+  const personalityDice = choice ? outerLayer(hero)?.archetype.personalityDice : undefined
 
   return (
     <div className="step-form">
       {!dice && <p className="hint">Choose a power source first: it sets the dice for this step.</p>}
+      {dice && hero.method === 'constructed' && <DiceIn from="Power source" dice={dice} />}
       {/* Without a power source a Guided hero has no dice to roll, so the list only shows once there's a choice to keep. */}
       {(dice || hero.method === 'constructed' || choice) && (
         <TablePicker
           what="archetype"
           method={dice ? hero.method : 'constructed'}
+          rollMode={hero.rollMode}
           dice={dice ?? []}
           table={archetypes}
           roll={roll}
@@ -534,6 +540,7 @@ export function ArchetypeStep({ hero, update }: { hero: Hero; update: Update }) 
 
       {choice && ar?.complex && <ComplexArchetype hero={hero} update={update} ar={ar} />}
       {choice && ar && !ar.complex && <ArchetypeDetails hero={hero} update={update} ar={ar} choice={choice} at={(h) => h.archetype!} />}
+      {personalityDice && <DiceOut to="Personality" dice={personalityDice} note={ar?.personalityNote} />}
     </div>
   )
 }
