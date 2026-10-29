@@ -8,66 +8,100 @@ import { HeroSheetView } from './HeroSheetView'
 import { readable } from '../test/readable'
 
 describe('HeroSheetView', () => {
-  it('shows a complete hero’s sheet', () => {
-    render(<HeroSheetView hero={exampleHero()} />)
-    expect(screen.getByRole('heading', { level: 2, name: 'Maya Reyes' })).toBeInTheDocument()
-    expect(screen.getByText('Afterimage')).toBeInTheDocument()
-    const characteristics = screen.getByRole('region', { name: 'Characteristics' })
-    expect(within(characteristics).getByText('Upper Class')).toBeInTheDocument()
-    expect(within(characteristics).getByText('Speedster')).toBeInTheDocument()
+  it('shows Roleplaying, then Mechanics, then the ability bands', () => {
+    render(<HeroSheetView hero={exampleHero()} advancement={{ href: '#adv' }} />)
+    const headings = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+    expect(headings).toEqual(['Roleplaying', 'Mechanics', 'Abilities'])
 
-    // Powers (biggest die first), qualities, and status dice in one six-column table.
-    const table = within(screen.getByRole('region', { name: 'Powers, qualities, and status' }))
-    expect(table.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Power', 'Quality', 'Status'])
-    const powers = table.getAllByRole('row').slice(1)
-    expect(powers.map((r) => [...r.querySelectorAll('td')].map(readable))).toEqual([
-      ['Speed', 'd12', 'Fitness', 'd10', 'Green', 'd8'],
-      ['Agility', 'd10', 'Alertness', 'd8', 'Yellow', 'd8'],
-      ['Awareness', 'd8', 'Old Money', 'd8', 'Red', 'd8'],
-      ['Fire', 'd8', '', '', '', ''],
-      ['Flight', 'd6', '', '', '', ''],
-    ])
-    // Dice show as icons alone, named by their size.
+    // Who they are: the characteristics, then only the details that are filled in.
+    const who = screen.getByRole('region', { name: 'Who they are' })
+    expect(within(who).getByText('Upper Class')).toBeInTheDocument()
+    expect(within(who).getByText('Speedster')).toBeInTheDocument()
+    expect(within(who).getByText('Age')).toBeInTheDocument()
+    expect(within(who).queryByText('Eyes')).not.toBeInTheDocument()
+    expect(within(who).queryByText('Maya Reyes')).not.toBeInTheDocument()
+
+    // A card per principle, with its roleplaying text and twists.
+    const business = screen.getByRole('region', { name: 'Principle of Business' })
+    expect(within(business).getByText('During roleplaying')).toBeInTheDocument()
+    expect(within(business).getByText('Minor twist')).toBeInTheDocument()
+    expect(within(business).getByText('Major twist')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Principle of the Gearhead' })).toBeInTheDocument()
+
+    // The record strip.
+    const strip = screen.getByText(/Back issues/).closest('p')!
+    expect(strip).toHaveTextContent('Hero points 0')
+    expect(strip).toHaveTextContent('Back issues 0 of 6')
+    expect(strip).toHaveTextContent('Collections none yet')
+    expect(within(strip).getByRole('link', { name: 'Advancement' })).toHaveAttribute('href', '#adv')
+
+    // Powers and qualities, each with its die as an icon alone.
+    const powers = within(screen.getByRole('region', { name: 'Powers' })).getAllByRole('listitem')
+    expect(powers.map(readable)).toEqual(['Speedd12', 'Agilityd10', 'Awarenessd8', 'Fired8', 'Flightd6'])
     expect(within(powers[0]!).queryByText('d12')).not.toBeInTheDocument()
     expect(within(powers[0]!).getByRole('img', { name: 'd12' })).toHaveAttribute('src', '/icons/die/d12.png')
+    expect(within(screen.getByRole('region', { name: 'Qualities' })).getAllByRole('listitem').map(readable)).toEqual(['Fitnessd10', 'Alertnessd8', 'Old Moneyd8'])
 
-    // Health and its ranges, up beside the details, before the dice table.
-    const health = screen.getByRole('region', { name: 'Health' })
-    expect(health.compareDocumentPosition(screen.getByRole('region', { name: 'Powers, qualities, and status' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(health).getByText('30')).toBeInTheDocument()
+    // Status dice as labelled tiles, and Health with its ranges.
+    const status = screen.getByRole('region', { name: 'Status dice and Health' })
+    expect(within(within(status).getByRole('list', { name: 'Status dice' })).getAllByRole('listitem').map(readable)).toEqual(['GREENd8', 'YELLOWd8', 'REDd8'])
+    expect(status).toHaveTextContent('30 max')
+    expect(within(within(status).getByRole('list', { name: 'Health ranges' })).getAllByRole('listitem').map(readable)).toEqual(['Green 30–23', 'Yellow 22–12', 'Red 11–1'])
 
     // Abilities sit in their zone bands; principle abilities end the Green band.
     const green = within(screen.getByRole('region', { name: 'Green abilities' })).getAllByRole('listitem')
     expect(green[0]).toHaveTextContent('Immunity')
     expect(green.at(-1)).toHaveTextContent(/Principle of/)
+    // Each row: the action icons, then the name, the type, and the text with icons inline.
+    const always = green.find((li) => li.textContent?.includes('Always on the Move'))!
+    expect(within(always).getAllByRole('img', { name: 'Attack' })).toHaveLength(1)
+    expect(within(always).getByText('Action')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Yellow abilities' })).getByText('Speedy Analysis')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Red abilities' })).getByText('Paragon Feat')).toBeInTheDocument()
     const out = screen.getByRole('region', { name: 'Out ability' })
+    expect(out).toHaveTextContent('When your Health reaches 0')
     expect(within(out).getByText(/Fitness/)).toBeInTheDocument()
-    // Its effect's icon sits inline before the effect word only.
-    expect(out.querySelectorAll('img[src="/icons/action/boost.png"]')).toHaveLength(1)
-
-    // Filled-in blanks, and action types spelled out for screen readers.
     expect(green[0]).not.toHaveTextContent('[')
-    expect(screen.getAllByText('Action').length).toBeGreaterThan(0)
 
-    // No rule problems, and no auxiliary sheet for a plain archetype.
+    // No rule issues here (the page shows them), and no forms or modes for a plain archetype.
     expect(screen.queryByText(/rule issue/)).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Auxiliary sheet' })).not.toBeInTheDocument()
   })
 
-  it('shows what’s missing on a new hero, with rule issues grouped by step', async () => {
+  it('leaves out Roleplaying in Play mode', () => {
+    render(<HeroSheetView hero={exampleHero()} mode="play" />)
+    expect(screen.queryByRole('heading', { name: 'Roleplaying' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Mechanics' })).toBeInTheDocument()
+  })
+
+  it('folds the twists behind a button (shown on phones)', async () => {
+    render(<HeroSheetView hero={exampleHero()} />)
+    const card = screen.getByRole('region', { name: 'Principle of Business' })
+    const toggle = within(card).getByRole('button', { name: 'Show twists' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(toggle)
+    expect(within(card).getByRole('button', { name: 'Hide twists' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('shows the twists with no button when it can’t be interacted with (an export)', () => {
+    render(<HeroSheetView hero={exampleHero()} interactive={false} />)
+    const card = screen.getByRole('region', { name: 'Principle of Business' })
+    expect(within(card).queryByRole('button')).not.toBeInTheDocument()
+    expect(card.querySelector('.principle-card__twists--folded')).toBeNull()
+    expect(within(card).getByText('Major twist')).toBeInTheDocument()
+  })
+
+  it('shows what’s missing on a new hero', () => {
     const hero = createHero('guided')
     hero.archetype = { id: 'speedster', traits: [], abilities: [], bonus: [] }
     render(<HeroSheetView hero={hero} />)
-    expect(screen.getByRole('heading', { level: 2, name: 'Unnamed hero' })).toBeInTheDocument()
-    // The dice table still shows its three status rows, with no dice yet.
-    const table = within(screen.getByRole('region', { name: 'Powers, qualities, and status' }))
-    expect(table.getAllByRole('row').slice(1).map((r) => [...r.querySelectorAll('td')].map(readable).join(' ').trim())).toEqual(['Green —', 'Yellow —', 'Red —'])
+    expect(screen.getByText('No powers yet.')).toBeInTheDocument()
     expect(screen.getByText('Not worked out yet.')).toBeInTheDocument()
-    const summary = screen.getByText(/rule issues? to look at/)
-    await userEvent.click(summary)
-    expect(screen.getByRole('region', { name: 'Archetype' })).toBeInTheDocument()
+    expect(screen.getAllByText('Choose a personality.')).toHaveLength(2)
+    // Unchosen characteristics show a dash; empty details aren't listed.
+    const who = screen.getByRole('region', { name: 'Who they are' })
+    expect(within(who).getAllByText('—')).toHaveLength(3)
+    expect(within(who).queryByText('Age')).not.toBeInTheDocument()
   })
 
   it('shows Form-Changer forms, Minion-Maker minion forms, Divided, and Modular modes', () => {

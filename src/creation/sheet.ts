@@ -380,3 +380,9 @@ function sheetOf(hero: Hero): HeroSheet {
     warnings,
   }
 }
+
+/** "Upper Class · Accident · Speedster · Lone Wolf": whichever are chosen. */
+export function heroIdentity(sheet: Pick<HeroSheet, 'characteristics'>): string {
+  const c = sheet.characteristics
+  return [c.background, c.powerSource, c.archetype, c.personality].filter(Boolean).join(' · ')
+}

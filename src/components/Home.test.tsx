@@ -87,8 +87,10 @@ describe('exporting a villain', () => {
         <VillainPage id="v1" />
       </VillainStoreContext.Provider>,
     )
-    await userEvent.click(await screen.findByRole('button', { name: 'Download JSON' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Download Markdown' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Export' }))
+    await userEvent.click(screen.getByRole('button', { name: 'JSON' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Markdown' }))
     const calls = vi.mocked(downloadFile).mock.calls
     expect(calls.map((c) => [c[0], c[2]])).toEqual([
       ['ironclad.json', 'application/json'],

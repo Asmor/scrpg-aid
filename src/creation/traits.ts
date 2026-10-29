@@ -40,6 +40,12 @@ export interface TraitDerivation {
   warnings: RuleWarning[]
 }
 
+/** A die freed by upgrading a trait the hero already had, and that trait's name. */
+export interface FreedDie {
+  die: Die
+  from: string
+}
+
 export const ROLEPLAYING_QUALITY: TraitRef = { kind: 'quality', id: 'roleplaying-quality' }
 
 /** The display name of a trait for a hero. */
@@ -111,8 +117,8 @@ class TraitState {
    * already had without `upgrades`. A trait `canSwap` allows may take any die in place of
    * its old one, not just a bigger one (an archetype's required trait, ruling 43).
    */
-  assign(step: StepId, assignments: readonly TraitAssignment[], canSwap: (trait: TraitRef) => boolean = () => false): Die[] {
-    const freed: Die[] = []
+  assign(step: StepId, assignments: readonly TraitAssignment[], canSwap: (trait: TraitRef) => boolean = () => false): FreedDie[] {
+    const freed: FreedDie[] = []
     const inStep = new Set<string>()
     for (const a of assignments) {
       const key = traitKey(a.trait)
@@ -124,7 +130,7 @@ class TraitState {
       const existing = this.get(a.trait)
       if (existing && existing.step !== step) {
         if (a.upgrades) {
-          freed.push(existing.die)
+          freed.push({ die: existing.die, from: this.label(a.trait) })
           if (compareDice(a.die, existing.die) <= 0 && !canSwap(a.trait)) {
             this.warn(step, 'not-an-upgrade', `Only a bigger die can upgrade ${this.label(a.trait)}, which is already ${existing.die}.`)
           }
@@ -143,13 +149,18 @@ class TraitState {
     return freed
   }
 
-  /** Checks that a step's assignments use exactly its dice (plus any dice freed by replacements). */
-  checkPool(step: StepId, pool: readonly Die[], freed: readonly Die[], assignments: readonly TraitAssignment[]): void {
-    const expected = [...pool, ...freed]
+  /**
+   * Checks that a step's assignments use exactly its dice, plus any dice freed by upgrading a
+   * trait the hero had: the old die is used elsewhere in the same step (no die is wasted).
+   */
+  checkPool(step: StepId, pool: readonly Die[], freed: readonly FreedDie[], assignments: readonly TraitAssignment[]): void {
+    const expected = [...pool, ...freed.map((f) => f.die)]
     const assigned = assignments.map((a) => a.die)
     if (!sameDice(expected, assigned)) {
       const got = assigned.length ? `the dice assigned are ${diceList(assigned)}` : 'no dice are assigned yet'
-      this.warn(step, 'dice-mismatch', `This step's dice are ${diceList(expected)}, but ${got}.`)
+      // Name the swapped-off dice, which aren't among the step's own.
+      const plus = freed.length ? `, plus ${freed.map((f) => `the ${f.die} swapped off ${f.from}`).join(' and ')} to use elsewhere in this step` : ''
+      this.warn(step, 'dice-mismatch', `This step's dice are ${diceList(pool)}${plus}, but ${got}.`)
     }
   }
 

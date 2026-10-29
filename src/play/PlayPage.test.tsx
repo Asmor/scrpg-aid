@@ -5,7 +5,7 @@ import { StoreContext } from '../app/store-context'
 import type { Hero } from '../hero/model'
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { completeHero } from '../test/heroes'
-import { PlayPage } from './PlayPage'
+import { PlayPage } from '../components/HeroPage'
 
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
@@ -113,13 +113,22 @@ describe('PlayPage', () => {
     await waitFor(async () => expect((await saved(store)).play).toMatchObject({ heroPoints: 0, reactionUsed: false, mods: [], twists: [] }))
   })
 
-  it('waits for saves before going back to the sheet', async () => {
+  it('waits for saves before leaving for the editor', async () => {
     const store = await setup()
     window.location.hash = '#/hero/h1/play'
     await userEvent.click(screen.getByRole('button', { name: 'Gain a hero point' }))
-    await userEvent.click(screen.getByRole('link', { name: '← Sheet' }))
-    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1'))
+    await userEvent.click(screen.getByRole('link', { name: 'Edit' }))
+    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1/edit'))
     expect((await saved(store)).play?.heroPoints).toBe(1)
+  })
+
+  it('switches to Sheet mode from the header', async () => {
+    await setup()
+    window.location.hash = '#/hero/h1/play'
+    const modes = screen.getByRole('group', { name: 'Mode' })
+    expect(within(modes).getByRole('button', { name: 'Play' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(within(modes).getByRole('button', { name: 'Sheet' }))
+    expect(window.location.hash).toBe('#/hero/h1')
   })
 
   it('says when the hero is missing', async () => {

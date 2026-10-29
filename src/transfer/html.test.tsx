@@ -22,7 +22,9 @@ describe('heroHtml', () => {
     expect(doc.querySelector('meta[name="viewport"]')).not.toBeNull()
     expect(doc.querySelector('head style')).not.toBeNull()
     const sheet = doc.querySelector('main .hero-sheet')!
-    expect(sheet.querySelector('h2')!.textContent).toBe('Maya Reyes')
+    // The name, alias and identity line come first, as on the page.
+    expect(doc.querySelector('main h2')!.textContent).toBe('Maya Reyes')
+    expect(doc.querySelector('main .character-head')!.textContent).toContain('Upper Class · Accident · Speedster · Lone Wolf')
     expect(sheet.textContent).toContain('Paragon Feat')
     // The icons are embedded, nothing loads from elsewhere, and nothing runs.
     const imgs = [...doc.querySelectorAll('img')]
@@ -31,6 +33,9 @@ describe('heroHtml', () => {
     expect(sheet.querySelector('img[alt="Attack"]')).not.toBeNull()
     expect(sheet.querySelector('img[alt="d12"]')).not.toBeNull()
     expect(doc.querySelectorAll('link, iframe, script:not([type="application/json"])')).toHaveLength(0)
+    // With no script, nothing hides behind a button: the twists show at every width.
+    expect(sheet.querySelectorAll('button')).toHaveLength(0)
+    expect(sheet.querySelector('.principle-card__twists--folded')).toBeNull()
   })
 
   it('leaves out rule warnings', () => {

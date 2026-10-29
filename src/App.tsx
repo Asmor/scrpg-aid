@@ -5,7 +5,6 @@ import { Home } from './components/Home'
 import { HeroPage } from './components/HeroPage'
 import { AdvancementPage } from './editor/AdvancementPage'
 import { HeroEditor } from './editor/HeroEditor'
-import { PlayPage } from './play/PlayPage'
 import { VillainStoreContext } from './app/villain-store-context'
 import { createDefaultVillainStore, type VillainStore } from './villain/store'
 import { VillainEditor } from './villain/VillainEditor'
@@ -42,9 +41,9 @@ export default function App({ store: given, villainStore: givenVillains, connect
           {route.name === 'villain' && <VillainPage key={route.id} id={route.id} />}
           {route.name === 'villainPlay' && <VillainPlayPage key={route.id} id={route.id} />}
           {route.name === 'villainEdit' && <VillainEditor key={route.id} id={route.id} step={route.step} />}
-          {route.name === 'hero' && <HeroPage key={route.id} id={route.id} />}
+          {/* Sheet and Play are one page: the same key keeps it (and the loaded hero) when switching. */}
+          {(route.name === 'hero' || route.name === 'play') && <HeroPage key={route.id} id={route.id} mode={route.name === 'play' ? 'play' : 'sheet'} />}
           {route.name === 'edit' && <HeroEditor key={route.id} id={route.id} step={route.step} part={route.part} />}
-          {route.name === 'play' && <PlayPage key={route.id} id={route.id} />}
           {route.name === 'advancement' && <AdvancementPage key={route.id} id={route.id} />}
           {route.name === 'gm' && <GmPage />}
           {route.name === 'join' && <JoinPage key={route.room ?? ''} room={route.room} />}

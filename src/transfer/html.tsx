@@ -6,7 +6,7 @@
  */
 import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { HeroSheetView } from '../components/HeroSheetView'
+import { HeroSheetTitle, HeroSheetView } from '../components/HeroSheetView'
 import { IconSource, type IconName } from '../components/icon-source'
 import { heroDisplayName, type Hero } from '../hero/model'
 import appCss from '../index.css?inline'
@@ -19,7 +19,15 @@ const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '
 
 /** `icons` gives each icon's embedded copy (a data URI; see ./icons.ts). */
 export function heroHtml(hero: Hero, icons: Readonly<Record<IconName, string>>): string {
-  return page(heroDisplayName(hero), <HeroSheetView hero={hero} warnings={false} />, embeddableJson(hero), icons)
+  return page(
+    heroDisplayName(hero),
+    <>
+      <HeroSheetTitle hero={hero} />
+      <HeroSheetView hero={hero} interactive={false} />
+    </>,
+    embeddableJson(hero),
+    icons,
+  )
 }
 
 /** A villain's sheet as one self-contained HTML file, the same way (Phase 5). */

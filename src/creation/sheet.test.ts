@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createHero } from '../hero/model'
 import { completeHero, P, Q } from '../test/heroes'
-import { buildSheet, fillText } from './sheet'
+import { buildSheet, fillText, heroIdentity } from './sheet'
 
 describe('buildSheet', () => {
   it('assembles a complete, legal hero with no warnings', () => {
@@ -165,5 +165,14 @@ describe('fillText', () => {
     expect(fillText(hero, 'Take [choose two basic actions] using [quality].', [Q('fitness')], { 'choose two basic actions': ['Attack', 'Defend'] })).toBe(
       'Take Attack and Defend using Fitness.',
     )
+  })
+
+  it('names the hero’s identity from whichever characteristics are chosen', () => {
+    expect(heroIdentity(buildSheet(completeHero()))).toBe('Upper Class · Accident · Speedster · Lone Wolf')
+    const partial = completeHero()
+    partial.powerSource = null
+    partial.personality = null
+    expect(heroIdentity(buildSheet(partial))).toBe('Upper Class · Speedster')
+    expect(heroIdentity(buildSheet(createHero('guided')))).toBe('')
   })
 })

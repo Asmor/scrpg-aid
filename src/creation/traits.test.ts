@@ -97,6 +97,15 @@ describe('deriveTraits', () => {
       expect(dice(hero)).toMatchObject({ agility: 'd12', speed: 'd10', flight: 'd6' })
     })
 
+    it('names the die an upgrade swapped off when it isn’t used yet', () => {
+      const hero = validHero()
+      // Agility d10 → d12 frees the d10; only the step's own d6 is placed.
+      hero.archetype!.traits = [A(P('agility'), 'd12', true), A(P('flight'), 'd6')]
+      expect(deriveTraits(hero).warnings.map((w) => w.message)).toContain(
+        "This step's dice are d12, d6, plus the d10 swapped off Agility to use elsewhere in this step, but the dice assigned are d12, d6.",
+      )
+    })
+
     it('only lets a bigger die upgrade a trait', () => {
       const hero = validHero()
       // Fitness d10 from the background can't be "upgraded" to d6 to move its d10 elsewhere.

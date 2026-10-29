@@ -1,5 +1,5 @@
 import { act, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { exampleHero } from './hero/example'
 import { MemoryHeroStore } from './hero/store'
@@ -29,6 +29,14 @@ describe('App', () => {
 
     go('#/hero/maya')
     expect(await screen.findByRole('heading', { level: 2, name: 'Maya Reyes' })).toBeInTheDocument()
+
+    // Sheet and Play are one page: switching doesn't load the hero again.
+    const get = vi.spyOn(store, 'get')
+    go('#/hero/maya/play')
+    expect(await screen.findByRole('button', { name: 'New issue…' })).toBeInTheDocument()
+    go('#/hero/maya')
+    expect(await screen.findByRole('heading', { name: 'Roleplaying' })).toBeInTheDocument()
+    expect(get).not.toHaveBeenCalled()
 
     go('#/hero/nobody')
     expect(await screen.findByRole('alert')).toHaveTextContent("There's no saved hero with that link.")

@@ -5,7 +5,7 @@ import { StoreContext } from '../app/store-context'
 import type { Hero } from '../hero/model'
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { dividedHero, formChangerHero, modularHero } from '../test/heroes'
-import { PlayPage } from './PlayPage'
+import { PlayPage } from '../components/HeroPage'
 
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })

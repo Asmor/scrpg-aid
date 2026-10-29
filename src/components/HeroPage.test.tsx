@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { StoreContext } from '../app/store-context'
@@ -32,6 +32,12 @@ const renderPage = (store: HeroStore) =>
     </StoreContext.Provider>,
   )
 
+/** Chooses an item from the header's Export menu. */
+async function exportAs(item: string) {
+  await userEvent.click(await screen.findByRole('button', { name: 'Export' }))
+  await userEvent.click(within(screen.getByRole('list', { name: 'Export as' })).getByRole('button', { name: item }))
+}
+
 describe('HeroPage', () => {
   it('links back to the list while loading', () => {
     renderPage(storeReturning(() => new Promise(() => {})))
@@ -55,9 +61,16 @@ describe('HeroPage', () => {
 
   it('links a finished hero to Play, Edit and Advancement', async () => {
     renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
-    expect(await screen.findByRole('link', { name: 'Advancement' })).toHaveAttribute('href', '#/hero/x/advancement')
-    expect(screen.getByRole('link', { name: 'Play' })).toHaveAttribute('href', '#/hero/x/play')
-    expect(screen.getByRole('link', { name: 'Edit hero' })).toHaveAttribute('href', '#/hero/x/edit')
+    // In the header, and in the record strip.
+    const advancement = await screen.findAllByRole('link', { name: 'Advancement' })
+    expect(advancement).toHaveLength(2)
+    for (const link of advancement) expect(link).toHaveAttribute('href', '#/hero/x/advancement')
+    expect(screen.getByRole('link', { name: 'Edit' })).toHaveAttribute('href', '#/hero/x/edit')
+    const modes = screen.getByRole('group', { name: 'Mode' })
+    expect(within(modes).getByRole('button', { name: 'Sheet' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(within(modes).getByRole('button', { name: 'Play' }))
+    expect(window.location.hash).toBe('#/hero/x/play')
+    window.location.hash = ''
   })
 
   it('offers Play and Edit for a finished hero, but only Continue for a draft, which still exports as a draft', async () => {
@@ -65,8 +78,9 @@ describe('HeroPage', () => {
     vi.mocked(downloadFile).mockClear()
     renderPage(storeReturning(async () => ({ status: 'found', hero: draft })))
     expect(await screen.findByRole('link', { name: 'Continue making this hero' })).toHaveAttribute('href', '#/hero/x/edit/power-source')
-    expect(screen.queryByRole('link', { name: 'Play' })).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Download JSON' }))
+    expect(screen.queryByRole('group', { name: 'Mode' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Advancement' })).not.toBeInTheDocument()
+    await exportAs('JSON')
     expect(readImport(vi.mocked(downloadFile).mock.calls[0]![1] as string)).toMatchObject({ ok: true, heroes: [{ status: 'draft' }] })
   })
 
@@ -77,8 +91,9 @@ describe('HeroPage', () => {
     const count = stepStates(hero, buildSheet(hero).warnings).reduce((n, s) => n + s.issues.length, 0)
     expect(count).toBe(1)
     const banner = await screen.findByRole('note')
-    expect(banner).toHaveTextContent('This hero has one rule issue.')
-    expect(within(banner).getByRole('link', { name: 'Review in edit summary' })).toHaveAttribute('href', '#/hero/x/edit')
+    const first = stepStates(hero, buildSheet(hero).warnings).flatMap((s) => s.issues)[0]!
+    expect(banner).toHaveTextContent(`1 rule issue${first.message}`)
+    expect(within(banner).getByRole('link', { name: 'Open in edit' })).toHaveAttribute('href', '#/hero/x/edit')
   })
 
   it('counts every step’s issues in the banner', async () => {
@@ -88,12 +103,12 @@ describe('HeroPage', () => {
     const count = stepStates(hero, buildSheet(hero).warnings).reduce((n, s) => n + s.issues.length, 0)
     expect(count).toBeGreaterThan(1)
     renderPage(storeReturning(async () => ({ status: 'found', hero })))
-    expect(await screen.findByRole('note')).toHaveTextContent(`This hero has ${count} rule issues.`)
+    expect(await screen.findByRole('note')).toHaveTextContent(`${count} rule issues`)
   })
 
   it('shows no issue banner for a hero without issues, or for a draft', async () => {
     const view = renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
-    await screen.findByRole('link', { name: 'Edit hero' })
+    await screen.findByRole('link', { name: 'Edit' })
     expect(screen.queryByRole('note')).not.toBeInTheDocument()
     view.unmount()
     const draft = { ...exampleHero({ id: 'x' }), status: 'draft' as const, redAbilities: [] }
@@ -102,11 +117,54 @@ describe('HeroPage', () => {
     expect(screen.queryByRole('note')).not.toBeInTheDocument()
   })
 
+  it('closes the Export menu on Escape, returning focus to its button', async () => {
+    renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
+    const button = await screen.findByRole('button', { name: 'Export' })
+    await userEvent.click(button)
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+    expect(within(screen.getByRole('list', { name: 'Export as' })).getAllByRole('button').map((b) => b.textContent)).toEqual(expect.arrayContaining(['JSON', 'Markdown', 'HTML', 'PDF, Letter', 'PDF, A4']))
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('list', { name: 'Export as' })).not.toBeInTheDocument()
+    expect(button).toHaveFocus()
+  })
+
+  it('closes the Export menu when focus leaves it', async () => {
+    renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
+    await userEvent.click(await screen.findByRole('button', { name: 'Export' }))
+    // Through the five items and out.
+    for (let i = 0; i < 6; i++) await userEvent.tab()
+    expect(screen.queryByRole('list', { name: 'Export as' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the Export menu open on a blur that goes nowhere (Safari, clicking an item)', async () => {
+    vi.mocked(downloadFile).mockClear()
+    renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
+    const button = await screen.findByRole('button', { name: 'Export' })
+    await userEvent.click(button)
+    fireEvent.blur(button, { relatedTarget: null })
+    const menu = screen.getByRole('list', { name: 'Export as' })
+    await userEvent.click(within(menu).getByRole('button', { name: 'JSON' }))
+    expect(downloadFile).toHaveBeenCalled()
+  })
+
+  it('in Play mode, hides Roleplaying and swaps Advancement and Export for New issue', async () => {
+    render(
+      <StoreContext.Provider value={storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) }))}>
+        <HeroPage id="x" mode="play" />
+      </StoreContext.Provider>,
+    )
+    expect(await screen.findByRole('button', { name: 'New issue…' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Roleplaying' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Advancement' })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Mode' })).getByRole('button', { name: 'Play' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('exports the hero as JSON that imports back', async () => {
     vi.mocked(downloadFile).mockClear()
     const hero = exampleHero({ id: 'x' })
     renderPage(storeReturning(async () => ({ status: 'found', hero })))
-    await userEvent.click(await screen.findByRole('button', { name: 'Download JSON' }))
+    await exportAs('JSON')
     const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
     expect(name).toBe('maya-reyes.json')
     expect(type).toBe('application/json')
@@ -117,7 +175,7 @@ describe('HeroPage', () => {
     vi.mocked(downloadFile).mockClear()
     const hero = exampleHero({ id: 'x' })
     renderPage(storeReturning(async () => ({ status: 'found', hero })))
-    await userEvent.click(await screen.findByRole('button', { name: 'Download Markdown' }))
+    await exportAs('Markdown')
     const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
     expect(name).toBe('maya-reyes.md')
     expect(type).toBe('text/markdown')
@@ -129,7 +187,7 @@ describe('HeroPage', () => {
     vi.mocked(downloadFile).mockClear()
     const hero = exampleHero({ id: 'x' })
     renderPage(storeReturning(async () => ({ status: 'found', hero })))
-    await userEvent.click(await screen.findByRole('button', { name: 'Download HTML' }))
+    await exportAs('HTML')
     await waitFor(() => expect(downloadFile).toHaveBeenCalled())
     const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
     expect(name).toBe('maya-reyes.html')
@@ -142,7 +200,7 @@ describe('HeroPage', () => {
       throw new Error('no space')
     })
     renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
-    await userEvent.click(await screen.findByRole('button', { name: 'Download HTML' }))
+    await exportAs('HTML')
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't make the HTML file: no space")
   })
 
@@ -150,23 +208,21 @@ describe('HeroPage', () => {
     vi.mocked(downloadFile).mockClear()
     const hero = exampleHero({ id: 'x' })
     renderPage(storeReturning(async () => ({ status: 'found', hero })))
-    // The page size options sit after the button, as radio buttons.
-    const sizes = await screen.findByRole('radiogroup', { name: 'Page size' })
-    await userEvent.click(within(sizes).getByRole('radio', { name: 'A4' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Download PDF' }))
+    // Each paper size is its own item.
+    await exportAs('PDF, A4')
     await waitFor(() => expect(downloadFile).toHaveBeenCalled())
     expect(exportPdf).toHaveBeenCalledWith(hero, 'a4')
     const [name, bytes, type] = vi.mocked(downloadFile).mock.calls[0]!
     expect(name).toBe('maya-reyes.pdf')
     expect(type).toBe('application/pdf')
     expect(bytes).toEqual(new Uint8Array([37, 80, 68, 70]))
-    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled()
   })
 
   it('says when the PDF couldn’t be made', async () => {
     vi.mocked(exportPdf).mockRejectedValueOnce(new Error('font missing'))
     renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
-    await userEvent.click(await screen.findByRole('button', { name: 'Download PDF' }))
+    await exportAs('PDF, Letter')
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't make the PDF: font missing")
   })
 
@@ -177,14 +233,14 @@ describe('HeroPage', () => {
       online.mockReturnValue(false)
       vi.mocked(exportPdf).mockRejectedValueOnce(downloadError())
       const view = renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
-      await userEvent.click(await screen.findByRole('button', { name: 'Download PDF' }))
+      await exportAs('PDF, Letter')
       expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't make the PDF: you're offline, and part of it downloads the first time it's used")
       view.unmount()
 
       online.mockReturnValue(true)
       vi.mocked(exportPdf).mockRejectedValueOnce(downloadError())
       renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
-      await userEvent.click(await screen.findByRole('button', { name: 'Download PDF' }))
+      await exportAs('PDF, Letter')
       expect(await screen.findByRole('alert')).toHaveTextContent('If the app offers an update, accept it (or reload the page), then try again.')
     } finally {
       online.mockRestore()

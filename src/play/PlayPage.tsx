@@ -1,16 +1,13 @@
 /**
- * The game aid (Phase 3): a hero's state during play. Current Health and zone (with the scene
+ * The game aid (Phase 3), Play mode of the character page: a hero's state during play. Current Health and zone (with the scene
  * tracker), the status die, hero points, the reaction, mods, twists, and a timestamped
  * history of every change. It's saved with the hero as it changes (./state.ts has the rules).
  */
-import { useEffect, useId, useState, type MouseEvent, type ReactNode } from 'react'
-import { editPath, heroPath, listPath, navigate } from '../app/route'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { DieIcon } from '../components/icons'
 import { buildSheet } from '../creation/sheet'
-import { useHeroEditor } from '../editor/useHeroEditor'
-import { heroDisplayName, isDraft, newId, type PlayMod, type PlayState } from '../hero/model'
-import { continueStep } from '../hero/wizard-steps'
-import { addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, MAX_HERO_POINTS, newIssue, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
+import type { Hero, PlayMod, PlayState } from '../hero/model'
+import { addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, MAX_HERO_POINTS, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
 import { currentForm, dividedForm, formAvailable, formDice, formNoun, playAbilities, playForms } from './forms'
 import { modeLimits } from '../creation/format'
 import { formatFull, formatWhen } from './time'
@@ -36,66 +33,30 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => newId() }), random }: { id: string; clock?: () => Clock; random?: () => number }) {
-  const { state, update, saveError, flush } = useHeroEditor(id)
+/** Play mode's own controls (the character page shows the header; ../components/HeroPage.tsx). */
+export function PlayView({ hero, update, clock, random }: { hero: Hero; update: (change: (draft: Hero) => void) => void; clock: () => Clock; random?: () => number }) {
+  const id = hero.id
   const formId = useId()
   const tick = useTick()
   const [amount, setAmount] = useState('')
   const [twistKind, setTwistKind] = useState<'minor' | 'major'>('minor')
   const [twistText, setTwistText] = useState('')
-  const [confirmIssue, setConfirmIssue] = useState(false)
   const [rolling, setRolling] = useState<RollSubject | null>(null)
 
   // A game session this hero is playing in (Phase 4).
   const session = useSession()
   const player = session.player?.heroId === id ? session.player : undefined
   const snapshot = usePlayerSnapshot(player)
-  const loaded = state.status === 'ready' ? state.hero : undefined
   useEffect(() => {
-    if (!player || !loaded || isDraft(loaded)) return
+    if (!player) return
     // The session's changes (the GM's scene, mods others gave) go into the hero's play state.
-    const next = player.sync(loaded.play ?? emptyPlay())
+    const next = player.sync(hero.play ?? emptyPlay())
     if (next) update((h) => void (h.play = next))
     // The table sees the hero, and their history as it happens.
-    player.updateHero(heroSummary(loaded, buildSheet(loaded), next ?? loaded.play ?? emptyPlay()))
-    if (snapshot?.status === 'connected') player.share((next ?? loaded.play)?.history ?? [])
-  }, [player, snapshot, loaded, update])
+    player.updateHero(heroSummary(hero, buildSheet(hero), next ?? hero.play ?? emptyPlay()))
+    if (snapshot?.status === 'connected') player.share((next ?? hero.play)?.history ?? [])
+  }, [player, snapshot, hero, update])
 
-  if (state.status !== 'ready') {
-    return (
-      <div className="hero-page">
-        <p>
-          <a href={listPath}>← All heroes</a>
-        </p>
-        {state.status === 'loading' && <p>Loading…</p>}
-        {state.status === 'missing' && <p role="alert">There's no saved hero with that link. It may have been deleted.</p>}
-        {state.status === 'unreadable' && <p role="alert">This hero couldn't be read: {state.error}</p>}
-        {state.status === 'error' && <p role="alert">Something went wrong loading this hero: {state.message}</p>}
-      </div>
-    )
-  }
-
-  // Drafts can't be played until they're finished (the hero wizard spec, "Drafts").
-  if (isDraft(state.hero)) {
-    return (
-      <div className="hero-page">
-        <p>
-          <a href={listPath}>← All heroes</a>
-        </p>
-        <p role="alert">
-          {heroDisplayName(state.hero)} is still a draft. <a href={editPath(id, continueStep(state.hero.furthestStep))}>Continue making this hero</a> and finish it to play.
-        </p>
-      </div>
-    )
-  }
-
-  /** Leaves once the changes made so far are saved, so the next page shows them (as the editor does). */
-  const leave = (path: string) => (e: MouseEvent<HTMLAnchorElement>) => {
-    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-    e.preventDefault()
-    void flush().then(() => navigate(path))
-  }
-  const hero = state.hero
   const sheet = buildSheet(hero)
   const play = hero.play ?? emptyPlay()
   const change = (fn: (p: PlayState, c: Clock) => PlayState) =>
@@ -135,21 +96,6 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
 
   return (
     <div className="play-page">
-      <div className="hero-editor__top">
-        <a href={heroPath(id)} onClick={leave(heroPath(id))}>
-          ← Sheet
-        </a>
-        <a href={editPath(id)} onClick={leave(editPath(id))}>
-          Edit hero
-        </a>
-      </div>
-      <h2 className="hero-editor__name">{heroDisplayName(hero)}</h2>
-      {saveError && (
-        <p role="alert" className="error">
-          Your last change couldn't be saved: {saveError}
-        </p>
-      )}
-
       <div className="sheet-grid">
         <Section title="Health">
           {health === undefined ? (
@@ -425,30 +371,6 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
         />
       )}
 
-      <div className="button-row">
-        {confirmIssue ? (
-          <span className="button-row" role="group" aria-label="Start a new issue?">
-            <span>Start a new issue? Health is restored, and mods, twists, and hero points are cleared.</span>
-            <button
-              type="button"
-              className="button button--danger"
-              onClick={() => {
-                change((p, c) => newIssue(p, c))
-                setConfirmIssue(false)
-              }}
-            >
-              Yes, new issue
-            </button>
-            <button type="button" className="button" onClick={() => setConfirmIssue(false)}>
-              Cancel
-            </button>
-          </span>
-        ) : (
-          <button type="button" className="button" onClick={() => setConfirmIssue(true)}>
-            New issue…
-          </button>
-        )}
-      </div>
     </div>
   )
 }
