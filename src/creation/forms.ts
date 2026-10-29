@@ -18,7 +18,7 @@ import type { FormChoice, Hero } from '../hero/model'
 import { checkAbilityPick } from './abilities'
 import { layers, traitLayer, type ArchetypeLayer } from './layers'
 import { traitLabel, type HeroTrait } from './traits'
-import { warning, type RuleWarning } from './warnings'
+import { markPart, warning, type RuleWarning } from './warnings'
 
 export interface FormTraits {
   form: FormChoice
@@ -96,8 +96,13 @@ function checkFormChanger(hero: Hero, traits: readonly HeroTrait[], layer: Arche
   const warn = (code: string, message: string) => warnings.push(warning('archetype', code, message))
   const green = forms.filter((f) => f.zone === 'green')
   const yellow = forms.filter((f) => f.zone === 'yellow')
+  // A missing form goes with the first one of its color still to make.
+  let from = warnings.length
   if (green.length !== spec.greenFormCount) warn('form-count', `Create ${plural(spec.greenFormCount, 'Green form')}; you have ${green.length}.`)
+  markPart(warnings, from, `form:green:${Math.min(green.length, spec.greenFormCount - 1)}`)
+  from = warnings.length
   if (yellow.length !== spec.yellowFormCount) warn('form-count', `Create ${plural(spec.yellowFormCount, 'Yellow form')}; you have ${yellow.length}.`)
+  markPart(warnings, from, `form:yellow:${Math.min(yellow.length, spec.yellowFormCount - 1)}`)
 
   const basePowers = traits.filter((t) => t.trait.kind === 'power')
   const baseDice = basePowers.map((t) => t.die)
@@ -105,6 +110,12 @@ function checkFormChanger(hero: Hero, traits: readonly HeroTrait[], layer: Arche
   const greenAbilityNames = green.flatMap((f) => (f.ability ? [f.ability.name] : []))
 
   forms.forEach((form) => {
+    const formFrom = warnings.length
+    checkForm(form)
+    markPart(warnings, formFrom, `form:${form.zone}:${forms.filter((f) => f.zone === form.zone).indexOf(form)}`)
+  })
+
+  function checkForm(form: FormChoice): void {
     const label = formLabel(forms, form)
     // Dice: the hero's power dice, rearranged.
     if (!same(form.powers.map((a) => a.die), baseDice)) {
@@ -157,7 +168,7 @@ function checkFormChanger(hero: Hero, traits: readonly HeroTrait[], layer: Arche
       warn('ability-twice', `Each Green form needs a different form ability; ${ability.name} is used twice.`)
     }
     warnings.push(...checkAbilityPick(hero, formTraits(hero, traits, form), ability, form.ability, 'archetype'))
-  })
+  }
 
   checkFormRetcon(hero, traits, forms, [...spec.greenFormAbilities, ...spec.yellowFormAbilities], warnings)
 }
@@ -238,7 +249,11 @@ export function checkForms(hero: Hero, traits: readonly HeroTrait[]): RuleWarnin
     }
     if (layer.choice.forms?.length) warnings.push(warning('archetype', 'unexpected-forms', `${ar.name} doesn't have forms.`))
   }
-  if (ar.minionForms) checkMinionForms(hero, traits, layer, warnings)
+  if (ar.minionForms) {
+    const from = warnings.length
+    checkMinionForms(hero, traits, layer, warnings)
+    markPart(warnings, from, 'minion-forms')
+  }
   else if (layer.choice.minionForms) warnings.push(warning('archetype', 'unexpected-forms', `${ar.name} doesn't have minion forms.`))
   return warnings
 }

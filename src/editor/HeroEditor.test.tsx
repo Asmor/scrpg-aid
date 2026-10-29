@@ -46,6 +46,19 @@ async function storeWith(change: (h: Hero) => void = () => {}) {
 /** The background choices, without the creation method's radios above them. */
 const backgroundRadios = () => within(screen.getByRole('group', { name: 'Choose a background' })).getAllByRole('radio')
 
+/** Opens a complex archetype's part card (closed when it's done), returning the card. */
+async function openPart(label: string) {
+  const card = await screen.findByRole('region', { name: label })
+  const head = card.querySelector<HTMLButtonElement>('.part__head')!
+  if (head.getAttribute('aria-expanded') === 'false') await userEvent.click(head)
+  return card
+}
+
+/** Opens every part card on the step. */
+async function openAllParts() {
+  for (const head of document.querySelectorAll<HTMLButtonElement>('.part__head[aria-expanded="false"]')) await userEvent.click(head)
+}
+
 const saved = async (store: HeroStore) => {
   const result = await store.get('h1')
   if (result.status !== 'found') throw new Error('not saved')
@@ -593,12 +606,14 @@ describe('HeroEditor', () => {
 
   it('shows a legal Divided hero with no issues, choosing the second archetype apart from Divided and Modular', async () => {
     renderEditor(await storeWith((h) => Object.assign(h, { ...dividedHero(), id: 'h1' })), 'archetype')
-    const second = await screen.findByRole('region', { name: 'Second archetype' })
+    // Done parts start closed.
+    expect((await screen.findByRole('region', { name: 'Second archetype' })).querySelector('.part__head')).toHaveAttribute('aria-expanded', 'false')
+    const second = await openPart('Second archetype')
     expect(within(second).getByRole('radio', { name: /Speedster/ })).toBeChecked()
     expect(within(second).queryByRole('radio', { name: /Modular/ })).not.toBeInTheDocument()
     expect(within(second).queryByRole('radio', { name: /Divided/ })).not.toBeInTheDocument()
     expect(within(second).getByRole('group', { name: 'Green abilities: choose 2' })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: /Controllable Transition/ })).toBeChecked()
+    expect(within(await openPart('Transition')).getByRole('radio', { name: /Controllable Transition/ })).toBeChecked()
     expect(screen.getByText('No rule issues in this step.')).toBeInTheDocument()
   })
 
@@ -650,7 +665,7 @@ describe('HeroEditor', () => {
       h.archetype = { id: 'modular', traits: [], abilities: [], bonus: [], roll: { dice: ['d12', 'd6'], results: [1, 3], manual: false } }
     })
     renderEditor(store, 'archetype')
-    const base = await screen.findByRole('region', { name: 'Base archetype' })
+    const base = await openPart('Base archetype')
     expect(within(base).getByText(/Your archetype roll was/)).toBeInTheDocument()
     await userEvent.click(within(base).getByRole('radio', { name: /Speedster/ }))
     // Modular skips the base archetype's abilities.
@@ -658,7 +673,7 @@ describe('HeroEditor', () => {
     // With only the power source's three powers, Modular adds a d6 power.
     expect(screen.getByText('You have 3 powers; add 1 d6 power so you have 4.')).toBeInTheDocument()
     await userEvent.selectOptions(within(screen.getByRole('group', { name: 'Filler powers' })).getByRole('combobox', { name: 'd6' }), 'Leaping')
-    expect(screen.getByRole('group', { name: 'Green abilities you always have' })).toHaveTextContent('Switch')
+    expect(within(await openPart('Switch abilities')).getByRole('group', { name: 'Green abilities you always have' })).toHaveTextContent('Switch')
     await waitFor(async () => {
       const a = (await saved(store)).archetype!
       expect(a.secondary).toEqual({ id: 'speedster', traits: [], abilities: [], bonus: [] })
@@ -700,12 +715,24 @@ describe('HeroEditor', () => {
       h.archetype!.secondary!.roll = { ...secondRoll, dice: [...secondRoll.dice] }
     })
     renderEditor(store, 'archetype')
-    await userEvent.click((await screen.findAllByRole('radio', { name: /Shadow/ }))[0]!)
-    await userEvent.click(screen.getByRole('button', { name: 'Remove them' }))
+    // The list is collapsed into Divided's card until the player asks to change it.
+    await userEvent.click(await screen.findByRole('button', { name: 'Change archetype' }))
+    await userEvent.click(screen.getAllByRole('radio', { name: /Shadow/ })[0]!)
+    // Divided's parts go, and its second archetype's roll stays as the pending roll.
     await waitFor(async () => {
       const hero = await saved(store)
+      expect(hero.archetype?.id).toBe('shadow')
       expect(hero.archetype?.secondary).toBeUndefined()
+      expect(hero.archetype?.divided).toBeUndefined()
       expect(hero.pendingRolls?.secondaryArchetype).toEqual({ ...secondRoll, dice: ['d12', 'd6'] })
+    })
+    // Switching back in the same visit restores them, roll and all.
+    await userEvent.click(screen.getByRole('radio', { name: /Divided/ }))
+    await waitFor(async () => {
+      const hero = await saved(store)
+      expect(hero.archetype?.secondary?.roll).toEqual({ ...secondRoll, dice: ['d12', 'd6'] })
+      expect(hero.archetype?.divided?.transitionMethod).toBe('controllable')
+      expect(hero.pendingRolls?.secondaryArchetype).toBeUndefined()
     })
   })
 
@@ -744,6 +771,8 @@ describe('HeroEditor', () => {
       h.archetype!.modular!.modes.push({ id: 'scout', powers: [] })
     })
     renderEditor(store, 'archetype')
+    await screen.findByRole('region', { name: 'Red mode' })
+    await openAllParts()
     // Switching records the new mode's ability, even one with no blanks to fill.
     await userEvent.selectOptions(within(await screen.findByRole('group', { name: 'Hunter/Killer Mode' })).getByRole('combobox', { name: 'Red mode' }), 'Destroyer Mode')
     // A mode taken in another slot isn't offered again.
@@ -762,6 +791,8 @@ describe('HeroEditor', () => {
 
   it('shows a legal Modular hero with no issues', async () => {
     renderEditor(await storeWith((h) => Object.assign(h, { ...modularHero(), id: 'h1' })), 'archetype')
+    await openPart('Green mode')
+    await openAllParts()
     expect(await screen.findByRole('group', { name: 'Patch Job' })).toBeInTheDocument()
     expect(screen.getByText('No rule issues in this step.')).toBeInTheDocument()
   })

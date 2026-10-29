@@ -54,12 +54,12 @@ export function issueSection(code: string): IssueSection {
 }
 
 /**
- * Takes the player to an issue's section inside `step`: scrolls it into view and focuses
- * its first control (or the section itself). Falls back to the step's first section.
+ * Takes the player to an issue's section inside `step` (a step, or one part of it): scrolls
+ * it into view and focuses its first control (or the section itself). Falls back to the
+ * first section, then to `step` itself.
  */
 export function focusIssue(step: HTMLElement, code: string): void {
-  const target = step.querySelector<HTMLElement>(`[data-section="${issueSection(code)}"]`) ?? step.querySelector<HTMLElement>('[data-section]')
-  if (!target) return
+  const target = step.querySelector<HTMLElement>(`[data-section="${issueSection(code)}"]`) ?? step.querySelector<HTMLElement>('[data-section]') ?? step
   const control = target.querySelector<HTMLElement>('input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])')
   const focusable = control ?? target
   if (!control) target.tabIndex = -1

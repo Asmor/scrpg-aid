@@ -25,7 +25,7 @@ import type { HeroTrait } from './traits'
 import { layers, traitLayer, type ArchetypeLayer } from './layers'
 import { findAbility, outPick, recordedPicks } from './lookup'
 import { traitLabel } from './traits'
-import { warning, type RuleWarning, type StepId } from './warnings'
+import { markPart, warning, type RuleWarning, type StepId } from './warnings'
 
 /**
  * Extra limit on the first trait slot of `kind`, e.g. a Red ability's category: the
@@ -430,7 +430,10 @@ export function checkAbilities(hero: Hero, traits: readonly HeroTrait[]): RuleWa
   checkPowerSource(contextFor(hero, traits, 'powerSource', warnings), hero)
   const ctx = contextFor(hero, traits, 'archetype', warnings)
   const [outer, second] = layers(hero)
+  const from = warnings.length
   if (outer) checkArchetype(ctx, outer)
+  // Divided's and Modular's own abilities are a part of the step of their own.
+  if (outer?.archetype.complex) markPart(warnings, from, 'own')
   if (second) {
     if (outer!.archetype.secondaryArchetype?.skipAbilities) {
       if (second.choice.abilities.length) {

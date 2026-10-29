@@ -58,7 +58,7 @@ export function DiceOut({ to, dice, note }: { to: string; dice: readonly Die[]; 
  * The step's rule issues, pinned at its end: each a link that takes the player to the part
  * it's about (and focuses its first control). Without any, a quiet line says so.
  */
-export function StepIssues({ issues }: { issues: readonly Pick<RuleWarning, 'code' | 'message'>[] }) {
+export function StepIssues<W extends Pick<RuleWarning, 'code' | 'message'>>({ issues, onGo }: { issues: readonly W[]; onGo?: (issue: W) => void }) {
   const titleId = useId()
   if (issues.length === 0) return <p className="step-ok">No rule issues in this step.</p>
   return (
@@ -72,6 +72,7 @@ export function StepIssues({ issues }: { issues: readonly Pick<RuleWarning, 'cod
               type="button"
               className="link-button"
               onClick={(e) => {
+                if (onGo) return onGo(w)
                 const step = e.currentTarget.closest<HTMLElement>('.wizard__step')
                 if (step) focusIssue(step, w.code)
               }}

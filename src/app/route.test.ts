@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { advancementPath, editPath, gmPath, heroPath, joinPath, joinUrl, parseRoute, playPath, villainEditPath, villainPath, villainPlayPath } from './route'
+import { advancementPath, editPath, partPath, gmPath, heroPath, joinPath, joinUrl, parseRoute, playPath, villainEditPath, villainPath, villainPlayPath } from './route'
 
 describe('routes', () => {
   it('parses the list, a hero, and anything else', () => {
@@ -13,6 +13,9 @@ describe('routes', () => {
     expect(parseRoute('#/hero/abc/edit/background')).toEqual({ name: 'edit', id: 'abc', step: 'background' })
     expect(parseRoute('#/hero/abc/editor')).toEqual({ name: 'notFound' })
     expect(parseRoute('#/hero/abc/edit/a/b')).toEqual({ name: 'notFound' })
+    expect(parseRoute('#/hero/abc/edit/archetype/form%3Agreen%3A1')).toEqual({ name: 'edit', id: 'abc', step: 'archetype', part: 'form:green:1' })
+    expect(parseRoute(partPath('abc', 'mode:red:0'))).toEqual({ name: 'edit', id: 'abc', step: 'archetype', part: 'mode:red:0' })
+    expect(parseRoute('#/hero/abc/edit/archetype/a/b')).toEqual({ name: 'notFound' })
     expect(parseRoute(advancementPath('abc'))).toEqual({ name: 'advancement', id: 'abc' })
   })
 

@@ -1,7 +1,8 @@
 /**
  * Hash-based routes, so the app works from any URL prefix on GitHub Pages and offline
  * without server rewrites: "#/" is the hero list, "#/hero/<id>" one hero's sheet,
- * "#/hero/<id>/edit/<step>" a step of its editor, "#/hero/<id>/advancement" its advancement,
+ * "#/hero/<id>/edit/<step>" a step of its editor ("#/hero/<id>/edit/archetype/<part>" one part of
+ * a complex archetype's step), "#/hero/<id>/advancement" its advancement,
  * "#/hero/<id>/play" the game aid, "#/gm"
  * the GM's page for hosting a game, "#/join" (or "#/join/<room code>") joining one, and
  * "#/villain/<id>" a villain's sheet ("#/villain/<id>/edit/<step>" its editor).
@@ -13,7 +14,7 @@ export type Route =
   | { name: 'villain'; id: string }
   | { name: 'villainEdit'; id: string; step?: string }
   | { name: 'villainPlay'; id: string }
-  | { name: 'gm' } | { name: 'join'; room?: string } | { name: 'hero'; id: string } | { name: 'edit'; id: string; step?: string } | { name: 'play'; id: string } | { name: 'advancement'; id: string } | { name: 'notFound' }
+  | { name: 'gm' } | { name: 'join'; room?: string } | { name: 'hero'; id: string } | { name: 'edit'; id: string; step?: string; part?: string } | { name: 'play'; id: string } | { name: 'advancement'; id: string } | { name: 'notFound' }
 
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#/, '') || '/'
@@ -40,7 +41,7 @@ export function parseRoute(hash: string): Route {
       return { name: 'notFound' }
     }
   }
-  const match = /^\/hero\/([^/]+)(\/edit(?:\/([^/]+))?|\/play|\/advancement)?$/.exec(path)
+  const match = /^\/hero\/([^/]+)(\/edit(?:\/([^/]+)(?:\/([^/]+))?)?|\/play|\/advancement)?$/.exec(path)
   if (!match) return { name: 'notFound' }
   let id: string
   try {
@@ -51,7 +52,15 @@ export function parseRoute(hash: string): Route {
   if (!match[2]) return { name: 'hero', id }
   if (match[2] === '/play') return { name: 'play', id }
   if (match[2] === '/advancement') return { name: 'advancement', id }
-  return match[3] ? { name: 'edit', id, step: match[3] } : { name: 'edit', id }
+  if (!match[3]) return { name: 'edit', id }
+  if (!match[4]) return { name: 'edit', id, step: match[3] }
+  // Only the Archetype step has parts.
+  if (match[3] !== 'archetype') return { name: 'notFound' }
+  try {
+    return { name: 'edit', id, step: match[3], part: decodeURIComponent(match[4]) }
+  } catch {
+    return { name: 'notFound' }
+  }
 }
 
 export const listPath = '#/'
@@ -62,6 +71,11 @@ export function heroPath(id: string): string {
 
 export function editPath(id: string, step?: string): string {
   return `${heroPath(id)}/edit${step ? `/${step}` : ''}`
+}
+
+/** One part of a complex archetype's step (../hero/archetype-parts.ts). */
+export function partPath(id: string, part: string): string {
+  return `${editPath(id, 'archetype')}/${encodeURIComponent(part)}`
 }
 
 export function advancementPath(id: string): string {

@@ -187,19 +187,29 @@ function ModeCard({ hero, traits, zone, options, mode, label, taken, onChange, o
   )
 }
 
-export function ModesEditor({ hero, ar, traits, modular, onChange }: { hero: Hero; ar: Archetype; traits: readonly HeroTrait[]; modular: ModularChoice | undefined; onChange: (modular: ModularChoice) => void }) {
+/**
+ * The modes and the Powerless mode, or with `part` ("mode:yellow:1", "powerless", from
+ * ../hero/archetype-parts.ts) just that one. A color's last part also shows any extra modes of
+ * that color, and the first part modes that match no list, so they can be removed.
+ */
+export function ModesEditor({ hero, ar, traits, modular, onChange, part }: { hero: Hero; ar: Archetype; traits: readonly HeroTrait[]; modular: ModularChoice | undefined; onChange: (modular: ModularChoice) => void; part?: string }) {
   const spec = ar.modes!
   const modes = modular?.modes ?? []
   const set = (next: Partial<ModularChoice>) => onChange({ modes, ...(modular?.powerless ? { powerless: modular.powerless } : {}), ...next })
   const defaultPowers = traits.filter((t) => t.trait.kind === 'power')
+  const [, partZone, partIndex] = part?.split(':') ?? []
+  const shows = (zone: string, i: number, count: number) => !part || (zone === partZone && (i === Number(partIndex) || (i >= count && Number(partIndex) === count - 1)))
+  const first = !part || part === 'mode:green:0'
   return (
     <div className="modes-editor" data-section="parts">
-      <h4>Modes</h4>
-      <p className="hint">
-        <DiceText text={`${spec.summary} Your default ${ZONE_NAME[spec.default.zone]} mode: ${spec.default.summary}`} />
-      </p>
+      {!part && <h4>Modes</h4>}
+      {first && (
+        <p className="hint">
+          <DiceText text={`${spec.summary} Your default ${ZONE_NAME[spec.default.zone]} mode: ${spec.default.summary}`} />
+        </p>
+      )}
       {(['green', 'yellow', 'red'] as const).map((zone) =>
-        modeSlots(hero, modes, zone, spec[zone].count).map((slot, i) => (
+        modeSlots(hero, modes, zone, spec[zone].count).map((slot, i) => !shows(zone, i, spec[zone].count) ? null : (
           <ModeCard
             key={`${zone}-${i}`}
             hero={hero}
@@ -214,7 +224,7 @@ export function ModesEditor({ hero, ar, traits, modular, onChange }: { hero: Her
           />
         )),
       )}
-      {strayModes(hero, modes).map(({ mode, index }) => (
+      {first && strayModes(hero, modes).map(({ mode, index }) => (
         <ModeCard
           key={`stray-${index}`}
           hero={hero}
@@ -229,6 +239,7 @@ export function ModesEditor({ hero, ar, traits, modular, onChange }: { hero: Her
         />
       ))}
 
+      {(!part || part === 'powerless') && (
       <fieldset className="mode-card">
         <legend>Powerless mode</legend>
         <p className="hint">
@@ -257,6 +268,7 @@ export function ModesEditor({ hero, ar, traits, modular, onChange }: { hero: Her
           />
         )}
       </fieldset>
+      )}
     </div>
   )
 }

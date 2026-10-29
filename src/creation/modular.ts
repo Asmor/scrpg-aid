@@ -23,7 +23,7 @@ import type { AbilityPick, Hero, ModeChoice } from '../hero/model'
 import { checkAbilityPick } from './abilities'
 import { outerLayer } from './layers'
 import { traitLabel, type HeroTrait } from './traits'
-import { warning, type RuleWarning } from './warnings'
+import { markPart, warning, type RuleWarning } from './warnings'
 
 /** A mode's entry in the data, and the zone whose list it's on. */
 export function findMode(hero: Hero, id: string): { mode: ModularMode; zone: Zone } | undefined {
@@ -151,11 +151,14 @@ export function checkModular(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
 
   // Modular's only abilities are its fixed ones (checked in ./abilities.ts) and its modes'.
   const fixedSources: readonly string[] = ['archetype.fixedGreen', 'archetype.fixedYellow', 'archetype.fixedRed']
+  const ownFrom = warnings.length
   for (const p of hero.archetype!.abilities) {
     if (!fixedSources.includes(p.source)) {
       warn('unknown-ability', `${p.name} isn't one of ${outer.archetype.name}'s abilities; mode abilities go with their modes.`)
     }
   }
+
+  markPart(warnings, ownFrom, 'own')
 
   const powers = new Map(traits.filter((t) => t.trait.kind === 'power').map((t) => [traitKey(t.trait), t]))
   const modes = choice?.modes ?? []
@@ -166,7 +169,10 @@ export function checkModular(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
     const n = placed.filter((p) => p.found?.zone === zone).length
     const wanted = spec[zone].count
     const label = `${zone[0]!.toUpperCase()}${zone.slice(1)}`
+    const from = warnings.length
     if (n !== wanted) warn('mode-count', `Choose ${plural(wanted, `${label} mode`)} besides your default mode; you have ${n}.`)
+    // A missing mode goes with the first one of its color still to choose.
+    markPart(warnings, from, `mode:${zone}:${Math.min(n, wanted - 1)}`)
   }
   const seen = new Set<string>()
   for (const { choice: m, found } of placed) {
@@ -174,6 +180,12 @@ export function checkModular(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
       warn('unknown-entry', `Unknown mode "${m.id}".`)
       continue
     }
+    const modeFrom = warnings.length
+    checkMode(m, found)
+    markPart(warnings, modeFrom, `mode:${found.zone}:${placed.filter((p) => p.found?.zone === found.zone).findIndex((p) => p.choice === m)}`)
+  }
+
+  function checkMode(m: ModeChoice, found: NonNullable<ReturnType<typeof findMode>>): void {
     const { mode } = found
     if (seen.has(mode.id)) warn('mode-twice', `Each mode must be different; you took ${mode.name} more than once.`)
     seen.add(mode.id)
@@ -208,6 +220,7 @@ export function checkModular(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
 
   // The optional Powerless mode: two default-mode powers at the given dice.
   const powerless = choice?.powerless
+  const powerlessFrom = warnings.length
   if (powerless) {
     const keys = new Set(powerless.map((a) => traitKey(a.trait)))
     const dice = powerless.map((a) => a.die).sort().join()
@@ -219,6 +232,8 @@ export function checkModular(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
       if (!powers.has(traitKey(a.trait))) warn('mode-not-held', `Powerless mode can only use your default-mode powers; ${traitLabel(hero, a.trait)} isn't one.`)
     }
   }
+
+  markPart(warnings, powerlessFrom, 'powerless')
 
   if (retcon) checkModeRetcon(hero, traits, modes, retcon.ability.name, retcon.uses, warnings)
   return warnings

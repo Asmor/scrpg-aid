@@ -12,13 +12,14 @@
  * a column and the preview a drawer; below that the step list and the preview are bottom
  * sheets, opened from a step button and a sticky footer.
  */
-import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
-import { advancementPath, editPath, heroPath, listPath, navigate } from '../app/route'
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { advancementPath, editPath, heroPath, listPath, navigate, partPath } from '../app/route'
 import { formatEntryRef } from '../rules/books'
-import { backgroundStep, healthStep, personalityStep, powerSourceStep, redAbilityStep, retconStep, archetypeStep } from '../rules/data'
+import { archetypesById, backgroundStep, healthStep, personalityStep, powerSourceStep, redAbilityStep, retconStep, archetypeStep } from '../rules/data'
 import type { PageRef } from '../rules/types'
 import { buildSheet } from '../creation/sheet'
 import type { RuleWarning } from '../creation/warnings'
+import { archetypeParts } from '../hero/archetype-parts'
 import { heroDisplayName, isDraft, type Hero } from '../hero/model'
 import { NUMBERED_STEPS, stepStates, WIZARD_STEPS, wizardStepIndex, type WizardStepId } from '../hero/wizard-steps'
 import { useTick } from '../play/useTick'
@@ -38,6 +39,7 @@ import { RetconStep } from './RetconStep'
 import { StartStep } from './StartStep'
 import { StepMarkIcon, StepRail } from './StepRail'
 import { focusIssue } from './issue-targets'
+import { PartsContext, type PartFields } from './parts-context'
 import { StepIssues } from './StepSection'
 import { useHeroEditor } from './useHeroEditor'
 
@@ -48,14 +50,23 @@ interface StepView {
   purpose: string
   /** Where the step is in the book, when it has a page of its own. */
   ref?: PageRef
+  /** For a hero whose choice changes the step (a complex archetype): its own purpose and page. */
+  forHero?: (hero: Hero) => { purpose: string; ref: PageRef } | undefined
   render: (hero: Hero, update: Update) => ReactNode
+}
+
+/** A complex archetype's step is about its parts, on its own pages. */
+function archetypeView(hero: Hero): { purpose: string; ref: PageRef } | undefined {
+  const ar = hero.archetype ? archetypesById.get(hero.archetype.id) : undefined
+  if (!ar || !archetypeParts(hero, []).length) return undefined
+  return { purpose: `${ar.name} adds parts to this step. Each part has its own status, so you can see what's left.`, ref: ar }
 }
 
 const STEP_VIEWS: Record<WizardStepId, StepView> = {
   start: { purpose: 'Two choices before Background. You can change them later; dice already rolled stay as they are.', render: (hero, update) => <StartStep hero={hero} update={update} /> },
   background: { purpose: 'Who your hero was before the powers. Gives qualities, a principle, and the dice for Power source.', ref: backgroundStep, render: (hero, update) => <BackgroundStep hero={hero} update={update} /> },
   'power-source': { purpose: 'Where the powers come from. Gives powers, abilities, and the dice for Archetype.', ref: powerSourceStep, render: (hero, update) => <PowerSourceStep hero={hero} update={update} /> },
-  archetype: { purpose: 'How your hero uses those powers. Gives powers and qualities, abilities, a principle, and the dice for Personality.', ref: archetypeStep, render: (hero, update) => <ArchetypeStep hero={hero} update={update} /> },
+  archetype: { purpose: 'How your hero uses those powers. Gives powers and qualities, abilities, a principle, and the dice for Personality.', ref: archetypeStep, forHero: archetypeView, render: (hero, update) => <ArchetypeStep hero={hero} update={update} /> },
   personality: { purpose: 'How your hero acts under pressure. Gives a roleplaying quality, status dice, and an Out ability.', ref: personalityStep, render: (hero, update) => <PersonalityStep hero={hero} update={update} /> },
   'red-abilities': { purpose: "Your hero's strongest moves, usable only once your hero is in the Red zone.", ref: redAbilityStep, render: (hero, update) => <RedAbilitiesStep hero={hero} update={update} /> },
   retcon: { purpose: 'One last change to tidy up the build.', ref: retconStep, render: (hero, update) => <RetconStep hero={hero} update={update} /> },
@@ -74,19 +85,19 @@ function savedText(savedAt: Date, now: Date): string {
 const stepTitle = (index: number, label: string) => (index > 0 ? `${index} · ${label}` : label)
 
 /** Before finishing a hero with rule issues: each issue, with a way to it, and Finish anyway. */
-function FinishDialog({ issues, href, onGo, onFinish, onClose }: { issues: readonly { step: WizardStepId; label: string; warning: RuleWarning }[]; href: (id: WizardStepId) => string; onGo: (issue: { step: WizardStepId; code: string }) => void; onFinish: () => void; onClose: () => void }) {
+function FinishDialog({ issues, href, onGo, onFinish, onClose }: { issues: readonly { step: WizardStepId; label: string; warning: RuleWarning; part?: string }[]; href: (id: WizardStepId, part?: string) => string; onGo: (issue: IssueTarget) => void; onFinish: () => void; onClose: () => void }) {
   return (
     <Modal title="Finish with rule issues?" onClose={onClose}>
       <p>
         {issues.length === 1 ? 'One thing' : `${issues.length} things`} still {issues.length === 1 ? "doesn't" : "don't"} follow the rules. Some tables play with house rules, so you can finish anyway.
       </p>
       <ul className="finish-issues">
-        {issues.map(({ step, label, warning }, i) => (
+        {issues.map(({ step, label, warning, part }, i) => (
           <li key={`${step}:${warning.code}:${i}`}>
             <span>
               <span className="finish-issues__step">{label}:</span> <DiceText text={warning.message} />
             </span>
-            <a className="button button--small" href={href(step)} onClick={() => onGo({ step, code: warning.code })}>
+            <a className="button button--small" href={href(step, part)} onClick={() => onGo({ step, code: warning.code, part })}>
               Go to issue
             </a>
           </li>
@@ -104,7 +115,14 @@ function FinishDialog({ issues, href, onGo, onFinish, onClose }: { issues: reado
   )
 }
 
-export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) {
+/** Where an issue link takes the player: a step, and for a complex archetype the part the issue is in. */
+interface IssueTarget {
+  step: WizardStepId
+  code: string
+  part?: string
+}
+
+export function HeroEditor({ id, step: stepId, part }: { id: string; step?: string; part?: string }) {
   const { state, update: save, saveError, flush, savedAt, stored } = useHeroEditor(id)
   const now = useTick()
   const wide = useMediaQuery('(min-width: 1280px)')
@@ -113,14 +131,62 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
   const [previewOpen, setPreviewOpen] = useState(false)
   const [stepsOpen, setStepsOpen] = useState(false)
   const [finishing, setFinishing] = useState(false)
-  // An issue chosen in the Finish dialog, to focus once its step is on screen.
-  const [goTo, setGoTo] = useState<{ step: WizardStepId; code: string } | null>(null)
+  // An issue to focus once its step (and part) is on screen.
+  const [goTo, setGoTo] = useState<IssueTarget | null>(null)
+  // Which archetype part cards are open: set on entering the step (or choosing another
+  // archetype), then the player's choices stick for the visit.
+  const [openParts, setOpenParts] = useState<{ step: number; archetype: string; open: ReadonlySet<string>; known: ReadonlySet<string> } | null>(null)
+  // Parts of archetypes switched away from in this visit (./parts-context.ts).
+  const [partMemory] = useState(() => new Map<string, PartFields>())
   // Advancement left the wizard for a page of its own.
   const movedAdvancement = stepId === 'advancement'
   const found = wizardStepIndex(stepId)
   const index = Math.max(0, found)
   const step = WIZARD_STEPS[index]!
   const loaded = state.status === 'ready' ? state.hero : undefined
+  const warnings = loaded ? buildSheet(loaded).warnings : []
+  const parts = loaded ? archetypeParts(loaded, warnings) : []
+  const archetypeId = loaded?.archetype?.id ?? ''
+  const partsFresh = openParts?.step === index && openParts.archetype === archetypeId
+  // Parts with issues or not started open; done ones closed.
+  const defaultOpen = new Set(parts.filter((p) => p.mark !== 'done').map((p) => p.id))
+  // A part that appears later (Form split, after taking Split Form) starts as the default says.
+  const open = new Set(partsFresh ? [...openParts.open, ...[...defaultOpen].filter((p) => !openParts.known.has(p))] : defaultOpen)
+  const setOpen = (next: ReadonlySet<string>) => setOpenParts({ step: index, archetype: archetypeId, open: next, known: new Set(parts.map((p) => p.id)) })
+  const togglePart = (p: string) => {
+    const next = new Set(open)
+    if (next.has(p)) next.delete(p)
+    else next.add(p)
+    setOpen(next)
+  }
+  useEffect(() => {
+    if (step.id === 'archetype' && !partsFresh && parts.length) setOpen(defaultOpen)
+  })
+  // A part an issue link is taking the player to: its field gets focus, not the part's header.
+  const issuePart = useRef<string | null>(null)
+  /** Opens a part and brings its header into view and focus (a rail link to it). */
+  const showPart = (p: string) => {
+    if (!open.has(p)) setOpen(new Set([...open, p]))
+    // After the card has rendered open.
+    requestAnimationFrame(() => {
+      const head = document.querySelector<HTMLElement>(`[data-part="${p}"] .part__head`)
+      head?.scrollIntoView?.({ block: 'start' })
+      head?.focus()
+    })
+  }
+  // A part in the address opens and comes into view, once each time the address changes (and once the hero has loaded).
+  const ready = loaded !== undefined
+  useEffect(() => {
+    if (!part || !parts.some((p) => p.id === part)) return
+    if (issuePart.current === part) {
+      issuePart.current = null
+      if (!open.has(part)) setOpen(new Set([...open, part]))
+      return
+    }
+    showPart(part)
+    // Only when the address changes, or the hero first loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [part, ready])
   /** Saves a change; a draft also remembers the furthest step it reached. */
   const update = (change: (draft: Hero) => void) =>
     save((h) => {
@@ -135,7 +201,8 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
   useEffect(() => {
     if (!goTo || goTo.step !== WIZARD_STEPS[index]!.id) return
     const panel = document.querySelector<HTMLElement>('.wizard__step')
-    if (panel) focusIssue(panel, goTo.code)
+    const container = goTo.part ? panel?.querySelector<HTMLElement>(`[data-part="${goTo.part}"]`) : panel
+    if (container) focusIssue(container, goTo.code)
     setGoTo(null)
   }, [goTo, index])
   // Reaching a later step counts as progress on a saved draft (an unsaved one waits for a choice).
@@ -168,10 +235,21 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
 
   const hero = state.hero
   const draft = isDraft(hero)
-  const warnings = buildSheet(hero).warnings
   const states = stepStates(hero, warnings)
+  /** The part an archetype issue is in, if the archetype has parts. */
+  const partOf = (w: RuleWarning) => parts.find((p) => p.issues.includes(w))?.id
+  /** Takes the player to an issue: opens its part, then focuses its field once it's on screen. */
+  const goToIssue = (target: IssueTarget) => {
+    if (target.part && !open.has(target.part)) setOpen(new Set([...open, target.part]))
+    // A Finish-dialog link also puts the part in the address; that mustn't take focus from the field.
+    if (target.part && target.part !== part) issuePart.current = target.part
+    setGoTo(target)
+  }
   const current = states[index]!
   const view = STEP_VIEWS[step.id]
+  const special = view.forHero?.(hero)
+  const purpose = special?.purpose ?? view.purpose
+  const pageRef = special?.ref ?? view.ref
   const prev = WIZARD_STEPS[index - 1]
   const next = WIZARD_STEPS[index + 1]
   const href = (s: string) => editPath(hero.id, s)
@@ -213,6 +291,7 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
   )
 
   return (
+    <PartsContext.Provider value={{ parts, isOpen: (p) => open.has(p), toggle: togglePart, memory: partMemory }}>
     <div className="wizard">
       <header className="wizard__head">
         <div>
@@ -268,7 +347,7 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
       <div className={`wizard__layout${docked ? ' wizard__layout--preview' : ''}`}>
         {!phone && (
           <nav className="wizard__rail" aria-label="Creation steps">
-            <StepRail steps={states} current={step.id} href={href} />
+            <StepRail steps={states} current={step.id} href={href} parts={parts} currentPart={part} partHref={(p) => partPath(hero.id, p)} onPart={showPart} />
             <p className="rail-foot">{hero.method === 'constructed' ? 'Constructed method.' : `Guided method · ${hero.rollMode === 'manual' ? 'rolling your own dice' : 'rolling in the app'}.`}</p>
           </nav>
         )}
@@ -285,12 +364,12 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
           <div className="step-head">
             <div>
               <h3 id="editor-step-title">{stepTitle(index, step.label)}</h3>
-              <p className="lede">{view.purpose}</p>
+              <p className="lede">{purpose}</p>
             </div>
-            {view.ref && <span className="page-ref">{formatEntryRef(view.ref)}</span>}
+            {pageRef && <span className="page-ref">{formatEntryRef(pageRef)}</span>}
           </div>
           {view.render(hero, update)}
-          {step.id !== 'start' && <StepIssues issues={current.issues} />}
+          {step.id !== 'start' && <StepIssues issues={current.issues} onGo={(w) => goToIssue({ step: step.id, code: w.code, part: partOf(w) })} />}
           <div className="stepnav">
             {prev ? (
               <a className="button" href={href(prev.id)}>
@@ -327,7 +406,7 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
 
       {stepsOpen && (
         <Modal title="Steps" variant="sheet" onClose={() => setStepsOpen(false)}>
-          <StepRail steps={states} current={step.id} href={href} onNavigate={() => setStepsOpen(false)} />
+          <StepRail steps={states} current={step.id} href={href} parts={parts} currentPart={part} partHref={(p) => partPath(hero.id, p)} onPart={showPart} onNavigate={() => setStepsOpen(false)} />
         </Modal>
       )}
       {previewOpen && !wide && (
@@ -337,16 +416,17 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
       )}
       {finishing && (
         <FinishDialog
-          issues={states.flatMap((s) => s.issues.map((warning) => ({ step: s.id, label: stepTitle(s.index, s.label), warning })))}
-          href={href}
+          issues={states.flatMap((s) => s.issues.map((warning) => ({ step: s.id, label: stepTitle(s.index, s.label), warning, part: s.id === 'archetype' ? partOf(warning) : undefined })))}
+          href={(s, p) => (p ? partPath(hero.id, p) : href(s))}
           onGo={(issue) => {
             setFinishing(false)
-            setGoTo(issue)
+            goToIssue(issue)
           }}
           onFinish={complete}
           onClose={() => setFinishing(false)}
         />
       )}
     </div>
+    </PartsContext.Provider>
   )
 }

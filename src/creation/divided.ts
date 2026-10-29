@@ -20,7 +20,7 @@ import { checkAbilityBlock, checkAbilityPick } from './abilities'
 import { dividedChoice, outerLayer } from './layers'
 import { compareDice } from '../rules/dice'
 import { deriveTraits, ROLEPLAYING_QUALITY, traitLabel, type HeroTrait } from './traits'
-import { warning, type RuleWarning } from './warnings'
+import { markPart, warning, type RuleWarning } from './warnings'
 
 const SPLIT_FORM = 'Split Form'
 const DIVIDED_PSYCHE = 'Divided Psyche'
@@ -178,6 +178,7 @@ export function checkDivided(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
   }
 
   // Transition method and its ability.
+  const transitionFrom = warnings.length
   const method = ar.transitionMethods.find((m) => m.id === divided?.transitionMethod)
   if (!divided?.transitionMethod) warn('transition-missing', 'Choose how you change between your civilian and heroic forms.')
   else if (!method) warn('unknown-entry', `Unknown transition method "${divided.transitionMethod}".`)
@@ -192,7 +193,10 @@ export function checkDivided(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
     }
   }
 
+  markPart(warnings, transitionFrom, 'transition')
+
   // The Divided ability (Divided Psyche or Split Form).
+  const ownFrom = warnings.length
   const dividedPicks = outer.choice.abilities.filter((p) => p.source === 'archetype.green')
   // Fixed-ability picks that don't match are already flagged by checkFixed (./abilities.ts).
   const fixedSources: readonly string[] = ['archetype.fixedGreen', 'archetype.fixedYellow', 'archetype.fixedRed']
@@ -204,8 +208,12 @@ export function checkDivided(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
   if (ar.greenAbilities) {
     warnings.push(...checkAbilityBlock(hero, traits, ar.greenAbilities, dividedPicks, `${ar.name} abilities`, ar))
   }
+  markPart(warnings, ownFrom, 'own')
+  const splitFrom = warnings.length
   if (dividedPicks.some((p) => p.name === SPLIT_FORM)) checkSplit(hero, traits, warnings)
   else if (divided?.split) warn('unexpected-split', 'Only Split Form divides your powers and qualities between forms.')
+  // Split Form's own problems; one left after switching Divided abilities goes with the Divided ability.
+  markPart(warnings, splitFrom, dividedPicks.some((p) => p.name === SPLIT_FORM) ? 'split' : 'own')
 
   // A second personality for the heroic form.
   const heroic = divided?.heroicPersonality

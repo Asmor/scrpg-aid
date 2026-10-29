@@ -1046,7 +1046,6 @@ select {
 .modes-editor,
 .mode-card,
 .second-archetype,
-.outer-archetype,
 .split-form,
 .forms-editor,
 .form-card,
@@ -1062,14 +1061,12 @@ select {
 .modes-editor > .hint,
 .mode-card > .hint,
 .forms-editor h4,
-.second-archetype h4,
-.outer-archetype h4 {
+.second-archetype h4 {
   margin: 0;
 }
 
 .heroic-personality,
-.second-archetype,
-.outer-archetype {
+.second-archetype {
   padding-top: 0.75rem;
   border-top: 1px solid var(--ui-border);
 }
@@ -2520,4 +2517,115 @@ a.button--primary {
   align-items: center;
   gap: 0.75rem;
   margin: 0;
+}
+
+/* A complex archetype: the chosen archetype's card, then a card per part */
+.chosen-card {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--ui-accent);
+  border-radius: 0.625rem;
+  background: var(--ui-accent-soft);
+}
+
+.chosen-card .option__n {
+  font-size: 1.625rem;
+}
+
+.chosen-card .option__name {
+  font-size: 1.0625rem;
+}
+
+.part {
+  border: 1px solid var(--ui-border);
+  border-radius: 0.625rem;
+  background: var(--ui-surface);
+}
+
+.part__title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.part__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 0.625rem;
+  background: none;
+  color: var(--ui-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.part__name {
+  flex: none;
+  font-weight: 700;
+}
+
+.part__sum {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ui-muted);
+  font-size: 0.875rem;
+}
+
+.part__toggle {
+  margin-left: auto;
+  color: var(--ui-muted);
+  font-size: 0.8125rem;
+}
+
+.part__body {
+  display: grid;
+  gap: var(--space);
+  padding: 1rem;
+  border-top: 1px solid var(--ui-border);
+}
+
+.part__body > .second-archetype {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.rail--parts {
+  margin-left: 1.875rem;
+}
+
+.rail__item--part {
+  min-height: 2.125rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 759px) {
+  .part__head {
+    flex-wrap: wrap;
+    row-gap: 0.125rem;
+  }
+
+  /* The summary goes under the name on a phone. */
+  .part__sum {
+    flex-basis: 100%;
+    order: 4;
+    padding-left: 2.125rem;
+  }
+
+  .rail__item--part {
+    min-height: 2.75rem;
+  }
 }

@@ -4,8 +4,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StoreContext } from '../app/store-context'
 import { createHero, type Hero } from '../hero/model'
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
-import { backgrounds } from '../rules/data'
-import { completeHero } from '../test/heroes'
+import { archetypesById, backgrounds } from '../rules/data'
+import { formatEntryRef } from '../rules/books'
+import { completeHero, dividedHero, formChangerHero, minionMakerHero, modularHero } from '../test/heroes'
 import { HeroEditor } from './HeroEditor'
 import { PREVIEW_KEY, readPreviewShown, writePreviewShown } from './preview-preference'
 
@@ -209,6 +210,147 @@ describe('step anatomy', () => {
     const status = await screen.findByRole('list', { name: 'Status dice' })
     expect(within(status).getAllByRole('listitem').map((li) => li.className)).toEqual(['game-chip game-chip--green', 'game-chip game-chip--yellow', 'game-chip game-chip--red'])
     expect(status).toHaveTextContent('GreenYellowRed')
+  })
+})
+
+describe('special archetype parts', () => {
+  const renderAt = (store: HeroStore, step: string, part?: string) =>
+    render(
+      <StoreContext.Provider value={store}>
+        <HeroEditor id="h1" step={step} part={part} />
+      </StoreContext.Provider>,
+    )
+
+  it.each([
+    ['Divided', dividedHero, ['Second archetype', 'Transition', 'Divided ability']],
+    ['Form-Changer', formChangerHero, ['Base build', 'Green form 1', 'Green form 2', 'Yellow form', 'Principle']],
+    ['Minion-Maker', minionMakerHero, ['Base build', 'Minion forms', 'Principle']],
+    ['Modular', modularHero, ['Base archetype', 'Switch abilities', 'Green mode', 'Yellow mode 1', 'Yellow mode 2', 'Red mode', 'Powerless mode (optional)', 'Principle']],
+  ] as const)('shows %s’s parts in the step and the rail, with counts matching the issues', async (_name, make, labels) => {
+    const hero = make()
+    // Make some issues to count: no principle.
+    delete hero.archetype!.principle
+    renderAt(await storeWith(hero), 'archetype')
+    const rail = within(await screen.findByRole('list', { name: 'Archetype parts' }))
+    // The step is about the archetype's parts, on its own pages.
+    expect(screen.getByText(/adds parts to this step/)).toBeInTheDocument()
+    expect(screen.getAllByText(formatEntryRef(archetypesById.get(hero.archetype!.id)!)).length).toBeGreaterThan(0)
+    const railNames = rail.getAllByRole('link').map((l) => l.querySelector('.rail__label')!.textContent)
+    for (const label of labels) {
+      expect(railNames).toContain(label)
+      expect(screen.getByRole('region', { name: label })).toBeInTheDocument()
+    }
+    // Each part's count matches its card, and they add up to the step's issues.
+    const issues = screen.queryByRole('region', { name: /things? to look at/ })
+    const stepCount = issues ? within(issues).getAllByRole('listitem').length : 0
+    let sum = 0
+    for (const link of rail.getAllByRole('link')) {
+      const n = Number(link.querySelector('.mark--issues [aria-hidden]')?.textContent ?? 0)
+      sum += n
+      const card = screen.getByRole('region', { name: link.querySelector('.rail__label')!.textContent! })
+      expect(Number(card.querySelector('.part__head .mark--issues [aria-hidden]')?.textContent ?? 0)).toBe(n)
+    }
+    expect(sum).toBe(stepCount)
+    expect(stepCount).toBeGreaterThan(0)
+  })
+
+  it('opens the part in the address, and links each rail item to its part', async () => {
+    renderAt(await storeWith(formChangerHero()), 'archetype', 'form:green:1')
+    const card = await screen.findByRole('region', { name: 'Green form 2' })
+    await waitFor(() => expect(card.querySelector('.part__head')).toHaveAttribute('aria-expanded', 'true'))
+    expect(card.querySelector('.part__head')).toHaveFocus()
+    const rail = within(screen.getByRole('list', { name: 'Archetype parts' }))
+    expect(rail.getByRole('link', { name: /Green form 2/ })).toHaveAttribute('href', '#/hero/h1/edit/archetype/form%3Agreen%3A1')
+    expect(rail.getByRole('link', { name: /Green form 2/ })).toHaveAttribute('aria-current', 'step')
+  })
+
+  it('collapses the list into the chosen card, and keeps open and closed parts as the player leaves them', async () => {
+    renderAt(await storeWith(formChangerHero()), 'archetype')
+    expect(await screen.findByRole('button', { name: 'Change archetype' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Choose an archetype' })).not.toBeInTheDocument()
+    const head = screen.getByRole('region', { name: 'Base build' }).querySelector<HTMLButtonElement>('.part__head')!
+    expect(head).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(head)
+    expect(head).toHaveAttribute('aria-expanded', 'true')
+    expect(head).toHaveTextContent('Hide')
+    await userEvent.click(screen.getByRole('button', { name: 'Change archetype' }))
+    expect(screen.getByRole('region', { name: 'Choose an archetype' })).toBeInTheDocument()
+  })
+
+  it('takes an issue link to its part, opening it', async () => {
+    const hero = formChangerHero()
+    hero.archetype!.forms![1]!.ability = undefined
+    renderAt(await storeWith(hero), 'archetype')
+    const card = await screen.findByRole('region', { name: 'Green form 2' })
+    const head = card.querySelector<HTMLButtonElement>('.part__head')!
+    // It has an issue, so it starts open; close it to see the link open it again.
+    await userEvent.click(head)
+    expect(head).toHaveAttribute('aria-expanded', 'false')
+    const issues = screen.getByRole('region', { name: /things? to look at/ })
+    await userEvent.click(within(issues).getByRole('button', { name: /form ability/ }))
+    expect(head).toHaveAttribute('aria-expanded', 'true')
+    await waitFor(() => expect(card.contains(document.activeElement)).toBe(true))
+  })
+
+  it('keeps focus on the field when the Finish dialog goes to a part issue on this step', async () => {
+    const hero = { ...formChangerHero(), status: 'draft' as const }
+    hero.archetype!.forms![1]!.ability = undefined
+    const store = await storeWith(hero)
+    const view = renderAt(store, 'archetype')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Finish hero' }))[0]!)
+    const dialog = screen.getByRole('dialog')
+    const item = within(dialog).getAllByRole('listitem').find((li) => /form ability/.test(li.textContent ?? ''))!
+    const go = within(item).getByRole('link', { name: 'Go to issue' })
+    expect(go).toHaveAttribute('href', '#/hero/h1/edit/archetype/form%3Agreen%3A1')
+    await userEvent.click(go)
+    const card = screen.getByRole('region', { name: 'Green form 2' })
+    await waitFor(() => expect(card.contains(document.activeElement)).toBe(true))
+    // The link's address arrives after; focus stays on the field, not the part's header.
+    view.rerender(
+      <StoreContext.Provider value={store}>
+        <HeroEditor id="h1" step="archetype" part="form:green:1" />
+      </StoreContext.Provider>,
+    )
+    await act(async () => {
+      await new Promise((r) => requestAnimationFrame(() => r(null)))
+    })
+    expect(card.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement).not.toHaveClass('part__head')
+  })
+
+  it('opens a part from the rail even when it’s already in the address', async () => {
+    renderAt(await storeWith(formChangerHero()), 'archetype', 'form:green:1')
+    const card = await screen.findByRole('region', { name: 'Green form 2' })
+    const head = card.querySelector<HTMLButtonElement>('.part__head')!
+    await waitFor(() => expect(head).toHaveAttribute('aria-expanded', 'true'))
+    await userEvent.click(head)
+    expect(head).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(within(screen.getByRole('list', { name: 'Archetype parts' })).getByRole('link', { name: /Green form 2/ }))
+    expect(head).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('marks the step current when the address names a part this archetype doesn’t have', async () => {
+    renderAt(await storeWith(formChangerHero()), 'archetype', 'transition')
+    const nav = await screen.findByRole('navigation', { name: 'Creation steps' })
+    expect(within(nav).getByRole('link', { current: 'step' })).toHaveTextContent(/Archetype/)
+  })
+
+  it('moves focus into the list on Change archetype, and back to the card on Keep', async () => {
+    renderAt(await storeWith(formChangerHero()), 'archetype')
+    await userEvent.click(await screen.findByRole('button', { name: 'Change archetype' }))
+    expect(screen.getByRole('radio', { name: /Form-Changer/ })).toHaveFocus()
+    await userEvent.click(screen.getByRole('button', { name: 'Keep Form-Changer' }))
+    expect(screen.getByRole('button', { name: 'Change archetype' })).toHaveFocus()
+  })
+
+  it('shows no minion form count until the quality that sets it is chosen', async () => {
+    const hero = minionMakerHero()
+    delete hero.archetype!.minionForms!.quality
+    renderAt(await storeWith(hero), 'archetype')
+    const card = await screen.findByRole('region', { name: 'Minion forms' })
+    expect(card.querySelector('.part__sum')).toHaveTextContent('Choose the quality that sets how many')
+    expect(card.querySelector('.part__sum')).not.toHaveTextContent(/of \d+ chosen/)
+    expect(within(card).queryByText(/^Choose \d/)).not.toBeInTheDocument()
   })
 })
 

@@ -74,7 +74,7 @@ describe('Form-Changer forms', () => {
     const hero = formChangerHero()
     hero.archetype!.forms![0]!.ability!.source = 'archetype.green'
     expect(check(hero)).toEqual([
-      { step: 'archetype', code: 'form-ability-source', message: "Brute's ability should be recorded as a form ability." },
+      { step: 'archetype', code: 'form-ability-source', message: "Brute's ability should be recorded as a form ability.", part: 'form:green:0' },
     ])
   })
 

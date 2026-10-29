@@ -43,7 +43,7 @@ export default function App({ store: given, villainStore: givenVillains, connect
           {route.name === 'villainPlay' && <VillainPlayPage key={route.id} id={route.id} />}
           {route.name === 'villainEdit' && <VillainEditor key={route.id} id={route.id} step={route.step} />}
           {route.name === 'hero' && <HeroPage key={route.id} id={route.id} />}
-          {route.name === 'edit' && <HeroEditor key={route.id} id={route.id} step={route.step} />}
+          {route.name === 'edit' && <HeroEditor key={route.id} id={route.id} step={route.step} part={route.part} />}
           {route.name === 'play' && <PlayPage key={route.id} id={route.id} />}
           {route.name === 'advancement' && <AdvancementPage key={route.id} id={route.id} />}
           {route.name === 'gm' && <GmPage />}

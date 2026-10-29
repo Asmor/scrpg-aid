@@ -120,20 +120,30 @@ function FormCard({ hero, ar, traits, forms, form, label, onChange, onRemove }: 
   )
 }
 
-export function FormChangerForms({ hero, ar, traits, forms, onChange }: { hero: Hero; ar: Archetype; traits: readonly HeroTrait[]; forms: readonly FormChoice[]; onChange: (forms: FormChoice[]) => void }) {
+/**
+ * The forms, or with `part` ("form:green:1", from ../hero/archetype-parts.ts) just that one.
+ * A color's last part also shows any extra forms of that color, so they can be removed.
+ */
+export function FormChangerForms({ hero, ar, traits, forms, onChange, part }: { hero: Hero; ar: Archetype; traits: readonly HeroTrait[]; forms: readonly FormChoice[]; onChange: (forms: FormChoice[]) => void; part?: string }) {
   const spec = ar.forms!
   const zones = [
     { zone: 'green', count: spec.greenFormCount },
     { zone: 'yellow', count: spec.yellowFormCount },
   ] as const
+  const [, partZone, partIndex] = part?.split(':') ?? []
+  const shows = (zone: string, i: number, count: number) => !part || (zone === partZone && (i === Number(partIndex) || (i >= count && Number(partIndex) === count - 1)))
+  const first = !part || part === 'form:green:0'
   return (
     <div className="forms-editor" data-section="parts">
-      <h4>Forms</h4>
-      <p className="hint">
-        <DiceText text={spec.summary} />
-      </p>
+      {!part && <h4>Forms</h4>}
+      {first && (
+        <p className="hint">
+          <DiceText text={spec.summary} />
+        </p>
+      )}
       {zones.map(({ zone, count }) =>
         formSlots(forms, zone, count).map((slot, i) => {
+          if (!shows(zone, i, count)) return null
           const form = slot.form ?? { zone, powers: [] }
           return (
             <FormCard

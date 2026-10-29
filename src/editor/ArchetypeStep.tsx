@@ -4,19 +4,24 @@
  * abilities, bonus, and principle. Training's extra quality is taken here too.
  *
  * Divided and Modular build on a second archetype (see ../creation/layers.ts), chosen with
- * a roll of its own (rulings 45–47) and edited the same way, below their own choices.
+ * a roll of its own (rulings 45–47) and edited the same way. They, Form-Changer and
+ * Minion-Maker split the step into parts (../hero/archetype-parts.ts): once chosen, the list
+ * collapses into the archetype's card, and each part is a card of its own that opens and closes.
  */
-import { useId } from 'react'
-import { expandRefs, traitKey } from '../rules/catalog'
-import { archetypes, archetypesById, powerSourcesById, principleCategories } from '../rules/data'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { expandRefs, traitKey, type TraitRef } from '../rules/catalog'
+import { dieSize } from '../rules/dice'
+import { archetypes, archetypesById, powerSourcesById, principleCategories, principlesById } from '../rules/data'
 import { formatEntryRef } from '../rules/books'
-import type { AbilityChoice, Archetype, IfAlreadyHave } from '../rules/types'
+import type { AbilityChoice, Archetype, Die, IfAlreadyHave } from '../rules/types'
+import type { ArchetypePart } from '../hero/archetype-parts'
 import { describeOptions } from '../creation/format'
 import type { AbilityPick, AbilitySource, ArchetypeChoice, Hero } from '../hero/model'
 import { setStepRoll, stepRoll, takePendingRoll } from '../creation/rolls'
 import { canSwapRequired, deriveTraits, fillerLists, traitsBefore, traitLabel } from '../creation/traits'
 import { takesSplitForm } from '../creation/divided'
 import { outerLayer } from '../creation/layers'
+import { findMode } from '../creation/modular'
 import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
 import { DiceAssigner } from './DiceAssigner'
@@ -26,7 +31,9 @@ import { FormChangerForms, MinionForms } from './FormsEditor'
 import { ModesEditor } from './ModesEditor'
 import { PrinciplePicker } from './PrinciplePicker'
 import { TablePicker } from './TablePicker'
-import { DiceText } from '../components/icons'
+import { DiceText, DieIcon } from '../components/icons'
+import { switchArchetype, useParts } from './parts-context'
+import { StepMarkIcon } from './StepRail'
 
 function ArchetypeSummary({ ar }: { ar: Archetype }) {
   const category = principleCategories.find((c) => c.id === ar.principleCategory)?.name
@@ -127,13 +134,15 @@ interface DetailsProps {
   skipAbilities?: boolean
   /** Divided and Modular take the principle on their own choice. */
   skipPrinciple?: boolean
+  /** Form-Changer's forms and Minion-Maker's minion forms are parts of their own (../hero/archetype-parts.ts). */
+  skipForms?: boolean
 }
 
 /**
  * One archetype's dice, Training's extra quality, abilities, forms, bonus, and principle: for
  * a plain archetype, or the second archetype Divided and Modular build on.
  */
-function ArchetypeDetails({ hero, update, ar, choice, at, skipAbilities = false, skipPrinciple = false }: DetailsProps) {
+function ArchetypeDetails({ hero, update, ar, choice, at, skipAbilities = false, skipPrinciple = false, skipForms = false }: DetailsProps) {
   const ps = hero.powerSource ? powerSourcesById.get(hero.powerSource.id) : undefined
   const dice = ps?.archetypeDice
   const traits = deriveTraits(hero).traits
@@ -200,7 +209,7 @@ function ArchetypeDetails({ hero, update, ar, choice, at, skipAbilities = false,
         </>
       )}
       {skipAbilities && choice.abilities.length > 0 && picker(choice.abilities[0]!.source, `${ar.name} abilities`, [], `Modular skips ${ar.name}'s abilities. Untick them to remove them.`, false, choice.abilities)}
-      {ar.forms && (
+      {ar.forms && !skipForms && (
         <FormChangerForms
           hero={hero}
           ar={ar}
@@ -213,7 +222,7 @@ function ArchetypeDetails({ hero, update, ar, choice, at, skipAbilities = false,
           }
         />
       )}
-      {ar.minionForms && (
+      {ar.minionForms && !skipForms && (
         <MinionForms
           hero={hero}
           ar={ar}
@@ -321,10 +330,9 @@ function SecondArchetype({ hero, update, outer }: { hero: Hero; update: Update; 
   const second = choice ? archetypesById.get(choice.id) : undefined
   const table = archetypes.filter((a) => !spec.exclude.includes(a.id))
   const outerRoll = hero.archetype!.roll
-  const titleId = useId()
   return (
-    <section className="second-archetype" aria-labelledby={titleId}>
-      <h4 id={titleId}>{outer.transitionMethods ? 'Second archetype' : 'Base archetype'}</h4>
+    // Its part card names it.
+    <div className="second-archetype">
       {(dice || hero.method === 'constructed' || choice) && (
         <TablePicker
           what={outer.transitionMethods ? 'second archetype' : 'base archetype'}
@@ -351,7 +359,7 @@ function SecondArchetype({ hero, update, outer }: { hero: Hero; update: Update; 
       {choice && second && (
         <ArchetypeDetails hero={hero} update={update} ar={second} choice={choice} at={(h) => h.archetype!.secondary!} skipAbilities={spec.skipAbilities} skipPrinciple />
       )}
-    </section>
+    </div>
   )
 }
 
@@ -415,108 +423,301 @@ function FillerPowers({ hero, update, outer }: { hero: Hero; update: Update; out
   )
 }
 
-/** Divided's and Modular's own choices, around the second archetype they build on. */
-function ComplexArchetype({ hero, update, ar }: { hero: Hero; update: Update; ar: Archetype }) {
+/** Whether the archetype splits the step into parts (../hero/archetype-parts.ts). */
+const hasParts = (ar: Archetype) => Boolean(ar.transitionMethods || ar.modes || ar.forms || ar.minionForms)
+
+/** A trait list in one line, each with its die: "Speed [d10], Agility [d8]". */
+function TraitLine({ hero, traits }: { hero: Hero; traits: readonly { trait: TraitRef; die: Die }[] }) {
+  return (
+    <>
+      {traits.map((t, i) => (
+        <span key={traitKey(t.trait)}>
+          {i > 0 && ', '}
+          {traitLabel(hero, t.trait)} <DieIcon die={t.die} size="inline" />
+        </span>
+      ))}
+    </>
+  )
+}
+
+/** The one-line summary in a part card's header. */
+function PartSummary({ hero, ar, part }: { hero: Hero; ar: Archetype; part: string }) {
+  const choice = hero.archetype!
+  const pieces: ReactNode[] = []
+  const principleName = (id?: string) => (id ? (principlesById.get(id)?.name ?? 'Your own principle') : undefined)
+  if (part === 'second' || (part === 'base' && ar.complex)) {
+    const second = choice.secondary
+    const entry = second && archetypesById.get(second.id)
+    if (entry) pieces.push(entry.name)
+    if (second?.traits.length) pieces.push(<TraitLine hero={hero} traits={second.traits} />)
+    if (second?.abilities.length && !ar.secondaryArchetype?.skipAbilities) pieces.push(`${second.abilities.length} ${second.abilities.length === 1 ? 'ability' : 'abilities'}`)
+  } else if (part === 'base') {
+    if (choice.traits.length) pieces.push(<TraitLine hero={hero} traits={choice.traits} />)
+    if (choice.abilities.length) pieces.push(`${choice.abilities.length} ${choice.abilities.length === 1 ? 'ability' : 'abilities'}`)
+  } else if (part === 'transition') {
+    const method = ar.transitionMethods?.find((m) => m.id === choice.divided?.transitionMethod)
+    if (method) pieces.push(method.name)
+    if (choice.divided?.transitionAbility) pieces.push(`grants ${choice.divided.transitionAbility.customName || choice.divided.transitionAbility.name}`)
+  } else if (part === 'own') {
+    const names = choice.abilities.map((p) => p.customName || p.name)
+    if (names.length) pieces.push(names.join(', '))
+  } else if (part === 'split') {
+    const always = choice.divided?.split?.always ?? []
+    pieces.push(`Both forms: ${always.filter((t) => t.kind === 'power').length} powers, ${always.filter((t) => t.kind === 'quality').length} qualities`)
+  } else if (part === 'principle') {
+    const name = principleName(choice.principle?.id)
+    if (name) pieces.push(name)
+  } else if (part.startsWith('form:')) {
+    const [, zone, index] = part.split(':')
+    const form = (choice.forms ?? []).filter((f) => f.zone === zone)[Number(index)]
+    if (form) {
+      pieces.push(form.name?.trim() || 'Unnamed form')
+      if (form.ability) pieces.push(form.ability.customName || form.ability.name)
+    }
+  } else if (part.startsWith('mode:')) {
+    const [, zone, index] = part.split(':')
+    const mode = (choice.modular?.modes ?? []).filter((m) => findMode(hero, m.id)?.zone === zone)[Number(index)]
+    const found = mode && findMode(hero, mode.id)
+    if (found) pieces.push(mode.name?.trim() || found.mode.name)
+  } else if (part === 'powerless') {
+    pieces.push(choice.modular?.powerless ? 'Taken' : 'Not taken')
+  } else if (part === 'minion-forms') {
+    // No count until the quality that sets it is chosen.
+    const minions = choice.minionForms
+    const quality = minions?.quality && deriveTraits(hero).traits.find((t) => traitKey(t.trait) === traitKey(minions.quality!))
+    pieces.push(quality ? `${minions!.forms.length} of ${dieSize(quality.die)} chosen` : 'Choose the quality that sets how many')
+  }
+  return (
+    <>
+      {pieces.map((p, i) => (
+        <span key={i}>
+          {i > 0 && ' · '}
+          {p}
+        </span>
+      ))}
+    </>
+  )
+}
+
+/** A part of the step: a card whose header shows its mark, name and summary, and opens it. */
+function PartCard({ hero, ar, part, open, onToggle, children }: { hero: Hero; ar: Archetype; part: ArchetypePart; open: boolean; onToggle: () => void; children: ReactNode }) {
+  const bodyId = useId()
+  return (
+    <section className="part" data-part={part.id} aria-label={part.label}>
+      <h4 className="part__title">
+        <button type="button" className="part__head" aria-expanded={open} aria-controls={bodyId} onClick={onToggle}>
+          <StepMarkIcon mark={part.mark} count={part.issues.length} />
+          <span className="part__name">{part.label}</span>
+          <span className="part__sum">
+            <PartSummary hero={hero} ar={ar} part={part.id} />
+          </span>
+          <span className="part__toggle">{open ? 'Hide' : 'Show'}</span>
+        </button>
+      </h4>
+      {open && (
+        <div className="part__body" id={bodyId}>
+          {children}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** What one part of a complex archetype's step holds. */
+function PartBody({ hero, update, ar, part }: { hero: Hero; update: Update; ar: Archetype; part: string }) {
   const choice = hero.archetype!
   const traits = deriveTraits(hero).traits
   const picker = abilityPicker(hero, traits, choice, (change) => update((h) => change(h.archetype!)))
   const second = choice.secondary ? archetypesById.get(choice.secondary.id) : undefined
-  // Modular takes its base archetype's principle category; Divided has its own (Responsibility).
-  const raw = ar.principleCategory === 'fromSecondaryArchetype' ? second?.principleCategory : ar.principleCategory
-  const category = raw === 'fromSecondaryArchetype' ? undefined : raw
   const divided = choice.divided
-  const splitForm = takesSplitForm(choice)
-  const titleId = useId()
-  return (
-    <>
-      <p className="hint">
-        <DiceText text={ar.summary ?? ''} />
-      </p>
-      <SecondArchetype hero={hero} update={update} outer={ar} />
-      {ar.secondaryArchetype?.minimumPowers !== undefined && <FillerPowers hero={hero} update={update} outer={ar} />}
 
-      <section className="outer-archetype" aria-labelledby={titleId}>
-        <h4 id={titleId}>{ar.name}</h4>
-        {ar.transitionMethods && (
-          <TransitionPicker
-            hero={hero}
-            ar={ar}
-            traits={traits}
-            divided={divided}
-            onChange={(next) =>
-              update((h) => {
-                h.archetype!.divided = next
-              })
-            }
-          />
-        )}
+  if (part === 'second' || (part === 'base' && ar.complex)) {
+    return (
+      <>
+        <SecondArchetype hero={hero} update={update} outer={ar} />
+        {ar.secondaryArchetype?.minimumPowers !== undefined && <FillerPowers hero={hero} update={update} outer={ar} />}
+      </>
+    )
+  }
+  if (part === 'base') return <ArchetypeDetails hero={hero} update={update} ar={ar} choice={choice} at={(h) => h.archetype!} skipPrinciple skipForms />
+  if (part === 'transition') {
+    return (
+      <TransitionPicker
+        hero={hero}
+        ar={ar}
+        traits={traits}
+        divided={divided}
+        onChange={(next) =>
+          update((h) => {
+            h.archetype!.divided = next
+          })
+        }
+      />
+    )
+  }
+  if (part === 'own') {
+    return (
+      <>
+        <p className="hint">
+          <DiceText text={ar.summary ?? ''} />
+        </p>
         {ar.fixedGreenAbilities && picker('archetype.fixedGreen', 'Green abilities you always have', ar.fixedGreenAbilities, undefined, true)}
         {ar.greenAbilities && picker('archetype.green', `${ar.name} ability: choose ${ar.greenAbilities.count}`, ar.greenAbilities.options, ar.greenAbilities.constraint)}
         {ar.fixedYellowAbilities && picker('archetype.fixedYellow', 'Yellow abilities you always have', ar.fixedYellowAbilities, undefined, true)}
         {ar.fixedRedAbilities && picker('archetype.fixedRed', 'Red abilities you always have', ar.fixedRedAbilities, undefined, true)}
-        {splitForm && (
-          <SplitFormEditor
-            hero={hero}
-            traits={traits}
-            split={divided?.split}
-            onChange={(split) =>
-              update((h) => {
-                h.archetype!.divided = { ...h.archetype!.divided, split }
-              })
-            }
-          />
-        )}
-        {ar.modes && (
-          <ModesEditor
-            hero={hero}
-            ar={ar}
-            traits={traits}
-            modular={choice.modular}
-            onChange={(modular) =>
-              update((h) => {
-                h.archetype!.modular = modular
-              })
-            }
-          />
-        )}
         {ar.personalityNote && <p className="hint">{ar.personalityNote} You choose that in the personality step.</p>}
         {ABILITY_BLOCKS.filter((b) => !b.has(ar) && choice.abilities.some((p) => p.source === b.source)).map((b) => (
           <div key={b.source}>{picker(b.source, `${b.name} from another archetype`, [], `${ar.name} doesn't have these. Untick them to remove them.`)}</div>
         ))}
         <Leftovers ar={ar} left={leftovers(ar, choice)} onClear={() => update((h) => clearLeftovers(ar, h.archetype!, h))} />
-        {category ? (
-          <PrinciplePicker
-            category={category}
-            choice={choice.principle}
-            onChange={(principle) =>
-              update((h) => {
-                if (principle) h.archetype!.principle = principle
-                else delete h.archetype!.principle
-              })
-            }
-          />
-        ) : (
-          <p className="hint">Choose the base archetype to see which principle you take.</p>
-        )}
-      </section>
-    </>
+      </>
+    )
+  }
+  if (part === 'split') {
+    return (
+      <SplitFormEditor
+        hero={hero}
+        traits={traits}
+        split={divided?.split}
+        onChange={(split) =>
+          update((h) => {
+            h.archetype!.divided = { ...h.archetype!.divided, split }
+          })
+        }
+      />
+    )
+  }
+  if (part.startsWith('mode:') || part === 'powerless') {
+    return (
+      <ModesEditor
+        hero={hero}
+        ar={ar}
+        traits={traits}
+        modular={choice.modular}
+        part={part}
+        onChange={(modular) =>
+          update((h) => {
+            h.archetype!.modular = modular
+          })
+        }
+      />
+    )
+  }
+  if (part.startsWith('form:')) {
+    return (
+      <FormChangerForms
+        hero={hero}
+        ar={ar}
+        traits={traits}
+        forms={choice.forms ?? []}
+        part={part}
+        onChange={(forms) =>
+          update((h) => {
+            h.archetype!.forms = forms
+          })
+        }
+      />
+    )
+  }
+  if (part === 'minion-forms') {
+    return (
+      <MinionForms
+        hero={hero}
+        ar={ar}
+        traits={traits}
+        choice={choice.minionForms}
+        onChange={(minionForms) =>
+          update((h) => {
+            h.archetype!.minionForms = minionForms
+          })
+        }
+      />
+    )
+  }
+  // Principle: Modular takes its base archetype's category; Divided has its own (Responsibility).
+  const raw = ar.principleCategory === 'fromSecondaryArchetype' ? second?.principleCategory : ar.principleCategory
+  const category = raw === 'fromSecondaryArchetype' ? undefined : raw
+  return category ? (
+    <PrinciplePicker
+      category={category}
+      choice={choice.principle}
+      onChange={(principle) =>
+        update((h) => {
+          if (principle) h.archetype!.principle = principle
+          else delete h.archetype!.principle
+        })
+      }
+    />
+  ) : (
+    <p className="hint">Choose the base archetype to see which principle you take.</p>
   )
 }
 
 export function ArchetypeStep({ hero, update }: { hero: Hero; update: Update }) {
+  const { parts, isOpen, toggle, memory } = useParts()
+  const [changing, setChanging] = useState(false)
+  // Where focus goes as the list opens and closes, so it never drops to the page.
+  const focusNext = useRef<'list' | 'card' | null>(null)
+  const changeButton = useRef<HTMLButtonElement>(null)
+  const list = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (focusNext.current === 'list') (list.current?.querySelector<HTMLInputElement>('input[type="radio"]:checked') ?? list.current?.querySelector<HTMLInputElement>('input[type="radio"]'))?.focus()
+    if (focusNext.current === 'card') changeButton.current?.focus()
+    focusNext.current = null
+  })
   const choice = hero.archetype
   const ar = choice ? archetypesById.get(choice.id) : undefined
   const ps = hero.powerSource ? powerSourcesById.get(hero.powerSource.id) : undefined
   const dice = ps?.archetypeDice
   const roll = stepRoll(hero, 'archetype')
   const personalityDice = choice ? outerLayer(hero)?.archetype.personalityDice : undefined
+  const split = ar && hasParts(ar)
+  // A complex archetype, once chosen, collapses the list into its card.
+  const showList = !split || changing
 
   return (
     <div className="step-form">
       {!dice && <p className="hint">Choose a power source first: it sets the dice for this step.</p>}
       {dice && hero.method === 'constructed' && <DiceIn from="Power source" dice={dice} />}
+      {split && !changing && (
+        <div className="chosen-card">
+          <span className="option__n">{ar.roll}</span>
+          <span className="option__body">
+            <span className="option__name">{ar.name}</span>
+            <span className="option__sub">
+              <ArchetypeSummary ar={ar} />
+            </span>
+          </span>
+          <button
+            type="button"
+            className="button button--small"
+            ref={changeButton}
+            onClick={() => {
+              focusNext.current = 'list'
+              setChanging(true)
+            }}
+          >
+            Change archetype
+          </button>
+        </div>
+      )}
       {/* Without a power source a Guided hero has no dice to roll, so the list only shows once there's a choice to keep. */}
-      {(dice || hero.method === 'constructed' || choice) && (
+      {split && changing && ar && (
+        <div className="button-row">
+          <button
+            type="button"
+            className="button button--small"
+            onClick={() => {
+              focusNext.current = 'card'
+              setChanging(false)
+            }}
+          >
+            Keep {ar.name}
+          </button>
+        </div>
+      )}
+      {showList && (dice || hero.method === 'constructed' || choice) && (
+        <div ref={list}>
         <TablePicker
           what="archetype"
           method={dice ? hero.method : 'constructed'}
@@ -526,20 +727,32 @@ export function ArchetypeStep({ hero, update }: { hero: Hero; update: Update }) 
           roll={roll}
           selectedId={choice?.id}
           onRoll={(r) => update((h) => setStepRoll(h, 'archetype', r))}
-          onSelect={(entry) =>
+          onSelect={(entry) => {
+            // A complex archetype collapses into its card; focus goes to the card's button.
+            const next = archetypesById.get(entry.id)
+            if (next && hasParts(next)) focusNext.current = 'card'
+            setChanging(false)
             update((h) => {
               const pending = takePendingRoll(h, 'archetype')
               const kept = h.archetype?.roll ?? pending
+              // The old archetype's own parts are kept for this visit, in case the player switches back.
+              if (h.archetype) switchArchetype(h, entry.id, memory)
               // Keep earlier choices that may still fit; the checks flag the ones that don't.
               h.archetype = { traits: [], abilities: [], bonus: [], ...h.archetype, id: entry.id, ...(kept ? { roll: kept } : {}) }
             })
-          }
+          }}
           describe={(entry) => <ArchetypeSummary ar={entry} />}
         />
+        </div>
       )}
 
-      {choice && ar?.complex && <ComplexArchetype hero={hero} update={update} ar={ar} />}
-      {choice && ar && !ar.complex && <ArchetypeDetails hero={hero} update={update} ar={ar} choice={choice} at={(h) => h.archetype!} />}
+      {choice && ar && split &&
+        parts.map((part) => (
+          <PartCard key={part.id} hero={hero} ar={ar} part={part} open={isOpen(part.id)} onToggle={() => toggle(part.id)}>
+            <PartBody hero={hero} update={update} ar={ar} part={part.id} />
+          </PartCard>
+        ))}
+      {choice && ar && !split && <ArchetypeDetails hero={hero} update={update} ar={ar} choice={choice} at={(h) => h.archetype!} />}
       {personalityDice && <DiceOut to="Personality" dice={personalityDice} note={ar?.personalityNote} />}
     </div>
   )
