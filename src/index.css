@@ -416,24 +416,24 @@ a {
 }
 
 /*
- * Cards that belong to a zone (a form or mode, a party member, an ability in play) keep the
+ * Cards that belong to a zone (a party member, an ability in play) keep the
  * surface, so their muted text stays readable, and show the zone as a stripe in its game color.
  */
-:is(.aux-group, .party-member, .play-ability):is(.zone-green, .zone-yellow, .zone-red, .zone-out) {
+:is(.party-member, .play-ability):is(.zone-green, .zone-yellow, .zone-red, .zone-out) {
   background: var(--ui-surface);
   color: var(--ui-text);
   border-left: 6px solid var(--ui-surface-2);
 }
 
-:is(.aux-group, .party-member, .play-ability).zone-green {
+:is(.party-member, .play-ability).zone-green {
   border-left-color: var(--game-green);
 }
 
-:is(.aux-group, .party-member, .play-ability).zone-yellow {
+:is(.party-member, .play-ability).zone-yellow {
   border-left-color: var(--game-yellow);
 }
 
-:is(.aux-group, .party-member, .play-ability).zone-red {
+:is(.party-member, .play-ability).zone-red {
   border-left-color: var(--game-red);
 }
 
@@ -591,37 +591,6 @@ a {
 .sheet-warnings h3 {
   font-size: 1rem;
   margin: 0.75rem 0 0.25rem;
-}
-
-.aux-group {
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 0.75rem;
-  border: 1px solid var(--ui-border);
-  border-radius: 0.375rem;
-}
-
-.aux-group h4 {
-  margin: 0 0 0.5rem;
-}
-
-.aux-zone {
-  font-weight: 400;
-  color: var(--ui-muted);
-}
-
-.mode-limits {
-  margin: 0.5rem 0;
-  font-style: italic;
-}
-
-.split {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.25rem 0.75rem;
-}
-
-.split dd {
-  margin: 0;
 }
 
 .minion-forms {
@@ -3039,6 +3008,153 @@ a.button--primary {
   }
 }
 
+/* Forms and modes */
+.sheet-section__note {
+  font-size: 0.875rem;
+  color: var(--ui-muted);
+  text-align: right;
+}
+
+.sheet-section__lede {
+  margin: 0 0 0.75rem;
+  color: var(--ui-muted);
+}
+
+.sheet-forms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.sheet-forms--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sheet-form > * {
+  margin: 0;
+}
+
+.sheet-form > * + * {
+  margin-top: 0.5rem;
+}
+
+.sheet-form__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+.sheet-form__head h4 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.sheet-form__muted,
+.sheet-form__type {
+  color: var(--ui-muted);
+}
+
+.sheet-form__type {
+  font-size: 0.8125rem;
+}
+
+.zone-chip {
+  padding: 0.125rem 0.5rem;
+  text-transform: uppercase;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.dice-changes {
+  padding: 0;
+  list-style: none;
+}
+
+.dice-changes li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.dice-changes li > span:first-child {
+  min-width: 7rem;
+}
+
+.tag--added {
+  border-color: transparent;
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent);
+  font-weight: 600;
+}
+
+.sheet-form__limit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.5rem;
+  background: var(--ui-surface-2);
+}
+
+.sheet-form__ability {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--ui-border);
+}
+
+.sheet-form__ability p {
+  margin: 0;
+}
+
+.sheet-form__ability-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.sheet-form__personality {
+  font-weight: 600;
+}
+
+.status-chips {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0;
+  list-style: none;
+}
+
+.status-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sheet-form__abilities {
+  padding: 0;
+  list-style: none;
+}
+
+.sheet-form__abilities li {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+@media (max-width: 61.25rem) {
+  .sheet-forms--three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* Sheet on a phone */
 @media (max-width: 47.4375rem) {
   .character-head h2 {
@@ -3069,6 +3185,11 @@ a.button--primary {
 
   .sheet-cards--mechanics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sheet-forms,
+  .sheet-forms--three {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .principle-card__toggle {

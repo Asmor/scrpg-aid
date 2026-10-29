@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { exampleHero } from '../hero/example'
 import { createHero } from '../hero/model'
-import { dividedHero, formChangerHero, minionMakerHero, modularHero } from '../test/heroes'
+import { modularHero } from '../test/heroes'
 import { HeroSheetView } from './HeroSheetView'
 import { readable } from '../test/readable'
 
@@ -104,21 +104,8 @@ describe('HeroSheetView', () => {
     expect(within(who).queryByText('Age')).not.toBeInTheDocument()
   })
 
-  it('shows Form-Changer forms, Minion-Maker minion forms, Divided, and Modular modes', () => {
-    const aux = () => screen.getByRole('region', { name: 'Auxiliary sheet' })
-    const view = render(<HeroSheetView hero={formChangerHero()} />)
-    expect(within(aux()).getByText('Brute')).toBeInTheDocument()
-    expect(within(aux()).getByText('Strong Form')).toBeInTheDocument()
-
-    view.rerender(<HeroSheetView hero={minionMakerHero()} />)
-    expect(within(aux()).getByText(/Autonomous/)).toBeInTheDocument()
-
-    view.rerender(<HeroSheetView hero={dividedHero()} />)
-    expect(within(aux()).getByText('Divided')).toBeInTheDocument()
-
-    view.rerender(<HeroSheetView hero={modularHero()} />)
-    expect(within(aux()).getByText('Patch Job')).toBeInTheDocument()
-    expect(within(aux()).getByText("Can't Defend or Overcome.")).toBeInTheDocument()
-    expect(within(aux()).getByText('Powerless mode')).toBeInTheDocument()
+  it('ends with the forms or modes section for a hero who has them', () => {
+    render(<HeroSheetView hero={modularHero()} />)
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Roleplaying', 'Mechanics', 'Abilities', 'Modes'])
   })
 })

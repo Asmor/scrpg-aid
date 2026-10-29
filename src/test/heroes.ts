@@ -174,3 +174,67 @@ export function modularHero(): Hero {
   }
   return hero
 }
+
+/**
+ * The hero sheet design's Modular test hero (docs/design/hero-sheet/forms-and-modes.dc.html),
+ * a "Modular Blaster". Default-mode powers: Cold d12, Fire d10, Agility d8, Speed d8, Cosmic d6.
+ * Its modes copy the mockup's dice, which don't all follow the mode rules (Bombardment raises
+ * three powers to d12), so the checks flag them; the sheet shows them as they are.
+ */
+export function modularBlasterHero(): Hero {
+  const hero = modularHero()
+  hero.details.name = 'Modular Blaster'
+  hero.powerSource!.powers = [A(P('cold'), 'd12'), A(P('fire'), 'd10'), A(P('cosmic'), 'd6')]
+  hero.powerSource!.abilities = []
+  const secondary = hero.archetype!.secondary!
+  secondary.id = 'blaster'
+  secondary.traits = [A(P('agility'), 'd8'), A(P('speed'), 'd8')]
+  const basic = (name: string) => ({ source: 'archetype.mode' as const, name, uses: [P('fire')] })
+  hero.archetype!.modular = {
+    modes: [
+      { id: 'debilitator', powers: [A(P('fire'), 'd10'), A(P('agility'), 'd8'), A(P('speed'), 'd8'), A(P('cold'), 'd12')], ability: basic('Debilitator') },
+      { id: 'analysis', powers: [A(P('fire'), 'd10'), A(P('agility'), 'd8'), A(P('speed'), 'd8'), A(P('cold'), 'd12')], ability: basic('Analysis') },
+      { id: 'bombardment', powers: [A(P('fire'), 'd12'), A(P('agility'), 'd12'), A(P('speed'), 'd12')], ability: basic('Bombardment') },
+      { id: 'destroyer', powers: [A(P('fire'), 'd10'), A(P('agility'), 'd8'), A(P('speed'), 'd8')], ability: basic('Destroyer') },
+    ],
+  }
+  return hero
+}
+
+/**
+ * The hero sheet design's Divided test hero: Split Form with a Controllable transition, and a
+ * second personality. Both forms: Speed d8, Strength d8, Fitness d10, Persuasion d8 and the
+ * roleplaying quality (Night Shift Nurse d8). Civilian form (Natural Leader): Acrobatics d6.
+ * Heroic form (Naive): Vitality d12, Agility d10, so Fast Fingers (using Agility) is heroic only.
+ */
+export function dividedSplitHero(): Hero {
+  const hero = createHero('constructed', { id: 'divided-split' })
+  hero.details.name = 'Night Nurse'
+  hero.background = { id: 'medical', qualities: [A(Q('fitness'), 'd10'), A(Q('persuasion'), 'd8')] }
+  hero.powerSource = { id: 'accident', powers: [A(P('vitality'), 'd12'), A(P('agility'), 'd10'), A(P('strength'), 'd8')], abilities: [], bonus: [] }
+  hero.archetype = {
+    id: 'divided',
+    traits: [],
+    abilities: [{ source: 'archetype.green', name: 'Split Form' }],
+    bonus: [],
+    secondary: {
+      id: 'speedster',
+      traits: [A(P('speed'), 'd8'), A(Q('acrobatics'), 'd6')],
+      abilities: [{ source: 'archetype.green', name: 'Fast Fingers', uses: [P('agility')] }],
+      bonus: [],
+    },
+    divided: {
+      transitionMethod: 'controllable',
+      transitionAbility: { source: 'archetype.transition', name: 'Transform' },
+      heroicPersonality: { id: 'naive', bonus: [] },
+      split: {
+        always: [P('speed'), P('strength'), Q('fitness'), Q('persuasion'), Q('roleplaying-quality')],
+        civilian: [Q('acrobatics')],
+        heroic: [P('vitality'), P('agility')],
+      },
+    },
+  }
+  hero.personality = { id: 'natural-leader', bonus: [] }
+  hero.traitNames['quality:roleplaying-quality'] = 'Night Shift Nurse'
+  return hero
+}

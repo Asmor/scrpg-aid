@@ -13,7 +13,7 @@ import type { HeroTrait } from '../creation/traits'
 import type { AbilityType, Die, HealthRange, Zone } from '../rules/types'
 import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 import type { Action } from '../creation/effects'
-import { modeLimits } from '../creation/format'
+import { FormsSection } from './FormsSection'
 import { AbilityIcons, AbilityText, ActionIcon, DieIcon } from './icons'
 
 export function Panel({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {
@@ -71,86 +71,6 @@ export function AbilityRow({ name, type, text, effects }: { name: string; type: 
         <AbilityText text={text} actions={effects} />
       </span>
     </li>
-  )
-}
-
-function Auxiliary({ sheet }: { sheet: HeroSheet }) {
-  const { forms, modes, powerlessMode, minionForms, divided } = sheet
-  if (!forms.length && !modes.length && !powerlessMode && !minionForms.length && !divided) return null
-  return (
-    <Panel title="Auxiliary sheet" className="sheet-auxiliary">
-      {divided && (
-        <div className="aux-group">
-          <h4>Divided</h4>
-          {divided.heroicPersonality && <p>Heroic form personality: {divided.heroicPersonality}</p>}
-          {sheet.heroicStatusDice && <StatusTiles dice={sheet.heroicStatusDice} label="Heroic form status dice" />}
-          {divided.heroicTraits && (
-            <>
-              <p>Heroic form powers and qualities:</p>
-              <TraitTable caption="Heroic form traits" traits={divided.heroicTraits} />
-            </>
-          )}
-          {divided.split && (
-            <dl className="split">
-              <dt>Always</dt>
-              <dd>{divided.split.always.join(', ') || '—'}</dd>
-              <dt>Civilian form</dt>
-              <dd>{divided.split.civilian.join(', ') || '—'}</dd>
-              <dt>Heroic form</dt>
-              <dd>{divided.split.heroic.join(', ') || '—'}</dd>
-            </dl>
-          )}
-        </div>
-      )}
-      {forms.map((form, i) => (
-        <div key={`form-${i}`} className={`aux-group zone-${form.zone}`}>
-          <h4>
-            {form.name} <span className="aux-zone">({ZONE_LABEL[form.zone]} form)</span>
-          </h4>
-          <TraitTable caption={`${form.name} traits`} traits={form.traits} />
-          {form.ability && (
-            <ul className="ability-list">
-              <AbilityRow {...form.ability} />
-            </ul>
-          )}
-        </div>
-      ))}
-      {modes.map((mode, i) => (
-        <div key={`mode-${i}`} className={`aux-group zone-${mode.zone}`}>
-          <h4>
-            {mode.name} <span className="aux-zone">({ZONE_LABEL[mode.zone]} mode)</span>
-          </h4>
-          <TraitTable caption={`${mode.name} traits`} traits={mode.traits} />
-          {(mode.cannot.length > 0 || mode.immobile) && <p className="mode-limits">{modeLimits(mode.cannot, mode.immobile)}</p>}
-          {mode.ability && (
-            <ul className="ability-list">
-              <AbilityRow {...mode.ability} />
-            </ul>
-          )}
-        </div>
-      ))}
-      {powerlessMode && (
-        <div className="aux-group">
-          <h4>Powerless mode</h4>
-          <TraitTable caption="Powerless mode traits" traits={powerlessMode} />
-        </div>
-      )}
-      {minionForms.length > 0 && (
-        <div className="aux-group">
-          <h4>Minion forms</h4>
-          <ul className="minion-forms">
-            {minionForms.map((f) => (
-              <li key={f.name}>
-                <strong>
-                  {f.name} (+{f.minBonus})
-                </strong>{' '}
-                {f.effect}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </Panel>
   )
 }
 
@@ -429,7 +349,7 @@ export function HeroSheetView({ hero, mode = 'sheet', advancement, interactive =
       {mode === 'sheet' && <Roleplaying hero={hero} sheet={sheet} advancement={advancement} interactive={interactive} />}
       <Mechanics sheet={sheet} />
       <Abilities sheet={sheet} />
-      <Auxiliary sheet={sheet} />
+      <FormsSection hero={hero} sheet={sheet} />
     </article>
   )
 }
