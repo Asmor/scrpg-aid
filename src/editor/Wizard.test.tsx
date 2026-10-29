@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StoreContext } from '../app/store-context'
 import { createHero, type Hero } from '../hero/model'
+import { WIZARD_STEPS } from '../hero/wizard-steps'
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { archetypesById, backgrounds } from '../rules/data'
 import { formatEntryRef } from '../rules/books'
@@ -10,12 +11,13 @@ import { completeHero, dividedHero, formChangerHero, minionMakerHero, modularHer
 import { HeroEditor } from './HeroEditor'
 import { PREVIEW_KEY, readPreviewShown, writePreviewShown } from './preview-preference'
 
-const renderEditor = (store: HeroStore, step: string) =>
-  render(
-    <StoreContext.Provider value={store}>
-      <HeroEditor id="h1" step={step} />
-    </StoreContext.Provider>,
-  )
+const editor = (store: HeroStore, step?: string) => (
+  <StoreContext.Provider value={store}>
+    <HeroEditor id="h1" step={step} />
+  </StoreContext.Provider>
+)
+
+const renderEditor = (store: HeroStore, step?: string) => render(editor(store, step))
 
 async function storeWith(hero: Hero) {
   const store = new MemoryHeroStore()
@@ -351,6 +353,92 @@ describe('special archetype parts', () => {
     expect(card.querySelector('.part__sum')).toHaveTextContent('Choose the quality that sets how many')
     expect(card.querySelector('.part__sum')).not.toHaveTextContent(/of \d+ chosen/)
     expect(within(card).queryByText(/^Choose \d/)).not.toBeInTheDocument()
+  })
+})
+
+describe('edit mode', () => {
+  it('opens a finished hero at the summary: a row per step, each with a Change link', async () => {
+    renderEditor(await storeWith(completeHero()))
+    expect(await screen.findByRole('heading', { level: 3, name: 'Summary' })).toBeInTheDocument()
+    const rail = screen.getByRole('navigation', { name: 'Creation steps' })
+    expect(within(rail).getByRole('link', { name: 'Summary' })).toHaveAttribute('aria-current', 'page')
+    for (const step of WIZARD_STEPS) {
+      expect(screen.getByRole('link', { name: `Change ${step.label}` })).toHaveAttribute('href', `#/hero/h1/edit/${step.id}`)
+    }
+    // What each step chose, with dice as images.
+    const background = screen.getByRole('heading', { level: 4, name: /Background/ }).closest('li')!
+    expect(within(background).getByText('Principle of Business')).toBeInTheDocument()
+    expect(within(background).getAllByRole('img').length).toBeGreaterThan(0)
+    expect(screen.getByRole('link', { name: 'Advancement' })).toHaveAttribute('href', '#/hero/h1/advancement')
+    expect(screen.getByRole('link', { name: 'Done editing', hidden: false })).toBeInTheDocument()
+  })
+
+  it('links each part of a complex archetype from the summary', async () => {
+    renderEditor(await storeWith(dividedHero()))
+    const panel = await screen.findByRole('region', { name: 'Summary' })
+    const parts = within(panel).getByRole('list', { name: 'Archetype parts' })
+    expect(within(parts).getByRole('link', { name: 'Change Transition' })).toHaveAttribute('href', '#/hero/h1/edit/archetype/transition')
+  })
+
+  it('reverts, once confirmed, to exactly the hero as it was on entering edit mode', async () => {
+    const store = await storeWith(completeHero())
+    const before = await saved(store)
+    const view = renderEditor(store)
+    const revert = await screen.findByRole('button', { name: 'Revert changes' })
+    expect(revert).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.click(revert)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // A change on a step, then back to the summary: the editor stays open across steps.
+    view.rerender(editor(store, 'details'))
+    const age = await screen.findByRole('textbox', { name: 'Age' })
+    await userEvent.clear(age)
+    await userEvent.type(age, '99')
+    view.rerender(editor(store))
+    const enabled = await screen.findByRole('button', { name: 'Revert changes' })
+    expect(enabled).toHaveAttribute('aria-disabled', 'false')
+    await userEvent.click(enabled)
+    const dialog = screen.getByRole('dialog', { name: 'Revert changes?' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Keep changes' }))
+    expect((await saved(store)).details.age).toBe('99')
+    await userEvent.click(enabled)
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Revert changes?' })).getByRole('button', { name: 'Revert changes' }))
+    await waitFor(async () => expect({ ...(await saved(store)), updatedAt: '' }).toEqual({ ...before, updatedAt: '' }))
+    expect(screen.getByRole('button', { name: 'Revert changes' })).toHaveAttribute('aria-disabled', 'true')
+    // Focus stays on the button rather than being lost.
+    expect(screen.getByRole('button', { name: 'Revert changes' })).toHaveFocus()
+  })
+
+  it('takes a new snapshot each time edit mode is opened', async () => {
+    const store = await storeWith(completeHero())
+    const first = renderEditor(store, 'details')
+    const age = await screen.findByRole('textbox', { name: 'Age' })
+    await userEvent.clear(age)
+    await userEvent.type(age, '41')
+    first.unmount()
+    await waitFor(async () => expect((await saved(store)).details.age).toBe('41'))
+    renderEditor(store)
+    expect(await screen.findByRole('button', { name: 'Revert changes' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('names the summary on the phone’s step button', async () => {
+    viewport(390)
+    renderEditor(await storeWith(completeHero()))
+    const button = await screen.findByRole('button', { name: /Summary/ })
+    expect(button).toHaveClass('step-button')
+    expect(screen.queryByText(/Before step 1/)).not.toBeInTheDocument()
+  })
+
+  it('goes back from Start to the summary', async () => {
+    renderEditor(await storeWith(completeHero()), 'start')
+    const nav = (await screen.findByRole('heading', { level: 3, name: 'Start' })).closest('section')!
+    expect(within(nav).getByRole('link', { name: 'Summary' })).toHaveAttribute('href', '#/hero/h1/edit')
+  })
+
+  it('continues a draft with no step where it left off', async () => {
+    window.location.hash = '#/hero/h1/edit'
+    renderEditor(await storeWith({ ...completeHero(), status: 'draft', furthestStep: 4 }))
+    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1/edit/personality'))
+    expect(screen.queryByRole('heading', { level: 3, name: 'Summary' })).not.toBeInTheDocument()
   })
 })
 

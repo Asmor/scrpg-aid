@@ -7,6 +7,8 @@
  *
  * A new hero is a draft (../app/new-heroes.ts): nothing is saved until its first change, and
  * it stays a draft, remembering the furthest step reached, until the player finishes it.
+ * A finished hero's editor opens at the edit summary (./EditSummary.tsx), with a snapshot
+ * taken on entry for Revert changes, kept until the editor closes.
  *
  * Layout by width: from 1280px the rail and the preview are columns; from 760px the rail is
  * a column and the preview a drawer; below that the step list and the preview are bottom
@@ -21,7 +23,7 @@ import { buildSheet } from '../creation/sheet'
 import type { RuleWarning } from '../creation/warnings'
 import { archetypeParts } from '../hero/archetype-parts'
 import { heroDisplayName, isDraft, type Hero } from '../hero/model'
-import { NUMBERED_STEPS, stepStates, WIZARD_STEPS, wizardStepIndex, type WizardStepId } from '../hero/wizard-steps'
+import { continueStep, NUMBERED_STEPS, stepStates, WIZARD_STEPS, wizardStepIndex, type WizardStepId } from '../hero/wizard-steps'
 import { useTick } from '../play/useTick'
 import { DiceText } from '../components/icons'
 import { Modal } from '../components/Modal'
@@ -30,6 +32,8 @@ import { useMediaQuery } from '../components/useMediaQuery'
 import { ArchetypeStep } from './ArchetypeStep'
 import { BackgroundStep } from './BackgroundStep'
 import { DetailsStep } from './DetailsStep'
+import { changedSince, restoreSnapshot } from './edit-snapshot'
+import { EditSummary } from './EditSummary'
 import { HealthStep } from './HealthStep'
 import { PersonalityStep } from './PersonalityStep'
 import { PowerSourceStep } from './PowerSourceStep'
@@ -83,6 +87,8 @@ function savedText(savedAt: Date, now: Date): string {
 
 /** "3 · Archetype"; Start has no number. */
 const stepTitle = (index: number, label: string) => (index > 0 ? `${index} · ${label}` : label)
+
+const SUMMARY_PURPOSE = 'Everything this hero is made of. Change opens that step; nothing later in the wizard is erased.'
 
 /** Before finishing a hero with rule issues: each issue, with a way to it, and Finish anyway. */
 function FinishDialog({ issues, href, onGo, onFinish, onClose }: { issues: readonly { step: WizardStepId; label: string; warning: RuleWarning; part?: string }[]; href: (id: WizardStepId, part?: string) => string; onGo: (issue: IssueTarget) => void; onFinish: () => void; onClose: () => void }) {
@@ -138,6 +144,9 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
   const [openParts, setOpenParts] = useState<{ step: number; archetype: string; open: ReadonlySet<string>; known: ReadonlySet<string> } | null>(null)
   // Parts of archetypes switched away from in this visit (./parts-context.ts).
   const [partMemory] = useState(() => new Map<string, PartFields>())
+  // Edit mode keeps the hero as it was on entry, for Revert changes; leaving the editor drops it.
+  const [snapshot, setSnapshot] = useState<Hero | null>(null)
+  const [reverting, setReverting] = useState(false)
   // Advancement left the wizard for a page of its own.
   const movedAdvancement = stepId === 'advancement'
   const found = wizardStepIndex(stepId)
@@ -176,6 +185,18 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
   }
   // A part in the address opens and comes into view, once each time the address changes (and once the hero has loaded).
   const ready = loaded !== undefined
+  // The snapshot is the complete hero as first loaded.
+  useEffect(() => {
+    if (loaded && !isDraft(loaded)) setSnapshot(structuredClone(loaded))
+    // Only when the hero first loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready])
+  // A draft's editor with no step continues where the draft left off.
+  const draftNoStep = loaded !== undefined && isDraft(loaded) && stepId === undefined
+  useEffect(() => {
+    if (draftNoStep) window.location.replace(editPath(id, continueStep(loaded?.furthestStep)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftNoStep, id])
   useEffect(() => {
     if (!part || !parts.some((p) => p.id === part)) return
     if (issuePart.current === part) {
@@ -235,6 +256,16 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
 
   const hero = state.hero
   const draft = isDraft(hero)
+  // A complete hero's editor with no step in the address is the edit summary.
+  const summary = !draft && stepId === undefined
+  const changed = snapshot !== null && changedSince(snapshot, hero)
+  /** Revert changes, once confirmed: the hero goes back to the snapshot. */
+  const revert = () => {
+    setReverting(false)
+    if (!snapshot) return
+    save((h) => restoreSnapshot(h, snapshot))
+    partMemory.clear()
+  }
   const states = stepStates(hero, warnings)
   /** The part an archetype issue is in, if the archetype has parts. */
   const partOf = (w: RuleWarning) => parts.find((p) => p.issues.includes(w))?.id
@@ -253,6 +284,7 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
   const prev = WIZARD_STEPS[index - 1]
   const next = WIZARD_STEPS[index + 1]
   const href = (s: string) => editPath(hero.id, s)
+  const summaryHref = draft ? undefined : editPath(hero.id)
   const named = hero.details.name.trim() || hero.details.alias.trim()
   const lastSaved = savedAt ?? (stored ? new Date(hero.updatedAt) : null)
 
@@ -276,7 +308,13 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
     }
   }
   const docked = wide && previewShown
-  const nextButton = next ? (
+  const doneLink = (
+    <a className="button button--primary" href={heroPath(hero.id)} onClick={leave(heroPath(hero.id))}>
+      Done editing
+    </a>
+  )
+  // On the summary this is only the phone bar's button (the summary has no step navigation).
+  const nextButton = summary ? doneLink : next ? (
     <a className="button button--primary" href={href(next.id)}>
       {next.label}
     </a>
@@ -285,9 +323,7 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
       Finish hero
     </button>
   ) : (
-    <a className="button button--primary" href={heroPath(hero.id)} onClick={leave(heroPath(hero.id))}>
-      Done editing
-    </a>
+    doneLink
   )
 
   return (
@@ -332,9 +368,7 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
               Finish hero
             </button>
           ) : (
-            <a className="button button--primary" href={heroPath(hero.id)} onClick={leave(heroPath(hero.id))}>
-              Done editing
-            </a>
+            doneLink
           )}
         </div>
       </header>
@@ -347,39 +381,63 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
       <div className={`wizard__layout${docked ? ' wizard__layout--preview' : ''}`}>
         {!phone && (
           <nav className="wizard__rail" aria-label="Creation steps">
-            <StepRail steps={states} current={step.id} href={href} parts={parts} currentPart={part} partHref={(p) => partPath(hero.id, p)} onPart={showPart} />
+            <StepRail steps={states} current={summary ? 'summary' : step.id} href={href} summaryHref={summaryHref} parts={parts} currentPart={part} partHref={(p) => partPath(hero.id, p)} onPart={showPart} />
             <p className="rail-foot">{hero.method === 'constructed' ? 'Constructed method.' : `Guided method · ${hero.rollMode === 'manual' ? 'rolling your own dice' : 'rolling in the app'}.`}</p>
           </nav>
         )}
 
         {phone && (
           <button type="button" className="step-button" aria-haspopup="dialog" onClick={() => setStepsOpen(true)}>
-            <span className="step-button__where">{index > 0 ? `Step ${index} of ${NUMBERED_STEPS} ·` : 'Before step 1 ·'}</span>
-            <strong>{step.label}</strong>
-            {current.mark === 'issues' && <StepMarkIcon mark="issues" count={current.issues.length} />}
+            {summary ? (
+              <strong>Summary</strong>
+            ) : (
+              <>
+                <span className="step-button__where">{index > 0 ? `Step ${index} of ${NUMBERED_STEPS} ·` : 'Before step 1 ·'}</span>
+                <strong>{step.label}</strong>
+                {current.mark === 'issues' && <StepMarkIcon mark="issues" count={current.issues.length} />}
+              </>
+            )}
             <span className="visually-hidden">: all steps</span>
           </button>
         )}
         <section className="wizard__step panel" aria-labelledby="editor-step-title">
-          <div className="step-head">
-            <div>
-              <h3 id="editor-step-title">{stepTitle(index, step.label)}</h3>
-              <p className="lede">{purpose}</p>
-            </div>
-            {pageRef && <span className="page-ref">{formatEntryRef(pageRef)}</span>}
-          </div>
-          {view.render(hero, update)}
-          {step.id !== 'start' && <StepIssues issues={current.issues} onGo={(w) => goToIssue({ step: step.id, code: w.code, part: partOf(w) })} />}
-          <div className="stepnav">
-            {prev ? (
-              <a className="button" href={href(prev.id)}>
-                {prev.label}
-              </a>
-            ) : (
-              <span />
-            )}
-            {nextButton}
-          </div>
+          {summary ? (
+            <>
+              <div className="step-head">
+                <div>
+                  <h3 id="editor-step-title">Summary</h3>
+                  <p className="lede">{SUMMARY_PURPOSE}</p>
+                </div>
+              </div>
+              <EditSummary hero={hero} steps={states} parts={parts} href={href} partHref={(p) => partPath(hero.id, p)} advancementHref={advancementPath(hero.id)} changed={changed} onRevert={() => setReverting(true)} />
+            </>
+          ) : (
+            <>
+              <div className="step-head">
+                <div>
+                  <h3 id="editor-step-title">{stepTitle(index, step.label)}</h3>
+                  <p className="lede">{purpose}</p>
+                </div>
+                {pageRef && <span className="page-ref">{formatEntryRef(pageRef)}</span>}
+              </div>
+              {view.render(hero, update)}
+              {step.id !== 'start' && <StepIssues issues={current.issues} onGo={(w) => goToIssue({ step: step.id, code: w.code, part: partOf(w) })} />}
+              <div className="stepnav">
+                {prev ? (
+                  <a className="button" href={href(prev.id)}>
+                    {prev.label}
+                  </a>
+                ) : summaryHref ? (
+                  <a className="button" href={summaryHref}>
+                    Summary
+                  </a>
+                ) : (
+                  <span />
+                )}
+                {nextButton}
+              </div>
+            </>
+          )}
         </section>
 
         {docked && (
@@ -406,12 +464,25 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
 
       {stepsOpen && (
         <Modal title="Steps" variant="sheet" onClose={() => setStepsOpen(false)}>
-          <StepRail steps={states} current={step.id} href={href} parts={parts} currentPart={part} partHref={(p) => partPath(hero.id, p)} onPart={showPart} onNavigate={() => setStepsOpen(false)} />
+          <StepRail steps={states} current={summary ? 'summary' : step.id} href={href} summaryHref={summaryHref} parts={parts} currentPart={part} partHref={(p) => partPath(hero.id, p)} onPart={showPart} onNavigate={() => setStepsOpen(false)} />
         </Modal>
       )}
       {previewOpen && !wide && (
         <Modal title="Sheet preview" variant={phone ? 'sheet' : 'drawer'} onClose={() => setPreviewOpen(false)}>
           <SheetPreview hero={hero} />
+        </Modal>
+      )}
+      {reverting && (
+        <Modal title="Revert changes?" onClose={() => setReverting(false)}>
+          <p>This puts {heroDisplayName(hero)} back exactly as it was when you opened edit. Every change since then is lost.</p>
+          <div className="button-row">
+            <button type="button" className="button button--danger" onClick={revert}>
+              Revert changes
+            </button>
+            <button type="button" className="button" onClick={() => setReverting(false)}>
+              Keep changes
+            </button>
+          </div>
         </Modal>
       )}
       {finishing && (

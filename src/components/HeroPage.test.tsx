@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { StoreContext } from '../app/store-context'
 import type { GetResult, HeroStore } from '../hero/store'
+import { buildSheet } from '../creation/sheet'
 import { exampleHero } from '../hero/example'
+import { stepStates } from '../hero/wizard-steps'
 import { readImport } from '../transfer/files'
 import { downloadFile } from '../transfer/download'
 import { exportPdf } from '../transfer/pdf'
@@ -66,6 +68,38 @@ describe('HeroPage', () => {
     expect(screen.queryByRole('link', { name: 'Play' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Download JSON' }))
     expect(readImport(vi.mocked(downloadFile).mock.calls[0]![1] as string)).toMatchObject({ ok: true, heroes: [{ status: 'draft' }] })
+  })
+
+  it('names a finished hero’s rule issues in a banner linking to the edit summary', async () => {
+    const hero = exampleHero({ id: 'x' })
+    hero.redAbilities = []
+    renderPage(storeReturning(async () => ({ status: 'found', hero })))
+    const count = stepStates(hero, buildSheet(hero).warnings).reduce((n, s) => n + s.issues.length, 0)
+    expect(count).toBe(1)
+    const banner = await screen.findByRole('note')
+    expect(banner).toHaveTextContent('This hero has one rule issue.')
+    expect(within(banner).getByRole('link', { name: 'Review in edit summary' })).toHaveAttribute('href', '#/hero/x/edit')
+  })
+
+  it('counts every step’s issues in the banner', async () => {
+    const hero = exampleHero({ id: 'x' })
+    hero.redAbilities = []
+    hero.retcon = { id: 'no-such-retcon', kind: 'upgradeStatusDie' }
+    const count = stepStates(hero, buildSheet(hero).warnings).reduce((n, s) => n + s.issues.length, 0)
+    expect(count).toBeGreaterThan(1)
+    renderPage(storeReturning(async () => ({ status: 'found', hero })))
+    expect(await screen.findByRole('note')).toHaveTextContent(`This hero has ${count} rule issues.`)
+  })
+
+  it('shows no issue banner for a hero without issues, or for a draft', async () => {
+    const view = renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
+    await screen.findByRole('link', { name: 'Edit hero' })
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    view.unmount()
+    const draft = { ...exampleHero({ id: 'x' }), status: 'draft' as const, redAbilities: [] }
+    renderPage(storeReturning(async () => ({ status: 'found', hero: draft })))
+    await screen.findByRole('link', { name: 'Continue making this hero' })
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
   })
 
   it('exports the hero as JSON that imports back', async () => {

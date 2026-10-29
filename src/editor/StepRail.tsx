@@ -1,6 +1,7 @@
 /**
  * The wizard's step list: Start, then the eight numbered steps, each with its mark (not
- * started, done, or its issue count) and the current one highlighted.
+ * started, done, or its issue count) and the current one highlighted. In edit mode the
+ * summary comes first.
  */
 import type { ArchetypePart } from '../hero/archetype-parts'
 import type { StepMark, StepState } from '../hero/wizard-steps'
@@ -47,13 +48,23 @@ interface StepRailProps {
   onPart?: (part: string) => void
   /** Called when a step is chosen (the phone's step list closes then). */
   onNavigate?: () => void
+  /** Edit mode's summary, listed first (current is "summary" when it's on screen). */
+  summaryHref?: string
 }
 
-export function StepRail({ steps, current, href, parts = [], currentPart: given, partHref, onPart, onNavigate }: StepRailProps) {
+export function StepRail({ steps, current, href, parts = [], currentPart: given, partHref, onPart, onNavigate, summaryHref }: StepRailProps) {
   // A part left in the address after choosing another archetype isn't one of these; the step is current then.
   const currentPart = given && parts.some((p) => p.id === given) ? given : undefined
   return (
     <ol className="rail">
+      {summaryHref && (
+        <li>
+          <a className="rail__item" href={summaryHref} aria-current={current === 'summary' ? 'page' : undefined} onClick={onNavigate}>
+            <span className="rail__num" />
+            <span className="rail__label">Summary</span>
+          </a>
+        </li>
+      )}
       {steps.map((s) => (
         <li key={s.id}>
           <a className="rail__item" href={href(s.id)} aria-current={s.id === current && !currentPart ? 'step' : undefined} onClick={onNavigate}>

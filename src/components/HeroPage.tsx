@@ -2,11 +2,28 @@
 import { useEffect, useState } from 'react'
 import { advancementPath, editPath, listPath, playPath } from '../app/route'
 import { useStore } from '../app/store-context'
-import { isDraft } from '../hero/model'
+import { buildSheet } from '../creation/sheet'
+import { isDraft, type Hero } from '../hero/model'
 import type { GetResult } from '../hero/store'
-import { continueStep } from '../hero/wizard-steps'
+import { continueStep, stepStates } from '../hero/wizard-steps'
 import { ExportMenu } from './ExportMenu'
 import { HeroSheetView } from './HeroSheetView'
+
+/** A finished hero with rule issues stays finished; the banner says how many and links to the edit summary. */
+function IssueBanner({ hero }: { hero: Hero }) {
+  const count = stepStates(hero, buildSheet(hero).warnings).reduce((n, s) => n + s.issues.length, 0)
+  if (!count) return null
+  return (
+    <div className="issue-banner" role="note">
+      <p>
+        This hero has {count === 1 ? 'one rule issue' : `${count} rule issues`}. Some tables play with house rules, so it can still be played.
+      </p>
+      <a className="button" href={editPath(hero.id)}>
+        Review in edit summary
+      </a>
+    </div>
+  )
+}
 
 type State = { status: 'loading' } | GetResult | { status: 'error'; message: string }
 
@@ -48,7 +65,7 @@ export function HeroPage({ id }: { id: string }) {
       {state.status === 'error' && <p role="alert">Something went wrong loading this hero: {state.message}</p>}
       {state.status === 'found' && (
         <>
-          {isDraft(state.hero) && <p className="hint">This hero is a draft. Finish it to play it.</p>}
+          {isDraft(state.hero) ? <p className="hint">This hero is a draft. Finish it to play it.</p> : <IssueBanner hero={state.hero} />}
           <HeroSheetView hero={state.hero} />
           <ExportMenu hero={state.hero} />
         </>

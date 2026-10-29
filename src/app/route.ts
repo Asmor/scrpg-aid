@@ -1,6 +1,7 @@
 /**
  * Hash-based routes, so the app works from any URL prefix on GitHub Pages and offline
  * without server rewrites: "#/" is the hero list, "#/hero/<id>" one hero's sheet,
+ * "#/hero/<id>/edit" its edit summary (a draft continues at its furthest step),
  * "#/hero/<id>/edit/<step>" a step of its editor ("#/hero/<id>/edit/archetype/<part>" one part of
  * a complex archetype's step), "#/hero/<id>/advancement" its advancement,
  * "#/hero/<id>/play" the game aid, "#/gm"

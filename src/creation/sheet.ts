@@ -146,7 +146,7 @@ export function fillTextWith(label: (t: TraitRef) => string, text: string, uses:
 }
 
 /** Fills a principle's [blank] with the player's customization. */
-function fillPrinciple(text: string, choice: PrincipleChoice): string {
+export function fillPrinciple(text: string, choice: PrincipleChoice): string {
   const value = choice.customization?.trim()
   return value ? text.replace(/\[[^\]]+\]/g, value) : text
 }
