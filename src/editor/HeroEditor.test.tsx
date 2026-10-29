@@ -6,7 +6,8 @@ import { StoreContext } from '../app/store-context'
 import { createHero, type Hero } from '../hero/model'
 import { A, P, Q, completeHero, dividedHero, formChangerHero, heroWithAbilities, minionMakerHero, modularHero, validHero } from '../test/heroes'
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
-import { backgrounds } from '../rules/data'
+import { backgrounds, redAbilityCategories } from '../rules/data'
+import { categoryName } from '../creation/red'
 import { tableOptions } from '../rules/rolling'
 import { AdvancementPage } from './AdvancementPage'
 import { HeroEditor } from './HeroEditor'
@@ -856,8 +857,16 @@ describe('HeroEditor', () => {
     expect(within(power).queryByRole('option', { name: 'Fire (d8)' })).not.toBeInTheDocument()
     await userEvent.selectOptions(power, 'Agility (d10)')
     await userEvent.click(within(athletic).getByRole('checkbox', { name: /Push Your Limits/ }))
-    // Categories the hero has nothing in are tucked away.
-    expect(screen.getByText('Categories you have no power or quality in')).toBeInTheDocument()
+    // Each group shows how many are chosen, of the two allowed.
+    expect(athletic.closest('details')!.querySelector('summary')).toHaveTextContent('Athletic power Red abilities2 chosen')
+    expect(screen.getByText('2 of 2 chosen')).toBeInTheDocument()
+    // Categories the hero has nothing in are hidden until the filter's turned off.
+    const filter = screen.getByRole('checkbox', { name: 'Only ones I can take' })
+    expect(filter).toBeChecked()
+    expect(screen.queryByRole('group', { name: 'Psychic power Red abilities' })).not.toBeInTheDocument()
+    expect(screen.getByText(/more categories need a power or quality you don't have/)).toBeInTheDocument()
+    await userEvent.click(filter)
+    expect(screen.getByRole('group', { name: 'Psychic power Red abilities' })).toBeInTheDocument()
     expect(await screen.findByText('No rule issues in this step.')).toBeInTheDocument()
     await waitFor(async () =>
       expect((await saved(store)).redAbilities).toEqual([
@@ -865,6 +874,32 @@ describe('HeroEditor', () => {
         { source: 'red', name: 'Push Your Limits', category: 'power:athletic' },
       ]),
     )
+  })
+
+  it('keeps a pick from a category the hero can’t use listed, and its group open while editing', async () => {
+    const psychic = redAbilityCategories.find((c) => c.powerCategory === 'psychic')!
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...completeHero(), id: 'h1' })
+      h.redAbilities = [{ source: 'red', name: psychic.abilities[0]!.name, category: 'power:psychic' }]
+    })
+    renderEditor(store, 'red-abilities')
+    // Shown though the filter is on, and open, since it has a pick.
+    const group = await screen.findByRole('group', { name: 'Psychic power Red abilities' })
+    const details = group.closest('details')!
+    expect(screen.getByRole('checkbox', { name: 'Only ones I can take' })).toBeChecked()
+    expect(details.open).toBe(true)
+    // Groups without a pick start closed.
+    expect(screen.getByRole('group', { name: 'Athletic power Red abilities' }).closest('details')!.open).toBe(false)
+    // The hint counts only the categories it hides.
+    const hidden = redAbilityCategories.filter((c) => c.powerCategory !== 'psychic' && !screen.queryByRole('group', { name: new RegExp(`^${categoryName(c)} Red abilities$`) })).length
+    expect(screen.getByText(new RegExp(`^${hidden} more categories need`))).toBeInTheDocument()
+    // With the filter off, unticking the only pick leaves the group open.
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Only ones I can take' }))
+    await userEvent.click(within(group).getByRole('checkbox', { name: new RegExp(psychic.abilities[0]!.name) }))
+    expect(screen.getByRole('group', { name: 'Psychic power Red abilities' }).closest('details')!.open).toBe(true)
+    // With it on, a category with nothing chosen that the hero can't use is hidden again.
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Only ones I can take' }))
+    expect(screen.queryByRole('group', { name: 'Psychic power Red abilities' })).not.toBeInTheDocument()
   })
 
   it('lists Minion-Maker’s extra Red options', async () => {
@@ -928,6 +963,8 @@ describe('HeroEditor', () => {
       await userEvent.click(await screen.findByRole('radio', { name: /Gain one more Red ability/ }))
       await userEvent.click(within(screen.getByRole('group', { name: 'Athletic power Red abilities' })).getByRole('checkbox', { name: /Reactive Strike/ }))
       await waitFor(async () => expect((await savedRetcon(store))?.kind).toBe('gainRedAbility'))
+      // The retcon gains one.
+      expect(screen.getByText('1 of 1 chosen')).toBeInTheDocument()
       expect((await savedRetcon(store)) as unknown).toMatchObject({ ability: { source: 'retcon', name: 'Reactive Strike', category: 'power:athletic' } })
       await userEvent.click(screen.getByRole('button', { name: 'Take no retcon yet' }))
       await waitFor(async () => expect(await savedRetcon(store)).toBeNull())

@@ -39,6 +39,8 @@ interface AbilityPickerProps {
   nameable?: boolean
   /** A limit on one slot, e.g. a Red ability's category; only traits within it are offered there. */
   slotLimit?: SlotLimit
+  /** Hides the legend visually (a group heading above already says it). */
+  hideLegend?: boolean
 }
 
 /** A trait that can fill a slot: what it is, its die, and its name. */
@@ -209,23 +211,28 @@ interface AbilityChooserProps<P extends EditablePick> {
   /** Whether the abilities can be given their own names. */
   nameable?: boolean
   slotLimit?: SlotLimit
+  hideLegend?: boolean
 }
 
 /** Taking abilities from a list and filling in their blanks, for any kind of character. */
-export function AbilityChooser<P extends EditablePick>({ filling, legend, hint, options, source, picks, onChange, fixed = false, nameable = true, slotLimit }: AbilityChooserProps<P>) {
+/**
+ * Each ability is a card: checkbox, name, type and text (with action icons). Checking it opens
+ * its slot pickers, its optional custom name, and the text as filled in.
+ */
+export function AbilityChooser<P extends EditablePick>({ filling, legend, hint, options, source, picks, onChange, fixed = false, nameable = true, slotLimit, hideLegend = false }: AbilityChooserProps<P>) {
   // Keep picks that aren't on this list (e.g. after changing power source) so they can be removed; the checks flag them.
   const stray = picks.filter((p) => !options.some((o) => o.name === p.name))
   const replace = (name: string, next: P | undefined) => onChange(replacePick(picks, name, next))
   return (
     <fieldset className="ability-picker" data-section="abilities">
-      <legend>{legend}</legend>
+      <legend className={hideLegend ? 'visually-hidden' : undefined}>{legend}</legend>
       {hint && <p className="hint">{hint}</p>}
       {options.map((ability) => {
         const pick = picks.find((p) => p.name === ability.name)
         if (fixed) {
           // The hero has it either way; a pick is saved once a blank is filled or it's given a name.
           return (
-            <div key={ability.name} className="ability-pick">
+            <div key={ability.name} className="ability-pick ability-card">
               <p className="ability-pick__fixed">
                 <span className="choice__title">
                   {ability.name} <span className="choice__note">({TYPE_NAME[ability.type]})</span>
@@ -239,7 +246,7 @@ export function AbilityChooser<P extends EditablePick>({ filling, legend, hint, 
           )
         }
         return (
-          <div key={ability.name} className="ability-pick">
+          <div key={ability.name} className="ability-pick ability-card">
             <label className="choice">
               <input type="checkbox" checked={Boolean(pick)} onChange={(e) => replace(ability.name, e.target.checked ? ({ source, name: ability.name } as P) : undefined)} />
               <span className="choice__body">
@@ -256,7 +263,7 @@ export function AbilityChooser<P extends EditablePick>({ filling, legend, hint, 
         )
       })}
       {stray.map((p) => (
-        <div key={p.name} className="ability-pick">
+        <div key={p.name} className="ability-pick ability-card">
           <label className="choice">
             <input type="checkbox" checked onChange={() => replace(p.name, undefined)} />
             <span className="choice__body">

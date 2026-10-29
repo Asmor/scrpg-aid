@@ -270,6 +270,7 @@ export function RetconStep({ hero, update }: { hero: Hero; update: Update }) {
         <RedAbilityLists
           hero={hero}
           picks={choice?.kind === 'gainRedAbility' ? [choice.ability] : []}
+          allowed={1}
           source="retcon"
           step="retcon"
           // The model holds one Red ability (the data's count is 1): taking another replaces it.
