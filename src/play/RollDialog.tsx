@@ -17,7 +17,7 @@ import { GONE, type ModTarget } from './ModForm'
 import { describeMod, type PlayZone } from './state'
 
 /** What's being used: an ability (with its effects), or a basic action. */
-export type RollSubject = { kind: 'ability'; name: string; text: string; use: AbilityUse; reaction: boolean } | { kind: 'basic' }
+export type RollSubject = { kind: 'ability'; name: string; text: string; use: AbilityUse; reaction: boolean } | { kind: 'basic'; action?: BasicAction }
 
 const BASIC_ACTIONS: readonly BasicAction[] = ['attack', 'defend', 'boost', 'hinder', 'overcome']
 const KIND_LABEL = { power: 'Power', quality: 'Quality' } as const
@@ -75,7 +75,8 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, onAddMod, tar
   const actions = BASIC_ACTIONS.filter((a) => !dice.cannot.includes(a))
 
   // Effects: an ability's, or the basic action chosen.
-  const [basicAction, setBasicAction] = useState<Action>(() => actions[0] ?? 'attack')
+  // A basic action button opens it with that action chosen.
+  const [basicAction, setBasicAction] = useState<Action>(() => (subject.kind === 'basic' && subject.action) || actions[0] || 'attack')
   const effects = use ? use.effects : [{ actions: [basicAction], use: 'mid' as EffectUse }]
   const [plans, setPlans] = useState<EffectPlan[]>(() => defaultPlans(effects))
   const shownPlans = use ? plans : defaultPlans(effects)

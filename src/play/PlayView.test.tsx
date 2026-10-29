@@ -24,6 +24,13 @@ async function setup(change: (h: Hero) => void = () => {}) {
   return store
 }
 
+/** "17 of 30 · Yellow": current Health, the max, and the zone chip. */
+function healthIs(): string {
+  const health = screen.getByRole('region', { name: 'Health' })
+  const value = health.querySelector('.play-health')!.textContent!.replace(/\s+/g, ' ').trim()
+  return `${value} · ${health.querySelector('.zone-chip')?.textContent}`
+}
+
 const saved = async (store: HeroStore) => {
   const r = await store.get('h1')
   if (r.status !== 'found') throw new Error('not saved')
@@ -46,9 +53,24 @@ describe('PlayPage', () => {
 
   it('starts at full Health in Green, with the Green status die', async () => {
     await setup()
-    const health = screen.getByRole('region', { name: 'Health' })
-    expect(health).toHaveTextContent('30 / 30 Green')
-    expect(within(health).getByRole('img', { name: 'd8' })).toBeInTheDocument()
+    expect(healthIs()).toBe('30 of 30 · Green')
+    const scene = screen.getByRole('region', { name: 'Scene' })
+    expect(within(scene).getByRole('img', { name: 'd8' })).toBeInTheDocument()
+    expect(scene).toHaveTextContent('Status die: Green')
+    expect(scene).toHaveTextContent('You: Green · Scene: Green. The more severe one sets your status die and abilities.')
+  })
+
+  it('steps Health by one, never past 0 or the max, and is Out at 0', async () => {
+    await setup((h) => {
+      h.play = { health: 1, heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [] }
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Lose 1 Health' }))
+    expect(healthIs()).toBe('0 of 30 · Out')
+    await userEvent.click(screen.getByRole('button', { name: 'Lose 1 Health' }))
+    expect(healthIs()).toBe('0 of 30 · Out')
+    expect(screen.getByRole('region', { name: 'Scene' })).toHaveTextContent("You're Out: only your Out ability is available.")
+    await userEvent.click(screen.getByRole('button', { name: 'Gain 1 Health' }))
+    expect(healthIs()).toBe('1 of 30 · Red')
   })
 
   it('loses and gains Health, records it, and saves it', async () => {
@@ -56,20 +78,24 @@ describe('PlayPage', () => {
     const amount = screen.getByLabelText('Amount')
     await userEvent.type(amount, '13')
     await userEvent.click(screen.getByRole('button', { name: 'Lose' }))
-    expect(screen.getByRole('region', { name: 'Health' })).toHaveTextContent('17 / 30 Yellow')
+    expect(healthIs()).toBe('17 of 30 · Yellow')
     const history = screen.getByRole('region', { name: 'History' })
     expect(history).toHaveTextContent('Lost 13 HP (30 → 17). Entered Yellow status.')
     expect(within(history).getByText('now')).toBeInTheDocument()
     await waitFor(async () => expect((await saved(store)).play?.health).toBe(17))
     await userEvent.type(amount, '20')
     await userEvent.click(screen.getByRole('button', { name: 'Gain' }))
-    expect(screen.getByRole('region', { name: 'Health' })).toHaveTextContent('30 / 30 Green')
+    expect(healthIs()).toBe('30 of 30 · Green')
   })
 
   it('follows the scene zone when it’s further along', async () => {
     const store = await setup()
-    await userEvent.click(within(screen.getByRole('group', { name: 'Scene' })).getByRole('radio', { name: 'Red' }))
-    expect(screen.getByRole('region', { name: 'Health' })).toHaveTextContent('30 / 30 Red')
+    const zones = screen.getByRole('group', { name: 'Scene zone' })
+    await userEvent.click(within(zones).getByRole('button', { name: 'Red' }))
+    expect(within(zones).getByRole('button', { name: 'Red' })).toHaveAttribute('aria-pressed', 'true')
+    const scene = screen.getByRole('region', { name: 'Scene' })
+    expect(scene).toHaveTextContent('Status die: Red')
+    expect(scene).toHaveTextContent('You: Green · Scene: Red.')
     await waitFor(async () => expect((await saved(store)).play?.sceneZone).toBe('red'))
   })
 
@@ -78,7 +104,7 @@ describe('PlayPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Gain a hero point' }))
     await userEvent.click(screen.getByRole('button', { name: 'Gain a hero point' }))
     await userEvent.click(screen.getByRole('button', { name: 'Spend a hero point' }))
-    expect(screen.getByText('1 of 5 hero points')).toBeInTheDocument()
+    expect(screen.getByLabelText('1 of 5 hero points')).toHaveTextContent('1')
     await userEvent.click(screen.getByRole('checkbox', { name: 'Reaction used this round' }))
     expect(screen.getByRole('region', { name: 'History' })).toHaveTextContent('Used this round’s reaction.')
   })
@@ -86,20 +112,27 @@ describe('PlayPage', () => {
   it('adds and removes mods and twists', async () => {
     const store = await setup()
     const mods = within(screen.getByRole('region', { name: 'Bonuses and penalties' }))
+    // The form is closed until "+ Add".
+    expect(mods.queryByLabelText('What it is')).not.toBeInTheDocument()
+    await userEvent.click(mods.getByRole('button', { name: '+ Add' }))
     await userEvent.selectOptions(mods.getByLabelText('Size'), '-3 penalty')
     await userEvent.type(mods.getByLabelText('What it is'), 'tied up')
     await userEvent.click(mods.getByRole('checkbox', { name: 'Persistent' }))
     await userEvent.click(mods.getByRole('button', { name: 'Add' }))
-    expect(mods.getByText("'-3 tied up' penalty (persistent)")).toBeInTheDocument()
+    // A row: the size, the name, and its tags.
+    const row = mods.getByText('tied up').closest('li')!
+    expect(row).toHaveTextContent('−3tied upPersistent')
+    expect(mods.queryByLabelText('What it is')).not.toBeInTheDocument()
     await waitFor(async () => expect((await saved(store)).play?.mods).toEqual([{ id: expect.any(String), label: 'tied up', value: -3, persistent: true }]))
     await userEvent.click(mods.getByRole('button', { name: "Remove '-3 tied up' penalty (persistent)" }))
     expect(mods.getByText('None.')).toBeInTheDocument()
 
     const twists = within(screen.getByRole('region', { name: 'Twists' }))
+    await userEvent.click(twists.getByRole('button', { name: '+ Add' }))
     await userEvent.type(twists.getByLabelText('Twist'), 'Sprained ankle')
     await userEvent.click(twists.getByRole('button', { name: 'Add' }))
     expect(twists.getByText('Sprained ankle')).toBeInTheDocument()
-    await userEvent.click(twists.getByRole('button', { name: 'Clear the minor twist: Sprained ankle' }))
+    await userEvent.click(twists.getByRole('button', { name: 'Resolve the minor twist: Sprained ankle' }))
     expect(screen.getByRole('region', { name: 'History' })).toHaveTextContent("Gained '-3 tied up' penalty (persistent).")
   })
 
@@ -109,7 +142,7 @@ describe('PlayPage', () => {
     })
     await userEvent.click(screen.getByRole('button', { name: 'New issue…' }))
     await userEvent.click(screen.getByRole('button', { name: 'Yes, new issue' }))
-    expect(screen.getByRole('region', { name: 'Health' })).toHaveTextContent('30 / 30 Green')
+    expect(healthIs()).toBe('30 of 30 · Green')
     await waitFor(async () => expect((await saved(store)).play).toMatchObject({ heroPoints: 0, reactionUsed: false, mods: [], twists: [] }))
   })
 

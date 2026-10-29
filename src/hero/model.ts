@@ -366,6 +366,8 @@ export interface PlayHistoryEntry {
   at: string
   text: string
   details?: string[]
+  /** A roll's entry (its title, with its dice and effects as details): Play shows the latest as a card. */
+  roll?: true
 }
 
 /** What the game aid tracks for a hero during play. */

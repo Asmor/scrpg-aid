@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { buildSheet } from '../creation/sheet'
 import type { Hero } from '../hero/model'
-import { A, completeHero, dividedHero, formChangerHero, modularHero, P, Q } from '../test/heroes'
-import { currentForm, defaultSlots, formAvailable, formDice, formNoun, playAbilities, playForms, traitChoices } from './forms'
+import { A, completeHero, dividedHero, dividedSplitHero, formChangerHero, modularBlasterHero, modularHero, P, Q } from '../test/heroes'
+import { availabilityContext, basicActionBlocked, currentForm, defaultSlots, formAvailable, formDice, formNoun, playAbilities, playForms, traitChoices } from './forms'
 import { emptyPlay } from './state'
 
 const dice = (hero: Hero, play = {}) => formDice(hero, buildSheet(hero), { ...emptyPlay(), ...play })
@@ -51,7 +51,7 @@ describe('forms and modes', () => {
 
   it('makes a form’s ability usable only in that form, and Yellow forms only in Yellow or Red', () => {
     expect(abilities(formChangerHero(), {}, 'yellow')).toMatchObject({ 'Strong Form': 'Only in Brute', 'Agile Form': 'Only in Yellow form 1', 'Change Forms': 'ok' })
-    expect(abilities(formChangerHero(), { form: 'form:0' })).toMatchObject({ 'Strong Form': 'ok', 'Clever Form': 'Only in Green form 2', 'Agile Form': 'Yellow or Red zone' })
+    expect(abilities(formChangerHero(), { form: 'form:0' })).toMatchObject({ 'Strong Form': 'ok', 'Clever Form': 'Only in Green form 2', 'Agile Form': 'Only in Yellow form 1' })
   })
 
   it('blocks a mode’s “can’t” actions, and allows only principle abilities in Powerless mode', () => {
@@ -63,7 +63,7 @@ describe('forms and modes', () => {
 
   it('blocks an ability only when every effect is a “can’t” action (ruling 53)', () => {
     const sheet = buildSheet(modularHero())
-    const withEffects = (effects: { actions: ('attack' | 'hinder' | 'boost' | 'recover')[]; use: 'max' }[]) => ({ ...sheet.abilities[0]!, name: 'Test', zone: 'green' as const, use: { effects, traits: [] } })
+    const withEffects = (effects: { actions: ('attack' | 'hinder' | 'boost' | 'recover')[]; use: 'max' }[]) => ({ ...sheet.abilities[0]!, name: 'Test', type: 'A' as const, zone: 'green' as const, use: { effects, traits: [] } })
     const blocked = (effects: Parameters<typeof withEffects>[0]) =>
       playAbilities(modularHero(), { ...sheet, abilities: [withEffects(effects)] }, { ...emptyPlay(), form: 'mode:0' }, 'green').find((a) => a.name === 'Test')?.blocked
     // Improvement Mode can't Attack or Hinder.
@@ -120,7 +120,7 @@ describe('Divided forms', () => {
     expect(dice(splitHero()).slots).toEqual(['power', 'quality'])
     expect(names(dice(splitHero()).powers)).toEqual(['Speed d12', 'Agility d10', 'Awareness d8'])
     expect(names(dice(splitHero(), { dividedForm: 'heroic' }).powers)).toEqual(['Speed d12', 'Agility d10', 'Fire d8', 'Flight d6'])
-    expect(abilities(splitHero(), {}, 'yellow')).toMatchObject({ Inflict: 'Needs Fire, not in your civilian form', 'Speedy Analysis': 'Needs Flight, not in your civilian form', 'Always on the Move': 'ok' })
+    expect(abilities(splitHero(), {}, 'yellow')).toMatchObject({ Inflict: 'Needs Fire (heroic form)', 'Speedy Analysis': 'Needs Flight (heroic form)', 'Always on the Move': 'ok' })
     expect(abilities(splitHero(), { dividedForm: 'heroic' }, 'yellow')).toMatchObject({ Inflict: 'ok' })
   })
 
@@ -132,5 +132,53 @@ describe('Divided forms', () => {
     expect(names(heroic.powers)).toContain('Leaping d8')
     expect(names(formDice(hero, sheet, emptyPlay()).powers)).not.toContain('Leaping d8')
     expect(heroic.statusDice).toEqual(sheet.heroicStatusDice)
+  })
+})
+
+describe('ability availability (the spec’s table, first rule wins)', () => {
+  it('says each reason in order: always on, Out, not Out, zone', () => {
+    expect(abilities(completeHero())).toMatchObject({ Immunity: 'ok', 'Always on the Move': 'ok', Inflict: 'Needs Yellow zone', 'Paragon Feat': 'Needs Red zone', 'Out ability': "When you're Out" })
+    // Inherent abilities are always on, even when Out.
+    const always = (zone: 'green' | 'out') => playAbilities(completeHero(), buildSheet(completeHero()), emptyPlay(), zone).find((a) => a.name === 'Immunity')
+    expect(always('out')).toMatchObject({ always: true })
+    expect(abilities(completeHero(), {}, 'out')).toMatchObject({ 'Always on the Move': "You're Out", Inflict: "You're Out", 'Out ability': 'ok' })
+  })
+
+  it('puts a form’s own ability before the zone, and the zone last', () => {
+    // A Red-zone hero in the default mode: Bombardment belongs to its mode.
+    expect(abilities(modularBlasterHero(), {}, 'red')).toMatchObject({ Bombardment: 'Only in Bombardment Mode', 'Emergency Switch': 'ok' })
+    // Bombardment Mode can't Boost, Hinder or Overcome.
+    expect(abilities(modularBlasterHero(), { form: 'mode:2' }, 'yellow')).toMatchObject({ Switch: "Can't Boost in Bombardment Mode", Bombardment: 'ok' })
+  })
+
+  it('keeps a mode’s own ability after healing back to Green, but locks the zone’s other abilities', () => {
+    // In Bombardment Mode (Yellow) at full Health: its ability works, Quick Switch (Yellow) doesn't.
+    expect(abilities(modularBlasterHero(), { form: 'mode:2' }, 'green')).toMatchObject({ Bombardment: 'ok', 'Quick Switch': 'Needs Yellow zone' })
+  })
+
+  it('names the form that has a Divided ability’s trait', () => {
+    expect(abilities(dividedSplitHero())).toMatchObject({ 'Fast Fingers': 'Needs Agility (heroic form)' })
+    expect(abilities(dividedSplitHero(), { dividedForm: 'heroic' })).toMatchObject({ 'Fast Fingers': 'ok' })
+  })
+
+  it('blocks basic actions by the same rules', () => {
+    const ctx = (hero: Hero, play = {}, zone: 'green' | 'out' = 'green') => availabilityContext(hero, buildSheet(hero), { ...emptyPlay(), ...play }, zone)
+    expect(basicActionBlocked('attack', ctx(completeHero()))).toBeUndefined()
+    expect(basicActionBlocked('attack', ctx(completeHero(), {}, 'out'))).toBe("You're Out")
+    expect(basicActionBlocked('boost', ctx(modularBlasterHero(), { form: 'mode:2' }))).toBe("Can't Boost in Bombardment Mode")
+    expect(basicActionBlocked('defend', ctx(modularBlasterHero(), { form: 'mode:2' }))).toBeUndefined()
+    // Powerless mode limits abilities, not basic actions.
+    expect(basicActionBlocked('attack', ctx(modularHero(), { form: 'powerless' }))).toBeUndefined()
+  })
+
+  it('turns a mode’s own Inherent ability on only in that mode (ruling 59)', () => {
+    expect(abilities(modularBlasterHero(), {}, 'red')).toMatchObject({ Destroyer: 'Only in Destroyer Mode' })
+    const inDestroyer = playAbilities(modularBlasterHero(), buildSheet(modularBlasterHero()), { ...emptyPlay(), form: 'mode:3' }, 'red').find((a) => a.name === 'Destroyer')
+    expect(inDestroyer).toMatchObject({ always: true })
+    expect(inDestroyer?.blocked).toBeUndefined()
+  })
+
+  it('turns off non-principle Inherent abilities in Powerless mode (ruling 60)', () => {
+    expect(abilities(modularHero(), { form: 'powerless' })).toMatchObject({ Immunity: 'Only principle abilities in Powerless mode', 'Principle of Business': 'ok' })
   })
 })

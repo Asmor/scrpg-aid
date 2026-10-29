@@ -350,6 +350,18 @@ These came from questions the user put to the rules-expert agent about an action
 - **Decision:** No. The roll is two qualities and the status die. The ability's own trait fills a slot only when it's of the kind being rolled.
 - **Basis:** Default (permissive; not asked).
 
+### 59. A mode's or form's own Inherent ability
+- **Pages:** Modular (p. 96–98), e.g. Destroyer Mode's "Destroyer"; Form-Changer (p. 90–91).
+- **Question:** Inherent abilities are always on. Does a mode's or form's own Inherent ability apply outside that mode or form?
+- **Decision:** No. It applies only while the hero is in that mode or form; outside it, it's "Only in" that mode or form.
+- **Basis:** Interpretation (the user's ruling).
+
+### 60. Inherent abilities in Powerless mode
+- **Pages:** Modular (p. 96–98); extends ruling 54.
+- **Question:** Powerless mode allows "only abilities from your principles". Does that switch off the hero's other Inherent abilities too?
+- **Decision:** Yes. In Powerless mode, Inherent abilities that aren't from a principle are off, like other non-principle abilities. Basic actions still work.
+- **Basis:** Interpretation (the user's ruling).
+
 ## Villains (p. 208–239)
 
 ### 57. Quality Upgrade's extra abilities and an approach's pattern

@@ -141,7 +141,7 @@ const heroShape = object({
     reactionUsed: boolean,
     mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
     twists: arrayOf(object({ id: nonEmptyString, kind: oneOf('minor', 'major'), text: string })),
-    history: arrayOf(object({ id: nonEmptyString, at: nonEmptyString, text: string, 'details?': arrayOf(string) })),
+    history: arrayOf(object({ id: nonEmptyString, at: nonEmptyString, text: string, 'details?': arrayOf(string), 'roll?': oneOf(true) })),
   }),
 })
 

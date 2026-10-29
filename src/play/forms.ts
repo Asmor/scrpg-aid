@@ -13,6 +13,12 @@
  * - Divided: "You cannot use abilities related to a power or quality you don't have access
  *   to", and Divided Psyche rolls two qualities in civilian form and two powers in heroic form,
  *   whatever the ability names (ruling 56).
+ *
+ * Whether an ability can be used now is one function, `availability`, following the hero sheet
+ * spec's table in order (Inherent, Out, form or mode, its limits, Divided, zone): the first
+ * rule that applies wins. A mode's or form's own Inherent ability applies only in it (ruling
+ * 59), and Powerless mode turns off non-principle Inherent abilities too (ruling 60). Using the
+ * reaction is noted, not enforced (the user's decision).
  */
 import { traitKey, type TraitRef } from '../rules/catalog'
 import { takesDividedPsyche, withoutOtherForm } from '../creation/divided'
@@ -159,41 +165,87 @@ export interface PlayAbility {
   effects: Action[]
   use: AbilityUse
   from: PlayZone
+  /** An Inherent ability: always on, never used. */
+  always?: true
   /** Why it can't be used now, when it can't. */
   blocked?: string
 }
 
-const ZONE_HINT: Record<PlayZone, string> = { green: 'Not while Out', yellow: 'Yellow or Red zone', red: 'Red zone only', out: 'When Out' }
 const ACTION_NAME: Record<BasicAction, string> = { attack: 'Attack', defend: 'Defend', boost: 'Boost', hinder: 'Hinder', overcome: 'Overcome' }
+const ZONE_NAME: Record<Zone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red' }
+
+/** Where the hero is: their zone and the form or mode they're in, for ability availability. */
+export interface AvailabilityContext {
+  zone: PlayZone | undefined
+  form: PlayForm | undefined
+  divided: 'civilian' | 'heroic' | undefined
+  dice: FormDice
+}
+
+/** What availability needs to know about an ability (or a basic action). */
+export interface AvailabilityInput {
+  type: AbilityType
+  from: PlayZone
+  use: AbilityUse
+  /** The form or mode it belongs to, for a form's or mode's own ability. */
+  only?: PlayForm
+  principle?: boolean
+  /** A basic action rather than an ability: Powerless mode's limit is on abilities only. */
+  basic?: true
+}
+
+/**
+ * Whether an ability can be used now (docs/design/hero-sheet/spec.md, "Ability availability"):
+ * the first rule that applies wins. Used by the Use buttons, the roll and the basic actions.
+ */
+export function availability(a: AvailabilityInput, { zone, form, divided, dice }: AvailabilityContext): { always: true } | { blocked: string } | Record<string, never> {
+  // Forms are compared by key: callers may build their lists separately.
+  const inOwnForm = Boolean(a.only && a.only.key === form?.key)
+  // Powerless mode allows only principle abilities (ruling 54), Inherent ones included (ruling 60).
+  const powerless = form?.powerless && !a.basic && !a.principle && a.from !== 'out'
+  if (a.type === 'I') {
+    // A mode's or form's own Inherent ability applies only in it (ruling 59).
+    if (a.only && !inOwnForm) return { blocked: `Only in ${a.only.name}` }
+    if (powerless) return { blocked: `Only principle abilities in ${form.name}` }
+    return { always: true }
+  }
+  if (zone === 'out' && a.from !== 'out') return { blocked: "You're Out" }
+  if (a.from === 'out' && zone !== 'out') return { blocked: "When you're Out" }
+  if (a.only && !inOwnForm) return { blocked: `Only in ${a.only.name}` }
+  // A form's or mode's limits: Powerless mode's (above), and a mode's "can't" actions, which rule
+  // out abilities that only do those (ruling 53).
+  if (powerless) return { blocked: `Only principle abilities in ${form.name}` }
+  const actions = [...new Set(a.use.effects.flatMap((e) => e.actions))]
+  const forbidden = a.use.effects.length > 0 && a.use.effects.every((e) => e.actions.every((x) => x !== 'recover' && dice.cannot.includes(x)))
+  if (forbidden && form) return { blocked: `Can't ${actions.map((x) => ACTION_NAME[x as BasicAction]).join(' or ')} in ${form.name}` }
+  // The Out ability isn't blocked by a Divided form that lacks its power or quality (ruling 55).
+  const missing = a.use.traits.filter((r) => !has([...dice.powers, ...dice.qualities], r))
+  if (divided && a.from !== 'out' && missing.length) return { blocked: `Needs ${missing.map((r) => nameOf(dice, r)).join(' and ')} (${divided === 'civilian' ? 'heroic' : 'civilian'} form)` }
+  // A form's or mode's own ability works in it whatever the zone (the hero stays in it when healed).
+  if (a.from !== 'out' && !inOwnForm && !abilityAvailable(a.from, zone)) return { blocked: `Needs ${ZONE_NAME[a.from]} zone` }
+  return {}
+}
+
+/** Whether a basic action can be taken now, by the same rules: none when Out, or one the mode forbids. */
+export function basicActionBlocked(action: BasicAction, ctx: AvailabilityContext): string | undefined {
+  const result = availability({ type: 'A', from: 'green', basic: true, use: { effects: [{ actions: [action], use: 'mid' }], traits: [] } }, ctx)
+  return 'blocked' in result ? result.blocked : undefined
+}
+
+/** Where the hero is now, for availability. */
+export function availabilityContext(hero: Hero, sheet: HeroSheet, play: PlayState, zone: PlayZone | undefined): AvailabilityContext {
+  return { zone, form: currentForm(playForms(sheet), play), divided: dividedForm(sheet, play), dice: formDice(hero, sheet, play) }
+}
 
 /** Every ability the hero can use in play, with why each can't be used now. */
 export function playAbilities(hero: Hero, sheet: HeroSheet, play: PlayState, zone: PlayZone | undefined): PlayAbility[] {
   const forms = playForms(sheet)
-  const form = currentForm(forms, play)
-  const divided = dividedForm(sheet, play)
-  const dice = formDice(hero, sheet, play)
-  type Entry = Omit<PlayAbility, 'blocked'> & { principle?: boolean; only?: PlayForm }
+  const ctx = availabilityContext(hero, sheet, play, zone)
+  type Entry = Omit<PlayAbility, 'blocked' | 'always'> & { principle?: boolean; only?: PlayForm }
   const list: Entry[] = [
     ...sheet.abilities.map((a) => ({ key: `${a.source}:${a.baseName}`, name: a.name, type: a.type, text: a.text, effects: a.effects, use: a.use, from: a.zone, principle: a.source === 'principle' })),
     ...forms.flatMap((f) => (f.ability && f.key ? [{ key: f.key, ...f.ability, from: f.zone, only: f }] : [])),
     ...(sheet.outAbility && sheet.outUse ? [{ key: 'out', name: 'Out ability', type: 'A' as const, text: sheet.outAbility, effects: sheet.outEffects, use: sheet.outUse, from: 'out' as const }] : []),
   ]
-  return list.map(({ principle, only, ...a }) => {
-    const missing = a.use.traits.filter((r) => !has([...dice.powers, ...dice.qualities], r))
-    const forbidden = a.use.effects.length > 0 && a.use.effects.every((e) => e.actions.every((x) => x !== 'recover' && dice.cannot.includes(x)))
-    const blocked = !abilityAvailable(a.from, zone)
-      ? ZONE_HINT[a.from]
-      : a.type === 'R' && play.reactionUsed
-        ? 'Reaction used this round'
-        : only && only !== form
-          ? `Only in ${only.name}`
-          : form?.powerless && !principle && a.from !== 'out'
-            ? 'Only principle abilities in Powerless mode'
-            : forbidden
-              ? `Can't ${[...new Set(a.use.effects.flatMap((e) => e.actions))].map((x) => ACTION_NAME[x as BasicAction]).join(' or ')} in ${form!.name}`
-              : divided && a.from !== 'out' && missing.length
-                ? `Needs ${missing.map((r) => nameOf(dice, r)).join(' and ')}, not in your ${divided} form`
-                : undefined
-    return blocked ? { ...a, blocked } : a
-  })
+  return list.map(({ principle, only, ...a }) => ({ ...a, ...availability({ ...a, principle, only }, ctx) }))
 }

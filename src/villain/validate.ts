@@ -30,7 +30,7 @@ const villainShape = object({
     mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
     // Villains take minor twists only (the page adds no others), but the shared twist shape is read as is.
     twists: arrayOf(object({ id: nonEmptyString, kind: oneOf('minor', 'major'), text: string })),
-    history: arrayOf(object({ id: nonEmptyString, at: nonEmptyString, text: string, 'details?': arrayOf(string) })),
+    history: arrayOf(object({ id: nonEmptyString, at: nonEmptyString, text: string, 'details?': arrayOf(string), 'roll?': oneOf(true) })),
     'statusCount?': integer,
     'weaknessTier?': integer,
     'challengeParts?': integer,

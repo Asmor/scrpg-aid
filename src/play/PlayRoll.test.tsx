@@ -21,7 +21,7 @@ async function setup(change: (h: Hero) => void = () => {}) {
       <PlayPage id="h1" clock={clock} random={() => 0.999} />
     </StoreContext.Provider>,
   )
-  await screen.findByRole('region', { name: 'Abilities' })
+  await screen.findByRole('region', { name: 'Actions' })
   return store
 }
 
@@ -30,7 +30,9 @@ const saved = async (store: HeroStore) => {
   if (r.status !== 'found') throw new Error('not saved')
   return r.hero
 }
-const abilities = () => within(screen.getByRole('region', { name: 'Abilities' }))
+const abilities = () => within(screen.getByRole('region', { name: 'Actions' }))
+/** An ability's row in its band. */
+const row = (name: string) => abilities().getByText(name, { selector: 'strong' }).closest('li')!
 const play = (h: Partial<NonNullable<Hero['play']>>) => (hero: Hero) => {
   hero.play = { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [], ...h }
 }
@@ -39,19 +41,25 @@ describe('using abilities', () => {
   it('lists abilities, usable by zone, with inherent ones not usable', async () => {
     await setup()
     expect(abilities().getByRole('button', { name: 'Use Always on the Move' })).toBeEnabled()
-    expect(abilities().getByRole('button', { name: 'Use Inflict' })).toBeDisabled()
-    expect(abilities().getByRole('button', { name: 'Use Paragon Feat' })).toBeDisabled()
-    expect(abilities().getByRole('button', { name: 'Use Out ability' })).toBeDisabled()
+    // An ability that can't be used shows why in place of Use, faded.
+    expect(abilities().queryByRole('button', { name: 'Use Inflict' })).not.toBeInTheDocument()
+    expect(row('Inflict')).toHaveTextContent('Needs Yellow zone')
+    expect(row('Inflict')).toHaveClass('play-row--blocked')
+    expect(row('Paragon Feat')).toHaveTextContent('Needs Red zone')
+    expect(row('Out ability')).toHaveTextContent("When you're Out")
     expect(abilities().queryByRole('button', { name: 'Use Immunity' })).not.toBeInTheDocument()
+    expect(row('Immunity')).toHaveTextContent('Always on')
+    expect(row('Immunity')).not.toHaveClass('play-row--blocked')
     // Each ability's text shows in the list.
-    expect(abilities().getByText(/Attack using Fire\. Hinder that same target/)).toBeInTheDocument()
+    expect(row('Inflict')).toHaveTextContent(/Attack using Fire\. ?Hinder that same target/)
   })
 
   it('opens the Out ability, and only it, when Out', async () => {
     await setup(play({ health: 0 }))
     expect(abilities().getByRole('button', { name: 'Use Out ability' })).toBeEnabled()
-    expect(abilities().getByRole('button', { name: 'Use Always on the Move' })).toBeDisabled()
-    expect(abilities().getByRole('button', { name: 'Basic action…' })).toBeDisabled()
+    expect(row('Always on the Move')).toHaveTextContent("You're Out")
+    expect(abilities().getByRole('button', { name: 'Attack' })).toBeDisabled()
+    expect(abilities().getByText("You're Out", { selector: 'p' })).toBeInTheDocument()
   })
 
   it('rolls an ability: its dice, effects, and the history', async () => {
@@ -137,9 +145,10 @@ describe('using abilities', () => {
 
   it('takes a basic action without an ability', async () => {
     const store = await setup()
-    await userEvent.click(abilities().getByRole('button', { name: 'Basic action…' }))
+    // Each basic action opens the roll with it chosen.
+    await userEvent.click(abilities().getByRole('button', { name: 'Overcome' }))
     const dialog = within(screen.getByRole('dialog', { name: 'Basic action' }))
-    await userEvent.selectOptions(dialog.getByLabelText('Action'), 'Overcome')
+    expect(dialog.getByLabelText('Action')).toHaveDisplayValue('Overcome')
     await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
     expect(dialog.getByText('Overcome 10 (Mid): Full success.')).toBeInTheDocument()
     await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
@@ -178,13 +187,35 @@ describe('using abilities', () => {
     await waitFor(async () => expect((await saved(store)).play?.history.at(-1)?.text).toBe('Used ability Out ability.'))
   })
 
-  it('won’t use a reaction twice in a round', async () => {
+  it('notes a used reaction on Reaction rows without blocking them', async () => {
     await setup((h) => {
       h.redAbilities = [{ source: 'red', name: 'Reactive Strike', category: 'power:athletic', uses: [{ kind: 'power', id: 'agility' }] }]
       play({ health: 5, reactionUsed: true })(h)
     })
-    expect(abilities().getByRole('button', { name: 'Use Reactive Strike' })).toBeDisabled()
-    expect(abilities().getByText('Reaction used this round')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Reaction used this round' })).toBeChecked()
+    // Noted on Reaction rows, never blocked.
+    expect(abilities().getByRole('button', { name: 'Use Reactive Strike' })).toBeEnabled()
+    expect(row('Reactive Strike')).toHaveTextContent('Reaction used this round')
+    expect(row('Always on the Move')).not.toHaveTextContent('Reaction used this round')
+  })
+
+  it('shows the latest roll as a card above the rest of the history', async () => {
+    await setup(
+      play({
+        history: [
+          { id: 'a', at: '2026-10-29T10:00:00.000Z', text: 'Used ability Inflict:', details: ['Max: 7 (Speed d12)', 'Deal 7 damage.'], roll: true },
+          { id: 'b', at: '2026-10-29T10:01:00.000Z', text: 'Gained a hero point (now 1).' },
+        ],
+      }),
+    )
+    const history = within(screen.getByRole('region', { name: 'History' }))
+    const latest = history.getByLabelText('Latest roll')
+    expect(latest).toHaveTextContent('Used ability Inflict:')
+    expect(latest).toHaveTextContent('Max: 7 (Speed')
+    expect(latest).toHaveTextContent('Deal 7 damage.')
+    // The rest, newest first, without the roll again.
+    const rest = history.getByRole('list', { name: 'Earlier' }).querySelectorAll(':scope > li')
+    expect([...rest].map((li) => li.textContent)).toEqual([expect.stringContaining('Gained a hero point (now 1).')])
   })
 
   it('closes on Escape without recording anything', async () => {

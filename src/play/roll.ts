@@ -8,7 +8,7 @@
 import type { AbilityUse } from '../creation/sheet'
 import { ACTION_LABEL } from '../creation/effects'
 import type { HeroTrait } from '../creation/traits'
-import type { PlayMod } from '../hero/model'
+import type { PlayHistoryEntry, PlayMod } from '../hero/model'
 import type { Action, AbilityEffect, Die, EffectUse } from '../rules/types'
 import { describeMod, type Clock, type PlayCore } from './state'
 
@@ -237,12 +237,12 @@ export function confirmRoll<P extends PlayCore>(play: P, record: RollRecord, clo
     ...used.map((m) => `Applied ${describeMod(m)}.`),
   ]
   const at = clock.now.toISOString()
-  const entries = [{ id: clock.newId(), at, text: record.title, details }]
+  const entries: PlayHistoryEntry[] = [{ id: clock.newId(), at, text: record.title, details, roll: true }]
   const usedUp = used.filter((m) => !m.persistent)
   for (const m of usedUp) entries.push({ id: clock.newId(), at, text: `Used up ${describeMod(m)}.`, details: [] })
   return {
     ...play,
     mods: play.mods.filter((m) => !usedUp.some((u) => u.id === m.id)),
-    history: [...play.history, ...entries.map(({ details: d, ...e }) => (d.length ? { ...e, details: d } : e))],
+    history: [...play.history, ...entries.map(({ details: d, ...e }) => (d?.length ? { ...e, details: d } : e))],
   }
 }

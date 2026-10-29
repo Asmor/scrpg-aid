@@ -67,6 +67,7 @@ describe('villains in a game', () => {
 
     // The player Hinders the villain; its Play page (open in the GM's browser) adds the penalty.
     const mods = within(player.getByRole('region', { name: 'Bonuses and penalties' }))
+    await userEvent.click(mods.getByRole('button', { name: '+ Add' }))
     await userEvent.selectOptions(mods.getByLabelText('For'), 'Ironclad')
     await userEvent.selectOptions(mods.getByLabelText('Size'), '-2 penalty')
     await userEvent.type(mods.getByLabelText('What it is'), 'tangled')

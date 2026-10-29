@@ -42,7 +42,7 @@ export function ModForm({ targets = [], self = true, submitLabel, onSubmit }: Pr
       className="play-add"
       onSubmit={(e) => {
         e.preventDefault()
-        if (blocked) return
+        if (blocked || !label.trim()) return
         if (onSubmit({ label, value, ...(persistent ? { persistent: true } : {}), ...(exclusive ? { exclusive: true } : {}) }, target || undefined) === false) return
         setLabel('')
         setPersistent(false)
@@ -89,7 +89,8 @@ export function ModForm({ targets = [], self = true, submitLabel, onSubmit }: Pr
         <input type="checkbox" checked={exclusive} onChange={(e) => setExclusive(e.target.checked)} />
         Exclusive
       </label>
-      <button type="submit" className="button" disabled={blocked}>
+      {/* A mod needs a name (docs/design/hero-sheet/spec.md, "Bonuses and penalties"). */}
+      <button type="submit" className="button" disabled={blocked || !label.trim()}>
         {submitLabel ?? (target ? 'Give' : 'Add')}
       </button>
       {gone && <p className="hint">{to.name} has left the game. Choose who it’s for.</p>}

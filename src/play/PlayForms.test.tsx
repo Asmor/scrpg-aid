@@ -18,7 +18,7 @@ async function setup(hero: Hero) {
       <PlayPage id="h1" clock={clock} random={() => 0.999} />
     </StoreContext.Provider>,
   )
-  await screen.findByRole('region', { name: 'Abilities' })
+  await screen.findByRole('region', { name: 'Actions' })
   return store
 }
 
@@ -27,7 +27,7 @@ const saved = async (store: HeroStore) => {
   if (r.status !== 'found') throw new Error('not saved')
   return r.hero
 }
-const abilities = () => within(screen.getByRole('region', { name: 'Abilities' }))
+const abilities = () => within(screen.getByRole('region', { name: 'Actions' }))
 
 describe('forms in play', () => {
   it('changes Form-Changer form, rolling that form’s dice and opening its ability', async () => {
@@ -36,11 +36,12 @@ describe('forms in play', () => {
     const select = section.getByLabelText('Current form')
     // The Yellow form needs the Yellow zone.
     expect(within(select).getByRole('option', { name: 'Yellow form 1 (Yellow)' })).toBeDisabled()
-    expect(abilities().getByRole('button', { name: 'Use Strong Form' })).toBeDisabled()
+    expect(abilities().queryByRole('button', { name: 'Use Strong Form' })).not.toBeInTheDocument()
     expect(abilities().getByText('Only in Brute')).toBeInTheDocument()
 
     await userEvent.selectOptions(select, 'Brute')
-    expect(section.getByText('Strength')).toBeInTheDocument()
+    // The Dice card shows the form's dice.
+    expect(within(screen.getByRole('region', { name: 'Dice' })).getByText('Strength')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'History' })).toHaveTextContent('Changed to Brute.')
     await waitFor(async () => expect((await saved(store)).play?.form).toBe('form:0'))
 
@@ -69,7 +70,10 @@ describe('forms in play', () => {
     const section = within(screen.getByRole('region', { name: 'Mode' }))
     await userEvent.selectOptions(section.getByLabelText('Current mode'), 'Improvement Mode')
     expect(section.getByText("Can't Attack or Hinder.")).toBeInTheDocument()
-    await userEvent.click(abilities().getByRole('button', { name: 'Basic action…' }))
+    // Basic actions the mode forbids can't be taken, and say why.
+    expect(abilities().getByRole('button', { name: 'Attack' })).toBeDisabled()
+    expect(abilities().getByText("Can't Attack in Improvement Mode")).toBeInTheDocument()
+    await userEvent.click(abilities().getByRole('button', { name: 'Defend' }))
     const options = within(within(screen.getByRole('dialog')).getByLabelText('Action')).getAllByRole('option')
     expect(options.map((o) => o.textContent)).toEqual(['Defend', 'Boost', 'Overcome'])
   })

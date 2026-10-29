@@ -125,6 +125,8 @@ describe('confirmRoll', () => {
         at: '2026-10-26T20:00:00.000Z',
         text: 'Used ability Inflict:',
         details: ['Max: 7 (Speed d12)', 'Mid: 5 (Green status d8)', 'Min: 3 (Fitness d10)', 'Deal 10 (Max, with +1 +2) damage.', "Applied '+1 cheer' bonus.", "Applied '+2 armor' bonus (persistent)."],
+        // Marked as a roll, so Play shows the latest one as a card.
+        roll: true,
       },
       { id: 'id2', at: '2026-10-26T20:00:00.000Z', text: "Used up '+1 cheer' bonus." },
     ])
