@@ -8,49 +8,14 @@ import { useLayoutEffect, useRef, useState, type MouseEvent } from 'react'
 import { advancementPath, editPath, heroPath, listPath, navigate, playPath } from '../app/route'
 import { buildSheet, heroIdentity } from '../creation/sheet'
 import { useHeroEditor } from '../editor/useHeroEditor'
-import { heroDisplayName, isDraft, newId, type Hero } from '../hero/model'
+import { heroDisplayName, isDraft, newId } from '../hero/model'
 import { continueStep, stepStates } from '../hero/wizard-steps'
 import { PlayView } from '../play/PlayPage'
 import { emptyPlay, newIssue, type Clock } from '../play/state'
 import { ExportMenu } from './ExportMenu'
 import { HeroSheetView } from './HeroSheetView'
-import { DiceText } from './icons'
+import { IssueBanner, ModeSwitch, type CharacterMode } from './CharacterHead'
 import { Modal } from './Modal'
-
-export type CharacterMode = 'sheet' | 'play'
-
-/** A finished hero with rule issues stays finished; the banner names how many and the first, and links to the edit summary. */
-function IssueBanner({ hero }: { hero: Hero }) {
-  const issues = stepStates(hero, buildSheet(hero).warnings).flatMap((s) => s.issues)
-  if (!issues.length) return null
-  return (
-    <div className="issue-banner" role="note">
-      <strong>{issues.length === 1 ? '1 rule issue' : `${issues.length} rule issues`}</strong>
-      <span className="issue-banner__first">
-        <DiceText text={issues[0]!.message} />
-      </span>
-      <a href={editPath(hero.id)}>Open in edit</a>
-    </div>
-  )
-}
-
-/** The Sheet/Play switch: two buttons, the current one pressed. */
-function ModeSwitch({ mode, onChange }: { mode: CharacterMode; onChange: (mode: CharacterMode) => void }) {
-  return (
-    <div className="segmented segmented--big" role="group" aria-label="Mode">
-      {(
-        [
-          ['sheet', 'Sheet'],
-          ['play', 'Play'],
-        ] as const
-      ).map(([value, label]) => (
-        <button key={value} type="button" aria-pressed={mode === value} onClick={() => mode !== value && onChange(value)}>
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 const defaultClock = (): Clock => ({ now: new Date(), newId: () => newId() })
 
@@ -160,7 +125,7 @@ export function HeroPage({ id, mode = 'sheet', clock = defaultClock, random }: {
           Your last change couldn't be saved: {saveError}
         </p>
       )}
-      {draft ? <p className="hint">This hero is a draft. Finish it to play it.</p> : <IssueBanner hero={hero} />}
+      {draft ? <p className="hint">This hero is a draft. Finish it to play it.</p> : <IssueBanner issues={stepStates(hero, sheet.warnings).flatMap((s) => s.issues)} href={editPath(id)} />}
 
       {mode === 'sheet' ? <HeroSheetView hero={hero} advancement={draft ? undefined : { href: advancementPath(id), onClick: leave(advancementPath(id)) }} /> : <PlayView hero={hero} update={update} clock={clock} random={random} />}
 

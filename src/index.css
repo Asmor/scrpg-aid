@@ -260,16 +260,6 @@ a {
 }
 
 /* Hero sheet */
-.hero-sheet__header h2 {
-  margin: 0;
-  color: var(--ui-text);
-  font-size: 2rem;
-}
-
-.hero-sheet__alias {
-  margin: 0;
-  color: var(--ui-muted);
-}
 
 .sheet-grid {
   display: grid;
@@ -304,48 +294,7 @@ a {
   margin: 0;
 }
 
-.fields {
-  display: grid;
-  grid-template-columns: fit-content(45%) minmax(0, 1fr);
-  gap: 0.25rem 0.75rem;
-  margin: 0;
-}
-
-.fields__row {
-  display: contents;
-}
-
-.fields dt {
-  font-weight: 600;
-}
-
-.fields dd {
-  margin: 0;
-  overflow-wrap: break-word;
-}
-
 /* On narrow screens, long text reads better under its label than beside it. */
-@media (max-width: 36rem) {
-  .principle .fields {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .principle .fields dd {
-    margin-bottom: 0.5rem;
-  }
-}
-
-.trait-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.trait-table th,
-.trait-table td {
-  text-align: left;
-  padding: 0.25rem 0.5rem 0.25rem 0;
-  border-bottom: 1px solid var(--ui-border);
-}
 
 .die {
   text-align: right;
@@ -355,37 +304,6 @@ a {
 }
 
 /* The die column: narrow, with the header centred over the die icons. */
-.trait-table th:last-child,
-.trait-table td.die {
-  width: 1%;
-  padding-right: 0;
-  text-align: center;
-}
-
-.status-dice {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
-}
-
-.status-die {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.5rem;
-  border: 1px solid var(--ui-border);
-  border-radius: 0.375rem;
-  font-weight: 700;
-}
-
-.status-die__zone {
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
 
 .max-health {
   margin: 0 0 0.5rem;
@@ -448,80 +366,15 @@ a {
 }
 
 /* A line between "During roleplaying", "Minor twist", and "Major twist", so they don't run together. */
-.principle .fields dt:not(:first-of-type),
-.principle .fields dt:not(:first-of-type) + dd {
-  border-top: 1px solid var(--ui-border);
-  padding-top: 0.375rem;
-}
 
 /* Stacked on narrow screens, a text sits under its label: only the label gets the line. */
-@media (max-width: 36rem) {
-  .principle .fields dt:not(:first-of-type) + dd {
-    border-top: 0;
-    padding-top: 0;
-  }
-}
 
 /* Powers, qualities, and status dice in one table across the sheet. */
 .sheet-dice {
   grid-column: 1 / -1;
 }
 
-.ability-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.ability {
-  display: grid;
-  grid-template-columns: 7.25rem minmax(7rem, 12rem) 1fr;
-  gap: 0.25rem 0.75rem;
-  padding: 0.375rem 0;
-  border-top: 1px solid var(--ui-border);
-}
-
-.ability:first-child {
-  border-top: 0;
-}
-
-.ability__type {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.25rem;
-}
-
-
-.ability__type-letter {
-  /* Room between the type letter and the effect icons after it. */
-  margin-right: 0.375rem;
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border: 1px solid var(--ui-border);
-  border-radius: 50%;
-  font-weight: 800;
-  background: var(--ui-surface);
-}
-
 /* The effects the ability produces, in their own column after the type: they wrap among themselves, never under the type letter. */
-.ability__effects {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: 0;
-  min-height: 1.75rem;
-}
-
-.ability__effects .action-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-}
 
 /* Icons: black and white, so they read on both themes. Never recolor, invert or tint them. */
 .die-icon,
@@ -554,43 +407,6 @@ a {
 
 .effect-word .action-icon {
   margin-right: 0.15em;
-}
-
-.ability__name {
-  font-weight: 700;
-}
-
-.ability__text {
-  margin: 0;
-}
-
-@media (max-width: 36rem) {
-  .ability {
-    grid-template-columns: auto 1fr;
-  }
-
-  .ability__text {
-    grid-column: 1 / -1;
-  }
-}
-
-.sheet-warnings {
-  margin: var(--space) 0;
-  padding: 0.75rem var(--space);
-  border: 2px solid var(--ui-danger);
-  border-radius: 0.375rem;
-  background: var(--ui-surface);
-}
-
-.sheet-warnings summary {
-  cursor: pointer;
-  font-weight: 700;
-  color: var(--ui-danger);
-}
-
-.sheet-warnings h3 {
-  font-size: 1rem;
-  margin: 0.75rem 0 0.25rem;
 }
 
 .minion-forms {
@@ -3006,6 +2822,41 @@ a.button--primary {
   .ability-row__text {
     grid-column: 1 / -1;
   }
+}
+
+/* The villain sheet */
+/* Concept wide, the build narrow; stacked like the other cards below 980px. */
+@media (min-width: 61.3125rem) {
+  .sheet-cards--about {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+
+.villain-concept {
+  margin: 0;
+}
+
+.sheet-card__note {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.875rem;
+  color: var(--ui-muted);
+}
+
+/* Villain abilities are grouped by where they came from, under a neutral header. */
+.sheet-band--group .sheet-band__head {
+  background: var(--ui-surface-2);
+  letter-spacing: 0;
+  font-size: 0.9375rem;
+}
+
+.sheet-band--group .sheet-band__note {
+  color: var(--ui-muted);
+}
+
+.sheet-band__summary {
+  margin: 0;
+  padding: 0.625rem 1rem 0;
+  color: var(--ui-muted);
 }
 
 /* Forms and modes */

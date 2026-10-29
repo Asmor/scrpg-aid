@@ -12,7 +12,7 @@ import { heroDisplayName, type Hero } from '../hero/model'
 import appCss from '../index.css?inline'
 import tokensCss from '../theme/tokens.css?inline'
 import { villainDisplayName, type Villain } from '../villain/model'
-import { VillainSheetView } from '../villain/VillainSheetView'
+import { VillainSheetTitle, VillainSheetView } from '../villain/VillainSheetView'
 import { embeddableJson, embeddableVillainJson, SCRIPT_OPEN } from './embed'
 
 const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -32,7 +32,15 @@ export function heroHtml(hero: Hero, icons: Readonly<Record<IconName, string>>):
 
 /** A villain's sheet as one self-contained HTML file, the same way (Phase 5). */
 export function villainHtml(villain: Villain, icons: Readonly<Record<IconName, string>>): string {
-  return page(villainDisplayName(villain), <VillainSheetView villain={villain} warnings={false} />, embeddableVillainJson(villain), icons)
+  return page(
+    villainDisplayName(villain),
+    <>
+      <VillainSheetTitle villain={villain} />
+      <VillainSheetView villain={villain} />
+    </>,
+    embeddableVillainJson(villain),
+    icons,
+  )
 }
 
 function page(title: string, sheet: ReactElement, json: string, icons: Readonly<Record<IconName, string>>): string {

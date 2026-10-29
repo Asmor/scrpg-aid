@@ -14,65 +14,7 @@ import type { AbilityType, Die, HealthRange, Zone } from '../rules/types'
 import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 import type { Action } from '../creation/effects'
 import { FormsSection } from './FormsSection'
-import { AbilityIcons, AbilityText, ActionIcon, DieIcon } from './icons'
-
-export function Panel({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {
-  return (
-    <section className={`sheet-panel ${className}`} aria-label={title}>
-      <h3 className="sheet-panel__title">{title}</h3>
-      {children}
-    </section>
-  )
-}
-
-export function TraitTable({ caption, traits }: { caption: string; traits: readonly Pick<HeroTrait, 'trait' | 'die' | 'name'>[] }) {
-  if (traits.length === 0) return <p className="sheet-empty">No {caption.toLowerCase()} yet.</p>
-  return (
-    <table className="trait-table">
-      <caption className="visually-hidden">{caption}</caption>
-      <thead>
-        <tr>
-          <th scope="col">Name</th>
-          <th scope="col">Die</th>
-        </tr>
-      </thead>
-      <tbody>
-        {traits.map((t) => (
-          <tr key={`${t.trait.kind}:${t.trait.id}`}>
-            <td>{t.name}</td>
-            <td className="die">
-              <DieIcon die={t.die} />
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
-}
-
-export function AbilityRow({ name, type, text, effects }: { name: string; type: AbilityType; text: string; effects: readonly Action[] }) {
-  return (
-    <li className="ability">
-      <span className="ability__type">
-        <span className="ability__type-letter" title={TYPE_LABEL[type]}>
-          <span aria-hidden="true">{type}</span>
-          <span className="visually-hidden">{TYPE_LABEL[type]}</span>
-        </span>
-        {effects.length > 0 && (
-          <span className="ability__effects">
-            {effects.map((e) => (
-              <ActionIcon key={e} action={e} />
-            ))}
-          </span>
-        )}
-      </span>
-      <span className="ability__name">{name}</span>
-      <span className="ability__text">
-        <AbilityText text={text} actions={effects} />
-      </span>
-    </li>
-  )
-}
+import { AbilityIcons, AbilityText, DieIcon } from './icons'
 
 /** One ability: its action icons and name, its type, and its text with icons inline. */
 export function SheetAbilityRow({ name, type, text, effects }: { name: string; type?: AbilityType; text: string; effects: readonly Action[] }) {
@@ -174,14 +116,15 @@ export function StatusTiles({ dice, label = 'Status dice' }: { dice: Record<Zone
   )
 }
 
-/** Max Health in large type, and its three ranges as game-colored chips. */
-export function HealthBlock({ max, ranges }: { max: number | undefined; ranges: HealthRange | undefined }) {
+/** Max Health in large type (with a line on how it was built, for a villain), and its three ranges as game-colored chips. */
+export function HealthBlock({ max, ranges, note }: { max: number | undefined; ranges: HealthRange | undefined; note?: string }) {
   if (max === undefined) return <p className="sheet-empty">Not worked out yet.</p>
   return (
     <>
       <p className="max-health">
         <span className="max-health__value">{max}</span> max
       </p>
+      {note && <p className="sheet-card__note">{note}</p>}
       {ranges && (
         <ul className="health-range-chips" aria-label="Health ranges">
           {(['green', 'yellow', 'red'] as const).map((zone) => (

@@ -119,7 +119,7 @@ describe('the villain sheet', () => {
     // Neither adds Health; Calming Aura adds 10, listed in how Health adds up.
     expect(buildVillainSheet(v).health!.max).toBe(55)
     v.upgrades.push({ id: 'calming-aura', abilities: [] })
-    expect(buildVillainSheet(v).health).toMatchObject({ max: 65, parts: expect.arrayContaining([{ label: 'Calming Aura', value: 10 }]) })
+    expect(buildVillainSheet(v).health).toMatchObject({ max: 65, parts: expect.arrayContaining([{ kind: 'upgrade', label: 'Calming Aura', value: 10 }]) })
     v.upgrades.pop()
     v.upgrades = []
     expect(codes(v)).toEqual(['mastery-minor'])

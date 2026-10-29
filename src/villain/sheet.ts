@@ -61,7 +61,7 @@ export interface VillainHealthInfo {
   /** Health each hero adds (p. 239). */
   perHero: number
   /** How the max adds up, for the sheet. */
-  parts: { label: string; value: number }[]
+  parts: { kind: 'base' | 'modifier' | 'heroes' | 'upgrade'; label: string; value: number }[]
   /** The zone ranges from the chart, when the max is on it. */
   ranges?: HealthRange
 }
@@ -289,10 +289,10 @@ export function buildVillainSheet(villain: Villain): VillainSheet {
   else if (approach && archetype) {
     const perHero = HEALTH_PER_HERO
     const parts = [
-      { label: `${approach.name} base`, value: approach.baseHealth },
-      { label: `${archetype.name} modifier`, value: archetype.healthModifier },
-      { label: `${villain.heroCount} ${villain.heroCount === 1 ? 'hero' : 'heroes'} × ${perHero}`, value: perHero * villain.heroCount },
-      ...upgrades.filter((u) => u.health).map((u) => ({ label: u.name, value: u.health })),
+      { kind: 'base' as const, label: `${approach.name} base`, value: approach.baseHealth },
+      { kind: 'modifier' as const, label: `${archetype.name} modifier`, value: archetype.healthModifier },
+      { kind: 'heroes' as const, label: `${villain.heroCount} ${villain.heroCount === 1 ? 'hero' : 'heroes'} × ${perHero}`, value: perHero * villain.heroCount },
+      ...upgrades.filter((u) => u.health).map((u) => ({ kind: 'upgrade' as const, label: u.name, value: u.health })),
     ]
     const max = parts.reduce((sum, p) => sum + p.value, 0)
     const ranges = villainHealth.ranges.find((r) => r.max === max || (r.orMore && max >= r.max))
@@ -316,4 +316,24 @@ export function buildVillainSheet(villain: Villain): VillainSheet {
     ...(archetype ? { status: archetype.status } : {}),
     warnings,
   }
+}
+
+/** "Major villain · Bully · Overlord": whichever are chosen. */
+export function villainIdentity(sheet: Pick<VillainSheet, 'major' | 'approach' | 'archetype'>): string {
+  return [sheet.major ? 'Major villain' : 'Minor villain', sheet.approach, sheet.archetype].filter(Boolean).join(' · ')
+}
+
+/** "Built for 4 heroes: Bully 25, Overlord +15, 5 per hero." */
+export function healthBreakdown(sheet: VillainSheet): string | undefined {
+  const h = sheet.health
+  if (!h) return undefined
+  const signed = (n: number) => (n < 0 ? `−${-n}` : `+${n}`)
+  const of = (kind: VillainHealthInfo['parts'][number]['kind']) => h.parts.filter((p) => p.kind === kind)
+  const pieces = [
+    ...of('base').map((p) => `${sheet.approach} ${p.value}`),
+    ...of('modifier').map((p) => `${sheet.archetype} ${signed(p.value)}`),
+    ...of('upgrade').map((p) => `${p.label} ${signed(p.value)}`),
+    `${h.perHero} per hero`,
+  ]
+  return `Built for ${h.heroCount} ${h.heroCount === 1 ? 'hero' : 'heroes'}: ${pieces.join(', ')}.`
 }

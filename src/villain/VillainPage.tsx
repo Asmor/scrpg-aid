@@ -1,9 +1,16 @@
-/** One saved villain, loaded by id and shown as a sheet (Phase 5). Give it `key={id}`. */
+/**
+ * A villain's character page in Sheet mode (docs/design/hero-sheet/spec.md, "Villain sheet"):
+ * the hero page's header (breadcrumb, name and alias, identity line, the Sheet/Play switch,
+ * Edit and Export) over the villain's sheet. Villain Play belongs with the GM screens, so Play
+ * is still its own page for now. Give it `key={id}`.
+ */
 import { useEffect, useState } from 'react'
-import { listPath, villainEditPath, villainPlayPath } from '../app/route'
+import { listPath, navigate, villainEditPath, villainPlayPath } from '../app/route'
 import { useVillainStore } from '../app/villain-store-context'
 import type { VillainGetResult } from './store'
+import { IssueBanner, ModeSwitch } from '../components/CharacterHead'
 import { ExportMenu } from '../components/ExportMenu'
+import { buildVillainSheet, villainIdentity } from './sheet'
 import { VillainSheetView } from './VillainSheetView'
 
 type State = { status: 'loading' } | VillainGetResult | { status: 'error'; message: string }
@@ -23,27 +30,47 @@ export function VillainPage({ id }: { id: string }) {
     }
   }, [store, id])
 
+  if (state.status !== 'found') {
+    return (
+      <div className="hero-page">
+        <p>
+          <a href={listPath}>← Home</a>
+        </p>
+        {state.status === 'loading' && <p>Loading…</p>}
+        {state.status === 'missing' && <p role="alert">There's no saved villain with that link. It may have been deleted.</p>}
+        {state.status === 'unreadable' && <p role="alert">This villain couldn't be read: {state.error}</p>}
+        {state.status === 'error' && <p role="alert">Something went wrong loading this villain: {state.message}</p>}
+      </div>
+    )
+  }
+
+  const villain = state.villain
+  const sheet = buildVillainSheet(villain)
   return (
-    <div className="hero-page">
-      <p className="hero-page__links">
-        <a href={listPath}>← Home</a>
-        {state.status === 'found' && (
-          <span className="button-row">
-            <a href={villainPlayPath(id)}>Play</a>
-            <a href={villainEditPath(id)}>Edit villain</a>
-          </span>
-        )}
-      </p>
-      {state.status === 'loading' && <p>Loading…</p>}
-      {state.status === 'missing' && <p role="alert">There's no saved villain with that link. It may have been deleted.</p>}
-      {state.status === 'unreadable' && <p role="alert">This villain couldn't be read: {state.error}</p>}
-      {state.status === 'error' && <p role="alert">Something went wrong loading this villain: {state.message}</p>}
-      {state.status === 'found' && (
-        <>
-          <VillainSheetView villain={state.villain} />
-          <ExportMenu villain={state.villain} />
-        </>
-      )}
+    <div className="hero-page character-page">
+      <header className="character-head">
+        <p className="crumb">
+          <a href={listPath}>Your villains</a> / {sheet.name}
+        </p>
+        <div className="character-head__row">
+          <div className="character-head__name">
+            <div className="character-head__title">
+              <h2>{sheet.name}</h2>
+              {sheet.alias && sheet.alias !== sheet.name && <span className="character-head__alias">{sheet.alias}</span>}
+            </div>
+            <p className="character-head__identity">{villainIdentity(sheet)}</p>
+          </div>
+          <div className="character-head__actions">
+            <ModeSwitch mode="sheet" onChange={() => navigate(villainPlayPath(id))} />
+            <a className="button" href={villainEditPath(id)}>
+              Edit
+            </a>
+            <ExportMenu villain={villain} />
+          </div>
+        </div>
+      </header>
+      <IssueBanner issues={sheet.warnings} href={villainEditPath(id)} />
+      <VillainSheetView villain={villain} />
     </div>
   )
 }
