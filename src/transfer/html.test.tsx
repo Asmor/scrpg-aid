@@ -14,6 +14,14 @@ const heroHtml = (hero: Hero) => renderHtml(hero, TEST_ICONS)
 const parse = (html: string) => new DOMParser().parseFromString(html, 'text/html')
 
 describe('heroHtml', () => {
+  it('puts the name in the printed footer, safely', () => {
+    const hero = exampleHero({ id: 'x' })
+    hero.details.name = 'Evil</style><script>x()</script>'
+    const doc = parse(heroHtml(hero))
+    expect(doc.querySelector('head style')!.textContent).toContain('@page { @bottom-left { content: "Evil\\3c /style>\\3c script>x()\\3c /script>"; } }')
+    expect(doc.querySelectorAll('script:not([type="application/json"])')).toHaveLength(0)
+  })
+
   it('is a standalone page with the sheet, its styles, and the light theme', () => {
     const html = heroHtml(exampleHero({ id: 'x' }))
     expect(html.startsWith('<!doctype html>\n<html lang="en" data-theme="light">')).toBe(true)

@@ -8,7 +8,7 @@
  */
 import type { ReactNode } from 'react'
 import { DieIcon } from '../components/icons'
-import { HealthBlock, SheetAbilityRow } from '../components/HeroSheetView'
+import { CurrentHealthLine, HealthBlock, SheetAbilityRow } from '../components/HeroSheetView'
 import type { Villain } from './model'
 import { buildVillainSheet, healthBreakdown, villainIdentity, type VillainSheet, type VillainSheetAbility, type VillainTrait } from './sheet'
 import { statusRows, statusSummary } from './status'
@@ -118,6 +118,7 @@ function Mechanics({ sheet }: { sheet: VillainSheet }) {
         <section className="card sheet-card" aria-label="Health">
           <h4>Health</h4>
           <HealthBlock max={sheet.health?.max} ranges={sheet.health?.ranges} note={breakdown} />
+          <CurrentHealthLine />
         </section>
       </div>
     </section>
@@ -155,7 +156,7 @@ function Abilities({ sheet }: { sheet: VillainSheet }) {
     .map((u) => ({ ...u, abilities: [...sheet.abilities, ...(sheet.vehicle?.abilities ?? [])].filter((a) => (a.source === 'upgrade' || a.source === 'vehicle') && a.upgrade === u.name) }))
     .filter((u) => u.abilities.length)
   return (
-    <section className="sheet-section" aria-labelledby="sheet-abilities-title">
+    <section className="sheet-section sheet-section--abilities" aria-labelledby="sheet-abilities-title">
       <h3 id="sheet-abilities-title" className="visually-hidden">
         Abilities
       </h3>

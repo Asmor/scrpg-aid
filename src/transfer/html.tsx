@@ -14,6 +14,7 @@ import tokensCss from '../theme/tokens.css?inline'
 import { villainDisplayName, type Villain } from '../villain/model'
 import { VillainSheetTitle, VillainSheetView } from '../villain/VillainSheetView'
 import { embeddableJson, embeddableVillainJson, SCRIPT_OPEN } from './embed'
+import { footerRule } from './print'
 
 const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
@@ -52,7 +53,7 @@ function page(title: string, sheet: ReactElement, json: string, icons: Readonly<
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     `<title>${escapeHtml(title)}</title>`,
-    `<style>${tokensCss}\n${appCss}</style>`,
+    `<style>${tokensCss}\n${appCss}\n${footerRule(title)}</style>`,
     '</head>',
     '<body>',
     `<main class="app-main">${body}</main>`,

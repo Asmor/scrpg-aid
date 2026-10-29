@@ -8,11 +8,10 @@ import { exampleHero } from '../hero/example'
 import { stepStates } from '../hero/wizard-steps'
 import { readImport } from '../transfer/files'
 import { downloadFile } from '../transfer/download'
-import { exportPdf } from '../transfer/pdf'
+import { loadIconDataUris } from '../transfer/icons'
 import { HeroPage } from './HeroPage'
 
 vi.mock('../transfer/download', () => ({ downloadFile: vi.fn() }))
-vi.mock('../transfer/pdf', () => ({ exportPdf: vi.fn(async () => new Uint8Array([37, 80, 68, 70])) }))
 vi.mock('../transfer/icons', async (original) => {
   const { TEST_ICONS } = await import('../test/icons')
   return { ...(await original<typeof import('../transfer/icons')>()), loadIconDataUris: vi.fn(async () => TEST_ICONS) }
@@ -204,43 +203,37 @@ describe('HeroPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't make the HTML file: no space")
   })
 
-  it('exports a PDF on the chosen page size', async () => {
-    vi.mocked(downloadFile).mockClear()
-    const hero = exampleHero({ id: 'x' })
-    renderPage(storeReturning(async () => ({ status: 'found', hero })))
-    // Each paper size is its own item.
-    await exportAs('PDF, A4')
-    await waitFor(() => expect(downloadFile).toHaveBeenCalled())
-    expect(exportPdf).toHaveBeenCalledWith(hero, 'a4')
-    const [name, bytes, type] = vi.mocked(downloadFile).mock.calls[0]!
-    expect(name).toBe('maya-reyes.pdf')
-    expect(type).toBe('application/pdf')
-    expect(bytes).toEqual(new Uint8Array([37, 80, 68, 70]))
-    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled()
+  it('makes a PDF by printing the sheet, on the chosen paper with the name in the footer', async () => {
+    let rules = ''
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {
+      rules = document.head.querySelector('style[data-print]')?.textContent ?? ''
+    })
+    try {
+      renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
+      // Each paper size is its own item.
+      await exportAs('PDF, A4')
+      expect(print).toHaveBeenCalledOnce()
+      expect(rules).toBe('@page { size: A4; @bottom-left { content: "Maya Reyes"; } }')
+    } finally {
+      print.mockRestore()
+    }
   })
 
-  it('says when the PDF couldn’t be made', async () => {
-    vi.mocked(exportPdf).mockRejectedValueOnce(new Error('font missing'))
-    renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
-    await exportAs('PDF, Letter')
-    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't make the PDF: font missing")
-  })
-
-  it('explains a PDF maker that couldn’t be downloaded: offline, or after an update', async () => {
-    const downloadError = () => Object.assign(new Error("couldn't load /assets/font.ttf (404)"), { name: 'DownloadError' })
+  it('explains an export that couldn’t be downloaded: offline, or after an update', async () => {
+    const downloadError = () => Object.assign(new Error("couldn't load /assets/html.js (404)"), { name: 'DownloadError' })
     const online = vi.spyOn(navigator, 'onLine', 'get')
     try {
       online.mockReturnValue(false)
-      vi.mocked(exportPdf).mockRejectedValueOnce(downloadError())
+      vi.mocked(loadIconDataUris).mockRejectedValueOnce(downloadError())
       const view = renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
-      await exportAs('PDF, Letter')
-      expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't make the PDF: you're offline, and part of it downloads the first time it's used")
+      await exportAs('HTML')
+      expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't make the HTML file: you're offline")
       view.unmount()
 
       online.mockReturnValue(true)
-      vi.mocked(exportPdf).mockRejectedValueOnce(downloadError())
+      vi.mocked(loadIconDataUris).mockRejectedValueOnce(downloadError())
       renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
-      await exportAs('PDF, Letter')
+      await exportAs('HTML')
       expect(await screen.findByRole('alert')).toHaveTextContent('If the app offers an update, accept it (or reload the page), then try again.')
     } finally {
       online.mockRestore()

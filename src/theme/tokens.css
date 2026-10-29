@@ -41,7 +41,12 @@
   color-scheme: light;
 }
 
-/* The dark values appear twice: here, and in the no-script fallback below. Keep them in sync. */
+/*
+ * The dark values appear twice: here, and in the no-script fallback below. Keep them in sync.
+ * Both are for screens only: printing always uses the light values
+ * (docs/design/hero-sheet/spec.md, "Printed PDF").
+ */
+@media screen {
 :root[data-theme='dark'] {
   --ui-bg: #12141c;
   --ui-surface: #1b1e2a;
@@ -65,8 +70,9 @@
 
   color-scheme: dark;
 }
+}
 
-@media (prefers-color-scheme: dark) {
+@media screen and (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     --ui-bg: #12141c;
     --ui-surface: #1b1e2a;

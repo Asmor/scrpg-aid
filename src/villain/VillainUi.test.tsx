@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { VillainStoreContext } from '../app/villain-store-context'
 import { adaptiveBruiser, bullyOverlord } from '../test/villains'
 import { readable } from '../test/readable'
@@ -163,6 +163,21 @@ describe('the villain sheet', () => {
     expect(within(sheet).getByRole('region', { name: 'Concept' })).toHaveTextContent('A crime boss who runs a crew of enforcers.')
     // Villain abilities aren't zoned: no game colors on them.
     for (const g of groups) expect(g.querySelector('[class*="zone-"]')).toBeNull()
+  })
+
+  it('prints its sheet as the PDF, with the villain’s name in the footer', async () => {
+    let rules = ''
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {
+      rules = document.head.querySelector('style[data-print]')?.textContent ?? ''
+    })
+    try {
+      withStore(await storeWith(adaptiveBruiser()), <VillainPage id="v1" />)
+      await userEvent.click(await screen.findByRole('button', { name: 'Export' }))
+      await userEvent.click(screen.getByRole('button', { name: 'PDF, Letter' }))
+      expect(rules).toBe('@page { size: letter; @bottom-left { content: "Ironclad"; } }')
+    } finally {
+      print.mockRestore()
+    }
   })
 
   it('leaves out About in Play mode', () => {

@@ -121,11 +121,11 @@ export function HeroPage({ id, mode = 'sheet', clock = defaultClock, random }: {
         </div>
       </header>
       {saveError && (
-        <p role="alert" className="error">
+        <p role="alert" className="error screen-only">
           Your last change couldn't be saved: {saveError}
         </p>
       )}
-      {draft ? <p className="hint">This hero is a draft. Finish it to play it.</p> : <IssueBanner issues={stepStates(hero, sheet.warnings).flatMap((s) => s.issues)} href={editPath(id)} />}
+      {draft ? <p className="hint screen-only">This hero is a draft. Finish it to play it.</p> : <IssueBanner issues={stepStates(hero, sheet.warnings).flatMap((s) => s.issues)} href={editPath(id)} />}
 
       {mode === 'sheet' ? <HeroSheetView hero={hero} advancement={draft ? undefined : { href: advancementPath(id), onClick: leave(advancementPath(id)) }} /> : <PlayView hero={hero} update={update} clock={clock} random={random} />}
 

@@ -47,7 +47,7 @@ function Band({ zone, label, note, children }: { zone: Zone | 'out'; label: stri
 
 function Abilities({ sheet }: { sheet: HeroSheet }) {
   return (
-    <section className="sheet-section" aria-labelledby="sheet-abilities-title">
+    <section className="sheet-section sheet-section--abilities" aria-labelledby="sheet-abilities-title">
       <h3 id="sheet-abilities-title" className="visually-hidden">
         Abilities
       </h3>
@@ -116,6 +116,15 @@ export function StatusTiles({ dice, label = 'Status dice' }: { dice: Record<Zone
   )
 }
 
+/** On paper, a line to write current Health on. */
+export function CurrentHealthLine() {
+  return (
+    <p className="print-only current-health" aria-hidden="true">
+      Current Health <span className="write-in" />
+    </p>
+  )
+}
+
 /** Max Health in large type (with a line on how it was built, for a villain), and its three ranges as game-colored chips. */
 export function HealthBlock({ max, ranges, note }: { max: number | undefined; ranges: HealthRange | undefined; note?: string }) {
   if (max === undefined) return <p className="sheet-empty">Not worked out yet.</p>
@@ -153,6 +162,7 @@ function Mechanics({ sheet }: { sheet: HeroSheet }) {
           {sheet.statusDice ? <StatusTiles dice={sheet.statusDice} /> : <p className="sheet-empty">Choose a personality.</p>}
           <h4>Health</h4>
           <HealthBlock max={sheet.maxHealth} ranges={sheet.healthRanges} />
+          <CurrentHealthLine />
         </section>
       </div>
     </section>
@@ -232,7 +242,9 @@ function Roleplaying({ hero, sheet, advancement, interactive }: { hero: Hero; sh
       </div>
       <p className="record-strip">
         <span>
-          Hero points <strong>{hero.play?.heroPoints ?? 0}</strong>
+          Hero points <strong className="screen-only">{hero.play?.heroPoints ?? 0}</strong>
+          {/* On paper, a line to keep count on. */}
+          <span className="print-only write-in" aria-hidden="true" />
         </span>
         <span>
           Back issues{' '}

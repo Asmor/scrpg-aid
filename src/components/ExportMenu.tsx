@@ -6,14 +6,16 @@ import { downloadFile } from '../transfer/download'
 import { heroFileName, heroJson, villainFileName, villainJson } from '../transfer/files'
 import { loadIconDataUris } from '../transfer/icons'
 import { heroMarkdown, villainMarkdown } from '../transfer/markdown'
-import { defaultPageSize, type PageSize } from '../transfer/pdf/page-size'
+import { defaultPageSize, printSheet, type PageSize } from '../transfer/print'
+import { heroDisplayName } from '../hero/model'
+import { villainDisplayName } from '../villain/model'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /**
- * What to tell the player when an export fails. The PDF maker isn't cached up front, so its
- * first download needs a connection; and after an update, a page still running the old
- * version asks for files that are gone, until the update is accepted or the page reloaded.
+ * What to tell the player when an export fails. After an update, a page still running the old
+ * version asks for files that are gone (the HTML maker), until the update is accepted or the
+ * page reloaded; offline, a file that was never downloaded can't be.
  */
 function exportErrorText(what: string, e: unknown): string {
   if (e instanceof Error && e.name === 'DownloadError') {
@@ -38,7 +40,6 @@ export function ExportMenu(props: Exported) {
   const fileName = (ext: string) => (hero ? heroFileName(hero, ext) : villainFileName(villain!, ext))
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [makingPdf, setMakingPdf] = useState(false)
   const wrap = useRef<HTMLDivElement>(null)
   const button = useRef<HTMLButtonElement>(null)
   // Closes on Escape (back to the button) or a click elsewhere.
@@ -70,16 +71,8 @@ export function ExportMenu(props: Exported) {
       setError(exportErrorText(what, e))
     }
   }
-  const pdf = (pageSize: PageSize) => async () => {
-    setMakingPdf(true)
-    try {
-      // pdf-lib, the fonts and the icons are only downloaded when a PDF is made (then cached).
-      const pdfMaker = await import('../transfer/pdf').catch(asDownloadError)
-      downloadFile(fileName('pdf'), hero ? await pdfMaker.exportPdf(hero, pageSize) : await pdfMaker.exportVillainPdf(villain!, pageSize), 'application/pdf')
-    } finally {
-      setMakingPdf(false)
-    }
-  }
+  // The PDF is the page itself, printed with the print stylesheet (../transfer/print.ts).
+  const pdf = (pageSize: PageSize) => () => printSheet(hero ? heroDisplayName(hero) : villainDisplayName(villain!), pageSize)
   const html = async () => {
     // The HTML export renders the sheet to a string, which needs React's server renderer; load it
     // only when asked. The icons are embedded so the file stands alone.
@@ -106,9 +99,8 @@ export function ExportMenu(props: Exported) {
         if (next && !wrap.current?.contains(next)) setOpen(false)
       }}
     >
-      {/* aria-disabled rather than disabled while a PDF is made, so focus stays on it. */}
-      <button type="button" className="button" ref={button} aria-expanded={open} aria-controls={menuId} aria-disabled={makingPdf} onClick={() => !makingPdf && setOpen(!open)}>
-        {makingPdf ? 'Making PDF…' : 'Export'}
+      <button type="button" className="button" ref={button} aria-expanded={open} aria-controls={menuId} onClick={() => setOpen(!open)}>
+        Export
         <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
           <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -122,7 +114,7 @@ export function ExportMenu(props: Exported) {
               </button>
             </li>
           ))}
-          <li className="export-menu__hint">JSON, Markdown and HTML files can be imported back. PDFs are for printing.</li>
+          <li className="export-menu__hint">JSON, Markdown and HTML files can be imported back. PDF opens your browser's print dialog: choose Save as PDF.</li>
         </ul>
       )}
       {error && (
