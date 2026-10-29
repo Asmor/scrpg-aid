@@ -1,4 +1,4 @@
-/** Step 1, Background (p. 49–54): choose how to make the hero, then a background, assign its quality dice, take its principle. */
+/** Step 1, Background (p. 49–54): choose a background, assign its quality dice, take its principle. */
 import { traitLabel } from '../creation/traits'
 import { expandRefs } from '../rules/catalog'
 import { backgrounds, backgroundsById, backgroundStep, principleCategories } from '../rules/data'
@@ -8,7 +8,6 @@ import { describeOptions } from '../creation/format'
 import { setStepRoll, stepRoll, takePendingRoll } from '../creation/rolls'
 import type { Hero } from '../hero/model'
 import { DiceAssigner } from './DiceAssigner'
-import { MethodPicker } from './MethodPicker'
 import { PrinciplePicker } from './PrinciplePicker'
 import { TablePicker } from './TablePicker'
 import { DiceText } from '../components/icons'
@@ -32,7 +31,6 @@ export function BackgroundStep({ hero, update }: { hero: Hero; update: (change: 
 
   return (
     <div className="step-form">
-      <MethodPicker hero={hero} update={update} />
       <TablePicker
         what="background"
         method={hero.method}

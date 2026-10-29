@@ -101,6 +101,14 @@ describe('serialize', () => {
     expect(parseSavedJson(JSON.stringify(toSaved(withPlay)))).toEqual({ ok: true, hero: withPlay })
   })
 
+  it('keeps draft status, furthest step, and who rolls; rejects bad values', () => {
+    const draft = { ...hero(), status: 'draft' as const, furthestStep: 4, rollMode: 'manual' as const }
+    expect(parseSavedJson(JSON.stringify(toSaved(draft)))).toEqual({ ok: true, hero: draft })
+    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: { ...hero(), status: 'half' } }).ok).toBe(false)
+    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: { ...hero(), rollMode: 'gm' } }).ok).toBe(false)
+    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: { ...hero(), furthestStep: 1.5 } }).ok).toBe(false)
+  })
+
   it('accepts fully filled-in heroes', () => {
     const t = { kind: 'quality', id: 'fitness' } as const
     const full = {

@@ -51,6 +51,16 @@ describe('HeroPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('database closed')
   })
 
+  it('offers Play and Edit for a finished hero, but only Continue for a draft, which still exports as a draft', async () => {
+    const draft = { ...exampleHero({ id: 'x' }), status: 'draft' as const, furthestStep: 2 }
+    vi.mocked(downloadFile).mockClear()
+    renderPage(storeReturning(async () => ({ status: 'found', hero: draft })))
+    expect(await screen.findByRole('link', { name: 'Continue making this hero' })).toHaveAttribute('href', '#/hero/x/edit/power-source')
+    expect(screen.queryByRole('link', { name: 'Play' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Download JSON' }))
+    expect(readImport(vi.mocked(downloadFile).mock.calls[0]![1] as string)).toMatchObject({ ok: true, heroes: [{ status: 'draft' }] })
+  })
+
   it('exports the hero as JSON that imports back', async () => {
     vi.mocked(downloadFile).mockClear()
     const hero = exampleHero({ id: 'x' })

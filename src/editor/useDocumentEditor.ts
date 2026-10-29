@@ -7,8 +7,11 @@
  */
 import { useEffect, useRef, useState } from 'react'
 
-/** How a store answers a lookup: found, missing, or there but unreadable. */
-export type Lookup<T> = { status: 'found'; doc: T } | { status: 'missing' } | { status: 'unreadable'; error: string }
+/**
+ * How a store answers a lookup: found, missing, or there but unreadable. `unsaved` marks a
+ * new document held in memory that the first change will save.
+ */
+export type Lookup<T> = { status: 'found'; doc: T; unsaved?: true } | { status: 'missing' } | { status: 'unreadable'; error: string }
 
 export type DocumentState<T> = { status: 'loading' } | Exclude<Lookup<T>, { status: 'found' }> | { status: 'error'; message: string } | { status: 'ready'; doc: T }
 
@@ -20,6 +23,10 @@ export interface DocumentEditor<T> {
   saveError: string | null
   /** Resolves once every change made so far has been saved (or failed to). */
   flush: () => Promise<void>
+  /** When the last save landed; null until one has (in this visit). */
+  savedAt: Date | null
+  /** Whether the document is in the store: false for a new one until its first change. */
+  stored: boolean
 }
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -32,6 +39,8 @@ export function useDocumentEditor<T extends { updatedAt: string }>(
 ): DocumentEditor<T> {
   const [state, setState] = useState<DocumentState<T>>({ status: 'loading' })
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [savedAt, setSavedAt] = useState<Date | null>(null)
+  const [stored, setStored] = useState(true)
   const latest = useRef<T | null>(null)
   const saving = useRef<Promise<void>>(Promise.resolve())
   const pending = useRef(0)
@@ -52,6 +61,7 @@ export function useDocumentEditor<T extends { updatedAt: string }>(
         if (!current) return
         if (result.status === 'found') {
           latest.current = result.doc
+          setStored(!result.unsaved)
           setState({ status: 'ready', doc: result.doc })
         } else {
           setState(result)
@@ -73,11 +83,15 @@ export function useDocumentEditor<T extends { updatedAt: string }>(
     next.updatedAt = now().toISOString()
     latest.current = next
     setState({ status: 'ready', doc: next })
+    setStored(true)
     pending.current++
     saving.current = saving.current
       .then(() =>
         save(next).then(
-          () => setSaveError(null),
+          () => {
+            setSaveError(null)
+            setSavedAt(now())
+          },
           (e: unknown) => setSaveError(errorText(e)),
         ),
       )
@@ -86,5 +100,5 @@ export function useDocumentEditor<T extends { updatedAt: string }>(
       })
   }
 
-  return { state, update, saveError, flush: () => saving.current }
+  return { state, update, saveError, flush: () => saving.current, savedAt, stored }
 }

@@ -193,6 +193,20 @@ describe('joining', () => {
     expect(screen.getByText(/A room code is eight letters and numbers/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Join' })).toBeDisabled()
   })
+
+  it("doesn't offer drafts, which can't be played", async () => {
+    const store = new MemoryHeroStore()
+    await store.save({ ...completeHero(), id: 'h1' })
+    await store.save({ ...completeHero(), id: 'd1', status: 'draft', details: { ...completeHero().details, name: 'Half Done' } })
+    render(
+      <StoreContext.Provider value={store}>
+        <JoinPage />
+      </StoreContext.Provider>,
+    )
+    const picker = await screen.findByRole('combobox', { name: /hero/i })
+    await waitFor(() => expect(within(picker).getAllByRole('option')).toHaveLength(1))
+    expect(within(picker).queryByRole('option', { name: 'Half Done' })).not.toBeInTheDocument()
+  })
 })
 
 describe('the remembered game', () => {

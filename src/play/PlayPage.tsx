@@ -8,7 +8,8 @@ import { editPath, heroPath, listPath, navigate } from '../app/route'
 import { DieIcon } from '../components/icons'
 import { buildSheet } from '../creation/sheet'
 import { useHeroEditor } from '../editor/useHeroEditor'
-import { heroDisplayName, newId, type PlayMod, type PlayState } from '../hero/model'
+import { heroDisplayName, isDraft, newId, type PlayMod, type PlayState } from '../hero/model'
+import { continueStep } from '../hero/wizard-steps'
 import { addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, MAX_HERO_POINTS, newIssue, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
 import { currentForm, dividedForm, formAvailable, formDice, formNoun, playAbilities, playForms } from './forms'
 import { modeLimits } from '../creation/format'
@@ -51,7 +52,7 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
   const snapshot = usePlayerSnapshot(player)
   const loaded = state.status === 'ready' ? state.hero : undefined
   useEffect(() => {
-    if (!player || !loaded) return
+    if (!player || !loaded || isDraft(loaded)) return
     // The session's changes (the GM's scene, mods others gave) go into the hero's play state.
     const next = player.sync(loaded.play ?? emptyPlay())
     if (next) update((h) => void (h.play = next))
@@ -70,6 +71,20 @@ export function PlayPage({ id, clock = () => ({ now: new Date(), newId: () => ne
         {state.status === 'missing' && <p role="alert">There's no saved hero with that link. It may have been deleted.</p>}
         {state.status === 'unreadable' && <p role="alert">This hero couldn't be read: {state.error}</p>}
         {state.status === 'error' && <p role="alert">Something went wrong loading this hero: {state.message}</p>}
+      </div>
+    )
+  }
+
+  // Drafts can't be played until they're finished (the hero wizard spec, "Drafts").
+  if (isDraft(state.hero)) {
+    return (
+      <div className="hero-page">
+        <p>
+          <a href={listPath}>← All heroes</a>
+        </p>
+        <p role="alert">
+          {heroDisplayName(state.hero)} is still a draft. <a href={editPath(id, continueStep(state.hero.furthestStep))}>Continue making this hero</a> and finish it to play.
+        </p>
       </div>
     )
   }

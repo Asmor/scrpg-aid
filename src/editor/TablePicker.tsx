@@ -212,7 +212,7 @@ export function TablePicker<T extends Entry>({ what, method, dice, table, roll, 
       {method === 'guided' && current && options.length === 0 && (
         <p>
           That roll doesn't reach any {what}.{' '}
-          {canReroll(current) ? 'Use your reroll.' : 'Switch this hero to Constructed (at the top of the Background step) to pick any.'}
+          {canReroll(current) ? 'Use your reroll.' : 'Switch this hero to Constructed (in the Start step) to pick any.'}
         </p>
       )}
     </div>

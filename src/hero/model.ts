@@ -29,6 +29,15 @@ export type { RollRecord }
 
 export type CreationMethod = 'guided' | 'constructed'
 
+/** Guided only: whether the app rolls each step's dice, or the player types in their own. */
+export type RollMode = 'app' | 'manual'
+
+/**
+ * A hero is a draft until the player finishes it (the hero wizard spec, "Drafts"). Heroes
+ * saved before drafts existed have no status and count as complete.
+ */
+export type HeroStatus = 'draft' | 'complete'
+
 /** One die assigned to a power or quality during a step. */
 export interface TraitAssignment {
   trait: TraitRef
@@ -300,6 +309,12 @@ export interface Hero {
   createdAt: string
   updatedAt: string
   method: CreationMethod
+  /** Who rolls in Guided creation; unset means the app does. */
+  rollMode?: RollMode
+  /** Unset means complete. */
+  status?: HeroStatus
+  /** A draft's furthest wizard step reached: 0 for Start, 1–8 for the numbered steps. */
+  furthestStep?: number
   details: HeroDetails
   /**
    * The player's names for traits that need one (Signature Weaponry, the roleplaying
@@ -400,6 +415,11 @@ export function createHero(method: CreationMethod, options: { id?: string; now?:
     retcon: null,
     health: null,
   }
+}
+
+/** Whether the hero is still a draft: not finished, so it can't be played. */
+export function isDraft(hero: Pick<Hero, 'status'>): boolean {
+  return hero.status === 'draft'
 }
 
 /** The name to show for a hero in lists. */

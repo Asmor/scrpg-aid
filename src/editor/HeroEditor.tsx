@@ -2,12 +2,17 @@
  * Making or editing a hero, one step at a time. Every change saves straight away. Each
  * step shows its own rule problems; nothing blocks moving on (the user's "warn only"
  * decision), and going back keeps later choices, flagging the ones that no longer fit.
+ *
+ * A new hero is a draft (../app/new-heroes.ts): nothing is saved until its first change, and
+ * it stays a draft, remembering the furthest step reached, until the player finishes it.
  */
 import { useEffect, type MouseEvent, type ReactNode } from 'react'
 import { editPath, heroPath, listPath, navigate } from '../app/route'
 import { buildSheet } from '../creation/sheet'
 import type { StepId } from '../creation/warnings'
-import { heroDisplayName, type Hero } from '../hero/model'
+import { heroDisplayName, isDraft, type Hero } from '../hero/model'
+import { wizardStepIndex } from '../hero/wizard-steps'
+import { useTick } from '../play/useTick'
 import { AdvancementStep } from './AdvancementStep'
 import { ArchetypeStep } from './ArchetypeStep'
 import { BackgroundStep } from './BackgroundStep'
@@ -17,6 +22,7 @@ import { PersonalityStep } from './PersonalityStep'
 import { PowerSourceStep } from './PowerSourceStep'
 import { RedAbilitiesStep } from './RedAbilitiesStep'
 import { RetconStep } from './RetconStep'
+import { StartStep } from './StartStep'
 import { StepWarnings } from './StepWarnings'
 import { useHeroEditor } from './useHeroEditor'
 
@@ -31,6 +37,7 @@ interface EditorStep {
 }
 
 const EDITOR_STEPS: readonly EditorStep[] = [
+  { id: 'start', label: 'Start', warns: [], render: (hero, update) => <StartStep hero={hero} update={update} /> },
   { id: 'background', label: 'Background', warns: ['background'], render: (hero, update) => <BackgroundStep hero={hero} update={update} /> },
   { id: 'power-source', label: 'Power source', warns: ['powerSource'], render: (hero, update) => <PowerSourceStep hero={hero} update={update} /> },
   { id: 'archetype', label: 'Archetype', warns: ['archetype'], render: (hero, update) => <ArchetypeStep hero={hero} update={update} /> },
@@ -42,15 +49,39 @@ const EDITOR_STEPS: readonly EditorStep[] = [
   { id: 'advancement', label: 'Advancement', warns: ['advancement'], render: (hero, update) => <AdvancementStep hero={hero} update={update} /> },
 ]
 
+/** "saved just now", "saved 3 minutes ago". */
+function savedText(savedAt: Date, now: Date): string {
+  const minutes = Math.floor((now.getTime() - savedAt.getTime()) / 60_000)
+  if (minutes < 1) return 'saved just now'
+  return `saved ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`
+}
+
 export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) {
-  const { state, update, saveError, flush } = useHeroEditor(id)
+  const { state, update: save, saveError, flush, savedAt, stored } = useHeroEditor(id)
+  const now = useTick()
   const found = EDITOR_STEPS.findIndex((s) => s.id === stepId)
   const index = Math.max(0, found)
   const step = EDITOR_STEPS[index]!
+  // The wizard step on screen (-1 for Advancement, which isn't part of creation).
+  const wizardIndex = wizardStepIndex(step.id)
+  const loaded = state.status === 'ready' ? state.hero : undefined
+  /** Saves a change; a draft also remembers the furthest step it reached. */
+  const update = (change: (draft: Hero) => void) =>
+    save((h) => {
+      change(h)
+      if (isDraft(h) && wizardIndex > (h.furthestStep ?? 0)) h.furthestStep = wizardIndex
+    })
   // An unknown step in the address shows the first step; put that step's address in its place.
   useEffect(() => {
     if (stepId !== undefined && found < 0) window.location.replace(editPath(id, EDITOR_STEPS[0]!.id))
   }, [id, stepId, found])
+  // Reaching a later step counts as progress on a saved draft (an unsaved one waits for a choice).
+  const behind = loaded !== undefined && stored && isDraft(loaded) && wizardIndex > (loaded.furthestStep ?? 0)
+  useEffect(() => {
+    if (behind) update(() => {})
+    // `update` is a new function each render; `behind` says when it's needed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [behind])
   /** Leaves the editor once the changes made so far are saved, so the next page shows them. */
   const leave = (path: string) => (e: MouseEvent<HTMLAnchorElement>) => {
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
@@ -76,7 +107,17 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
   const warnings = buildSheet(hero).warnings
   const countFor = (s: EditorStep) => warnings.filter((w) => s.warns.includes(w.step)).length
   const prev = EDITOR_STEPS[index - 1]
-  const next = EDITOR_STEPS[index + 1]
+  const draft = isDraft(hero)
+  // A draft ends at Details, with Finish hero; Advancement is for finished heroes.
+  const next = draft && EDITOR_STEPS[index + 1]?.id === 'advancement' ? undefined : EDITOR_STEPS[index + 1]
+  /** Makes the draft a complete hero and opens its page. */
+  const finish = () => {
+    update((h) => {
+      h.status = 'complete'
+      delete h.furthestStep
+    })
+    void flush().then(() => navigate(heroPath(hero.id)))
+  }
 
   return (
     <div className="hero-editor">
@@ -84,11 +125,24 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
         <a href={listPath} onClick={leave(listPath)}>
           ← All heroes
         </a>
-        <a href={heroPath(hero.id)} onClick={leave(heroPath(hero.id))}>
-          View sheet
-        </a>
+        {draft ? (
+          <button type="button" className="button" onClick={finish}>
+            Finish hero
+          </button>
+        ) : (
+          <a href={heroPath(hero.id)} onClick={leave(heroPath(hero.id))}>
+            View sheet
+          </a>
+        )}
       </div>
-      <h2 className="hero-editor__name">{heroDisplayName(hero)}</h2>
+      <div className="hero-editor__title">
+        <h2 className="hero-editor__name">{heroDisplayName(hero)}</h2>
+        {draft && (
+          <span className="draft-chip" role="status">
+            Draft{stored && savedAt ? ` · ${savedText(savedAt, now)}` : stored ? '' : ' · not saved yet'}
+          </span>
+        )}
+      </div>
       {saveError && (
         <p role="alert" className="error">
           Your last change couldn't be saved: {saveError}
@@ -102,7 +156,7 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
             return (
               <li key={s.id}>
                 <a href={editPath(hero.id, s.id)} aria-current={i === index ? 'step' : undefined}>
-                  <span className="step-nav__number">{i + 1}</span> {s.label}
+                  {i > 0 && <span className="step-nav__number">{i}</span>} {s.label}
                   {count > 0 && (
                     <span className="step-nav__count">
                       <span aria-hidden="true">{count}</span>
@@ -136,6 +190,10 @@ export function HeroEditor({ id, step: stepId }: { id: string; step?: string }) 
           <a className="button button--primary" href={editPath(hero.id, next.id)}>
             {next.label} →
           </a>
+        ) : draft ? (
+          <button type="button" className="button button--primary" onClick={finish}>
+            Finish hero
+          </button>
         ) : (
           <a className="button button--primary" href={heroPath(hero.id)} onClick={leave(heroPath(hero.id))}>
             View sheet

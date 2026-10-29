@@ -1,11 +1,18 @@
-/** The saved heroes: open, create, or delete one, or add the example hero. */
+/**
+ * The saved heroes: open, create, or delete one, or add the example hero. Drafts (heroes not
+ * finished yet) are listed apart, under In progress, to continue or discard.
+ */
 import { useEffect, useRef, useState, type Ref } from 'react'
 import { editPath, gmPath, heroPath, joinPath, navigate } from '../app/route'
+import { useNewHeroes } from '../app/new-heroes'
 import { useStore } from '../app/store-context'
 import { useOptionalVillainStore } from '../app/villain-store-context'
 import { archetypeName } from '../creation/layers'
 import { exampleHero } from '../hero/example'
-import { createHero, heroDisplayName, type Hero } from '../hero/model'
+import { createHero, heroDisplayName, isDraft, type Hero } from '../hero/model'
+import { continueStep, progressText } from '../hero/wizard-steps'
+import { formatFull, formatWhen } from '../play/time'
+import { useTick } from '../play/useTick'
 import type { HeroList as Heroes } from '../hero/store'
 import { downloadFile } from '../transfer/download'
 import { backupFileName, backupJson } from '../transfer/files'
@@ -29,22 +36,24 @@ interface DeleteControlProps {
   onDelete: () => void
   deleteRef: (id: string, el: HTMLButtonElement | null) => void
   keepRef: Ref<HTMLButtonElement>
+  /** What the button says: Delete, or Discard for a draft. */
+  verb?: 'Delete' | 'Discard'
 }
 
 /** A Delete button that turns into an inline "Delete? Yes, delete / Keep" confirmation. */
-export function DeleteControl({ id, label, confirming, busy, onAsk, onKeep, onDelete, deleteRef, keepRef }: DeleteControlProps) {
+export function DeleteControl({ id, label, confirming, busy, onAsk, onKeep, onDelete, deleteRef, keepRef, verb = 'Delete' }: DeleteControlProps) {
   if (!confirming) {
     return (
-      <button type="button" className="button" ref={(el) => deleteRef(id, el)} disabled={busy} onClick={onAsk} aria-label={`Delete ${label}`}>
-        Delete
+      <button type="button" className="button" ref={(el) => deleteRef(id, el)} disabled={busy} onClick={onAsk} aria-label={`${verb} ${label}`}>
+        {verb}
       </button>
     )
   }
   return (
-    <span className="button-row" role="group" aria-label={`Delete ${label}?`}>
-      <span aria-hidden="true">Delete?</span>
+    <span className="button-row" role="group" aria-label={`${verb} ${label}?`}>
+      <span aria-hidden="true">{verb}?</span>
       <button type="button" className="button button--danger" disabled={busy} onClick={onDelete}>
-        Yes, delete
+        Yes, {verb.toLowerCase()}
       </button>
       <button type="button" className="button" ref={keepRef} disabled={busy} onClick={onKeep}>
         Keep
@@ -56,6 +65,8 @@ export function DeleteControl({ id, label, confirming, busy, onAsk, onKeep, onDe
 /** `onImported` lets the home page refresh its villain list after an import; `refresh` reloads this one. */
 export function HeroList({ onImported, refresh = 0 }: { onImported?: () => void; refresh?: number } = {}) {
   const store = useStore()
+  const newHeroes = useNewHeroes()
+  const now = useTick()
   const villainStore = useOptionalVillainStore()
   // Whether there are villains to back up too (Phase 5).
   const [hasVillains, setHasVillains] = useState(false)
@@ -156,8 +167,9 @@ export function HeroList({ onImported, refresh = 0 }: { onImported?: () => void;
     }
   }
 
-  const deleteControl = (id: string, label: string) => (
+  const deleteControl = (id: string, label: string, verb?: 'Discard') => (
     <DeleteControl
+      verb={verb}
       id={id}
       label={label}
       confirming={confirming === id}
@@ -177,6 +189,9 @@ export function HeroList({ onImported, refresh = 0 }: { onImported?: () => void;
   )
 
   const loading = state.status === 'loading'
+  const heroes = state.status === 'ready' ? state.list.heroes : []
+  const drafts = heroes.filter(isDraft)
+  const complete = heroes.filter((h) => !isDraft(h))
   return (
     <section className="hero-list" aria-labelledby="hero-list-title">
       <div className="hero-list__header">
@@ -185,8 +200,10 @@ export function HeroList({ onImported, refresh = 0 }: { onImported?: () => void;
         </h2>
         <div className="button-row">
           <button type="button" className="button button--primary" disabled={busy || importing || loading} onClick={() => {
-              const hero = createHero('guided')
-              void add(hero, editPath(hero.id, 'background'))
+              // A draft held in memory: the wizard saves it on the first choice.
+              const hero = { ...createHero('guided'), status: 'draft' as const }
+              newHeroes.add(hero)
+              navigate(editPath(hero.id, 'start'))
             }}>
             New hero
           </button>
@@ -238,11 +255,34 @@ export function HeroList({ onImported, refresh = 0 }: { onImported?: () => void;
       )}
       {state.status === 'ready' && (
         <>
-          {state.list.heroes.length === 0 && state.list.unreadable.length === 0 && (
-            <p className="sheet-empty">No heroes yet. Start a new one, or add the example hero to see a finished sheet.</p>
+          {drafts.length > 0 && (
+            <section className="in-progress" aria-labelledby="in-progress-title">
+              <h3 id="in-progress-title">In progress</h3>
+              <ul className="hero-cards">
+                {drafts.map((hero) => (
+                  <li key={hero.id} className="hero-card hero-card--draft">
+                    <span className="hero-card__link">
+                      <span className="hero-card__name">{heroDisplayName(hero)}</span>
+                      <span className="hero-card__meta">
+                        {progressText(hero.furthestStep)} · edited <time dateTime={hero.updatedAt} title={formatFull(hero.updatedAt)}>{formatWhen(hero.updatedAt, now)}</time>
+                      </span>
+                    </span>
+                    <span className="button-row">
+                      <a className="button button--primary" href={editPath(hero.id, continueStep(hero.furthestStep))} aria-label={`Continue ${heroDisplayName(hero)}`}>
+                        Continue
+                      </a>
+                      {deleteControl(hero.id, heroDisplayName(hero), 'Discard')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {complete.length === 0 && state.list.unreadable.length === 0 && (
+            <p className="sheet-empty">{drafts.length ? 'No finished heroes yet.' : 'No heroes yet. Start a new one, or add the example hero to see a finished sheet.'}</p>
           )}
           <ul className="hero-cards">
-            {state.list.heroes.map((hero) => (
+            {complete.map((hero) => (
               <li key={hero.id} className="hero-card">
                 <a className="hero-card__link" href={heroPath(hero.id)}>
                   <span className="hero-card__name">{heroDisplayName(hero)}</span>

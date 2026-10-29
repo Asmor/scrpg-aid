@@ -2,7 +2,9 @@
 import { useEffect, useState } from 'react'
 import { editPath, listPath, playPath } from '../app/route'
 import { useStore } from '../app/store-context'
+import { isDraft } from '../hero/model'
 import type { GetResult } from '../hero/store'
+import { continueStep } from '../hero/wizard-steps'
 import { ExportMenu } from './ExportMenu'
 import { HeroSheetView } from './HeroSheetView'
 
@@ -27,12 +29,17 @@ export function HeroPage({ id }: { id: string }) {
     <div className="hero-page">
       <p className="hero-page__links">
         <a href={listPath}>← All heroes</a>
-        {state.status === 'found' && (
-          <span className="button-row">
-            <a href={playPath(id)}>Play</a>
-            <a href={editPath(id)}>Edit hero</a>
-          </span>
-        )}
+        {state.status === 'found' &&
+          (isDraft(state.hero) ? (
+            <span className="button-row">
+              <a href={editPath(id, continueStep(state.hero.furthestStep))}>Continue making this hero</a>
+            </span>
+          ) : (
+            <span className="button-row">
+              <a href={playPath(id)}>Play</a>
+              <a href={editPath(id)}>Edit hero</a>
+            </span>
+          ))}
       </p>
       {state.status === 'loading' && <p>Loading…</p>}
       {state.status === 'missing' && <p role="alert">There's no saved hero with that link. It may have been deleted.</p>}
@@ -40,6 +47,7 @@ export function HeroPage({ id }: { id: string }) {
       {state.status === 'error' && <p role="alert">Something went wrong loading this hero: {state.message}</p>}
       {state.status === 'found' && (
         <>
+          {isDraft(state.hero) && <p className="hint">This hero is a draft. Finish it to play it.</p>}
           <HeroSheetView hero={state.hero} />
           <ExportMenu hero={state.hero} />
         </>

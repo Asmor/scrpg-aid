@@ -1,5 +1,9 @@
-/** Loads a hero for editing and saves every change straight away (see ./useDocumentEditor.ts). */
+/**
+ * Loads a hero for editing and saves every change straight away (see ./useDocumentEditor.ts).
+ * A new hero not saved yet comes from ../app/new-heroes.ts; its first change saves it.
+ */
 import { useCallback } from 'react'
+import { useNewHeroes } from '../app/new-heroes'
 import { useStore } from '../app/store-context'
 import type { Hero } from '../hero/model'
 import type { GetResult } from '../hero/store'
@@ -15,15 +19,25 @@ export interface HeroEditor {
   saveError: string | null
   /** Resolves once every change made so far has been saved (or failed to). */
   flush: () => Promise<void>
+  /** When the last save landed in this visit, if one has. */
+  savedAt: Date | null
+  /** False for a new hero until its first change saves it. */
+  stored: boolean
 }
 
 export function useHeroEditor(id: string, now: () => Date = () => new Date()): HeroEditor {
   const store = useStore()
+  const newHeroes = useNewHeroes()
   const load = useCallback(async (heroId: string): Promise<Lookup<Hero>> => {
     const result = await store.get(heroId)
-    return result.status === 'found' ? { status: 'found', doc: result.hero } : result
-  }, [store])
-  const save = useCallback((hero: Hero) => store.save(hero), [store])
+    if (result.status === 'found') return { status: 'found', doc: result.hero }
+    const fresh = result.status === 'missing' ? newHeroes.get(heroId) : undefined
+    return fresh ? { status: 'found', doc: fresh, unsaved: true } : result
+  }, [store, newHeroes])
+  const save = useCallback(async (hero: Hero) => {
+    await store.save(hero)
+    newHeroes.remove(hero.id)
+  }, [store, newHeroes])
   const { state, ...rest } = useDocumentEditor(id, load, save, now)
   return { state: state.status === 'ready' ? { status: 'ready', hero: state.doc } : state, ...rest }
 }

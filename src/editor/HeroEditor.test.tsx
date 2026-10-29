@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
+import { NewHeroes, NewHeroesContext } from '../app/new-heroes'
 import { StoreContext } from '../app/store-context'
 import { createHero, type Hero } from '../hero/model'
 import { A, P, Q, completeHero, dividedHero, formChangerHero, heroWithAbilities, minionMakerHero, modularHero, validHero } from '../test/heroes'
@@ -42,6 +43,63 @@ const saved = async (store: HeroStore) => {
   return result.hero
 }
 
+describe('HeroEditor drafts', () => {
+  const renderNew = (store: HeroStore, newHeroes: NewHeroes, step: string) =>
+    render(
+      <NewHeroesContext.Provider value={newHeroes}>
+        <StoreContext.Provider value={store}>
+          <HeroEditor id="n1" step={step} />
+        </StoreContext.Provider>
+      </NewHeroesContext.Provider>,
+    )
+
+  it('keeps a new hero in memory until its first choice, then autosaves it', async () => {
+    const store = new MemoryHeroStore()
+    const newHeroes = new NewHeroes()
+    newHeroes.add({ ...createHero('guided', { id: 'n1' }), status: 'draft' })
+    renderNew(store, newHeroes, 'start')
+    expect(await screen.findByRole('status')).toHaveTextContent('Draft · not saved yet')
+    expect((await store.list()).heroes).toHaveLength(0)
+    await userEvent.click(screen.getByRole('radio', { name: /Constructed/ }))
+    expect(await screen.findByText('Draft · saved just now')).toBeInTheDocument()
+    const result = await store.get('n1')
+    expect(result.status === 'found' && result.hero).toMatchObject({ status: 'draft', method: 'constructed' })
+    // Saved, it's no longer held in memory.
+    expect(newHeroes.get('n1')).toBeUndefined()
+  })
+
+  it("remembers a saved draft's furthest step, but not an unsaved one's", async () => {
+    const store = new MemoryHeroStore()
+    const newHeroes = new NewHeroes()
+    newHeroes.add({ ...createHero('guided', { id: 'n1' }), status: 'draft' })
+    const view = renderNew(store, newHeroes, 'archetype')
+    await screen.findByRole('heading', { level: 3, name: 'Archetype' })
+    expect((await store.list()).heroes).toHaveLength(0)
+    view.unmount()
+
+    await store.save({ ...createHero('guided', { id: 'h1' }), status: 'draft', furthestStep: 1 })
+    renderEditor(store, 'archetype')
+    await waitFor(async () => expect((await saved(store)).furthestStep).toBe(3))
+  })
+
+  it('finishes a draft, making it complete and opening its page', async () => {
+    const store = await storeWith((h) => {
+      h.status = 'draft'
+      h.furthestStep = 8
+    })
+    renderEditor(store, 'details')
+    // The last step leads to Finish hero, not Advancement.
+    expect(screen.queryByRole('link', { name: 'Advancement →' })).not.toBeInTheDocument()
+    const [header, footer] = await screen.findAllByRole('button', { name: 'Finish hero' })
+    expect(footer).toBeDefined()
+    await userEvent.click(header!)
+    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1'))
+    const hero = await saved(store)
+    expect(hero.status).toBe('complete')
+    expect(hero.furthestStep).toBeUndefined()
+  })
+})
+
 describe('HeroEditor', () => {
   it('says when the hero is missing', async () => {
     renderEditor(new MemoryHeroStore(), undefined, 'nobody')
@@ -61,11 +119,15 @@ describe('HeroEditor', () => {
     })
   })
 
-  it('chooses the creation method on the first step', async () => {
+  it('chooses the creation method, and for Guided who rolls, on the Start step', async () => {
     const store = await storeWith()
-    renderEditor(store, 'background')
-    await userEvent.click(await screen.findByRole('radio', { name: /Constructed/ }))
+    renderEditor(store, 'start')
+    await userEvent.click(await screen.findByRole('radio', { name: /My own dice/ }))
+    await waitFor(async () => expect((await saved(store)).rollMode).toBe('manual'))
+    await userEvent.click(screen.getByRole('radio', { name: /Constructed/ }))
     await waitFor(async () => expect((await saved(store)).method).toBe('constructed'))
+    // Who rolls only matters for Guided.
+    expect(screen.queryByRole('radio', { name: /My own dice/ })).not.toBeInTheDocument()
   })
 
   it('navigates between steps, with each step’s issue count', async () => {
@@ -80,8 +142,8 @@ describe('HeroEditor', () => {
     expect(current).toHaveTextContent(/^1 Background/)
     expect(within(nav).getByRole('link', { name: /Details/ })).toHaveAttribute('href', '#/hero/h1/edit/details')
     expect(screen.getByRole('link', { name: 'Power source →' })).toHaveAttribute('href', '#/hero/h1/edit/power-source')
-    // Background is the first step.
-    expect(screen.queryByRole('link', { name: /^← (?!All heroes)/ })).not.toBeInTheDocument()
+    // Start comes before Background.
+    expect(screen.getByRole('link', { name: '← Start' })).toHaveAttribute('href', '#/hero/h1/edit/start')
   })
 
   it('has Details after Health, then Advancement', async () => {
@@ -99,8 +161,8 @@ describe('HeroEditor', () => {
   it('falls back to the first step for an unknown step, fixing the address', async () => {
     window.location.hash = '#/hero/h1/edit/nope'
     renderEditor(await storeWith(), 'nope')
-    expect(await screen.findByRole('heading', { level: 3, name: 'Background' })).toBeInTheDocument()
-    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1/edit/background'))
+    expect(await screen.findByRole('heading', { level: 3, name: 'Start' })).toBeInTheDocument()
+    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1/edit/start'))
   })
 
   it('builds a background the constructed way, with no issues left', async () => {

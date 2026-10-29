@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { NewHeroes, NewHeroesContext } from '../app/new-heroes'
 import { StoreContext } from '../app/store-context'
 import { exampleHero } from '../hero/example'
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
@@ -15,11 +16,13 @@ import { HeroList } from './HeroList'
 
 vi.mock('../transfer/download', () => ({ downloadFile: vi.fn() }))
 
-const renderList = (store: HeroStore) =>
+const renderList = (store: HeroStore, newHeroes = new NewHeroes()) =>
   render(
-    <StoreContext.Provider value={store}>
-      <HeroList />
-    </StoreContext.Provider>,
+    <NewHeroesContext.Provider value={newHeroes}>
+      <StoreContext.Provider value={store}>
+        <HeroList />
+      </StoreContext.Provider>
+    </NewHeroesContext.Provider>,
   )
 
 afterEach(() => {
@@ -44,12 +47,13 @@ describe('HeroList', () => {
 
   it('creates a new hero or the example hero, and opens it', async () => {
     const store = new MemoryHeroStore()
-    renderList(store)
+    const newHeroes = new NewHeroes()
+    renderList(store, newHeroes)
     await userEvent.click(await screen.findByRole('button', { name: 'New hero' }))
-    const [created] = (await store.list()).heroes
-    expect(created?.method).toBe('guided')
-    // A new hero opens in the editor…
-    expect(window.location.hash).toBe(`#/hero/${created!.id}/edit/background`)
+    // A new hero is a draft held in memory, opened at Start; nothing is saved until its first choice.
+    const id = /^#\/hero\/([^/]+)\/edit\/start$/.exec(window.location.hash)?.[1]
+    expect(newHeroes.get(id!)).toMatchObject({ method: 'guided', status: 'draft' })
+    expect((await store.list()).heroes).toHaveLength(0)
 
     // …and the example hero as a finished sheet.
     await userEvent.click(screen.getByRole('button', { name: 'Add example hero' }))
@@ -123,6 +127,37 @@ describe('HeroList', () => {
     expect(await screen.findByRole('heading', { name: "One saved hero couldn't be read" })).toBeInTheDocument()
   })
 
+  it('lists drafts under In progress, to continue or discard', async () => {
+    const store = new MemoryHeroStore()
+    await store.save(exampleHero({ id: 'maya' }))
+    await store.save({ ...createHero('guided', { id: 'd1' }), status: 'draft', furthestStep: 3 })
+    await store.save({ ...createHero('guided', { id: 'd2' }), status: 'draft' })
+    renderList(store)
+    const group = await screen.findByRole('region', { name: 'In progress' })
+    const rows = within(group).getAllByRole('listitem')
+    expect(rows).toHaveLength(2)
+    const third = rows.find((r) => r.textContent?.includes('Step 3 of 8'))!
+    expect(third).toHaveTextContent(/Unnamed hero.*Step 3 of 8 · edited/)
+    expect(within(third).getByRole('link', { name: 'Continue Unnamed hero' })).toHaveAttribute('href', '#/hero/d1/edit/archetype')
+    expect(rows.find((r) => r !== third)).toHaveTextContent('At Start')
+    // Drafts aren't among the finished heroes.
+    const sheetLinks = screen.getAllByRole('link').map((l) => l.getAttribute('href')).filter((h) => /^#\/hero\/[^/]+$/.test(h ?? ''))
+    expect(sheetLinks).toEqual(['#/hero/maya'])
+
+    // Discarding asks first.
+    await userEvent.click(within(third).getByRole('button', { name: 'Discard Unnamed hero' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, discard' }))
+    await waitFor(async () => expect((await store.list()).heroes.map((h) => h.id).sort()).toEqual(['d2', 'maya']))
+  })
+
+  it('hides In progress when there are no drafts', async () => {
+    const store = new MemoryHeroStore()
+    await store.save(exampleHero({ id: 'maya' }))
+    renderList(store)
+    await screen.findByRole('link', { name: /Maya Reyes/ })
+    expect(screen.queryByRole('region', { name: 'In progress' })).not.toBeInTheDocument()
+  })
+
   it('reports a failed save next to the list, without losing it', async () => {
     const store = new MemoryHeroStore()
     await store.save(exampleHero({ id: 'maya' }))
@@ -130,7 +165,7 @@ describe('HeroList', () => {
       throw new Error('quota exceeded')
     }
     renderList(store)
-    await userEvent.click(await screen.findByRole('button', { name: 'New hero' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Add example hero' }))
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save the hero: quota exceeded")
     expect(screen.getByRole('link', { name: /Maya Reyes/ })).toBeInTheDocument()
   })

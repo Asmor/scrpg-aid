@@ -5,7 +5,7 @@
 import { useEffect, useId, useState } from 'react'
 import { listPath, navigate, playPath } from '../app/route'
 import { useStore } from '../app/store-context'
-import { heroDisplayName, type Hero } from '../hero/model'
+import { heroDisplayName, isDraft, type Hero } from '../hero/model'
 import { normalizeRoomCode } from './code'
 import { useSession } from './context'
 
@@ -26,8 +26,10 @@ export function JoinPage({ room: given }: { room?: string }) {
     store.list().then(
       (list) => {
         if (!live) return
-        setHeroes(list.heroes)
-        setHeroId((id) => id || list.heroes[0]?.id || '')
+        // Drafts can't be played until they're finished.
+        const playable = list.heroes.filter((h) => !isDraft(h))
+        setHeroes(playable)
+        setHeroId((id) => id || playable[0]?.id || '')
       },
       (e: unknown) => live && setLoadError(e instanceof Error ? e.message : String(e)),
     )

@@ -31,6 +31,19 @@ const saved = async (store: HeroStore) => {
 }
 
 describe('PlayPage', () => {
+  it("won't play a draft, pointing to where it left off", async () => {
+    const store = new MemoryHeroStore()
+    await store.save({ ...completeHero(), id: 'h1', status: 'draft', furthestStep: 7 })
+    render(
+      <StoreContext.Provider value={store}>
+        <PlayPage id="h1" clock={clock} />
+      </StoreContext.Provider>,
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('is still a draft')
+    expect(screen.getByRole('link', { name: 'Continue making this hero' })).toHaveAttribute('href', '#/hero/h1/edit/health')
+    expect(screen.queryByRole('region', { name: 'Health' })).not.toBeInTheDocument()
+  })
+
   it('starts at full Health in Green, with the Green status die', async () => {
     await setup()
     const health = screen.getByRole('region', { name: 'Health' })

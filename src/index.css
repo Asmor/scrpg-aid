@@ -1550,3 +1550,19 @@ a.button--primary {
 .effects-picker__row .field {
   flex: 1 1 8rem;
 }
+
+/* Drafts */
+.hero-editor__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.draft-chip {
+  font-size: 0.8125rem;
+  color: var(--ui-muted);
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  padding: 0.125rem 0.625rem;
+}

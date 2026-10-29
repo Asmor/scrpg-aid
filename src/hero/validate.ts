@@ -128,6 +128,9 @@ const heroShape = object({
     changes: arrayOf(advancementChange),
   }),
   'currentHealth?': integer,
+  'rollMode?': oneOf('app', 'manual'),
+  'status?': oneOf('draft', 'complete'),
+  'furthestStep?': integer,
   'notes?': string,
   'play?': object({
     'health?': integer,
