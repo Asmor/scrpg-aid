@@ -3,6 +3,7 @@ import { listPath, useRoute } from './app/route'
 import { StoreContext } from './app/store-context'
 import { Home } from './components/Home'
 import { HeroPage } from './components/HeroPage'
+import { AdvancementPage } from './editor/AdvancementPage'
 import { HeroEditor } from './editor/HeroEditor'
 import { PlayPage } from './play/PlayPage'
 import { VillainStoreContext } from './app/villain-store-context'
@@ -36,7 +37,7 @@ export default function App({ store: given, villainStore: givenVillains, connect
           </h1>
           <ThemeToggle value={theme} onChange={setTheme} />
         </header>
-        <main className="app-main">
+        <main className={route.name === 'edit' ? 'app-main app-main--wide' : 'app-main'}>
           {route.name === 'list' && <Home />}
           {route.name === 'villain' && <VillainPage key={route.id} id={route.id} />}
           {route.name === 'villainPlay' && <VillainPlayPage key={route.id} id={route.id} />}
@@ -44,6 +45,7 @@ export default function App({ store: given, villainStore: givenVillains, connect
           {route.name === 'hero' && <HeroPage key={route.id} id={route.id} />}
           {route.name === 'edit' && <HeroEditor key={route.id} id={route.id} step={route.step} />}
           {route.name === 'play' && <PlayPage key={route.id} id={route.id} />}
+          {route.name === 'advancement' && <AdvancementPage key={route.id} id={route.id} />}
           {route.name === 'gm' && <GmPage />}
           {route.name === 'join' && <JoinPage key={route.room ?? ''} room={route.room} />}
           {route.name === 'notFound' && (

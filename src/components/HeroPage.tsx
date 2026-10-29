@@ -1,6 +1,6 @@
 /** One saved hero, loaded by id and shown as a sheet. Give it `key={id}` so a new id starts fresh. */
 import { useEffect, useState } from 'react'
-import { editPath, listPath, playPath } from '../app/route'
+import { advancementPath, editPath, listPath, playPath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { isDraft } from '../hero/model'
 import type { GetResult } from '../hero/store'
@@ -38,6 +38,7 @@ export function HeroPage({ id }: { id: string }) {
             <span className="button-row">
               <a href={playPath(id)}>Play</a>
               <a href={editPath(id)}>Edit hero</a>
+              <a href={advancementPath(id)}>Advancement</a>
             </span>
           ))}
       </p>

@@ -188,7 +188,7 @@ describe('joining', () => {
         <JoinPage />
       </StoreContext.Provider>,
     )
-    expect(await screen.findByText(/You have no heroes yet/)).toBeInTheDocument()
+    expect(await screen.findByText(/You have no finished heroes yet/)).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Room code'), 'abc')
     expect(screen.getByText(/A room code is eight letters and numbers/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Join' })).toBeDisabled()

@@ -8,6 +8,7 @@ import { A, P, Q, completeHero, dividedHero, formChangerHero, heroWithAbilities,
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { backgrounds } from '../rules/data'
 import { tableOptions } from '../rules/rolling'
+import { AdvancementPage } from './AdvancementPage'
 import { HeroEditor } from './HeroEditor'
 import { HealthStep } from './HealthStep'
 import { useHeroEditor } from './useHeroEditor'
@@ -18,6 +19,13 @@ function HealthHarness() {
   const { state, update } = useHeroEditor('h1')
   return state.status === 'ready' ? <HealthStep hero={state.hero} update={update} random={() => 0.999} /> : null
 }
+
+const renderAdvancement = (store: HeroStore) =>
+  render(
+    <StoreContext.Provider value={store}>
+      <AdvancementPage id="h1" />
+    </StoreContext.Provider>,
+  )
 
 const renderEditor = (store: HeroStore, step?: string, id = 'h1') =>
   render(
@@ -73,7 +81,7 @@ describe('HeroEditor drafts', () => {
     const newHeroes = new NewHeroes()
     newHeroes.add({ ...createHero('guided', { id: 'n1' }), status: 'draft' })
     const view = renderNew(store, newHeroes, 'archetype')
-    await screen.findByRole('heading', { level: 3, name: 'Archetype' })
+    await screen.findByRole('heading', { level: 3, name: '3 · Archetype' })
     expect((await store.list()).heroes).toHaveLength(0)
     view.unmount()
 
@@ -139,23 +147,31 @@ describe('HeroEditor', () => {
     const current = within(nav).getByRole('link', { current: 'step' })
     expect(current).toHaveTextContent('Background')
     expect(current).toHaveTextContent(/issues?/)
-    expect(current).toHaveTextContent(/^1 Background/)
+    expect(current).toHaveTextContent(/Background.*, 2 issues$/)
+    expect(screen.getByRole('heading', { level: 3, name: '1 · Background' })).toBeInTheDocument()
+    expect(screen.getAllByText('Core Rules, p. 49')[0]).toBeInTheDocument()
+    // Steps not started yet show a hollow mark; started ones without issues a check.
     expect(within(nav).getByRole('link', { name: /Details/ })).toHaveAttribute('href', '#/hero/h1/edit/details')
-    expect(screen.getByRole('link', { name: 'Power source →' })).toHaveAttribute('href', '#/hero/h1/edit/power-source')
-    // Start comes before Background.
-    expect(screen.getByRole('link', { name: '← Start' })).toHaveAttribute('href', '#/hero/h1/edit/start')
+    expect(within(nav).getByRole('link', { name: /Details/ })).toHaveTextContent('Details, not started')
+    expect(within(nav).getByRole('link', { name: /Start/ })).toHaveTextContent('Start, done')
+    // The step buttons are named for their steps.
+    expect(screen.getByRole('link', { name: 'Power source' })).toHaveAttribute('href', '#/hero/h1/edit/power-source')
+    expect(screen.getByRole('link', { name: 'Start' })).toHaveAttribute('href', '#/hero/h1/edit/start')
   })
 
-  it('has Details after Health, then Advancement', async () => {
+  it('ends at Details; a finished hero then goes back to its page', async () => {
     renderEditor(await storeWith(), 'details')
-    expect(await screen.findByRole('link', { name: '← Health' })).toHaveAttribute('href', '#/hero/h1/edit/health')
-    expect(screen.getByRole('link', { name: 'Advancement →' })).toHaveAttribute('href', '#/hero/h1/edit/advancement')
+    expect(await screen.findByRole('link', { name: 'Health' })).toHaveAttribute('href', '#/hero/h1/edit/health')
+    const done = screen.getAllByRole('link', { name: 'Done editing' })
+    expect(done).toHaveLength(2)
+    expect(done.at(-1)).toHaveAttribute('href', '#/hero/h1')
+    expect(screen.queryByRole('link', { name: /Advancement/ })).not.toBeInTheDocument()
   })
 
-  it('ends with the Advancement step, which leads to the sheet', async () => {
+  it('sends the old Advancement step to its own page', async () => {
+    window.location.hash = '#/hero/h1/edit/advancement'
     renderEditor(await storeWith(), 'advancement')
-    expect(await screen.findByRole('heading', { level: 3, name: 'Advancement' })).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: 'View sheet' }).at(-1)).toHaveAttribute('href', '#/hero/h1')
+    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1/advancement'))
   })
 
   it('falls back to the first step for an unknown step, fixing the address', async () => {
@@ -1016,9 +1032,15 @@ describe('HeroEditor', () => {
     })
   })
 
+  it('keeps advancement for finished heroes', async () => {
+    renderAdvancement(await storeWith((h) => Object.assign(h, { ...completeHero(), id: 'h1', status: 'draft', furthestStep: 4 })))
+    expect(await screen.findByRole('alert')).toHaveTextContent('is still a draft')
+    expect(screen.getByRole('link', { name: 'Continue making this hero' })).toHaveAttribute('href', '#/hero/h1/edit/personality')
+  })
+
   it('counts back issues, names collections, and records changes', async () => {
     const store = await storeWith((h) => Object.assign(h, { ...completeHero(), id: 'h1' }))
-    renderEditor(store, 'advancement')
+    renderAdvancement(store)
     const more = await screen.findByRole('button', { name: 'One more back issue' })
     await userEvent.click(more)
     await userEvent.click(more)
@@ -1044,7 +1066,7 @@ describe('HeroEditor', () => {
 
   it('records an ability swap, filling in the new ability', async () => {
     const store = await storeWith((h) => Object.assign(h, { ...completeHero(), id: 'h1' }))
-    renderEditor(store, 'advancement')
+    renderAdvancement(store)
     await userEvent.selectOptions(await screen.findByLabelText('Change'), 'Swap an ability for another of the same color from the same list')
     await userEvent.selectOptions(screen.getByLabelText('Swap this ability'), 'Inflict')
     await userEvent.selectOptions(screen.getByLabelText('For this one'), 'Reflexive Burst')
@@ -1086,7 +1108,7 @@ describe('HeroEditor', () => {
     const unload = new Event('beforeunload', { cancelable: true })
     window.dispatchEvent(unload)
     expect(unload.defaultPrevented).toBe(true)
-    await userEvent.click(screen.getAllByRole('link', { name: 'View sheet' })[0]!)
+    await userEvent.click(screen.getAllByRole('link', { name: 'Done editing' })[0]!)
     // Still here until the save lands.
     expect(window.location.hash).toBe('#/hero/h1/edit/details')
     await act(async () => finish!())

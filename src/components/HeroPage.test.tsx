@@ -51,6 +51,13 @@ describe('HeroPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('database closed')
   })
 
+  it('links a finished hero to Play, Edit and Advancement', async () => {
+    renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
+    expect(await screen.findByRole('link', { name: 'Advancement' })).toHaveAttribute('href', '#/hero/x/advancement')
+    expect(screen.getByRole('link', { name: 'Play' })).toHaveAttribute('href', '#/hero/x/play')
+    expect(screen.getByRole('link', { name: 'Edit hero' })).toHaveAttribute('href', '#/hero/x/edit')
+  })
+
   it('offers Play and Edit for a finished hero, but only Continue for a draft, which still exports as a draft', async () => {
     const draft = { ...exampleHero({ id: 'x' }), status: 'draft' as const, furthestStep: 2 }
     vi.mocked(downloadFile).mockClear()

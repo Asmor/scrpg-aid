@@ -17,8 +17,8 @@ export interface HeroEditor {
   update: (change: (draft: Hero) => void) => void
   /** The last save's error, if it failed. */
   saveError: string | null
-  /** Resolves once every change made so far has been saved (or failed to). */
-  flush: () => Promise<void>
+  /** Resolves once every change made so far has been saved (or failed to): true if the last save worked. */
+  flush: () => Promise<boolean>
   /** When the last save landed in this visit, if one has. */
   savedAt: Date | null
   /** False for a new hero until its first change saves it. */

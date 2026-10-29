@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { editPath, gmPath, heroPath, joinPath, joinUrl, parseRoute, playPath, villainEditPath, villainPath, villainPlayPath } from './route'
+import { advancementPath, editPath, gmPath, heroPath, joinPath, joinUrl, parseRoute, playPath, villainEditPath, villainPath, villainPlayPath } from './route'
 
 describe('routes', () => {
   it('parses the list, a hero, and anything else', () => {
@@ -13,6 +13,7 @@ describe('routes', () => {
     expect(parseRoute('#/hero/abc/edit/background')).toEqual({ name: 'edit', id: 'abc', step: 'background' })
     expect(parseRoute('#/hero/abc/editor')).toEqual({ name: 'notFound' })
     expect(parseRoute('#/hero/abc/edit/a/b')).toEqual({ name: 'notFound' })
+    expect(parseRoute(advancementPath('abc'))).toEqual({ name: 'advancement', id: 'abc' })
   })
 
   it('round-trips ids that need escaping', () => {

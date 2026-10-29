@@ -55,7 +55,7 @@ export function JoinPage({ room: given }: { room?: string }) {
       )}
       {heroes?.length === 0 && (
         <p>
-          You have no heroes yet. <a href={listPath}>Make one first</a>.
+          You have no finished heroes yet. <a href={listPath}>Make one first</a>.
         </p>
       )}
       <form

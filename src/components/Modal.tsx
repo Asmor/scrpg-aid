@@ -1,0 +1,73 @@
+/**
+ * A modal panel: a dialog in the middle, a drawer from the right, or a bottom sheet. Focus
+ * moves to its title when it opens, stays inside it (Tab wraps around), and goes back to
+ * where it was when it closes. Escape and the backdrop close it.
+ */
+import { useEffect, useId, useRef, type ReactNode } from 'react'
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]'
+
+interface ModalProps {
+  title: string
+  /** Hides the title visually (it still names the panel). */
+  hideTitle?: boolean
+  variant?: 'dialog' | 'drawer' | 'sheet'
+  onClose: () => void
+  children: ReactNode
+}
+
+export function Modal({ title, hideTitle = false, variant = 'dialog', onClose, children }: ModalProps) {
+  const titleId = useId()
+  const panel = useRef<HTMLDivElement>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
+  const closeRef = useRef(onClose)
+  useEffect(() => {
+    closeRef.current = onClose
+  })
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null
+    heading.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        closeRef.current()
+        return
+      }
+      if (e.key !== 'Tab' || !panel.current) return
+      const focusable = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
+      if (!focusable.length) return
+      const first = focusable[0]!
+      const last = focusable.at(-1)!
+      const at = document.activeElement
+      if (e.shiftKey && (at === first || at === heading.current)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && at === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      // Back to where focus was, if that's still on the page.
+      if (before?.isConnected) before.focus()
+    }
+  }, [])
+  return (
+    <div className={`modal-backdrop modal-backdrop--${variant}`} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className={`modal modal--${variant}`} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={panel}>
+        {variant === 'sheet' && <div className="modal__grab" aria-hidden="true" />}
+        <div className="modal__head">
+          <h2 id={titleId} ref={heading} tabIndex={-1} className={hideTitle ? 'visually-hidden' : undefined}>
+            {title}
+          </h2>
+          <button type="button" className="button button--small" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}

@@ -21,8 +21,8 @@ export interface DocumentEditor<T> {
   update: (change: (draft: T) => void) => void
   /** The last save's error, if it failed. */
   saveError: string | null
-  /** Resolves once every change made so far has been saved (or failed to). */
-  flush: () => Promise<void>
+  /** Resolves once every change made so far has been saved (or failed to): true if the last save worked. */
+  flush: () => Promise<boolean>
   /** When the last save landed; null until one has (in this visit). */
   savedAt: Date | null
   /** Whether the document is in the store: false for a new one until its first change. */
@@ -42,7 +42,7 @@ export function useDocumentEditor<T extends { updatedAt: string }>(
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [stored, setStored] = useState(true)
   const latest = useRef<T | null>(null)
-  const saving = useRef<Promise<void>>(Promise.resolve())
+  const saving = useRef<Promise<boolean>>(Promise.resolve(true))
   const pending = useRef(0)
 
   useEffect(() => {
@@ -91,8 +91,12 @@ export function useDocumentEditor<T extends { updatedAt: string }>(
           () => {
             setSaveError(null)
             setSavedAt(now())
+            return true
           },
-          (e: unknown) => setSaveError(errorText(e)),
+          (e: unknown) => {
+            setSaveError(errorText(e))
+            return false
+          },
         ),
       )
       .finally(() => {

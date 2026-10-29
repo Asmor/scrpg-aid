@@ -47,6 +47,22 @@ export function ActionIcon({ action, decorative = false }: { action: Action; dec
 }
 
 /**
+ * The action icons of an ability listed by name, in the order its effects appear, to go
+ * before the name. Each is named (alt and title), since the name alone doesn't say what the
+ * ability does. An ability with no basic-action effect shows nothing.
+ */
+export function AbilityIcons({ actions }: { actions: readonly Action[] }) {
+  if (actions.length === 0) return null
+  return (
+    <span className="ability-icons">
+      {actions.map((a, i) => (
+        <ActionIcon key={`${a}:${i}`} action={a} />
+      ))}
+    </span>
+  )
+}
+
+/**
  * Ability text with an icon before each action word that's one of its effects, and each die
  * size shown as its icon. Pass the ability's effects' `actions` (../creation/effects.ts);
  * without them, the preliminary text rule finds the effect words.
