@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Play mode on a phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.theme-light{--bg:#F6F7FB;--surface:#FFFFFF;--surface2:#EEF0F6;--text:#1A1D2B;--muted:#565C70;--border:#DDE0EA;--accent:#4347C9;--on-accent:#FFFFFF;--accent-soft:#E8E9FA;--danger:#8E2BA0;--danger-soft:#F6E8F8;--g:#72CC82;--g-ink:#1A1D2B;--y:#F5D044;--y-ink:#1A1D2B;--r:#F28A80;--r-ink:#1A1D2B}
+.theme-dark{--bg:#12141C;--surface:#1B1E2A;--surface2:#232736;--text:#E8EAF2;--muted:#A3A9BF;--border:#2C3042;--accent:#9599FF;--on-accent:#12141C;--accent-soft:#262A4A;--danger:#D07BE0;--danger-soft:#2E2236;--g:#1D6E31;--g-ink:#E8EAF2;--y:#E3B600;--y-ink:#12141C;--r:#A8261F;--r-ink:#E8EAF2}
+.m{position:relative;width:390px;min-height:1600px;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5;overflow:hidden}
+.m h1,.m h2,.m h3{font-family:'Barlow Condensed',sans-serif;font-weight:700;margin:0}
+.m button,.m select{font:inherit;color:inherit}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;padding:2px;background:var(--surface2)}
+.seg button{border:0;background:transparent;padding:4px 10px;border-radius:6px;min-height:36px;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--border);font-weight:600}
+.top{position:sticky;top:0;z-index:2;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px}
+.top-row{display:flex;align-items:center;gap:10px}
+.hpbig{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:36px;line-height:1}
+.zchip{border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700;letter-spacing:.08em}
+.zg{background:var(--g);color:var(--g-ink)}.zy{background:var(--y);color:var(--y-ink)}.zr{background:var(--r);color:var(--r-ink)}
+.ib{border:1px solid var(--border);background:var(--surface);border-radius:8px;min-width:44px;min-height:44px;font-size:20px;cursor:pointer}
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface)}
+.tabs button{flex:1;border:0;background:transparent;min-height:46px;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer}
+.tabs button.on{color:var(--text);font-weight:600;border-bottom-color:var(--accent)}
+.wrap{padding:14px 16px 40px;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.muted{color:var(--muted)}.small{font-size:13px}
+.basics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.btn{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 10px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:600}
+.btn img{height:18px;width:auto}
+.band{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)}
+.band-h{padding:4px 12px;font-weight:700;letter-spacing:.1em;font-size:11px}
+.abl{display:flex;align-items:center;gap:8px;padding:9px 12px;border-top:1px solid var(--border);font-size:14px}
+.abl:first-of-type{border-top:0}
+.abl .icons img{height:17px;width:auto}
+.abl .why{margin-left:auto;font-size:12px;color:var(--muted)}
+.mod{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:14px}
+.mod:last-child{border-bottom:0}
+.size{min-width:30px;text-align:center;border-radius:6px;padding:0 6px;font-weight:700}
+.size.b{background:var(--accent-soft);color:var(--accent)}.size.p{background:var(--danger-soft);color:var(--danger)}
+.tag{font-size:11px;border:1px solid var(--border);border-radius:999px;padding:0 7px;color:var(--muted)}
+.sheet{position:absolute;inset:0;z-index:5;background:var(--surface);display:flex;flex-direction:column}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border)}
+.sheet-b{padding:14px 16px;display:flex;flex-direction:column;gap:10px;flex:1}
+.sheet-f{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px}
+.sheet-f .btn{flex:1}
+.pick{display:grid;grid-template-columns:64px minmax(0,1fr) 28px;gap:8px;align-items:center}
+.pick select{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 8px;min-height:44px}
+.pick img{height:24px;width:auto}
+.check{display:flex;align-items:center;gap:8px;min-height:40px}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+.rolled{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.rd{border:1px solid var(--border);border-radius:10px;padding:6px;display:flex;flex-direction:column;align-items:center;background:var(--surface2)}
+.rd b{font-family:'Barlow Condensed',sans-serif;font-size:32px;line-height:1}
+.rd img{height:22px;width:auto}
+.eff{border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+.eff-top{display:flex;align-items:center;gap:8px}
+.eff-top img{height:20px;width:auto}
+.total{margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-size:28px;line-height:1}
+.chip{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:13px}
+.chip select{border:1px solid var(--border);background:var(--surface);border-radius:8px;min-height:36px;margin-left:auto}
+</style>
+</helmet>
+<div class="m {{themeClass}}">
+  <div class="top">
+    <div class="top-row">
+      <div><div class="small muted">Maya Reyes</div><div class="row" style="display:flex;align-items:baseline;gap:6px"><span class="hpbig">21</span><span class="muted small">/ 30</span><span class="zchip zy">YELLOW</span></div></div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <div style="text-align:center"><img src="/icons/die/d8.png" alt="d8" title="d8" style="height:30px;width:auto;display:block"><span class="small muted">Status</span></div>
+        <div style="text-align:center"><b style="font-size:20px">1</b><div class="small muted">Hero pts</div></div>
+      </div>
+    </div>
+    <div class="top-row" style="margin-top:8px">
+      <button type="button" class="ib" aria-label="Lose 1 Health">−</button>
+      <button type="button" class="ib" aria-label="Gain 1 Health">+</button>
+      <span class="small muted" style="flex:1">Scene Green · you Yellow</span>
+      <div class="seg" role="group" aria-label="Theme"><button type="button" class="{{lightCls}}" onClick="{{setLight}}">L</button><button type="button" class="{{darkCls}}" onClick="{{setDark}}">D</button></div>
+    </div>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Play">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3"><button type="button" role="tab" aria-selected="{{t.on}}" class="{{t.cls}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+  </div>
+
+  <sc-if value="{{tabActions}}" hint-placeholder-val="{{true}}">
+    <div class="wrap">
+      <div class="basics">
+        <sc-for list="{{basics}}" as="b" hint-placeholder-count="5"><button type="button" class="btn" onClick="{{openRoll}}"><img src="{{b.src}}" alt="" aria-hidden="true">{{b.label}}</button></sc-for>
+      </div>
+      <sc-for list="{{bands}}" as="band" hint-placeholder-count="3">
+        <div class="band">
+          <div class="{{band.cls}}">{{band.label}}</div>
+          <sc-for list="{{band.rows}}" as="a" hint-placeholder-count="3">
+            <div class="abl"><span class="icons"><sc-for list="{{a.icons}}" as="i" hint-placeholder-count="1"><img src="{{i.src}}" alt="{{i.alt}}" title="{{i.alt}}"></sc-for></span><b>{{a.name}}</b>
+              <sc-if value="{{a.canUse}}" hint-placeholder-val="{{true}}"><button type="button" class="btn" style="margin-left:auto;min-height:36px" onClick="{{openRoll}}">Use</button></sc-if>
+              <sc-if value="{{a.locked}}" hint-placeholder-val="{{false}}"><span class="why">{{a.why}}</span></sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+      <p class="small muted" style="margin:0">Tap an ability's name to read its full text.</p>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{tabStatus}}" hint-placeholder-val="{{false}}">
+    <div class="wrap">
+      <div class="card"><b>Scene</b><div class="seg" style="display:flex;margin-top:6px"><button type="button" class="on" style="flex:1">Green</button><button type="button" style="flex:1">Yellow</button><button type="button" style="flex:1">Red</button></div><div class="small muted" style="margin-top:6px">Set it here in solo play. In an online game it follows the GM.</div></div>
+      <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>Bonuses and penalties</b><button type="button" class="btn" style="min-height:36px">+ Add</button></div>
+        <div class="mod"><span class="size p">−1</span><span style="flex:1">Tied up</span><span class="tag">Persistent</span><span class="tag">Exclusive</span></div>
+        <div class="mod"><span class="size p">−1</span><span style="flex:1">Smoke in the air</span></div>
+        <div class="mod"><span class="size b">+2</span><span style="flex:1">Head start</span><span class="tag">Exclusive</span></div>
+      </div>
+      <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>Twists</b><button type="button" class="btn" style="min-height:36px">+ Add</button></div><div class="mod"><span class="tag">Minor</span><span>What mechanical device just shorted out?</span></div></div>
+      <div class="card" style="display:flex;justify-content:space-between;align-items:center"><span>Reaction used this round</span><input type="checkbox" aria-label="Reaction used this round" style="width:22px;height:22px"></div>
+      <div class="card"><b>Dice</b><div class="small" style="margin-top:4px">Powers: Speed, Agility, Awareness, Fire, Flight · Qualities: Fitness, Alertness, Old Money</div><div class="small muted">Shown with die icons in the app.</div></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{tabHistory}}" hint-placeholder-val="{{false}}">
+    <div class="wrap">
+      <div class="card" style="border:2px solid var(--accent)"><b>Maya: Non-stop Assault</b><div class="small muted">MAX 9 (Speed) · MID 5 (Yellow status) · MIN 3 (Alertness)</div><div class="small">Deal 2 damage to each target · Hinder each target by 5: a −2 penalty</div></div>
+      <div class="card small">Lost 9 Health (30 → 21). Now in the Yellow zone.</div>
+      <div class="card small">Gained a hero point.</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{rolling}}" hint-placeholder-val="{{false}}">
+    <section class="sheet" aria-label="Roll">
+      <div class="sheet-h"><h2 style="font-size:24px">Non-stop Assault</h2><button type="button" class="btn" onClick="{{closeRoll}}">Cancel</button></div>
+      <sc-if value="{{compose}}" hint-placeholder-val="{{true}}">
+        <div class="sheet-b">
+          <div class="small"><img src="/icons/action/attack.png" alt="" aria-hidden="true" style="height:1em;vertical-align:-.15em;margin-right:3px">Attack multiple targets using Alertness. Use your Min die. <img src="/icons/action/hinder.png" alt="" aria-hidden="true" style="height:1em;vertical-align:-.15em;margin-right:3px">Hinder each target equal to your Mid die.</div>
+          <div class="pick"><span class="small muted">Power</span><select aria-label="Power"><option>Speed (d12)</option><option>Agility (d10)</option><option>Take a d4</option></select><img src="/icons/die/d12.png" alt="d12" title="d12"></div>
+          <div class="pick"><span class="small muted">Quality</span><span>Alertness</span><img src="/icons/die/d8.png" alt="d8" title="d8"></div>
+          <div class="pick"><span class="small muted">Status</span><span>Yellow status</span><img src="/icons/die/d8.png" alt="d8" title="d8"></div>
+          <div class="small muted" style="margin-top:6px">Mods</div>
+          <label class="check"><input type="checkbox" checked="{{true}}"><span class="size p">−1</span>Tied up <span class="tag">Exclusive</span></label>
+          <label class="check"><input type="checkbox" checked="{{true}}"><span class="size p">−1</span>Smoke in the air</label>
+          <label class="check"><input type="checkbox"><span class="size b">+2</span>Head start <span class="tag">Exclusive</span></label>
+        </div>
+        <div class="sheet-f"><button type="button" class="btn primary" onClick="{{toResults}}">Roll</button><button type="button" class="btn">Enter my own roll</button></div>
+      </sc-if>
+      <sc-if value="{{results}}" hint-placeholder-val="{{false}}">
+        <div class="sheet-b">
+          <div class="rolled">
+            <div class="rd"><span class="small muted">MAX</span><b>9</b><img src="/icons/die/d12.png" alt="d12"><span class="small muted">Speed</span></div>
+            <div class="rd"><span class="small muted">MID</span><b>5</b><img src="/icons/die/d8.png" alt="d8"><span class="small muted">Status</span></div>
+            <div class="rd"><span class="small muted">MIN</span><b>3</b><img src="/icons/die/d8.png" alt="d8"><span class="small muted">Alertness</span></div>
+          </div>
+          <div class="eff"><div class="eff-top"><img src="/icons/action/attack.png" alt="" aria-hidden="true"><b>Attack</b><span class="small muted">Min (3)</span><span class="total">1</span></div>
+            <div class="chip"><span class="size p">−1</span>Tied up<select aria-label="Move Tied up"><option>On Attack</option><option>Move to Hinder</option></select></div>
+            <div class="chip"><span class="size p">−1</span>Smoke in the air<select aria-label="Move Smoke in the air"><option>On Attack</option><option>Move to Hinder</option></select></div>
+          </div>
+          <div class="eff"><div class="eff-top"><img src="/icons/action/hinder.png" alt="" aria-hidden="true"><b>Hinder</b><span class="small muted">Mid (5)</span><span class="total">5</span></div><div class="small muted" style="margin-top:4px">No mods</div></div>
+          <p class="small muted" style="margin:0">On a phone, mods move with their menu. Dragging also works.</p>
+        </div>
+        <div class="sheet-f"><button type="button" class="btn primary" onClick="{{closeRoll}}">Confirm</button><button type="button" class="btn" onClick="{{toCompose}}">Back</button></div>
+      </sc-if>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":true},"$preview":{"width":390,"height":1600}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { dark: null, tab: 'actions', roll: null }; }
+  renderVals() {
+    const st = this.state; const dark = st.dark ?? (this.props.dark ?? true);
+    const I = { attack: '/icons/action/attack.png', boost: '/icons/action/boost.png', defend: '/icons/action/defend.png', hinder: '/icons/action/hinder.png', overcome: '/icons/action/overcome.png' };
+    const L = { attack: 'Attack', boost: 'Boost', defend: 'Defend', hinder: 'Hinder', overcome: 'Overcome' };
+    const a = (name, acts, canUse, why) => ({ name, icons: acts.map(x => ({ src: I[x], alt: L[x] })), canUse, locked: !canUse, why });
+    return {
+      themeClass: dark ? 'theme-dark' : 'theme-light', lightCls: dark ? '' : 'on', darkCls: dark ? 'on' : '',
+      setLight: () => this.setState({ dark: false }), setDark: () => this.setState({ dark: true }),
+      tabs: [['actions', 'Actions'], ['status', 'Status'], ['history', 'History']].map(([id, label]) => ({ label, on: st.tab === id, cls: st.tab === id ? 'on' : '', pick: () => this.setState({ tab: id }) })),
+      tabActions: st.tab === 'actions', tabStatus: st.tab === 'status', tabHistory: st.tab === 'history',
+      basics: ['attack', 'defend', 'boost', 'hinder', 'overcome'].map(x => ({ label: L[x], src: I[x] })),
+      bands: [
+        { label: 'GREEN', cls: 'band-h zg', rows: [a('Immunity', [], false, 'Always on'), a('Always on the Move', ['attack', 'defend'], true), a('Non-stop Assault', ['attack', 'hinder'], true), a('Principle of Business', ['overcome'], true), a('Principle of the Gearhead', ['overcome'], true)] },
+        { label: 'YELLOW', cls: 'band-h zy', rows: [a('Inflict', ['attack', 'hinder'], true), a('Area Alteration', ['boost'], true), a('Speedy Analysis', ['boost'], true)] },
+        { label: 'RED', cls: 'band-h zr', rows: [a('Paragon Feat', ['overcome', 'boost'], false, 'Needs Red zone'), a('Push Your Limits', [], false, 'Always on')] }
+      ],
+      rolling: !!st.roll, compose: st.roll === 'compose', results: st.roll === 'results',
+      openRoll: () => this.setState({ roll: 'compose' }), closeRoll: () => this.setState({ roll: null }),
+      toResults: () => this.setState({ roll: 'results' }), toCompose: () => this.setState({ roll: 'compose' })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Maya Reyes in Play mode</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.theme-light{--bg:#F6F7FB;--surface:#FFFFFF;--surface2:#EEF0F6;--text:#1A1D2B;--muted:#565C70;--border:#DDE0EA;--accent:#4347C9;--on-accent:#FFFFFF;--accent-soft:#E8E9FA;--danger:#8E2BA0;--danger-soft:#F6E8F8;--g:#72CC82;--g-ink:#1A1D2B;--y:#F5D044;--y-ink:#1A1D2B;--r:#F28A80;--r-ink:#1A1D2B;--scrim:rgba(26,29,43,.45)}
+.theme-dark{--bg:#12141C;--surface:#1B1E2A;--surface2:#232736;--text:#E8EAF2;--muted:#A3A9BF;--border:#2C3042;--accent:#9599FF;--on-accent:#12141C;--accent-soft:#262A4A;--danger:#D07BE0;--danger-soft:#2E2236;--g:#1D6E31;--g-ink:#E8EAF2;--y:#E3B600;--y-ink:#12141C;--r:#A8261F;--r-ink:#E8EAF2;--scrim:rgba(0,0,0,.6)}
+.app{position:relative;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5;min-height:1500px}
+.app h1,.app h2,.app h3{font-family:'Barlow Condensed',sans-serif;font-weight:700;margin:0}
+.app button,.app input,.app select{font:inherit;color:inherit}
+.app a{color:var(--accent)}
+.mock{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;padding:8px 32px;background:var(--surface2);border-bottom:1px dashed var(--border);font-size:13px;color:var(--muted)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 32px;background:var(--surface);border-bottom:1px solid var(--border)}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;padding:2px;background:var(--surface2)}
+.seg button{border:0;background:transparent;padding:5px 12px;border-radius:6px;cursor:pointer;min-height:32px;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--border);font-weight:600}
+.seg.big button{min-height:40px;padding:6px 18px;font-size:15px}
+.seg button.zon-g{background:var(--g);color:var(--g-ink);font-weight:700}
+.seg button.zon-y{background:var(--y);color:var(--y-ink);font-weight:700}
+.seg button.zon-r{background:var(--r);color:var(--r-ink);font-weight:700}
+.btn{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 12px;min-height:40px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;color:var(--text)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:600}
+.btn.small{min-height:32px;padding:3px 10px;font-size:14px}
+.btn.icon{width:40px;padding:0;font-size:20px;font-weight:600}
+.btn.ghost{background:transparent}
+.wrap{max-width:1440px;margin:0 auto;padding:20px 32px 64px}
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:24px;margin-top:20px;align-items:start}
+.grid.docked{grid-template-columns:330px minmax(0,1fr) 470px}
+.col{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.card-h h3{font-size:19px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.hp{display:flex;align-items:baseline;gap:8px}
+.hp b{font-family:'Barlow Condensed',sans-serif;font-size:56px;line-height:1}
+.zchip{border-radius:6px;padding:1px 8px;font-size:12px;font-weight:700;letter-spacing:.08em}
+.zg{background:var(--g);color:var(--g-ink)}.zy{background:var(--y);color:var(--y-ink)}.zr{background:var(--r);color:var(--r-ink)}.zo{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.meter{display:grid;grid-template-columns:8fr 11fr 11fr;height:8px;border-radius:4px;overflow:hidden;margin:10px 0 4px}
+.meter span{opacity:.35}.meter span.on{opacity:1}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.num{width:64px;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 8px;min-height:40px;box-sizing:border-box}
+.statusdie{display:flex;align-items:center;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.di{height:26px;width:auto;display:block}
+.di.big{height:40px}
+.mod{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)}
+.mod:last-of-type{border-bottom:0}
+.size{min-width:34px;text-align:center;border-radius:6px;padding:1px 6px;font-weight:700;font-variant-numeric:tabular-nums}
+.size.b{background:var(--accent-soft);color:var(--accent)}
+.size.p{background:var(--danger-soft);color:var(--danger)}
+.tag{font-size:11px;border:1px solid var(--border);border-radius:999px;padding:0 7px;color:var(--muted);white-space:nowrap}
+.x{margin-left:auto;border:0;background:transparent;color:var(--muted);cursor:pointer;min-width:32px;min-height:32px;border-radius:6px;font-size:18px}
+.form{display:grid;gap:8px;margin-top:8px;padding:10px;border:1px dashed var(--border);border-radius:10px}
+.form input[type=text],.form select{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 8px;min-height:38px}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer}
+.toggle input{width:20px;height:20px;accent-color:var(--accent)}
+.basics{display:flex;flex-wrap:wrap;gap:8px}
+.basics .btn img{height:20px;width:auto}
+.band{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)}
+.band-h{display:flex;justify-content:space-between;padding:5px 14px;font-weight:700;letter-spacing:.1em;font-size:12px}
+.band-out{background:var(--surface2);color:var(--text)}
+.abl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 14px;border-top:1px solid var(--border);align-items:center}
+.abl:first-of-type{border-top:0}
+.abl.locked .abl-top,.abl.locked .abl-text{opacity:.55}
+.abl-top{display:flex;align-items:center;gap:8px;font-weight:600}
+.abl-text{grid-column:1/2;font-size:14px}
+.abl-act{grid-row:1/3;grid-column:2/3;text-align:right}
+.icons{display:inline-flex;gap:3px}.icons img{height:19px;width:auto}
+.type{font-size:12px;color:var(--muted);font-weight:400}
+.why{font-size:12px;color:var(--muted);max-width:120px;display:inline-block;text-align:right}
+.ai{height:1.05em;width:auto;vertical-align:-.18em;margin-right:3px}
+.hist{display:flex;flex-direction:column;gap:6px}
+.hist-row{display:flex;gap:10px;font-size:14px;padding:6px 0;border-bottom:1px solid var(--border)}
+.hist-row:last-child{border-bottom:0}
+.latest{border:2px solid var(--accent);border-radius:12px;padding:12px 14px;background:var(--surface)}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:sticky;top:16px}
+.panel-h{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.steps{display:flex;gap:6px;margin:10px 0 14px;font-size:12px;color:var(--muted)}
+.steps span{border-bottom:2px solid var(--border);padding-bottom:2px;flex:1}
+.steps span.on{border-color:var(--accent);color:var(--text);font-weight:600}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}
+.dicepick{display:grid;grid-template-columns:70px minmax(0,1fr) 32px;gap:8px;align-items:center;margin-bottom:6px}
+.dicepick select{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 8px;min-height:38px}
+.check{display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer}
+.check input{width:18px;height:18px;accent-color:var(--accent)}
+.rolled{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.rd{border:1px solid var(--border);border-radius:10px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--surface2)}
+.rd b{font-family:'Barlow Condensed',sans-serif;font-size:36px;line-height:1}
+.rd .which{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted)}
+.eff{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:8px}
+.eff.drop{border:2px dashed var(--accent);padding:9px 11px}
+.eff-top{display:flex;align-items:center;gap:8px}
+.eff-top img{height:22px;width:auto}
+.total{margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-size:30px;line-height:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:30px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:2px 4px 2px 8px;background:var(--surface);cursor:grab;font-size:13px}
+.chip select{border:0;background:transparent;font-size:12px;color:var(--muted);max-width:92px}
+.res-line{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
+.res-line img{height:20px;width:auto}
+.scrim{position:absolute;inset:0;background:var(--scrim);display:flex;justify-content:center;align-items:flex-start;padding-top:120px;z-index:5}
+.dialog{width:560px;position:static}
+.toast{position:absolute;left:50%;transform:translateX(-50%);top:150px;z-index:6;background:var(--text);color:var(--bg);border-radius:10px;padding:10px 14px;display:flex;gap:14px;align-items:center;font-size:14px}
+.toast button{border:0;background:transparent;color:var(--bg);text-decoration:underline;cursor:pointer;font-weight:600}
+</style>
+</helmet>
+<div class="app {{themeClass}}">
+  <div class="mock">
+    <span>Mockup controls:</span>
+    <span>Roll as <span class="seg" role="group" aria-label="Roll presentation"><button type="button" class="{{dockCls}}" onClick="{{setDock}}">Docked panel</button><button type="button" class="{{dlgCls}}" onClick="{{setDlg}}">Dialog</button></span></span>
+    <span>Game <span class="seg" role="group" aria-label="Connection"><button type="button" class="{{soloCls}}" onClick="{{setSolo}}">Solo</button><button type="button" class="{{onlineCls}}" onClick="{{setOnline}}">Online</button></span></span>
+    <span>Theme <span class="seg" role="group" aria-label="Theme"><button type="button" class="{{lightCls}}" onClick="{{setLight}}">Light</button><button type="button" class="{{darkCls}}" onClick="{{setDark}}">Dark</button></span></span>
+  </div>
+  <header class="topbar"><span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px">SCRPG Aid</span><span class="muted small">{{connLine}}</span></header>
+
+  <div class="wrap">
+    <div class="small muted"><a href="#">Your heroes</a> / Maya Reyes</div>
+    <div class="head">
+      <div>
+        <h1 style="font-size:40px;line-height:1">Maya Reyes<span class="muted" style="font-family:Inter,sans-serif;font-weight:400;font-size:18px;margin-left:10px">Afterimage</span></h1>
+      </div>
+      <div class="row">
+        <div class="seg big" role="group" aria-label="Mode"><button type="button">Sheet</button><button type="button" class="on" aria-pressed="true">Play</button></div>
+        <a class="btn" href="#">Edit</a>
+        <button type="button" class="btn" onClick="{{newIssue}}">New issue…</button>
+      </div>
+    </div>
+
+    <div class="{{gridCls}}">
+      <div class="col" aria-label="Status">
+        <div class="card">
+          <div class="card-h"><h3>Health</h3><span class="{{zoneChipCls}}">{{zoneLabel}}</span></div>
+          <div class="hp"><b>{{hp}}</b><span class="muted">of 30</span></div>
+          <div class="meter" aria-hidden="true"><span class="{{mR}}" style="background:var(--r)"></span><span class="{{mY}}" style="background:var(--y)"></span><span class="{{mG}}" style="background:var(--g)"></span></div>
+          <div class="row small muted" style="justify-content:space-between"><span>Red 11–1</span><span>Yellow 22–12</span><span>Green 30–23</span></div>
+          <div class="row" style="margin-top:10px">
+            <button type="button" class="btn icon" aria-label="Lose 1 Health" onClick="{{hpDown}}">−</button>
+            <button type="button" class="btn icon" aria-label="Gain 1 Health" onClick="{{hpUp}}">+</button>
+            <input class="num" type="number" min="0" aria-label="Amount" value="{{amt}}" onChange="{{setAmt}}">
+            <button type="button" class="btn small" onClick="{{lose}}">Lose</button>
+            <button type="button" class="btn small" onClick="{{gain}}">Gain</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><h3>Scene</h3><sc-if value="{{online}}" hint-placeholder-val="{{false}}"><span class="small muted">Set by the GM</span></sc-if></div>
+          <sc-if value="{{solo}}" hint-placeholder-val="{{true}}">
+            <div class="seg" role="group" aria-label="Scene zone" style="display:flex">
+              <sc-for list="{{sceneOpts}}" as="z" hint-placeholder-count="3"><button type="button" class="{{z.cls}}" style="flex:1" onClick="{{z.pick}}" aria-pressed="{{z.on}}">{{z.label}}</button></sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{online}}" hint-placeholder-val="{{false}}">
+            <div class="row"><span class="{{sceneChipCls}}">{{sceneLabel}}</span><span class="small muted">Follows the GM's scene tracker</span></div>
+          </sc-if>
+          <div class="statusdie">
+            <img class="di big" src="{{statusSrc}}" alt="{{statusDie}}" title="{{statusDie}}">
+            <div><div style="font-weight:600">Status die: {{effLabel}}</div><div class="small muted">{{statusWhy}}</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><h3>Dice</h3><a href="#" class="small">Full sheet</a></div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 14px">
+            <div><div class="small muted">Powers</div><sc-for list="{{powers}}" as="t" hint-placeholder-count="5"><div class="row" style="justify-content:space-between;padding:3px 0"><span class="small">{{t.name}}</span><img src="{{t.src}}" alt="{{t.die}}" title="{{t.die}}" style="height:20px;width:auto"></div></sc-for></div>
+            <div><div class="small muted">Qualities</div><sc-for list="{{quals}}" as="t" hint-placeholder-count="3"><div class="row" style="justify-content:space-between;padding:3px 0"><span class="small">{{t.name}}</span><img src="{{t.src}}" alt="{{t.die}}" title="{{t.die}}" style="height:20px;width:auto"></div></sc-for></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row" style="justify-content:space-between">
+            <h3 style="font-size:19px">Hero points</h3>
+            <div class="row"><button type="button" class="btn icon" aria-label="Spend a hero point" onClick="{{hpSpend}}">−</button><b style="font-size:22px;min-width:24px;text-align:center">{{heroPts}}</b><button type="button" class="btn icon" aria-label="Gain a hero point" onClick="{{hpGain}}">+</button></div>
+          </div>
+          <label class="toggle" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px"><span>Reaction used this round</span><input type="checkbox" checked="{{reaction}}" onChange="{{toggleReaction}}"></label>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><h3>Bonuses and penalties</h3><button type="button" class="btn small ghost" onClick="{{toggleAdd}}">{{addLabel}}</button></div>
+          <sc-for list="{{mods}}" as="m" hint-placeholder-count="3">
+            <div class="mod">
+              <span class="{{m.sizeCls}}">{{m.sizeText}}</span>
+              <span style="flex:1">{{m.name}}</span>
+              <sc-if value="{{m.persistent}}" hint-placeholder-val="{{false}}"><span class="tag">Persistent</span></sc-if>
+              <sc-if value="{{m.exclusive}}" hint-placeholder-val="{{false}}"><span class="tag">Exclusive</span></sc-if>
+              <button type="button" class="x" aria-label="{{m.removeLabel}}" onClick="{{m.remove}}">×</button>
+            </div>
+          </sc-for>
+          <sc-if value="{{noMods}}" hint-placeholder-val="{{false}}"><div class="muted small">None.</div></sc-if>
+          <sc-if value="{{adding}}" hint-placeholder-val="{{false}}">
+            <div class="form">
+              <div class="row">
+                <select aria-label="Size" value="{{newSize}}" onChange="{{setNewSize}}"><option value="-4">−4</option><option value="-3">−3</option><option value="-2">−2</option><option value="-1">−1</option><option value="1">+1</option><option value="2">+2</option><option value="3">+3</option><option value="4">+4</option></select>
+                <input type="text" placeholder="Tied up" aria-label="What it is" value="{{newName}}" onChange="{{setNewName}}" style="flex:1;min-width:0">
+              </div>
+              <div class="row small">
+                <label class="check"><input type="checkbox" checked="{{newPers}}" onChange="{{toggleNewPers}}">Persistent</label>
+                <label class="check"><input type="checkbox" checked="{{newExcl}}" onChange="{{toggleNewExcl}}">Exclusive</label>
+                <button type="button" class="btn small primary" style="margin-left:auto" onClick="{{addMod}}">Add</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><h3>Twists</h3><button type="button" class="btn small ghost">+ Add</button></div>
+          <div class="mod"><span class="tag">Minor</span><span style="flex:1">What mechanical device just shorted out?</span><button type="button" class="x" aria-label="Resolve twist">×</button></div>
+        </div>
+      </div>
+
+      <div class="col" aria-label="Actions">
+        <div class="card">
+          <div class="card-h"><h3>Basic actions</h3><span class="small muted">Pick any power and quality</span></div>
+          <div class="basics">
+            <sc-for list="{{basics}}" as="b" hint-placeholder-count="5"><button type="button" class="btn" onClick="{{b.use}}"><img src="{{b.src}}" alt="" aria-hidden="true">{{b.label}}</button></sc-for>
+          </div>
+        </div>
+
+        <sc-for list="{{bands}}" as="band" hint-placeholder-count="4">
+          <div class="band">
+            <div class="{{band.headCls}}"><span>{{band.label}}</span><span style="font-weight:500;letter-spacing:0">{{band.note}}</span></div>
+            <sc-for list="{{band.rows}}" as="a" hint-placeholder-count="3">
+              <div class="{{a.cls}}">
+                <div class="abl-top"><sc-if value="{{a.hasIcons}}" hint-placeholder-val="{{true}}"><span class="icons"><sc-for list="{{a.icons}}" as="i" hint-placeholder-count="1"><img src="{{i.src}}" alt="{{i.alt}}" title="{{i.alt}}"></sc-for></span></sc-if><span>{{a.name}}</span><span class="type">{{a.type}}</span></div>
+                <div class="abl-act">
+                  <sc-if value="{{a.canUse}}" hint-placeholder-val="{{true}}"><button type="button" class="btn small" onClick="{{a.use}}" aria-label="{{a.useLabel}}">Use</button></sc-if>
+                  <sc-if value="{{a.showWhy}}" hint-placeholder-val="{{false}}"><span class="why">{{a.why}}</span></sc-if>
+                </div>
+                <div class="abl-text"><sc-for list="{{a.text}}" as="s" hint-placeholder-count="3"><span><sc-if value="{{s.icon}}" hint-placeholder-val="{{false}}"><img class="ai" src="{{s.src}}" alt="" aria-hidden="true"></sc-if>{{s.text}}</span></sc-for></div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+
+        <div class="card">
+          <div class="card-h"><h3>History</h3><span class="small muted">This issue</span></div>
+          <sc-if value="{{hasLatest}}" hint-placeholder-val="{{false}}">
+            <div class="latest">
+              <div class="row" style="justify-content:space-between"><b>{{latest.title}}</b><span class="small muted">{{latest.when}}</span></div>
+              <div class="small muted">{{latest.dice}}</div>
+              <sc-for list="{{latest.lines}}" as="l" hint-placeholder-count="2"><div class="res-line"><img src="{{l.src}}" alt="" aria-hidden="true">{{l.text}}</div></sc-for>
+            </div>
+          </sc-if>
+          <div class="hist" style="margin-top:8px">
+            <sc-for list="{{history}}" as="h" hint-placeholder-count="3"><div class="hist-row"><span class="muted" style="min-width:56px">{{h.when}}</span><span>{{h.text}}</span></div></sc-for>
+          </div>
+        </div>
+      </div>
+
+      <sc-if value="{{hasRoll}}" hint-placeholder-val="{{false}}">
+        <div class="{{rollWrapCls}}">
+          <section class="{{rollPanelCls}}" aria-label="Roll">
+            <div class="panel-h">
+              <div><div class="small muted">Roll</div><h2 style="font-size:26px">{{roll.title}}</h2></div>
+              <button type="button" class="btn small ghost" onClick="{{roll.cancel}}">Cancel</button>
+            </div>
+            <sc-if value="{{roll.hasText}}" hint-placeholder-val="{{true}}"><div class="small" style="margin-top:4px"><sc-for list="{{roll.text}}" as="s" hint-placeholder-count="3"><span><sc-if value="{{s.icon}}" hint-placeholder-val="{{false}}"><img class="ai" src="{{s.src}}" alt="" aria-hidden="true"></sc-if>{{s.text}}</span></sc-for></div></sc-if>
+            <div class="steps" aria-hidden="true"><span class="{{roll.s1}}">1 Dice and mods</span><span class="{{roll.s2}}">2 Results</span><span class="{{roll.s3}}">3 Resolve</span></div>
+
+            <sc-if value="{{roll.stepCompose}}" hint-placeholder-val="{{true}}">
+              <sc-if value="{{roll.basic}}" hint-placeholder-val="{{false}}">
+                <div class="lbl">Action</div>
+                <div class="dicepick"><span class="small muted">Action</span><select aria-label="Basic action" value="{{roll.actionVal}}" onChange="{{roll.setAction}}"><sc-for list="{{roll.actionOpts}}" as="o" hint-placeholder-count="5"><option value="{{o.value}}">{{o.label}}</option></sc-for></select><span></span></div>
+              </sc-if>
+              <div class="lbl">Dice</div>
+              <sc-if value="{{roll.single}}" hint-placeholder-val="{{false}}">
+                <div class="dicepick"><span class="small muted">Single die</span><span>{{roll.singleName}}</span><img class="di" src="{{roll.singleSrc}}" alt="{{roll.singleDie}}" title="{{roll.singleDie}}"></div>
+              </sc-if>
+              <sc-if value="{{roll.notSingle}}" hint-placeholder-val="{{true}}">
+                <div class="dicepick"><span class="small muted">Power</span>
+                  <sc-if value="{{roll.powerFixed}}" hint-placeholder-val="{{false}}"><span>{{roll.powerName}} <span class="small muted">set by the ability</span></span></sc-if>
+                  <sc-if value="{{roll.powerFree}}" hint-placeholder-val="{{true}}"><select aria-label="Power" value="{{roll.powerVal}}" onChange="{{roll.setPower}}"><sc-for list="{{roll.powerOpts}}" as="o" hint-placeholder-count="5"><option value="{{o.value}}">{{o.label}}</option></sc-for></select></sc-if>
+                  <img class="di" src="{{roll.powerSrc}}" alt="{{roll.powerDie}}" title="{{roll.powerDie}}"></div>
+                <div class="dicepick"><span class="small muted">Quality</span>
+                  <sc-if value="{{roll.qualFixed}}" hint-placeholder-val="{{false}}"><span>{{roll.qualName}} <span class="small muted">set by the ability</span></span></sc-if>
+                  <sc-if value="{{roll.qualFree}}" hint-placeholder-val="{{true}}"><select aria-label="Quality" value="{{roll.qualVal}}" onChange="{{roll.setQual}}"><sc-for list="{{roll.qualOpts}}" as="o" hint-placeholder-count="4"><option value="{{o.value}}">{{o.label}}</option></sc-for></select></sc-if>
+                  <img class="di" src="{{roll.qualSrc}}" alt="{{roll.qualDie}}" title="{{roll.qualDie}}"></div>
+                <div class="dicepick"><span class="small muted">Status</span><span>{{roll.statusLabel}}</span><img class="di" src="{{roll.statusSrc}}" alt="{{roll.statusDie}}" title="{{roll.statusDie}}"></div>
+              </sc-if>
+              <div class="lbl">Mods <span style="text-transform:none;letter-spacing:0;font-weight:400">· at most one exclusive bonus and one exclusive penalty</span></div>
+              <sc-if value="{{roll.hasPens}}" hint-placeholder-val="{{true}}">
+                <sc-for list="{{roll.pens}}" as="m" hint-placeholder-count="2"><label class="check"><input type="checkbox" checked="{{m.on}}" onChange="{{m.toggle}}"><span class="{{m.sizeCls}}">{{m.sizeText}}</span><span>{{m.name}}</span><sc-if value="{{m.exclusive}}" hint-placeholder-val="{{false}}"><span class="tag">Exclusive</span></sc-if></label></sc-for>
+              </sc-if>
+              <sc-if value="{{roll.hasBons}}" hint-placeholder-val="{{true}}">
+                <sc-for list="{{roll.bons}}" as="m" hint-placeholder-count="2"><label class="check"><input type="checkbox" checked="{{m.on}}" onChange="{{m.toggle}}"><span class="{{m.sizeCls}}">{{m.sizeText}}</span><span>{{m.name}}</span><sc-if value="{{m.exclusive}}" hint-placeholder-val="{{false}}"><span class="tag">Exclusive</span></sc-if></label></sc-for>
+              </sc-if>
+              <div class="row" style="margin-top:16px"><button type="button" class="btn primary" onClick="{{roll.doRoll}}">Roll</button><button type="button" class="btn">Enter my own roll</button></div>
+            </sc-if>
+
+            <sc-if value="{{roll.stepAssign}}" hint-placeholder-val="{{false}}">
+              <div class="rolled">
+                <sc-for list="{{roll.rolled}}" as="d" hint-placeholder-count="3"><div class="rd"><span class="which">{{d.which}}</span><b>{{d.value}}</b><img class="di" src="{{d.src}}" alt="{{d.size}}" title="{{d.size}}"><span class="small muted">{{d.name}}</span></div></sc-for>
+              </div>
+              <div class="lbl">Effects <span style="text-transform:none;letter-spacing:0;font-weight:400">· drag mods between effects, or use each mod's menu</span></div>
+              <sc-for list="{{roll.effs}}" as="e" hint-placeholder-count="2">
+                <div class="{{e.cls}}" onDragOver="{{e.over}}" onDragLeave="{{e.leave}}" onDrop="{{e.drop}}">
+                  <div class="eff-top"><img src="{{e.src}}" alt="" aria-hidden="true"><b>{{e.label}}</b><span class="small muted">{{e.uses}}</span><span class="total">{{e.total}}</span></div>
+                  <div class="chips">
+                    <sc-for list="{{e.chips}}" as="c" hint-placeholder-count="1"><span class="chip" draggable="true" onDragStart="{{c.drag}}"><span class="{{c.sizeCls}}">{{c.sizeText}}</span>{{c.name}}<select aria-label="Move this mod" value="{{c.at}}" onChange="{{c.move}}"><sc-for list="{{c.moveOpts}}" as="o" hint-placeholder-count="2"><option value="{{o.value}}">{{o.label}}</option></sc-for></select></span></sc-for>
+                    <sc-if value="{{e.noChips}}" hint-placeholder-val="{{false}}"><span class="small muted">No mods</span></sc-if>
+                  </div>
+                </div>
+              </sc-for>
+              <div class="row" style="margin-top:16px"><button type="button" class="btn primary" onClick="{{roll.confirm}}">Confirm</button><button type="button" class="btn" onClick="{{roll.back}}">Back</button></div>
+            </sc-if>
+
+            <sc-if value="{{roll.stepResolve}}" hint-placeholder-val="{{false}}">
+              <div class="lbl">Tell the table</div>
+              <sc-for list="{{roll.effs}}" as="e" hint-placeholder-count="2"><div class="res-line"><img src="{{e.src}}" alt="" aria-hidden="true">{{e.line}}</div></sc-for>
+              <sc-if value="{{roll.hasNote}}" hint-placeholder-val="{{false}}"><div class="res-line">{{roll.note}}</div></sc-if>
+              <p class="small muted">In an online game you'd pick each effect's targets here, and the app applies them.</p>
+              <div class="row"><button type="button" class="btn primary" onClick="{{roll.done}}">Done</button></div>
+            </sc-if>
+          </section>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+    <div class="toast" role="status"><span>{{toast}}</span><button type="button" onClick="{{undo}}">Undo</button><button type="button" onClick="{{closeToast}}" aria-label="Dismiss">×</button></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      dark: null, ui: 'dialog', online: false, hp: 21, amt: 3, scene: 'green', heroPts: 1, reaction: false,
+      adding: false, newSize: '-1', newName: '', newPers: false, newExcl: false,
+      mods: [
+        { id: 'm1', size: -1, name: 'Tied up', persistent: true, exclusive: true },
+        { id: 'm2', size: -1, name: 'Smoke in the air', persistent: false, exclusive: false },
+        { id: 'm3', size: 2, name: 'Head start', persistent: false, exclusive: true },
+        { id: 'm4', size: 1, name: 'Team plan', persistent: true, exclusive: false }
+      ],
+      history: [{ when: '2 min', text: 'Lost 9 Health (30 → 21). Now in the Yellow zone.' }, { when: '5 min', text: 'Gained a hero point.' }],
+      latest: null, roll: null, toast: '', undoSnap: null
+    };
+  }
+  renderVals() {
+    const st = this.state;
+    const dark = st.dark ?? (this.props.dark ?? false);
+    const I = {
+      d4: '/icons/die/d4.png', d6: '/icons/die/d6.png', d8: '/icons/die/d8.png',
+      d10: '/icons/die/d10.png', d12: '/icons/die/d12.png',
+      attack: '/icons/action/attack.png', boost: '/icons/action/boost.png', defend: '/icons/action/defend.png',
+      hinder: '/icons/action/hinder.png', overcome: '/icons/action/overcome.png'
+    };
+    const L = { attack: 'Attack', boost: 'Boost', defend: 'Defend', hinder: 'Hinder', overcome: 'Overcome' };
+    const ZN = { green: 'Green', yellow: 'Yellow', red: 'Red', out: 'Out' };
+    const RANK = { green: 0, yellow: 1, red: 2, out: 3 };
+    const ZC = { green: 'zg', yellow: 'zy', red: 'zr', out: 'zo' };
+    const STATUS = { green: 'd8', yellow: 'd8', red: 'd8' };
+    const POWERS = { Speed: 'd12', Agility: 'd10', Awareness: 'd8', Fire: 'd8', Flight: 'd6' };
+    const QUALS = { Fitness: 'd10', Alertness: 'd8', 'Old Money': 'd8' };
+    const personal = st.hp <= 0 ? 'out' : st.hp <= 11 ? 'red' : st.hp <= 22 ? 'yellow' : 'green';
+    const eff = personal === 'out' ? 'out' : (RANK[st.scene] > RANK[personal] ? st.scene : personal);
+    const statusDie = STATUS[eff === 'out' ? 'red' : eff];
+    const parse = t => t.split(/(\{\w+\})/).filter(x => x).map(x => { const m = x.match(/^\{(\w+)\}$/); return m ? { icon: true, src: I[m[1]], text: '' } : { icon: false, text: x }; });
+    const set = o => this.setState(o);
+
+    const startRoll = def => set({ roll: { def, step: 'compose', power: def.power || (def.single ? null : 'Speed'), quality: def.quality || (def.single ? null : 'Fitness'), action: def.basic ? def.effects[0][0] : null, picked: this.defaultMods(), results: null, assign: {} } });
+    const abil = (name, type, zone, text, def) => {
+      const acts = [...new Set([...text.matchAll(/\{(\w+)\}/g)].map(m => m[1]))];
+      const inherent = type === 'Inherent';
+      let canUse = !inherent, why = '';
+      if (personal === 'out' && zone !== 'out') { canUse = false; why = 'You’re Out'; }
+      else if (zone === 'out' && personal !== 'out') { canUse = false; why = 'When you’re Out'; }
+      else if (zone !== 'out' && RANK[zone] > RANK[eff]) { canUse = false; why = 'Needs ' + ZN[zone] + ' zone'; }
+      if (inherent) why = 'Always on';
+      return { name, type, hasIcons: acts.length > 0, icons: acts.map(a => ({ src: I[a], alt: L[a] })), text: parse(text), canUse, showWhy: !canUse, why,
+        cls: 'abl' + (!canUse && !inherent ? ' locked' : ''), useLabel: 'Use ' + name, use: () => startRoll({ name, text, ...def }) };
+    };
+    const bands = [
+      { label: 'GREEN', headCls: 'band-h zg', note: '', rows: [
+        abil('Immunity', 'Inherent', 'green', 'You do not take damage from Fire.', {}),
+        abil('Always on the Move', 'Action', 'green', '{attack}Attack using Speed. {defend}Defend yourself using your Min die.', { power: 'Speed', effects: [['attack', 'mid', ''], ['defend', 'min', 'yourself']] }),
+        abil('Non-stop Assault', 'Action', 'green', '{attack}Attack multiple targets using Alertness. Use your Min die. {hinder}Hinder each target equal to your Mid die.', { quality: 'Alertness', effects: [['attack', 'min', 'each target'], ['hinder', 'mid', 'each target']] }),
+        abil('Principle of Business', 'Action', 'green', '{overcome}Overcome in a situation related to the field of your business or knowing locals. Use your Max die. You and each of your allies gain a hero point.', { effects: [['overcome', 'max', '']], note: 'You and each ally gain a hero point.' }),
+        abil('Principle of the Gearhead', 'Action', 'green', '{overcome}Overcome a technological challenge and use your Max die. You and each of your allies gain a hero point.', { effects: [['overcome', 'max', '']], note: 'You and each ally gain a hero point.' })
+      ] },
+      { label: 'YELLOW', headCls: 'band-h zy', note: '', rows: [
+        abil('Inflict', 'Action', 'yellow', '{attack}Attack using Fire. {hinder}Hinder that same target using your Min die.', { power: 'Fire', effects: [['attack', 'mid', ''], ['hinder', 'min', 'same target']] }),
+        abil('Area Alteration', 'Action', 'yellow', '{boost}Boost any number of nearby targets using Agility. Use your Max die.', { power: 'Agility', effects: [['boost', 'max', 'any number of nearby targets']] }),
+        abil('Speedy Analysis', 'Action', 'yellow', '{boost}Boost multiple targets using Flight. Use your Max die.', { power: 'Flight', effects: [['boost', 'max', 'multiple targets']] })
+      ] },
+      { label: 'RED', headCls: 'band-h zr', note: '', rows: [
+        abil('Paragon Feat', 'Action', 'red', '{overcome}Overcome using Agility in a situation that requires you to be more than humanly capable, like an extreme feat of strength or speed. Use your Max+Min dice. {boost}Boost all nearby allies with your Mid die.', { power: 'Agility', effects: [['overcome', 'max+min', ''], ['boost', 'mid', 'all nearby allies']] }),
+        abil('Push Your Limits', 'Inherent', 'red', 'You have no limit on amount of Reactions you can take. Each time you use a Reaction after the first one each turn, take 1 irreducible damage or take a minor twist.', {})
+      ] },
+      { label: 'OUT', headCls: 'band-h band-out', note: 'When your Health reaches 0', rows: [
+        abil('Out ability', 'Action', 'out', '{boost}Boost an ally by rolling your single Fitness die.', { single: 'Fitness', effects: [['boost', 'single', 'an ally']] })
+      ] }
+    ];
+    const basics = ['attack', 'defend', 'boost', 'hinder', 'overcome'].map(a => ({ label: L[a], src: I[a], use: () => startRoll({ name: 'Basic action', text: '', basic: true, effects: [[a, 'mid', '']] }) }));
+
+    const r = st.roll;
+    const rollView = r ? this.rollView(r, { I, L, POWERS, QUALS, statusDie, eff, ZN }) : null;
+    const latest = st.latest;
+    const docked = st.ui === 'docked';
+    return {
+      themeClass: dark ? 'theme-dark' : 'theme-light', lightCls: dark ? '' : 'on', darkCls: dark ? 'on' : '',
+      setLight: () => set({ dark: false }), setDark: () => set({ dark: true }),
+      dockCls: docked ? 'on' : '', dlgCls: docked ? '' : 'on', setDock: () => set({ ui: 'docked' }), setDlg: () => set({ ui: 'dialog' }),
+      soloCls: st.online ? '' : 'on', onlineCls: st.online ? 'on' : '', setSolo: () => set({ online: false }), setOnline: () => set({ online: true, scene: 'yellow' }),
+      online: st.online, solo: !st.online,
+      connLine: st.online ? 'In game UAQR-Z45M · GM: Ian' : 'Not in a game',
+      newIssue: () => {},
+      gridCls: 'grid' + (r && docked ? ' docked' : ''),
+      hp: st.hp, zoneLabel: ZN[personal].toUpperCase(), zoneChipCls: 'zchip ' + ZC[personal],
+      mR: personal === 'red' ? 'on' : '', mY: personal === 'yellow' ? 'on' : '', mG: personal === 'green' ? 'on' : '',
+      amt: st.amt, setAmt: e => set({ amt: Math.max(0, parseInt(e.target.value || '0', 10)) }),
+      hpDown: () => this.changeHp(-1), hpUp: () => this.changeHp(1), lose: () => this.changeHp(-st.amt), gain: () => this.changeHp(st.amt),
+      sceneOpts: ['green', 'yellow', 'red'].map(z => ({ label: ZN[z], on: st.scene === z, cls: st.scene === z ? 'zon-' + z[0] : '', pick: () => set({ scene: z }) })),
+      sceneChipCls: 'zchip ' + ZC[st.scene], sceneLabel: ZN[st.scene].toUpperCase(),
+      statusSrc: I[statusDie], statusDie, effLabel: eff === 'out' ? 'Out' : ZN[eff],
+      statusWhy: eff === 'out' ? 'You’re Out: only your Out ability is available.' : 'You: ' + ZN[personal] + ' · Scene: ' + ZN[st.scene] + '. The more severe one sets your status die and abilities.',
+      heroPts: st.heroPts, hpSpend: () => set({ heroPts: Math.max(0, st.heroPts - 1) }), hpGain: () => set({ heroPts: st.heroPts + 1 }),
+      reaction: st.reaction, toggleReaction: () => set({ reaction: !st.reaction }),
+      mods: st.mods.map(m => ({ ...m, sizeText: (m.size > 0 ? '+' : '−') + Math.abs(m.size), sizeCls: 'size ' + (m.size > 0 ? 'b' : 'p'), removeLabel: 'Remove ' + m.name, remove: () => set({ mods: this.state.mods.filter(x => x.id !== m.id) }) })),
+      noMods: st.mods.length === 0,
+      adding: st.adding, addLabel: st.adding ? 'Cancel' : '+ Add', toggleAdd: () => set({ adding: !st.adding }),
+      newSize: st.newSize, setNewSize: e => set({ newSize: e.target.value }), newName: st.newName, setNewName: e => set({ newName: e.target.value }),
+      newPers: st.newPers, toggleNewPers: () => set({ newPers: !st.newPers }), newExcl: st.newExcl, toggleNewExcl: () => set({ newExcl: !st.newExcl }),
+      addMod: () => { if (!st.newName.trim()) return; set({ adding: false, newName: '', mods: [...st.mods, { id: 'm' + Date.now(), size: parseInt(st.newSize, 10), name: st.newName.trim(), persistent: st.newPers, exclusive: st.newExcl }] }); },
+      basics, bands,
+      powers: Object.keys(POWERS).map(k => ({ name: k, die: POWERS[k], src: I[POWERS[k]] })), quals: Object.keys(QUALS).map(k => ({ name: k, die: QUALS[k], src: I[QUALS[k]] })),
+      hasLatest: !!latest, latest: latest || { title: '', when: '', dice: '', lines: [] },
+      history: st.history,
+      roll: rollView || { rolled: [], effs: [], pens: [], bons: [], text: [], actionOpts: [], powerOpts: [], qualOpts: [] },
+      hasRoll: !!r, rollWrapCls: docked ? '' : 'scrim', rollPanelCls: docked ? 'panel' : 'panel dialog',
+      hasToast: !!st.toast, toast: st.toast, closeToast: () => set({ toast: '', undoSnap: null }),
+      undo: () => { const s = this.state.undoSnap; if (s) set({ ...s, toast: '', undoSnap: null }); }
+    };
+  }
+  changeHp(d) {
+    const st = this.state; const hp = Math.max(0, Math.min(30, st.hp + d)); if (hp === st.hp) return;
+    this.setState({ hp, history: [{ when: 'now', text: (d < 0 ? 'Lost ' : 'Gained ') + Math.abs(hp - st.hp) + ' Health (' + st.hp + ' → ' + hp + ').' }, ...st.history] });
+  }
+  defaultMods() {
+    const mods = this.state.mods; const picked = {};
+    const exPen = mods.filter(m => m.size < 0 && m.exclusive).sort((a, b) => a.size - b.size)[0];
+    if (exPen) picked[exPen.id] = true;
+    mods.filter(m => m.size < 0 && !m.exclusive).forEach(m => { picked[m.id] = true; });
+    return picked;
+  }
+  rollView(r, ctx) {
+    const { I, L, POWERS, QUALS, statusDie, eff, ZN } = ctx;
+    const st = this.state; const set = o => this.setState(o);
+    const upd = o => set({ roll: { ...this.state.roll, ...o } });
+    const def = r.def;
+    const mods = st.mods.map(m => {
+      const on = !!r.picked[m.id];
+      const toggle = () => {
+        const p = { ...this.state.roll.picked };
+        if (!on && m.exclusive) st.mods.forEach(o => { if (o.exclusive && Math.sign(o.size) === Math.sign(m.size)) delete p[o.id]; });
+        if (on) delete p[m.id]; else p[m.id] = true;
+        upd({ picked: p });
+      };
+      return { id: m.id, name: m.name, on, toggle, sizeText: (m.size > 0 ? '+' : '−') + Math.abs(m.size), sizeCls: 'size ' + (m.size > 0 ? 'b' : 'p'), size: m.size, exclusive: m.exclusive, persistent: m.persistent };
+    });
+    const pens = mods.filter(m => m.size < 0), bons = mods.filter(m => m.size > 0);
+    const opt = (map, cur) => [...Object.keys(map).map(k => ({ value: k, label: k + ' (' + map[k] + ')' })), { value: 'd4', label: 'Take a d4' }].map(o => ({ ...o, selected: o.value === cur }));
+    const sizeOf = (map, v) => v === 'd4' ? 'd4' : map[v];
+    const powerSize = r.power ? sizeOf(POWERS, r.power) : null, qualSize = r.quality ? sizeOf(QUALS, r.quality) : null;
+    const pool = def.single ? [{ name: def.single, size: QUALS[def.single] }] : [{ name: r.power === 'd4' ? 'd4 (power)' : r.power, size: powerSize }, { name: r.quality === 'd4' ? 'd4 (quality)' : r.quality, size: qualSize }, { name: ZN[eff] + ' status', size: statusDie }];
+    const effects = (def.basic ? [[r.action, 'mid', '']] : def.effects);
+    const doRoll = () => {
+      const res = pool.map(p => ({ ...p, value: 1 + Math.floor(Math.random() * parseInt(p.size.slice(1), 10)) })).sort((a, b) => b.value - a.value);
+      const assign = {}; Object.keys(this.state.roll.picked).forEach(id => { assign[id] = 0; });
+      upd({ step: 'assign', results: res, assign });
+    };
+    const which = ['MAX', 'MID', 'MIN'];
+    const rolled = r.results ? r.results.map((d, i) => ({ ...d, src: I[d.size], which: r.results.length === 1 ? 'DIE' : which[i] })) : [];
+    const dieVal = key => { if (!r.results) return 0; const v = r.results.map(d => d.value); if (key === 'single') return v[0]; if (key === 'max') return v[0]; if (key === 'mid') return v[1]; if (key === 'min') return v[2]; if (key === 'max+min') return v[0] + v[2]; return 0; };
+    const dieName = key => ({ single: 'your die', max: 'Max', mid: 'Mid', min: 'Min', 'max+min': 'Max+Min' })[key];
+    const scale = n => n <= 0 ? 0 : n <= 2 ? 1 : n <= 5 ? 2 : n <= 7 ? 3 : 4;
+    const effs = effects.map(([a, die, tgt], i) => {
+      const here = mods.filter(m => m.on && r.assign[m.id] === i);
+      const base = dieVal(die); const total = Math.max(0, base + here.reduce((s, m) => s + m.size, 0));
+      const line = a === 'attack' ? 'Deal ' + total + ' damage' + (tgt ? ' to ' + tgt : '') : a === 'boost' ? 'Boost ' + (tgt ? tgt + ' ' : '') + 'by ' + total + ': a +' + scale(total) + ' bonus' : a === 'hinder' ? 'Hinder ' + (tgt ? tgt + ' ' : '') + 'by ' + total + ': a −' + scale(total) + ' penalty' : a === 'defend' ? 'Defend ' + (tgt || '') + ' against ' + total : 'Overcome with ' + total;
+      return { i, src: I[a], label: L[a] + (tgt ? ' · ' + tgt : ''), uses: 'Uses ' + dieName(die) + ' (' + base + ')', total, line,
+        cls: 'eff' + (r.dragOver === i ? ' drop' : ''),
+        chips: here.map(m => ({ ...m, at: String(i), moveOpts: effects.map(([a2], j) => ({ value: String(j), label: j === i ? 'On ' + L[a2] : 'Move to ' + L[a2], selected: j === i })), move: e => upd({ assign: { ...this.state.roll.assign, [m.id]: parseInt(e.target.value, 10) } }), drag: e => { e.dataTransfer.setData('text/plain', m.id); } })),
+        hasChips: here.length > 0, noChips: here.length === 0,
+        over: e => { e.preventDefault(); if (this.state.roll.dragOver !== i) upd({ dragOver: i }); },
+        leave: () => upd({ dragOver: null }),
+        drop: e => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); upd({ dragOver: null, assign: { ...this.state.roll.assign, [id]: i } }); } };
+    });
+    const confirm = () => upd({ step: 'resolve' });
+    const done = () => {
+      const s = this.state; const usedIds = Object.keys(s.roll.picked);
+      const used = s.mods.filter(m => usedIds.includes(m.id) && !m.persistent);
+      const snap = { mods: s.mods, history: s.history, latest: s.latest };
+      const title = def.basic ? 'Basic ' + L[r.action] : def.name;
+      this.setState({
+        roll: null, mods: s.mods.filter(m => !used.includes(m)),
+        latest: { title: 'Maya: ' + title, when: 'now', dice: rolled.map(d => d.which + ' ' + d.value + ' (' + d.name + ' ' + d.size + ')').join(' · '), lines: effs.map(e => ({ src: e.src, text: e.line })) },
+        history: s.latest ? [{ when: 'earlier', text: s.latest.title + ': ' + s.latest.lines.map(l => l.text).join('; ') }, ...s.history] : s.history,
+        toast: used.length ? 'Roll recorded. Used up: ' + used.map(m => m.name).join(', ') + '.' : 'Roll recorded.', undoSnap: snap
+      });
+    };
+    return {
+      title: def.basic ? 'Basic action' : def.name, text: def.text ? def.text.split(/(\{\w+\})/).filter(x => x).map(x => { const m = x.match(/^\{(\w+)\}$/); return m ? { icon: true, src: I[m[1]], text: '' } : { icon: false, text: x }; }) : [],
+      hasText: !!def.text, note: def.note || '', hasNote: !!def.note,
+      stepCompose: r.step === 'compose', stepAssign: r.step === 'assign', stepResolve: r.step === 'resolve',
+      s1: r.step === 'compose' ? 'on' : '', s2: r.step === 'assign' ? 'on' : '', s3: r.step === 'resolve' ? 'on' : '',
+      basic: !!def.basic, actionVal: r.action, powerVal: r.power || '', qualVal: r.quality || '', actionOpts: ['attack', 'defend', 'boost', 'hinder', 'overcome'].map(a => ({ value: a, label: L[a], selected: a === r.action })), setAction: e => upd({ action: e.target.value }),
+      single: !!def.single, notSingle: !def.single, powerFree: !def.power && !def.single, qualFree: !def.quality && !def.single, singleName: def.single || '', singleSrc: def.single ? I[QUALS[def.single]] : '', singleDie: def.single ? QUALS[def.single] : '',
+      powerFixed: !!def.power, powerName: r.power || '', powerSrc: powerSize ? I[powerSize] : '', powerDie: powerSize || '', powerOpts: opt(POWERS, r.power), setPower: e => upd({ power: e.target.value }),
+      qualFixed: !!def.quality, qualName: r.quality || '', qualSrc: qualSize ? I[qualSize] : '', qualDie: qualSize || '', qualOpts: opt(QUALS, r.quality), setQual: e => upd({ quality: e.target.value }),
+      statusLabel: ZN[eff] + ' status', statusSrc: I[statusDie], statusDie,
+      pens, bons, hasPens: pens.length > 0, hasBons: bons.length > 0,
+      doRoll, rolled, effs, confirm, done,
+      cancel: () => set({ roll: null }), back: () => upd({ step: 'compose', results: null })
+    };
+  }
+}
+</script>
+</body>
+</html>

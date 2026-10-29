@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Maya Reyes hero sheet</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.theme-light{--bg:#F6F7FB;--surface:#FFFFFF;--surface2:#EEF0F6;--text:#1A1D2B;--muted:#565C70;--border:#DDE0EA;--accent:#4347C9;--on-accent:#FFFFFF;--accent-soft:#E8E9FA;--danger:#8E2BA0;--danger-soft:#F6E8F8;--g:#72CC82;--g-ink:#1A1D2B;--y:#F5D044;--y-ink:#1A1D2B;--r:#F28A80;--r-ink:#1A1D2B}
+.theme-dark{--bg:#12141C;--surface:#1B1E2A;--surface2:#232736;--text:#E8EAF2;--muted:#A3A9BF;--border:#2C3042;--accent:#9599FF;--on-accent:#12141C;--accent-soft:#262A4A;--danger:#D07BE0;--danger-soft:#2E2236;--g:#1D6E31;--g-ink:#E8EAF2;--y:#E3B600;--y-ink:#12141C;--r:#A8261F;--r-ink:#E8EAF2}
+.app{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5;min-height:2050px}
+.app h1,.app h2,.app h3{font-family:'Barlow Condensed',sans-serif;font-weight:700;margin:0;letter-spacing:.01em}
+.app button{font:inherit;color:inherit}
+.app a{color:var(--accent)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 32px;background:var(--surface);border-bottom:1px solid var(--border)}
+.brand{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;padding:2px;background:var(--surface2)}
+.seg button{border:0;background:transparent;padding:6px 12px;border-radius:6px;cursor:pointer;min-height:32px;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--border);font-weight:600}
+.seg.big button{min-height:40px;padding:6px 18px;font-size:15px}
+.btn{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:8px 14px;min-height:40px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:var(--text)}
+.wrap{max-width:1200px;margin:0 auto;padding:24px 32px 64px}
+.crumb{font-size:14px;color:var(--muted)}
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-top:6px}
+.head h1{font-size:44px;line-height:1}
+.alias{font-size:20px;color:var(--muted);font-family:Inter,sans-serif;font-weight:400;margin-left:10px}
+.ident{margin-top:8px;color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.banner{margin-top:16px;display:flex;align-items:center;gap:10px;border:1px solid var(--danger);background:var(--danger-soft);color:var(--text);border-radius:10px;padding:10px 14px}
+.banner b{color:var(--danger)}
+.sect{margin-top:32px}
+.sect-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:6px}
+.sect-h h2{font-size:26px}
+.sect-h span{color:var(--muted);font-size:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.card h3{font-size:20px;margin-bottom:8px}
+.label{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.dl{display:grid;grid-template-columns:120px minmax(0,1fr);gap:4px 12px;margin:0}
+.dl dt{color:var(--muted)}
+.dl dd{margin:0}
+.pr p{margin:2px 0 10px}
+.pr p:last-child{margin-bottom:0}
+.record{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px 28px;align-items:center;border:1px solid var(--border);border-radius:12px;padding:12px 18px;background:var(--surface)}
+.record b{font-variant-numeric:tabular-nums}
+.trait{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)}
+.trait:last-child{border-bottom:0}
+.di{height:26px;width:auto;display:block}
+.ai{height:1.05em;width:auto;vertical-align:-.18em;margin-right:3px}
+.zones{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:6px 0 14px}
+.zone{border-radius:10px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:600;letter-spacing:.06em}
+.zg{background:var(--g);color:var(--g-ink)}.zy{background:var(--y);color:var(--y-ink)}.zr{background:var(--r);color:var(--r-ink)}
+.zone .di{height:30px}
+.maxhp{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:34px;line-height:1}
+.ranges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+.range{border-radius:8px;padding:4px 6px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+.band{margin-top:16px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)}
+.band-h{display:flex;align-items:center;justify-content:space-between;padding:6px 16px;font-weight:700;letter-spacing:.1em;font-size:13px}
+.band-out{background:var(--surface2);color:var(--text)}
+.abl{display:grid;grid-template-columns:270px 84px minmax(0,1fr);gap:16px;padding:12px 16px;border-top:1px solid var(--border);align-items:baseline}
+.abl:first-of-type{border-top:0}
+.abl-name{font-weight:600;display:flex;align-items:center;gap:8px}
+.icons{display:inline-flex;gap:3px;flex-shrink:0}
+.icons img{height:20px;width:auto}
+.type{font-size:13px;color:var(--muted)}
+.playph{margin-top:24px;border:2px dashed var(--border);border-radius:12px;padding:20px;color:var(--muted);text-align:center}
+@media (max-width:980px){.grid3{grid-template-columns:minmax(0,1fr)}.abl{grid-template-columns:minmax(0,1fr) auto}.abl-text{grid-column:1/-1}}
+</style>
+</helmet>
+<div class="app {{themeClass}}">
+  <header class="topbar">
+    <span class="brand">SCRPG Aid</span>
+    <div class="seg" role="group" aria-label="Theme">
+      <button type="button" class="{{lightCls}}" onClick="{{setLight}}">Light</button>
+      <button type="button" class="{{darkCls}}" onClick="{{setDark}}">Dark</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="crumb"><a href="#">Your heroes</a> / Maya Reyes</div>
+    <div class="head">
+      <div>
+        <h1>Maya Reyes<span class="alias">Afterimage</span></h1>
+        <div class="ident">Upper Class · Accident · Speedster · Lone Wolf</div>
+      </div>
+      <div class="actions">
+        <div class="seg big" role="group" aria-label="Mode">
+          <button type="button" class="{{sheetCls}}" onClick="{{toSheet}}" aria-pressed="{{isSheet}}">Sheet</button>
+          <button type="button" class="{{playCls}}" onClick="{{toPlay}}" aria-pressed="{{isPlay}}">Play</button>
+        </div>
+        <a class="btn" href="#">Edit</a>
+        <a class="btn" href="#">Advancement</a>
+        <button type="button" class="btn">Export<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></button>
+      </div>
+    </div>
+
+    <sc-if value="{{showIssues}}" hint-placeholder-val="{{false}}">
+      <div class="banner" role="status"><b>1 rule issue</b><span>No retcon chosen yet.</span><a href="#" style="margin-left:auto">Open in edit</a></div>
+    </sc-if>
+
+    <sc-if value="{{isSheet}}" hint-placeholder-val="{{true}}">
+      <section class="sect" aria-labelledby="rp-h">
+        <div class="sect-h"><h2 id="rp-h">Roleplaying</h2><span>Hidden in Play</span></div>
+        <div class="grid3">
+          <div class="card">
+            <h3>Who she is</h3>
+            <dl class="dl">
+              <dt>Background</dt><dd>Upper Class</dd>
+              <dt>Power source</dt><dd>Accident</dd>
+              <dt>Archetype</dt><dd>Speedster</dd>
+              <dt>Personality</dt><dd>Lone Wolf</dd>
+            </dl>
+            <div style="border-top:1px solid var(--border);margin:12px 0"></div>
+            <dl class="dl">
+              <dt>Age</dt><dd>24</dd>
+              <dt>Build</dt><dd>Lean</dd>
+              <dt>Costume</dt><dd>A heat-resistant running suit in orange and white</dd>
+            </dl>
+          </div>
+          <sc-for list="{{principles}}" as="p" hint-placeholder-count="2">
+            <div class="card pr">
+              <h3>{{p.name}}</h3>
+              <div class="label">During roleplaying</div>
+              <p>{{p.rp}}</p>
+              <div class="label">Minor twist</div>
+              <p>{{p.minor}}</p>
+              <div class="label">Major twist</div>
+              <p>{{p.major}}</p>
+            </div>
+          </sc-for>
+        </div>
+        <div class="record">
+          <span>Hero points <b>0</b></span>
+          <span>Back issues <b>0 of 6</b></span>
+          <span>Collections <b>none yet</b></span>
+          <a href="#" style="margin-left:auto">Advancement</a>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isPlay}}" hint-placeholder-val="{{false}}">
+      <div class="playph">Play controls go here: current Health, zone, hero points, reaction, bonuses and penalties, twists, rolling. Designed next. Roleplaying info is hidden in Play.</div>
+    </sc-if>
+
+    <section class="sect" aria-labelledby="mech-h">
+      <div class="sect-h"><h2 id="mech-h">Mechanics</h2></div>
+      <div class="grid3">
+        <div class="card">
+          <h3>Powers</h3>
+          <sc-for list="{{powers}}" as="t" hint-placeholder-count="5">
+            <div class="trait"><span>{{t.name}}</span><img class="di" src="{{t.src}}" alt="{{t.die}}" title="{{t.die}}"></div>
+          </sc-for>
+        </div>
+        <div class="card">
+          <h3>Qualities</h3>
+          <sc-for list="{{quals}}" as="t" hint-placeholder-count="3">
+            <div class="trait"><span>{{t.name}}</span><img class="di" src="{{t.src}}" alt="{{t.die}}" title="{{t.die}}"></div>
+          </sc-for>
+        </div>
+        <div class="card">
+          <h3>Status dice</h3>
+          <div class="zones">
+            <div class="zone zg">GREEN<img class="di" src="{{d8}}" alt="d8" title="d8"></div>
+            <div class="zone zy">YELLOW<img class="di" src="{{d8}}" alt="d8" title="d8"></div>
+            <div class="zone zr">RED<img class="di" src="{{d8}}" alt="d8" title="d8"></div>
+          </div>
+          <h3>Health</h3>
+          <div><span class="maxhp">30</span> <span class="muted" style="color:var(--muted)">max</span></div>
+          <div class="ranges">
+            <div class="range zg" aria-label="Green 30 to 23">30–23</div>
+            <div class="range zy" aria-label="Yellow 22 to 12">22–12</div>
+            <div class="range zr" aria-label="Red 11 to 1">11–1</div>
+          </div>
+        </div>
+      </div>
+
+      <sc-for list="{{bands}}" as="b" hint-placeholder-count="4">
+        <div class="band">
+          <div class="{{b.headCls}}"><span>{{b.label}}</span><span style="font-weight:500;letter-spacing:0">{{b.note}}</span></div>
+          <sc-for list="{{b.rows}}" as="a" hint-placeholder-count="3">
+            <div class="abl">
+              <div class="abl-name"><sc-if value="{{a.hasIcons}}" hint-placeholder-val="{{true}}"><span class="icons"><sc-for list="{{a.icons}}" as="i" hint-placeholder-count="2"><img src="{{i.src}}" alt="{{i.alt}}" title="{{i.alt}}"></sc-for></span></sc-if><span>{{a.name}}</span></div>
+              <div class="type">{{a.type}}</div>
+              <div class="abl-text"><sc-for list="{{a.text}}" as="s" hint-placeholder-count="3"><span><sc-if value="{{s.icon}}" hint-placeholder-val="{{false}}"><img class="ai" src="{{s.src}}" alt="" aria-hidden="true"></sc-if>{{s.text}}</span></sc-for></div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"showIssues":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":2050}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { dark: null, mode: 'sheet' }; }
+  renderVals() {
+    const st = this.state;
+    const dark = st.dark ?? (this.props.dark ?? false);
+    const I = {
+      d4: '/icons/die/d4.png', d6: '/icons/die/d6.png', d8: '/icons/die/d8.png',
+      d10: '/icons/die/d10.png', d12: '/icons/die/d12.png',
+      attack: '/icons/action/attack.png', boost: '/icons/action/boost.png', defend: '/icons/action/defend.png',
+      hinder: '/icons/action/hinder.png', overcome: '/icons/action/overcome.png'
+    };
+    const L = { attack: 'Attack', boost: 'Boost', defend: 'Defend', hinder: 'Hinder', overcome: 'Overcome' };
+    const parse = t => t.split(/(\{\w+\})/).filter(x => x).map(x => {
+      const m = x.match(/^\{(\w+)\}$/);
+      return m ? { icon: true, src: I[m[1]], text: '' } : { icon: false, text: x };
+    });
+    const ab = (name, type, text) => {
+      const acts = [...text.matchAll(/\{(\w+)\}/g)].map(m => m[1]);
+      return { name, type, hasIcons: acts.length > 0, icons: acts.map(a => ({ src: I[a], alt: L[a] })), text: parse(text) };
+    };
+    const trait = (name, die) => ({ name, die, src: I[die] });
+    const bands = [
+      { label: 'GREEN', headCls: 'band-h zg', note: '', rows: [
+        ab('Immunity', 'Inherent', 'You do not take damage from Fire.'),
+        ab('Always on the Move', 'Action', '{attack}Attack using Speed. {defend}Defend yourself using your Min die.'),
+        ab('Non-stop Assault', 'Action', '{attack}Attack multiple targets using Alertness. Use your Min die. {hinder}Hinder each target equal to your Mid die.'),
+        ab('Principle of Business', 'Action', '{overcome}Overcome in a situation related to the field of your business or knowing locals. Use your Max die. You and each of your allies gain a hero point.'),
+        ab('Principle of the Gearhead', 'Action', '{overcome}Overcome a technological challenge and use your Max die. You and each of your allies gain a hero point.')
+      ] },
+      { label: 'YELLOW', headCls: 'band-h zy', note: '', rows: [
+        ab('Inflict', 'Action', '{attack}Attack using Fire. {hinder}Hinder that same target using your Min die.'),
+        ab('Area Alteration', 'Action', '{boost}Boost any number of nearby targets using Agility. Use your Max die.'),
+        ab('Speedy Analysis', 'Action', '{boost}Boost multiple targets using Flight. Use your Max die.')
+      ] },
+      { label: 'RED', headCls: 'band-h zr', note: '', rows: [
+        ab('Paragon Feat', 'Action', '{overcome}Overcome using Agility in a situation that requires you to be more than humanly capable, like an extreme feat of strength or speed. Use your Max+Min dice. {boost}Boost all nearby allies with your Mid die.'),
+        ab('Push Your Limits', 'Inherent', 'You have no limit on amount of Reactions you can take. Each time you use a Reaction after the first one each turn, take 1 irreducible damage or take a minor twist.')
+      ] },
+      { label: 'OUT', headCls: 'band-h band-out', note: 'When your Health reaches 0', rows: [
+        ab('Out ability', 'Action', '{boost}Boost an ally by rolling your single Fitness die.')
+      ] }
+    ];
+    const isSheet = st.mode === 'sheet';
+    return {
+      themeClass: dark ? 'theme-dark' : 'theme-light', lightCls: dark ? '' : 'on', darkCls: dark ? 'on' : '',
+      setLight: () => this.setState({ dark: false }), setDark: () => this.setState({ dark: true }),
+      isSheet, isPlay: !isSheet, sheetCls: isSheet ? 'on' : '', playCls: isSheet ? '' : 'on',
+      toSheet: () => this.setState({ mode: 'sheet' }), toPlay: () => this.setState({ mode: 'play' }),
+      showIssues: this.props.showIssues ?? false,
+      d8: I.d8,
+      principles: [
+        { name: 'Principle of Business', rp: 'You are an entrepreneur — running a business is an important part of your life and your identity. You have a base of operations that you can rely on for support.', minor: 'You’re always looking at the bigger picture. How does that cause friction in the moment with your team?', major: 'Your business interests are in danger. Where are your priorities, truly?' },
+        { name: 'Principle of the Gearhead', rp: 'You always know the general state of repair or function of an item of technology, whether it’s a simple toaster or an alien orbital defense system.', minor: 'What mechanical device just shorted out?', major: 'What machine just went terribly off the rails?' }
+      ],
+      powers: [trait('Speed', 'd12'), trait('Agility', 'd10'), trait('Awareness', 'd8'), trait('Fire', 'd8'), trait('Flight', 'd6')],
+      quals: [trait('Fitness', 'd10'), trait('Alertness', 'd8'), trait('Old Money', 'd8')],
+      bands
+    };
+  }
+}
+</script>
+</body>
+</html>
