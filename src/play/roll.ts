@@ -164,6 +164,17 @@ export function effectAmount(total: number): number {
   return Math.max(0, total)
 }
 
+/**
+ * The action an effect line in the history is about ("Deal 6 damage." is an Attack), so the
+ * latest roll card can show its icon; undefined for the other lines (dice, mods). Read from
+ * the words describeEffect writes, so it works on saved history too.
+ */
+export function effectLineAction(line: string): Action | undefined {
+  if (/^Deal \d+( \(.*\))? damage\.$/.test(line)) return 'attack'
+  const word = /^(Attack|Defend|Boost|Hinder|Overcome|Recover) [\d(]/.exec(line)?.[1]
+  return word ? (word.toLowerCase() as Action) : undefined
+}
+
 /** "Deal 7 (Max) damage.", "Boost 6 (Mid): a +2 bonus.", "Overcome 9 (Max): Full success." */
 export function describeEffect(r: EffectResult): string {
   const how = USE_LABEL[r.use]

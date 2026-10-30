@@ -78,8 +78,8 @@ function MinionUse({ minion, random, onDone, onCancel }: { minion: PlayMinion; r
         </>
       ) : (
         <div className="button-row">
-          <button type="button" className="button button--primary button--small" onClick={() => setValue(rollDie(minion.die, random))}>
-            Roll {minion.die}
+          <button type="button" className="button button--primary button--small" aria-label={`Roll ${minion.die}`} onClick={() => setValue(rollDie(minion.die, random))}>
+            Roll <DieIcon die={minion.die} size="compact" />
           </button>
           <button type="button" className="button button--small" onClick={onCancel}>
             Cancel

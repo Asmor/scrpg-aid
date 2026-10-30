@@ -132,7 +132,7 @@ describe('HeroEditor', () => {
     const store = await storeWith()
     renderEditor(store, 'details')
     await userEvent.type(await screen.findByLabelText('Hero name'), 'Nova')
-    expect(screen.getByRole('heading', { level: 2, name: 'Nova' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Rename hero: Nova' }).closest('h2')).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Costume / equipment'), 'Star cape')
     await waitFor(async () => {
       const hero = await saved(store)

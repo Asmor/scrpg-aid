@@ -9,6 +9,7 @@ import { villainDisplayName, type Villain } from './model'
 import { buildVillainSheet, type VillainStepId } from './sheet'
 import { ApproachStep, ArchetypeStep, DetailsStep, HealthStep, UpgradesStep, type VillainUpdate } from './steps'
 import { useVillainEditor } from './useVillainEditor'
+import { RenameHeading } from '../components/RenameHeading'
 
 interface EditorStep {
   id: string
@@ -72,7 +73,19 @@ export function VillainEditor({ id, step: stepId }: { id: string; step?: string 
           View sheet
         </a>
       </div>
-      <h2 className="hero-editor__name">{villainDisplayName(villain)}</h2>
+      <div className="hero-editor__name">
+        <RenameHeading
+          shown={villainDisplayName(villain)}
+          name={villain.details.name}
+          placeholder={!villain.details.name.trim() && !villain.details.alias.trim()}
+          noun="villain"
+          onRename={(name) =>
+            update((v) => {
+              v.details.name = name
+            })
+          }
+        />
+      </div>
       {saveError && (
         <p role="alert" className="error">
           Your last change couldn't be saved: {saveError}

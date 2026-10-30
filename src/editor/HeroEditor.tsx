@@ -43,6 +43,7 @@ import { RetconStep } from './RetconStep'
 import { StartStep } from './StartStep'
 import { StepMarkIcon, StepRail } from './StepRail'
 import { focusIssue } from './issue-targets'
+import { RenameHeading } from '../components/RenameHeading'
 import { PartsContext, type PartFields } from './parts-context'
 import { StepIssues } from './StepSection'
 import { useHeroEditor } from './useHeroEditor'
@@ -147,6 +148,14 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
   // Edit mode keeps the hero as it was on entry, for Revert changes; leaving the editor drops it.
   const [snapshot, setSnapshot] = useState<Hero | null>(null)
   const [reverting, setReverting] = useState(false)
+  // After a revert, focus goes back to Revert changes, even where clicking a button doesn't focus it (Safari).
+  const revertButton = useRef<HTMLButtonElement>(null)
+  const refocusRevert = useRef(false)
+  useEffect(() => {
+    if (!refocusRevert.current) return
+    refocusRevert.current = false
+    revertButton.current?.focus()
+  })
   // Advancement left the wizard for a page of its own.
   const movedAdvancement = stepId === 'advancement'
   const found = wizardStepIndex(stepId)
@@ -262,6 +271,7 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
   /** Revert changes, once confirmed: the hero goes back to the snapshot. */
   const revert = () => {
     setReverting(false)
+    refocusRevert.current = true
     if (!snapshot) return
     save((h) => restoreSnapshot(h, snapshot))
     partMemory.clear()
@@ -348,7 +358,17 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
             )}
           </p>
           <div className="wizard__title">
-            <h2 className={named ? undefined : 'placeholder'}>{heroDisplayName(hero)}</h2>
+            <RenameHeading
+              shown={heroDisplayName(hero)}
+              name={hero.details.name}
+              placeholder={!named}
+              noun="hero"
+              onRename={(name) =>
+                save((h) => {
+                  h.details.name = name
+                })
+              }
+            />
             {hero.details.name.trim() && hero.details.alias.trim() && <span className="wizard__alias">{hero.details.alias}</span>}
             {draft && (
               <span className="draft-chip" role="status">
@@ -409,7 +429,7 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
                   <p className="lede">{SUMMARY_PURPOSE}</p>
                 </div>
               </div>
-              <EditSummary hero={hero} steps={states} parts={parts} href={href} partHref={(p) => partPath(hero.id, p)} advancementHref={advancementPath(hero.id)} changed={changed} onRevert={() => setReverting(true)} />
+              <EditSummary hero={hero} steps={states} parts={parts} href={href} partHref={(p) => partPath(hero.id, p)} advancementHref={advancementPath(hero.id)} changed={changed} onRevert={() => setReverting(true)} revertRef={revertButton} />
             </>
           ) : (
             <>

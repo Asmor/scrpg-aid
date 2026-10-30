@@ -343,6 +343,9 @@ describe('using abilities', () => {
     expect(latest).toHaveTextContent('Used ability Inflict:')
     expect(latest).toHaveTextContent('Max: 7 (Speed')
     expect(latest).toHaveTextContent('Deal 7 damage.')
+    // Effect lines carry their action's icon; the dice line doesn't.
+    expect(within(latest).getByRole('img', { name: 'Attack' }).closest('li')).toHaveTextContent('Deal 7 damage.')
+    expect(within(latest).getAllByRole('listitem')[0]!.querySelector('.action-icon')).toBeNull()
     // The rest, newest first, without the roll again.
     const rest = history.getByRole('list', { name: 'Earlier' }).querySelectorAll(':scope > li')
     expect([...rest].map((li) => li.textContent)).toEqual([expect.stringContaining('Gained a hero point (now 1).')])

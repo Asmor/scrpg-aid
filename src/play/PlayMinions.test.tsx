@@ -73,6 +73,8 @@ describe('Your minions', () => {
     const use = within(panel().getByRole('group', { name: "Kix's roll" }))
     expect(use.getByText('Can only Hinder, the action it was made with.')).toBeInTheDocument()
     expect(use.getByText('dazed').closest('label')!.querySelector('input')).toBeChecked()
+    // The die shows as its icon.
+    expect(within(use.getByRole('button', { name: 'Roll d8' })).getByRole('img', { name: 'd8' })).toBeInTheDocument()
     await userEvent.click(use.getByRole('button', { name: 'Roll d8' }))
     expect(use.getByText('7 (8 − 1)')).toBeInTheDocument()
     expect(use.getByText(/Hinder 7 \(single die, with -1\): a -2 penalty\./)).toBeInTheDocument()

@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StoreContext } from '../app/store-context'
@@ -209,7 +209,8 @@ describe('step anatomy', () => {
   it('shows status dice and Health ranges in their game colors, with their labels', async () => {
     const hero = completeHero()
     renderEditor(await storeWith(hero), 'personality')
-    const status = await screen.findByRole('list', { name: 'Status dice' })
+    // The step's own row (the sheet preview shows the dice as tiles too).
+    const status = (await screen.findAllByRole('list', { name: 'Status dice' })).find((l) => l.classList.contains('game-chips'))!
     expect(within(status).getAllByRole('listitem').map((li) => li.className)).toEqual(['game-chip game-chip--green', 'game-chip game-chip--yellow', 'game-chip game-chip--red'])
     expect(status).toHaveTextContent('GreenYellowRed')
   })
@@ -406,6 +407,37 @@ describe('edit mode', () => {
     expect(screen.getByRole('button', { name: 'Revert changes' })).toHaveAttribute('aria-disabled', 'true')
     // Focus stays on the button rather than being lost.
     expect(screen.getByRole('button', { name: 'Revert changes' })).toHaveFocus()
+  })
+
+  it('renames the hero from the header, updating Details, and Revert undoes it', async () => {
+    const hero = completeHero()
+    hero.details.name = 'Maya Reyes'
+    const store = await storeWith(hero)
+    const view = renderEditor(store, 'details')
+    const before = 'Maya Reyes'
+    await userEvent.click(await screen.findByRole('button', { name: `Rename hero: ${before}` }))
+    await userEvent.keyboard('Velocity{Enter}')
+    expect(screen.getByLabelText('Hero name')).toHaveValue('Velocity')
+    await waitFor(async () => expect((await saved(store)).details.name).toBe('Velocity'))
+    view.rerender(editor(store))
+    await userEvent.click(await screen.findByRole('button', { name: 'Revert changes' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Revert changes?' })).getByRole('button', { name: 'Revert changes' }))
+    await waitFor(async () => expect((await saved(store)).details.name).toBe(before))
+    expect(screen.getByRole('button', { name: `Rename hero: ${before}` })).toBeInTheDocument()
+  })
+
+  it('focuses Revert changes after reverting, even where a click doesn’t focus the button', async () => {
+    const store = await storeWith(completeHero())
+    const view = renderEditor(store, 'details')
+    const age = await screen.findByRole('textbox', { name: 'Age' })
+    await userEvent.type(age, '1')
+    view.rerender(editor(store))
+    const revert = await screen.findByRole('button', { name: 'Revert changes' })
+    // As in Safari: the click opens the dialog without focusing the button.
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    fireEvent.click(revert)
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Revert changes?' })).getByRole('button', { name: 'Revert changes' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Revert changes' })).toHaveFocus())
   })
 
   it('takes a new snapshot each time edit mode is opened', async () => {

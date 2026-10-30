@@ -4,7 +4,7 @@
  * archetype's part). Above the list, "Changes save as you go" and Revert changes; below it,
  * a link to Advancement.
  */
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { actionsOf, buildSheet, fillPrinciple, type HeroSheet, type SheetAbility } from '../creation/sheet'
 import { archetypeName } from '../creation/layers'
 import { principleOf } from '../creation/principles'
@@ -137,9 +137,10 @@ interface EditSummaryProps {
   advancementHref: string
   changed: boolean
   onRevert: () => void
+  revertRef?: Ref<HTMLButtonElement>
 }
 
-export function EditSummary({ hero, steps, parts, href, partHref, advancementHref, changed, onRevert }: EditSummaryProps) {
+export function EditSummary({ hero, steps, parts, href, partHref, advancementHref, changed, onRevert, revertRef }: EditSummaryProps) {
   const sheet = buildSheet(hero)
   return (
     <div className="edit-summary">
@@ -148,7 +149,7 @@ export function EditSummary({ hero, steps, parts, href, partHref, advancementHre
           <strong>Changes save as you go.</strong> {changed ? 'You have changes since you opened edit.' : 'No changes since you opened edit.'}
         </p>
         {/* aria-disabled rather than disabled, so focus stays on it after a revert. */}
-        <button type="button" className="button" aria-disabled={!changed} onClick={() => changed && onRevert()}>
+        <button type="button" className="button" ref={revertRef} aria-disabled={!changed} onClick={() => changed && onRevert()}>
           Revert changes
         </button>
       </div>

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PlayMod } from '../hero/model'
 import type { AbilityEffect } from '../rules/types'
 import { emptyPlay } from './state'
-import { activePlans, chosenMods, modFlagsFor, confirmRoll, defaultAssignment, defaultModChoice, defaultPlans, toggleMod, rollChange, undoRoll, describeEffect, describeRolls, hasDoubles, modSize, overcomeOutcome, poolDice, results, sortRolls, useValue, type Rolled } from './roll'
+import { activePlans, chosenMods, modFlagsFor, confirmRoll, defaultAssignment, defaultModChoice, defaultPlans, toggleMod, rollChange, undoRoll, describeEffect, describeRolls, effectLineAction, hasDoubles, modSize, overcomeOutcome, poolDice, results, sortRolls, useValue, type Rolled } from './roll'
 
 const r = (label: string, die: Rolled['die'], value: number): Rolled => ({ label, die, value })
 // Speed d12 rolls 7, Fitness d10 rolls 3, Green status d8 rolls 5.
@@ -210,3 +210,21 @@ describe('undoing a roll', () => {
     expect(undone.mods.map((m) => m.id)).toEqual(['b', 'p'])
   })
 })
+
+describe('effectLineAction', () => {
+  it('reads the action back from each kind of effect line', () => {
+    const actions = ['attack', 'defend', 'boost', 'hinder', 'overcome', 'recover'] as const
+    for (const action of actions) {
+      expect(effectLineAction(describeEffect({ action, use: 'mid', base: 5, mods: [{ id: 'm', value: 1, label: 'x' }], total: 6 }))).toBe(action)
+      expect(effectLineAction(describeEffect({ action, use: 'max', base: 0, mods: [], total: undefined }))).toBe(action)
+    }
+  })
+
+  it('leaves dice, made minions and used mods without an action', () => {
+    for (const line of describeRolls([r('Speed', 'd8', 5)])) expect(effectLineAction(line)).toBeUndefined()
+    expect(effectLineAction('Applied +2 Head start.')).toBeUndefined()
+    expect(effectLineAction('Deal 7 damage.')).toBe('attack')
+    expect(effectLineAction('Minion: 5 → a d6 minion.')).toBeUndefined()
+  })
+})
+

@@ -114,6 +114,15 @@ describe('the villain editor', () => {
     await waitFor(async () => expect((await saved(store)).heroCount).toBe(2))
   })
 
+  it('renames the villain from the header', async () => {
+    const store = await storeWith(adaptiveBruiser())
+    withStore(store, <VillainEditor id="v1" step="details" />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Rename villain: Ironclad' }))
+    await userEvent.keyboard('Steel Tyrant{Enter}')
+    await waitFor(async () => expect((await saved(store)).details.name).toBe('Steel Tyrant'))
+    expect(screen.getByRole('button', { name: 'Rename villain: Steel Tyrant' })).toHaveFocus()
+  })
+
   it('edits details, and says when a villain is missing', async () => {
     const store = await storeWith(adaptiveBruiser())
     withStore(store, <VillainEditor id="v1" step="details" />)

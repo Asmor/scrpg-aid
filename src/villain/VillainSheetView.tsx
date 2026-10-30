@@ -8,7 +8,8 @@
  */
 import type { ReactNode } from 'react'
 import { DieIcon } from '../components/icons'
-import { CurrentHealthLine, HealthBlock, SheetAbilityRow } from '../components/HeroSheetView'
+import { SheetAbilityRow } from '../components/HeroSheetView'
+import { CurrentHealthLine, HealthBlock } from '../components/SheetPreview'
 import type { Villain } from './model'
 import { buildVillainSheet, healthBreakdown, villainIdentity, type VillainSheet, type VillainSheetAbility, type VillainTrait } from './sheet'
 import { statusRows, statusSummary } from './status'

@@ -10,11 +10,12 @@ import { DETAIL_FIELDS, heroDisplayName, type Hero } from '../hero/model'
 import { ABILITY_TYPE_LABEL as TYPE_LABEL, DETAIL_LABEL, ZONE_LABEL } from '../hero/labels'
 import { buildSheet, heroIdentity, type HeroSheet, type SheetPrinciple } from '../creation/sheet'
 import type { HeroTrait } from '../creation/traits'
-import type { AbilityType, Die, HealthRange, Zone } from '../rules/types'
+import type { AbilityType, Zone } from '../rules/types'
 import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 import type { Action } from '../creation/effects'
 import { FormsSection } from './FormsSection'
 import { AbilityIcons, AbilityText, DieIcon } from './icons'
+import { CurrentHealthLine, HealthBlock, StatusTiles } from './SheetPreview'
 
 /** One ability: its action icons and name, its type, and its text with icons inline. */
 export function SheetAbilityRow({ name, type, text, effects }: { name: string; type?: AbilityType; text: string; effects: readonly Action[] }) {
@@ -99,52 +100,6 @@ function TraitCard({ title, traits, empty }: { title: string; traits: readonly P
         <p className="sheet-empty">{empty}</p>
       )}
     </section>
-  )
-}
-
-/** The three status dice as game-colored tiles. */
-export function StatusTiles({ dice, label = 'Status dice' }: { dice: Record<Zone, Die>; label?: string }) {
-  return (
-    <ul className="status-tiles" aria-label={label}>
-      {(['green', 'yellow', 'red'] as const).map((zone) => (
-        <li key={zone} className={`status-tile zone-${zone}`}>
-          <span>{ZONE_LABEL[zone].toUpperCase()}</span>
-          <DieIcon die={dice[zone]} />
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-/** On paper, a line to write current Health on. */
-export function CurrentHealthLine() {
-  return (
-    <p className="print-only current-health" aria-hidden="true">
-      Current Health <span className="write-in" />
-    </p>
-  )
-}
-
-/** Max Health in large type (with a line on how it was built, for a villain), and its three ranges as game-colored chips. */
-export function HealthBlock({ max, ranges, note }: { max: number | undefined; ranges: HealthRange | undefined; note?: string }) {
-  if (max === undefined) return <p className="sheet-empty">Not worked out yet.</p>
-  return (
-    <>
-      <p className="max-health">
-        <span className="max-health__value">{max}</span> max
-      </p>
-      {note && <p className="sheet-card__note">{note}</p>}
-      {ranges && (
-        <ul className="health-range-chips" aria-label="Health ranges">
-          {(['green', 'yellow', 'red'] as const).map((zone) => (
-            <li key={zone} className={`zone-${zone}`}>
-              <span className="visually-hidden">{ZONE_LABEL[zone]} </span>
-              {ranges[zone][0]}–{ranges[zone][1]}
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
   )
 }
 

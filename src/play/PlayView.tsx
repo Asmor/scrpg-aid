@@ -28,7 +28,7 @@ import { outerLayer, secondaryLayer } from '../creation/layers'
 import { MinionList } from './MinionList'
 import { addMinion, addMinionMod, minionCreation, removeMinion, removeMinionMod, shrinkMinion, recordMinionRoll } from './minions'
 import { ModForm, type ModTarget } from './ModForm'
-import { confirmRoll, rollChange, undoRoll, type RollChange } from './roll'
+import { confirmRoll, effectLineAction, rollChange, undoRoll, type RollChange } from './roll'
 import { RollDialog, type FormPicker, type RollSubject } from './RollDialog'
 import {
   addMod,
@@ -225,11 +225,16 @@ function History({ history, now }: { history: readonly PlayHistoryEntry[]; now: 
             </time>
           </p>
           <ul>
-            {(latest.details ?? []).map((d, i) => (
-              <li key={i}>
-                <DiceText text={d} />
-              </li>
-            ))}
+            {(latest.details ?? []).map((d, i) => {
+              const action = effectLineAction(d)
+              return (
+                <li key={i} className={action ? 'latest-roll__effect' : undefined}>
+                  {/* "Deal 6 damage." doesn't name its action, so its icon does. */}
+                  {action && <ActionIcon action={action} decorative={action !== 'attack'} />}
+                  <DiceText text={d} />
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}
