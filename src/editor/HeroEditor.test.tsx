@@ -220,7 +220,9 @@ describe('HeroEditor', () => {
   it('rolls for a background the guided way, with one reroll', async () => {
     const store = await storeWith()
     renderEditor(store, 'background')
-    expect(await screen.findByRole('button', { name: 'Roll d10 and d10' })).toBeInTheDocument()
+    const roll = await screen.findByRole('button', { name: 'Roll d10 and d10' })
+    // The dice show as icons, not text.
+    expect(within(roll).getAllByRole('img', { name: 'd10' })).toHaveLength(2)
     // Typed-in rolls: a d10's 0 counts as 10.
     await userEvent.click(screen.getByRole('button', { name: 'Enter my own roll' }))
     // Each input is named by its die's icon and number.
@@ -630,8 +632,13 @@ describe('HeroEditor', () => {
     await userEvent.click(within(screen.getByRole('group', { name: 'Device Transition ability: choose 1' })).getByRole('checkbox', { name: /Device Transform/ }))
     await userEvent.click(within(screen.getByRole('group', { name: 'Divided ability: choose 1' })).getByRole('checkbox', { name: /Split Form/ }))
     const split = screen.getByRole('group', { name: 'Split Form' })
-    await userEvent.selectOptions(within(split).getByRole('combobox', { name: 'Speed (d12)' }), 'Always (either form)')
-    await userEvent.selectOptions(within(split).getByRole('combobox', { name: 'Flight (d6)' }), 'Heroic form only')
+    // A table: each power and quality with its die and a Both/Civilian/Heroic control, and live tallies.
+    expect(within(split).getByRole('rowheader', { name: /Speed/ }).closest('tr')).toContainElement(within(split).getByRole('img', { name: 'd12' }))
+    expect(split).toHaveTextContent('Both forms, powers: 0 of 2')
+    await userEvent.click(within(within(split).getByRole('group', { name: 'Speed form' })).getByRole('button', { name: 'Both' }))
+    await userEvent.click(within(within(split).getByRole('group', { name: 'Flight form' })).getByRole('button', { name: 'Heroic' }))
+    expect(within(within(split).getByRole('group', { name: 'Speed form' })).getByRole('button', { name: 'Both' })).toHaveAttribute('aria-pressed', 'true')
+    expect(split).toHaveTextContent('Both forms, powers: 1 of 2')
     await waitFor(async () => {
       const a = (await saved(store)).archetype!
       expect(a.secondary?.id).toBe('speedster')

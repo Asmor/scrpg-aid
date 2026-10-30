@@ -5,7 +5,7 @@
  * a link to Advancement.
  */
 import type { ReactNode } from 'react'
-import { buildSheet, fillPrinciple, type HeroSheet, type SheetAbility } from '../creation/sheet'
+import { actionsOf, buildSheet, fillPrinciple, type HeroSheet, type SheetAbility } from '../creation/sheet'
 import { archetypeName } from '../creation/layers'
 import { principleOf } from '../creation/principles'
 import type { StepId } from '../creation/warnings'
@@ -42,9 +42,16 @@ function Abilities({ abilities }: { abilities: readonly SheetAbility[] }) {
   ))
 }
 
+/** A principle, with its Green ability's action icons before its name, as every listed ability has. */
 function Principle({ choice }: { choice: PrincipleChoice | undefined }) {
   const principle = choice && principleOf(choice)
-  return principle ? <Item>{fillPrinciple(principle.name, choice)}</Item> : null
+  if (!principle) return null
+  return (
+    <Item>
+      <AbilityIcons actions={actionsOf(principle.greenAbility, undefined)} />
+      {fillPrinciple(principle.name, choice)}
+    </Item>
+  )
 }
 
 const fromSource = (sheet: HeroSheet, prefix: string) => sheet.abilities.filter((a) => a.source === prefix || a.source.startsWith(`${prefix}.`))

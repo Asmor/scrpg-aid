@@ -9,14 +9,14 @@ import { traitKey, type TraitRef } from '../rules/catalog'
 import type { Archetype } from '../rules/types'
 import type { DividedChoice, Hero } from '../hero/model'
 import { placeTrait, splitCandidates, type Split, type SplitPlace as Place } from '../creation/divided'
-import { traitLabel, type HeroTrait } from '../creation/traits'
+import { ROLEPLAYING_QUALITY, traitLabel, type HeroTrait } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
-import { DiceText } from '../components/icons'
+import { DiceText, DieIcon } from '../components/icons'
 
-const PLACES: readonly { place: Place; label: string }[] = [
-  { place: 'always', label: 'Always (either form)' },
-  { place: 'civilian', label: 'Civilian form only' },
-  { place: 'heroic', label: 'Heroic form only' },
+const PLACES: readonly { place: Place; short: string }[] = [
+  { place: 'always', short: 'Both' },
+  { place: 'civilian', short: 'Civilian' },
+  { place: 'heroic', short: 'Heroic' },
 ]
 
 export function TransitionPicker({ hero, ar, traits, divided, onChange }: { hero: Hero; ar: Archetype; traits: readonly HeroTrait[]; divided: DividedChoice | undefined; onChange: (divided: DividedChoice) => void }) {
@@ -60,20 +60,16 @@ export function TransitionPicker({ hero, ar, traits, divided, onChange }: { hero
   )
 }
 
-function PlaceSelect({ label, value, offList, onChange }: { label: string; value: Place | undefined; offList: boolean; onChange: (place: Place | undefined) => void }) {
-  const id = useId()
+/** Both, Civilian or Heroic for one power or quality, as a segmented control. */
+function PlaceButtons({ name, value, onChange }: { name: string; value: Place | undefined; onChange: (place: Place | undefined) => void }) {
   return (
-    <label className="field" htmlFor={id}>
-      <span>{label}</span>
-      <select id={id} value={value ?? ''} onChange={(e) => onChange((e.target.value || undefined) as Place | undefined)}>
-        <option value="">{offList ? 'Remove from the split' : 'Choose…'}</option>
-        {PLACES.map((p) => (
-          <option key={p.place} value={p.place}>
-            {p.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="segmented" role="group" aria-label={`${name} form`}>
+      {PLACES.map((p) => (
+        <button key={p.place} type="button" aria-pressed={value === p.place} onClick={() => onChange(value === p.place ? undefined : p.place)}>
+          {p.short}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -83,18 +79,78 @@ export function SplitFormEditor({ hero, traits, split, onChange }: { hero: Hero;
   const placed = [...(split?.always ?? []), ...(split?.civilian ?? []), ...(split?.heroic ?? [])]
   const stray = placed.filter((t, i) => !candidates.some((c) => traitKey(c.trait) === traitKey(t)) && placed.findIndex((x) => traitKey(x) === traitKey(t)) === i)
   const always = split?.always ?? []
+  const roleplaying = traits.find((t) => traitKey(t.trait) === traitKey(ROLEPLAYING_QUALITY))
+  // The live tallies against Split Form's two powers and two qualities in both forms.
+  const tally = (kind: TraitRef['kind']) => always.filter((t) => t.kind === kind && candidates.some((c) => traitKey(c.trait) === traitKey(t))).length
   return (
     <fieldset className="split-form" data-section="parts">
       <legend>Split Form</legend>
-      <p className="hint">
-        Choose two powers and two qualities you always have (you have {always.filter((t) => t.kind === 'power').length} and {always.filter((t) => t.kind === 'quality').length}), and put the rest in one form or the other. Your roleplaying quality works in both forms.
+      <p className="hint">Choose which form each power and quality belongs to: two powers and two qualities work in both forms. Your roleplaying quality works in both forms automatically.</p>
+      <table className="split-table">
+        <thead>
+          <tr>
+            <th scope="col">Power or quality</th>
+            <th scope="col">Die</th>
+            <th scope="col">Available in</th>
+          </tr>
+        </thead>
+        <tbody>
+          {candidates.map((t) => (
+            <tr key={traitKey(t.trait)}>
+              <th scope="row">
+                {t.name} <span className="split-table__kind">{t.trait.kind}</span>
+              </th>
+              <td>
+                <DieIcon die={t.die} />
+              </td>
+              <td>
+                <PlaceButtons name={t.name} value={placeOf(t.trait)} onChange={(place) => onChange(placeTrait(split, t.trait, place))} />
+              </td>
+            </tr>
+          ))}
+          {/* The roleplaying quality is always in both forms (the hero wizard spec, "Special archetypes"). */}
+          {roleplaying && (
+            <tr>
+              <th scope="row">
+                {roleplaying.name} <span className="split-table__kind">roleplaying</span>
+              </th>
+              <td>
+                <DieIcon die={roleplaying.die} />
+              </td>
+              <td>
+                {/* Put in the split by mistake (the checks flag it): let it be taken out. */}
+                {placed.some((t) => traitKey(t) === traitKey(ROLEPLAYING_QUALITY)) ? (
+                  <button type="button" className="button button--small" onClick={() => onChange(placeTrait(split, ROLEPLAYING_QUALITY, undefined))}>
+                    Remove from the split
+                  </button>
+                ) : (
+                  <span className="split-table__fixed">Both, always</span>
+                )}
+              </td>
+            </tr>
+          )}
+          {stray.filter((t) => traitKey(t) !== traitKey(ROLEPLAYING_QUALITY)).map((t) => (
+            <tr key={traitKey(t)}>
+              <th scope="row">
+                {traitLabel(hero, t)} <span className="split-table__kind">doesn't fit</span>
+              </th>
+              <td />
+              <td>
+                <button type="button" className="button button--small" onClick={() => onChange(placeTrait(split, t, undefined))}>
+                  Remove from the split
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="split-tallies">
+        {(['power', 'quality'] as const).map((kind) => (
+          <span key={kind} className={tally(kind) === 2 ? 'split-tally split-tally--done' : 'split-tally'}>
+            Both forms, {kind === 'power' ? 'powers' : 'qualities'}: {tally(kind)} of 2
+          </span>
+        ))}
       </p>
-      {candidates.map((t) => (
-        <PlaceSelect key={traitKey(t.trait)} label={`${t.name} (${t.die})`} value={placeOf(t.trait)} offList={false} onChange={(place) => onChange(placeTrait(split, t.trait, place))} />
-      ))}
-      {stray.map((t) => (
-        <PlaceSelect key={traitKey(t)} label={`${traitLabel(hero, t)} (doesn't fit)`} value={placeOf(t)} offList onChange={(place) => onChange(placeTrait(split, t, place))} />
-      ))}
     </fieldset>
   )
 }

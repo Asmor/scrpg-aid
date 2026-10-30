@@ -508,6 +508,13 @@ a {
   gap: var(--space);
 }
 
+/* Grid items may shrink below their content's width, so nothing pushes the step wider than a phone. */
+.step-form > *,
+.part__body > *,
+.part__body fieldset {
+  min-width: 0;
+}
+
 .step-form fieldset {
   border: 1px solid var(--ui-border);
   border-radius: 0.625rem;
@@ -3680,6 +3687,85 @@ span.status-chips > span {
     padding: 0.625rem var(--space);
     border-top: 1px solid var(--ui-border);
     background: var(--ui-surface);
+  }
+}
+
+/* Divided's form split (the hero wizard spec, "Special archetypes"): a table with a Both/Civilian/Heroic control per row and live tallies. */
+.split-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.split-table th,
+.split-table td {
+  padding: 0.5rem 0.5rem 0.5rem 0;
+  border-bottom: 1px solid var(--ui-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.split-table thead th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ui-muted);
+}
+
+.split-table tbody th {
+  font-weight: 400;
+}
+
+.split-table td:last-child {
+  text-align: right;
+}
+
+.split-table .segmented button {
+  min-height: 2.25rem;
+  padding: 0 0.625rem;
+}
+
+.split-table__fixed {
+  font-size: 0.875rem;
+  color: var(--ui-muted);
+}
+
+.split-table__kind {
+  font-size: 0.75rem;
+  color: var(--ui-muted);
+}
+
+.split-tallies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--ui-muted);
+}
+
+.split-tally--done {
+  color: var(--ui-text);
+  font-weight: 600;
+}
+
+@media (max-width: 47.4375rem) {
+  .split-table thead {
+    display: none;
+  }
+
+  .split-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    border-bottom: 1px solid var(--ui-border);
+  }
+
+  .split-table th,
+  .split-table td {
+    border: 0;
+  }
+
+  .split-table td:last-child {
+    grid-column: 1 / -1;
+    text-align: left;
   }
 }
 

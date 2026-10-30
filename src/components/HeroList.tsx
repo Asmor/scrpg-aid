@@ -193,125 +193,135 @@ export function HeroList({ onImported, refresh = 0 }: { onImported?: () => void;
   const drafts = heroes.filter(isDraft)
   const complete = heroes.filter((h) => !isDraft(h))
   return (
-    <section className="hero-list" aria-labelledby="hero-list-title">
-      <div className="hero-list__header">
-        <h2 id="hero-list-title" ref={headingRef} tabIndex={-1}>
-          Your heroes
-        </h2>
-        <div className="button-row">
-          <button type="button" className="button button--primary" disabled={busy || importing || loading} onClick={() => {
-              // A draft held in memory: the wizard saves it on the first choice.
-              const hero = { ...createHero('guided'), status: 'draft' as const }
-              newHeroes.add(hero)
-              navigate(editPath(hero.id, 'start'))
-            }}>
-            New hero
-          </button>
-          <button type="button" className="button" disabled={busy || importing || loading} onClick={() => {
-              const hero = exampleHero()
-              void add(hero, heroPath(hero.id))
-            }}>
-            Add example hero
-          </button>
-          <a className="button" href={gmPath}>
-            Host a game
-          </a>
-          <a className="button" href={joinPath()}>
-            Join a game
-          </a>
-        </div>
-      </div>
-
-      <ImportControl
-        savedIds={new Set(state.status === 'ready' ? state.list.heroes.map((h) => h.id).concat(state.list.unreadable.map((u) => u.id)) : [])}
-        unreadableIds={new Set(state.status === 'ready' ? state.list.unreadable.map((u) => u.id) : [])}
-        disabled={busy || state.status !== 'ready'}
-        onBusyChange={setImporting}
-        onImported={() => {
-          setVersion((v) => v + 1)
-          onImported?.()
-        }}
-      >
-        {state.status === 'ready' && (state.list.heroes.length > 0 || hasVillains) && (
-          <button type="button" className="button" disabled={busy || importing} onClick={() => void backUp(state.list.heroes)}>
-            Back up all heroes and villains
-          </button>
-        )}
-      </ImportControl>
-      {state.status === 'ready' && state.list.unreadable.length > 0 && state.list.heroes.length > 0 && (
-        <p className="hint">The backup leaves out heroes that couldn't be read.</p>
-      )}
-
-      {actionError && (
-        <p role="alert" className="error">
-          {actionError}
-        </p>
-      )}
-      {loading && <p>Loading your heroes…</p>}
-      {state.status === 'error' && (
-        <p role="alert" className="error">
-          Couldn't load your saved heroes: {state.message}
-        </p>
-      )}
-      {state.status === 'ready' && (
-        <>
-          {drafts.length > 0 && (
-            <section className="in-progress" aria-labelledby="in-progress-title">
-              <h3 id="in-progress-title">In progress</h3>
-              <ul className="hero-cards">
-                {drafts.map((hero) => (
-                  <li key={hero.id} className="hero-card hero-card--draft">
-                    <span className="hero-card__link">
-                      <span className="hero-card__name">{heroDisplayName(hero)}</span>
-                      <span className="hero-card__meta">
-                        {progressText(hero.furthestStep)} · edited <time dateTime={hero.updatedAt} title={formatFull(hero.updatedAt)}>{formatWhen(hero.updatedAt, now)}</time>
-                      </span>
-                    </span>
-                    <span className="button-row">
-                      <a className="button button--primary" href={editPath(hero.id, continueStep(hero.furthestStep))} aria-label={`Continue ${heroDisplayName(hero)}`}>
-                        Continue
-                      </a>
-                      {deleteControl(hero.id, heroDisplayName(hero), 'Discard')}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-          {complete.length === 0 && state.list.unreadable.length === 0 && (
-            <p className="sheet-empty">{drafts.length ? 'No finished heroes yet.' : 'No heroes yet. Start a new one, or add the example hero to see a finished sheet.'}</p>
-          )}
+    <>
+      {/* Drafts come first, above Your heroes (the hero wizard spec, "Drafts"). */}
+      {state.status === 'ready' && drafts.length > 0 && (
+        <section className="in-progress" aria-labelledby="in-progress-title">
+          <h2 id="in-progress-title">In progress</h2>
           <ul className="hero-cards">
-            {complete.map((hero) => (
-              <li key={hero.id} className="hero-card">
-                <a className="hero-card__link" href={heroPath(hero.id)}>
+            {drafts.map((hero) => (
+              <li key={hero.id} className="hero-card hero-card--draft">
+                <span className="hero-card__link">
                   <span className="hero-card__name">{heroDisplayName(hero)}</span>
-                  <span className="hero-card__meta">{archetypeName(hero) ?? 'No archetype yet'}</span>
-                </a>
-                {deleteControl(hero.id, heroDisplayName(hero))}
+                  <span className="hero-card__meta">
+                    {progressText(hero.furthestStep)} · edited{' '}
+                    <time dateTime={hero.updatedAt} title={formatFull(hero.updatedAt)}>
+                      {formatWhen(hero.updatedAt, now)}
+                    </time>
+                  </span>
+                </span>
+                <span className="button-row">
+                  <a className="button button--primary" href={editPath(hero.id, continueStep(hero.furthestStep))} aria-label={`Continue ${heroDisplayName(hero)}`}>
+                    Continue
+                  </a>
+                  {deleteControl(hero.id, heroDisplayName(hero), 'Discard')}
+                </span>
               </li>
             ))}
           </ul>
-          {state.list.unreadable.length > 0 && (
-            <section className="unreadable" aria-labelledby="unreadable-title">
-              <h3 id="unreadable-title">
-                {state.list.unreadable.length === 1 ? 'One saved hero' : `${state.list.unreadable.length} saved heroes`} couldn't be read
-              </h3>
-              <p>They may have been saved by a newer version of the app. Deleting one can't be undone.</p>
-              <ul className="hero-cards">
-                {state.list.unreadable.map((u) => (
-                  <li key={u.id} className="hero-card">
-                    <span>
-                      {u.id}: {u.error}
-                    </span>
-                    {deleteControl(u.id, `unreadable record ${u.id}`)}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-        </>
+        </section>
       )}
-    </section>
+      <section className="hero-list" aria-labelledby="hero-list-title">
+        <div className="hero-list__header">
+          <h2 id="hero-list-title" ref={headingRef} tabIndex={-1}>
+            Your heroes
+          </h2>
+          <div className="button-row">
+            <button
+              type="button"
+              className="button button--primary"
+              disabled={busy || importing || loading}
+              onClick={() => {
+                // A draft held in memory: the wizard saves it on the first choice.
+                const hero = { ...createHero('guided'), status: 'draft' as const }
+                newHeroes.add(hero)
+                navigate(editPath(hero.id, 'start'))
+              }}
+            >
+              New hero
+            </button>
+            <button
+              type="button"
+              className="button"
+              disabled={busy || importing || loading}
+              onClick={() => {
+                const hero = exampleHero()
+                void add(hero, heroPath(hero.id))
+              }}
+            >
+              Add example hero
+            </button>
+            <a className="button" href={gmPath}>
+              Host a game
+            </a>
+            <a className="button" href={joinPath()}>
+              Join a game
+            </a>
+          </div>
+        </div>
+
+        <ImportControl
+          savedIds={new Set(state.status === 'ready' ? state.list.heroes.map((h) => h.id).concat(state.list.unreadable.map((u) => u.id)) : [])}
+          unreadableIds={new Set(state.status === 'ready' ? state.list.unreadable.map((u) => u.id) : [])}
+          disabled={busy || state.status !== 'ready'}
+          onBusyChange={setImporting}
+          onImported={() => {
+            setVersion((v) => v + 1)
+            onImported?.()
+          }}
+        >
+          {state.status === 'ready' && (state.list.heroes.length > 0 || hasVillains) && (
+            <button type="button" className="button" disabled={busy || importing} onClick={() => void backUp(state.list.heroes)}>
+              Back up all heroes and villains
+            </button>
+          )}
+        </ImportControl>
+        {state.status === 'ready' && state.list.unreadable.length > 0 && state.list.heroes.length > 0 && <p className="hint">The backup leaves out heroes that couldn't be read.</p>}
+
+        {actionError && (
+          <p role="alert" className="error">
+            {actionError}
+          </p>
+        )}
+        {loading && <p>Loading your heroes…</p>}
+        {state.status === 'error' && (
+          <p role="alert" className="error">
+            Couldn't load your saved heroes: {state.message}
+          </p>
+        )}
+        {state.status === 'ready' && (
+          <>
+            {complete.length === 0 && state.list.unreadable.length === 0 && <p className="sheet-empty">{drafts.length ? 'No finished heroes yet.' : 'No heroes yet. Start a new one, or add the example hero to see a finished sheet.'}</p>}
+            <ul className="hero-cards">
+              {complete.map((hero) => (
+                <li key={hero.id} className="hero-card">
+                  <a className="hero-card__link" href={heroPath(hero.id)}>
+                    <span className="hero-card__name">{heroDisplayName(hero)}</span>
+                    <span className="hero-card__meta">{archetypeName(hero) ?? 'No archetype yet'}</span>
+                  </a>
+                  {deleteControl(hero.id, heroDisplayName(hero))}
+                </li>
+              ))}
+            </ul>
+            {state.list.unreadable.length > 0 && (
+              <section className="unreadable" aria-labelledby="unreadable-title">
+                <h3 id="unreadable-title">{state.list.unreadable.length === 1 ? 'One saved hero' : `${state.list.unreadable.length} saved heroes`} couldn't be read</h3>
+                <p>They may have been saved by a newer version of the app. Deleting one can't be undone.</p>
+                <ul className="hero-cards">
+                  {state.list.unreadable.map((u) => (
+                    <li key={u.id} className="hero-card">
+                      <span>
+                        {u.id}: {u.error}
+                      </span>
+                      {deleteControl(u.id, `unreadable record ${u.id}`)}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </>
+        )}
+      </section>
+    </>
   )
 }

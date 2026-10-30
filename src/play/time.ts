@@ -1,7 +1,8 @@
 /**
- * History timestamps (GOAL.md, Phase 3): under an hour ago, relative ("3 minutes ago"); under
- * a day, the time in the user's time zone and locale ("3:12 PM", "15:12"); older, the full
- * date and time in their locale. `locale` and `timeZone` are injectable for tests.
+ * History timestamps (docs/design/hero-sheet/spec.md, History; GOAL.md, Phase 3): relative for a
+ * week ("now", "3 minutes ago", "2 hours ago", "1 day ago"), then the full date and time in the
+ * user's locale and time zone. Days count elapsed time, so they say "1 day ago" rather than a
+ * calendar "yesterday". `locale` and `timeZone` are injectable for tests.
  */
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
@@ -11,12 +12,12 @@ export function formatWhen(at: string, now: Date, locale?: string, timeZone?: st
   const then = new Date(at)
   if (Number.isNaN(then.getTime())) return 'unknown time'
   const ago = now.getTime() - then.getTime()
-  if (ago < HOUR) {
-    const relative = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
-    // Under a minute reads as "now".
-    return ago < MINUTE ? relative.format(0, 'second') : relative.format(-Math.floor(ago / MINUTE), 'minute')
-  }
-  if (ago < DAY) return new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit', timeZone }).format(then)
+  const relative = new Intl.RelativeTimeFormat(locale, { numeric: 'always' })
+  // Under a minute reads as "now".
+  if (ago < MINUTE) return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(0, 'second')
+  if (ago < HOUR) return relative.format(-Math.floor(ago / MINUTE), 'minute')
+  if (ago < DAY) return relative.format(-Math.floor(ago / HOUR), 'hour')
+  if (ago < 7 * DAY) return relative.format(-Math.floor(ago / DAY), 'day')
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(then)
 }
 

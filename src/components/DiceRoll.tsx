@@ -143,8 +143,9 @@ export function DiceRoll({ dice, roll, canReroll, onRoll, onManual, manualFirst 
         />
       ) : !roll ? (
         <div className="button-row">
-          <button type="button" className="button button--primary" onClick={() => onRoll(false)}>
-            Roll {listAnd(dice)}
+          {/* The dice as icons, named for screen readers. */}
+          <button type="button" className="button button--primary" aria-label={`Roll ${listAnd(dice)}`} onClick={() => onRoll(false)}>
+            Roll <DiceList dice={dice} size="compact" />
           </button>
           <button type="button" className="button" onClick={() => setManual('roll')}>
             Enter my own roll

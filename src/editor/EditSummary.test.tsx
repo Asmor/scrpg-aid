@@ -26,6 +26,8 @@ describe('EditSummary', () => {
     expect(row(/^Start/)).toHaveTextContent('Constructed')
     const background = row(/Background/)
     expect(background).toHaveTextContent(/Upper Class.*Fitness.*Alertness.*Principle of Business/)
+    // A principle shows its Green ability's action icons before its name, as every listed ability does.
+    expect(within(background).getByText('Principle of Business').closest('li')!.querySelector('img[alt="Overcome"]')).not.toBeNull()
     expect(within(background).getAllByRole('img', { name: /^d\d+$/ })).toHaveLength(2)
     // Each step lists only its own abilities.
     const power = row(/Power source/)

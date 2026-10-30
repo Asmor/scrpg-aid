@@ -134,6 +134,10 @@ describe('HeroList', () => {
     await store.save({ ...createHero('guided', { id: 'd2' }), status: 'draft' })
     renderList(store)
     const group = await screen.findByRole('region', { name: 'In progress' })
+    // Above Your heroes, not inside it.
+    const yours = screen.getByRole('region', { name: 'Your heroes' })
+    expect(yours.contains(group)).toBe(false)
+    expect(group.compareDocumentPosition(yours) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const rows = within(group).getAllByRole('listitem')
     expect(rows).toHaveLength(2)
     const third = rows.find((r) => r.textContent?.includes('Step 3 of 8'))!

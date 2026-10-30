@@ -13,14 +13,16 @@ describe('formatWhen', () => {
     expect(formatWhen(ago(59 * 60_000), now, 'en-US')).toBe('59 minutes ago')
   })
 
-  it('is the time of day under a day, in the locale and time zone', () => {
-    expect(formatWhen(ago(2 * 3_600_000), now, 'en-US', 'UTC')).toBe('6:00 PM')
-    expect(formatWhen(ago(2 * 3_600_000), now, 'en-GB', 'UTC')).toBe('18:00')
-    expect(formatWhen(ago(2 * 3_600_000), now, 'en-US', 'America/New_York')).toBe('2:00 PM')
+  it('stays relative in hours, then days, for a week', () => {
+    expect(formatWhen(ago(2 * 3_600_000), now, 'en-US', 'UTC')).toBe('2 hours ago')
+    expect(formatWhen(ago(23 * 3_600_000), now, 'en-US', 'UTC')).toBe('23 hours ago')
+    expect(formatWhen(ago(26 * 3_600_000), now, 'en-US', 'UTC')).toBe('1 day ago')
+    expect(formatWhen(ago(3 * 86_400_000), now, 'en-US', 'UTC')).toBe('3 days ago')
   })
 
-  it('is the full date and time after a day', () => {
-    expect(formatWhen(ago(3 * 86_400_000), now, 'en-US', 'UTC')).toBe('Oct 23, 2026, 8:00 PM')
+  it('is the full date and time after a week, in the locale and time zone', () => {
+    expect(formatWhen(ago(8 * 86_400_000), now, 'en-US', 'UTC')).toBe('Oct 18, 2026, 8:00 PM')
+    expect(formatWhen(ago(8 * 86_400_000), now, 'en-GB', 'UTC')).toBe('18 Oct 2026, 20:00')
   })
 
   it('has a long form for tooltips', () => {
