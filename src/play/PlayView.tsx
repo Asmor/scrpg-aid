@@ -8,6 +8,8 @@
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { heroPath } from '../app/route'
+import { useMediaQuery } from '../components/useMediaQuery'
+import { heroDisplayName } from '../hero/model'
 import { ActionIcon, AbilityIcons, AbilityText, DiceText, DieIcon } from '../components/icons'
 import { buildSheet } from '../creation/sheet'
 import { modeLimits } from '../creation/format'
@@ -28,11 +30,38 @@ import { addMinion, addMinionMod, minionCreation, removeMinion, removeMinionMod,
 import { ModForm, type ModTarget } from './ModForm'
 import { confirmRoll, rollChange, undoRoll, type RollChange } from './roll'
 import { RollDialog, type FormPicker, type RollSubject } from './RollDialog'
-import { addMod, modName, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, MAX_HERO_POINTS, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
+import {
+  addMod,
+  modName,
+  addTwist,
+  currentHealth,
+  describeMod,
+  effectiveZone,
+  emptyPlay,
+  healthZone,
+  MAX_HERO_POINTS,
+  noteGivenMod,
+  removeMod,
+  removeTwist,
+  setDividedForm,
+  setForm,
+  setHealth,
+  setHeroPoints,
+  setReactionUsed,
+  setSceneZone,
+  statusDieFor,
+  type Clock,
+} from './state'
 import { formatFull, formatWhen } from './time'
 import { useTick } from './useTick'
 
 const ZONES = ['green', 'yellow', 'red'] as const
+type PhoneTab = 'actions' | 'status' | 'history'
+const PHONE_TABS: readonly [PhoneTab, string][] = [
+  ['actions', 'Actions'],
+  ['status', 'Status'],
+  ['history', 'History'],
+]
 /** A follow-up mod's recipient when it's one of the hero's own minions. */
 const MINION_TARGET = 'minion:'
 const BASIC_ACTIONS: readonly BasicAction[] = ['attack', 'defend', 'boost', 'hinder', 'overcome']
@@ -56,13 +85,23 @@ export function ModBadge({ value }: { value: number }) {
 }
 
 /** One ability in its band: icons, name and type; Use, "Always on", or why it can't be used; and its text. */
-function AbilityRowPlay({ ability: a, reactionUsed, onUse }: { ability: PlayAbility; reactionUsed: boolean; onUse: () => void }) {
+function AbilityRowPlay({ ability: a, reactionUsed, compact, onUse }: { ability: PlayAbility; reactionUsed: boolean; compact: boolean; onUse: () => void }) {
+  // On a phone the rows are compact: tapping a name shows the ability's text.
+  const [open, setOpen] = useState(false)
+  const textId = useId()
+  const showText = !compact || open
   return (
     <li className={a.blocked ? 'play-row play-row--blocked' : 'play-row'}>
       <span className="play-row__name">
         <AbilityIcons actions={a.effects} />
-        <strong>{a.name}</strong>
-        <span className="play-row__type">{ABILITY_TYPE_LABEL[a.type]}</span>
+        {compact ? (
+          <button type="button" className="play-row__toggle" aria-expanded={open} aria-controls={textId} onClick={() => setOpen(!open)}>
+            <strong>{a.name}</strong>
+          </button>
+        ) : (
+          <strong>{a.name}</strong>
+        )}
+        {!compact && <span className="play-row__type">{ABILITY_TYPE_LABEL[a.type]}</span>}
       </span>
       <span className="play-row__act">
         {a.always ? (
@@ -79,7 +118,8 @@ function AbilityRowPlay({ ability: a, reactionUsed, onUse }: { ability: PlayAbil
           </>
         )}
       </span>
-      <span className="play-row__text">
+      <span className="play-row__text" id={textId} hidden={!showText}>
+        {compact && <span className="play-row__type">{ABILITY_TYPE_LABEL[a.type]} · </span>}
         <AbilityText text={a.text} actions={a.effects} />
       </span>
     </li>
@@ -229,6 +269,9 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
   const [twistText, setTwistText] = useState('')
   const [rolling, setRolling] = useState<RollSubject | null>(null)
   const [toast, setToast] = useState<{ text: string; undo: () => void } | null>(null)
+  // On a phone (docs/design/hero-sheet/spec.md, "Play on a phone"): a sticky top bar and three tabs.
+  const phone = !useMediaQuery('(min-width: 760px)')
+  const [tab, setTab] = useState<PhoneTab>('actions')
 
   // A game session this hero is playing in (Phase 4).
   const session = useSession()
@@ -298,7 +341,14 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
     if (!changesForm(text)) return undefined
     // Divided's own changes (and any change for a Divided hero with no forms or modes) flip the form.
     if (divided && (!forms.length || /civilian form/i.test(text))) {
-      return { label: 'Change to', current: divided, options: [{ value: 'civilian', label: 'Civilian form' }, { value: 'heroic', label: 'Heroic form' }] }
+      return {
+        label: 'Change to',
+        current: divided,
+        options: [
+          { value: 'civilian', label: 'Civilian form' },
+          { value: 'heroic', label: 'Heroic form' },
+        ],
+      }
     }
     if (!forms.length || !form) return undefined
     return { label: `Change ${noun} to`, current: form.key ?? '', options: forms.map((f) => ({ value: f.key ?? '', label: f.name, ...(formZoneNote(f, zone) ? { note: formZoneNote(f, zone) } : {}) })) }
@@ -306,338 +356,336 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
   const changeHealth = (by: number) => change((p, c) => setHealth(p, sheet, (currentHealth(sheet, p) ?? 0) + by, c))
   const ranges = sheet.healthRanges
 
-  return (
-    <div className="play-layout">
-      <div className="play-status" role="region" aria-label="Status">
-        <Card title="Health" aside={own && <span className={own === 'out' ? 'zone-chip zone-out' : `zone-chip zone-${own}`}>{PLAY_ZONE_LABEL[own]}</span>}>
-          {health === undefined ? (
-            <p className="sheet-empty">Work out Health in the editor first.</p>
-          ) : (
-            <>
-              <p className="play-health">
-                <strong>{health}</strong> <span>of {sheet.maxHealth}</span>
-              </p>
-              {ranges && (
-                <>
-                  <div className="health-meter" aria-hidden="true">
-                    {(['red', 'yellow', 'green'] as const).map((z) => (
-                      <span key={z} className={`zone-${z}${own === z ? ' health-meter__on' : ''}`} style={{ flexGrow: ranges[z][0] - ranges[z][1] + 1 }} />
-                    ))}
-                  </div>
-                  <p className="health-meter__labels">
-                    {(['red', 'yellow', 'green'] as const).map((z) => (
-                      <span key={z}>
-                        {ZONE_LABEL[z]} {ranges[z][0]}–{ranges[z][1]}
-                      </span>
-                    ))}
-                  </p>
-                </>
-              )}
-              <div className="play-health__controls">
-                <button type="button" className="button" aria-label="Lose 1 Health" onClick={() => changeHealth(-1)}>
-                  −1
-                </button>
-                <button type="button" className="button" aria-label="Gain 1 Health" onClick={() => changeHealth(1)}>
-                  +1
-                </button>
-                <label className="visually-hidden" htmlFor={`${formId}-amount`}>
-                  Amount
-                </label>
-                <input id={`${formId}-amount`} className="play-amount" type="number" inputMode="numeric" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" />
-                <button type="button" className="button" disabled={!validAmount} onClick={() => (changeHealth(-delta), setAmount(''))}>
-                  Lose
-                </button>
-                <button type="button" className="button" disabled={!validAmount} onClick={() => (changeHealth(delta), setAmount(''))}>
-                  Gain
-                </button>
-              </div>
-            </>
-          )}
-        </Card>
-
-        <Card title="Scene" aside={player && <span className="play-card__note">Set by the GM</span>}>
-          {player ? (
-            <p className="play-scene__online">
-              <span className={`zone-chip zone-${scene}`}>{ZONE_LABEL[scene]}</span> Follows the GM's scene tracker
+  // The cards of the status column, the actions column, and the history, laid out as columns, or as tabs on a phone.
+  const statusCards = (
+    <>
+      <Card title="Health" aside={own && <span className={own === 'out' ? 'zone-chip zone-out' : `zone-chip zone-${own}`}>{PLAY_ZONE_LABEL[own]}</span>}>
+        {health === undefined ? (
+          <p className="sheet-empty">Work out Health in the editor first.</p>
+        ) : (
+          <>
+            <p className="play-health">
+              <strong>{health}</strong> <span>of {sheet.maxHealth}</span>
             </p>
-          ) : (
-            <div className="segmented segmented--fill" role="group" aria-label="Scene zone">
-              {ZONES.map((z) => (
-                <button key={z} type="button" className={scene === z ? `zone-${z}` : undefined} aria-pressed={scene === z} onClick={() => scene !== z && change((p, c) => setSceneZone(p, z, c))}>
-                  {ZONE_LABEL[z]}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="status-die-line">
-            {die && <DieIcon die={die} />}
-            <div>
-              <p className="status-die-line__what">Status die: {zone === 'out' ? 'none' : PLAY_ZONE_LABEL[zone ?? 'green']}</p>
-              <p className="play-card__note">
-                {zone === 'out'
-                  ? "You're Out: only your Out ability is available."
-                  : `You: ${PLAY_ZONE_LABEL[own ?? 'green']} · Scene: ${ZONE_LABEL[scene]}. The more severe one sets your status die and abilities.`}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        {forms.length > 0 && form && (
-          <Card title={noun === 'mode' ? 'Mode' : 'Form'}>
-            <p className="form-current">
-              <strong>{form.name}</strong>
-              {!form.powerless && <span className={`zone-chip zone-${form.zone}`}>{ZONE_LABEL[form.zone]}</span>}
-            </p>
-            {/* Any option, any time; the app never blocks a change. */}
-            <div className="form-options" role="radiogroup" aria-label={noun === 'mode' ? 'Modes' : 'Forms'}>
-              {forms.map((f) => {
-                const note = formZoneNote(f, zone)
-                return (
-                  <label key={f.key ?? ''} className="form-option">
-                    <input type="radio" name={`${formId}-form`} checked={f.key === form.key} onChange={() => change((p, c) => setForm(p, f.key, f.name, c))} />
-                    <span className="form-option__name">{f.name}</span>
-                    {!f.powerless && <span className={`zone-chip zone-${f.zone}`}>{ZONE_LABEL[f.zone]}</span>}
-                    {note && <span className="form-option__note">{note}</span>}
-                  </label>
-                )
-              })}
-            </div>
-            <FormChanges form={form} base={forms[0]!.traits} noun={noun} />
-            {lockNotice && <p className="form-notice">{lockNotice}</p>}
-          </Card>
-        )}
-
-        {divided && (
-          <Card title="Divided form">
-            <div className="segmented segmented--fill" role="group" aria-label="Divided form">
-              {(['civilian', 'heroic'] as const).map((f) => (
-                <button key={f} type="button" aria-pressed={divided === f} onClick={() => divided !== f && change((p, c) => setDividedForm(p, f, c))}>
-                  {f === 'civilian' ? 'Civilian' : 'Heroic'}
-                </button>
-              ))}
-            </div>
-            {transition && <p className="play-card__note form-transition">{transition}</p>}
-            {sheet.divided?.heroicPersonality && (
-              <p className="form-personality">
-                {divided === 'heroic' ? sheet.divided.heroicPersonality : sheet.characteristics.personality}
-                {dice.statusDice && <StatusDiceInline dice={dice.statusDice} />}
-              </p>
+            {ranges && (
+              <>
+                <div className="health-meter" aria-hidden="true">
+                  {(['red', 'yellow', 'green'] as const).map((z) => (
+                    <span key={z} className={`zone-${z}${own === z ? ' health-meter__on' : ''}`} style={{ flexGrow: ranges[z][0] - ranges[z][1] + 1 }} />
+                  ))}
+                </div>
+                <p className="health-meter__labels">
+                  {(['red', 'yellow', 'green'] as const).map((z) => (
+                    <span key={z}>
+                      {ZONE_LABEL[z]} {ranges[z][0]}–{ranges[z][1]}
+                    </span>
+                  ))}
+                </p>
+              </>
             )}
-            {dice.slots[0] === dice.slots[1] ? (
-              <p className="hint">Divided Psyche: you roll two {dice.slots[0] === 'power' ? 'powers' : 'qualities'} with your status die.</p>
-            ) : (
-              missingHere.length > 0 && <p className="play-card__note">Not in this form: {missingHere.map((t) => t.name).join(', ')}</p>
-            )}
-          </Card>
+            <div className="play-health__controls">
+              <button type="button" className="button" aria-label="Lose 1 Health" onClick={() => changeHealth(-1)}>
+                −1
+              </button>
+              <button type="button" className="button" aria-label="Gain 1 Health" onClick={() => changeHealth(1)}>
+                +1
+              </button>
+              <label className="visually-hidden" htmlFor={`${formId}-amount`}>
+                Amount
+              </label>
+              <input id={`${formId}-amount`} className="play-amount" type="number" inputMode="numeric" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" />
+              <button type="button" className="button" disabled={!validAmount} onClick={() => (changeHealth(-delta), setAmount(''))}>
+                Lose
+              </button>
+              <button type="button" className="button" disabled={!validAmount} onClick={() => (changeHealth(delta), setAmount(''))}>
+                Gain
+              </button>
+            </div>
+          </>
         )}
+      </Card>
 
-        <Card title="Dice" aside={<a href={heroPath(id)}>Full sheet</a>}>
-          <div className="play-dice">
-            {(
-              [
-                ['Powers', dice.powers],
-                ['Qualities', dice.qualities],
-              ] as const
-            ).map(([label, list]) => (
-              <div key={label}>
-                <p className="label">{label}</p>
-                {list.length === 0 ? (
-                  <p className="sheet-empty">None</p>
-                ) : (
-                  <ul aria-label={label}>
-                    {list.map((t) => {
-                      // A die the form or mode changed is marked, with what it was.
-                      const was = form?.key ? forms[0]!.traits.find((b) => b.trait.kind === t.trait.kind && b.trait.id === t.trait.id)?.die : undefined
-                      return (
-                        <li key={`${t.trait.kind}:${t.trait.id}`} className={was && was !== t.die ? 'play-dice__changed' : undefined}>
-                          <span>
-                            {t.name}
-                            {was && was !== t.die && <span className="visually-hidden"> (was {was})</span>}
-                            {!was && form?.key && (
-                              <>
-                                {' '}
-                                <span className="play-dice__tag">added</span>
-                              </>
-                            )}
-                          </span>
-                          <DieIcon die={t.die} size="compact" />
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-              </div>
+      <Card title="Scene" aside={player && <span className="play-card__note">Set by the GM</span>}>
+        {player ? (
+          <p className="play-scene__online">
+            <span className={`zone-chip zone-${scene}`}>{ZONE_LABEL[scene]}</span> Follows the GM's scene tracker
+          </p>
+        ) : (
+          <div className="segmented segmented--fill" role="group" aria-label="Scene zone">
+            {ZONES.map((z) => (
+              <button key={z} type="button" className={scene === z ? `zone-${z}` : undefined} aria-pressed={scene === z} onClick={() => scene !== z && change((p, c) => setSceneZone(p, z, c))}>
+                {ZONE_LABEL[z]}
+              </button>
             ))}
           </div>
-        </Card>
-
-        <Card title="Hero points" className="play-card--points">
-          <div className="play-points">
-            <button type="button" className="button" aria-label="Spend a hero point" disabled={play.heroPoints <= 0} onClick={() => change((p, c) => setHeroPoints(p, p.heroPoints - 1, c))}>
-              −
-            </button>
-            <strong aria-live="polite" aria-label={`${play.heroPoints} of ${MAX_HERO_POINTS} hero points`}>
-              {play.heroPoints}
-            </strong>
-            <button type="button" className="button" aria-label="Gain a hero point" disabled={play.heroPoints >= MAX_HERO_POINTS} onClick={() => change((p, c) => setHeroPoints(p, p.heroPoints + 1, c))}>
-              +
-            </button>
-          </div>
-          <label className="checkbox play-reaction">
-            <input type="checkbox" checked={play.reactionUsed} onChange={(e) => change((p, c) => setReactionUsed(p, e.target.checked, c))} />
-            Reaction used this round
-          </label>
-        </Card>
-
-        <Card
-          title="Bonuses and penalties"
-          aside={
-            <button type="button" className="button button--small" aria-expanded={addingMod} onClick={() => setAddingMod(!addingMod)}>
-              {addingMod ? 'Close' : '+ Add'}
-            </button>
-          }
-        >
-          {play.mods.length === 0 ? (
-            <p className="sheet-empty">None.</p>
-          ) : (
-            <ul className="play-list">
-              {play.mods.map((m) => (
-                <li key={m.id}>
-                  <ModBadge value={m.value} />
-                  <span className="play-list__text">{modName(m)}</span>
-                  {m.persistent && <span className="tag">Persistent</span>}
-                  {m.exclusive && <span className="tag">Exclusive</span>}
-                  <button type="button" className="button button--small" aria-label={`Remove ${describeMod(m)}`} onClick={() => change((p, c) => removeMod(p, m.id, c))}>
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {addingMod && <ModForm targets={targets} onSubmit={(mod, to) => giveOrAdd(mod, to) && setAddingMod(false)} />}
-        </Card>
-
-        <Card
-          title="Twists"
-          aside={
-            <button type="button" className="button button--small" aria-expanded={addingTwist} onClick={() => setAddingTwist(!addingTwist)}>
-              {addingTwist ? 'Close' : '+ Add'}
-            </button>
-          }
-        >
-          {play.twists.length === 0 ? (
-            <p className="sheet-empty">None.</p>
-          ) : (
-            <ul className="play-list">
-              {play.twists.map((t) => (
-                <li key={t.id}>
-                  <span className="tag">{t.kind === 'minor' ? 'Minor' : 'Major'}</span>
-                  <span className="play-list__text">{t.text}</span>
-                  <button type="button" className="button button--small" aria-label={`Resolve the ${t.kind} twist: ${t.text}`} onClick={() => change((p, c) => removeTwist(p, t.id, c))}>
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {addingTwist && (
-            <form
-              className="play-add"
-              onSubmit={(e) => {
-                e.preventDefault()
-                change((p, c) => addTwist(p, { kind: twistKind, text: twistText }, c))
-                setTwistText('')
-                setAddingTwist(false)
-              }}
-            >
-              <label className="field" htmlFor={`${formId}-twist-kind`}>
-                <span>Kind</span>
-                <select id={`${formId}-twist-kind`} value={twistKind} onChange={(e) => setTwistKind(e.target.value as 'minor' | 'major')}>
-                  <option value="minor">Minor</option>
-                  <option value="major">Major</option>
-                </select>
-              </label>
-              <label className="field" htmlFor={`${formId}-twist-text`}>
-                <span>Twist</span>
-                <input id={`${formId}-twist-text`} type="text" value={twistText} onChange={(e) => setTwistText(e.target.value)} />
-              </label>
-              <button type="submit" className="button" disabled={!twistText.trim()}>
-                Add
-              </button>
-            </form>
-          )}
-        </Card>
-
-        {makesMinions && (
-          <Card title="Your minions">
-            <MinionList
-              minions={play.minions ?? []}
-              forms={sheet.minionForms}
-              onAdd={(m) => change((p, c) => addMinion(p, m, c))}
-              onRemove={(mid) => change((p, c) => removeMinion(p, mid, c))}
-              onShrink={(mid) => change((p, c) => shrinkMinion(p, mid, c))}
-              onAddMod={(mid, mod) => change((p, c) => addMinionMod(p, mid, mod, c))}
-              onRemoveMod={(mid, modId) => change((p, c) => removeMinionMod(p, mid, modId, c))}
-              onUse={(mid, roll) => change((p, c) => recordMinionRoll(p, mid, roll, c))}
-              random={random}
-            />
-          </Card>
         )}
+        <div className="status-die-line">
+          {die && <DieIcon die={die} />}
+          <div>
+            <p className="status-die-line__what">Status die: {zone === 'out' ? 'none' : PLAY_ZONE_LABEL[zone ?? 'green']}</p>
+            <p className="play-card__note">{zone === 'out' ? "You're Out: only your Out ability is available." : `You: ${PLAY_ZONE_LABEL[own ?? 'green']} · Scene: ${ZONE_LABEL[scene]}. The more severe one sets your status die and abilities.`}</p>
+          </div>
+        </div>
+      </Card>
 
-        <Card title="Game">
-          <PlayerPanel
-            heroId={id}
-            player={session.player}
-            snapshot={snapshot}
-            hosting={Boolean(session.gm)}
-            onLeave={session.leave}
-            lastRoom={session.lastGame?.room}
-            onRejoin={() => session.lastGame && session.join({ ...session.lastGame, heroId: id, sharedUpTo: play.history.at(-1)?.id })}
-          />
-        </Card>
-      </div>
-
-      <div className="play-actions" role="region" aria-label="Actions">
-        <Card title="Basic actions" aside={<span className="play-card__note">Pick any power and quality</span>}>
-          <div className="basic-actions">
-            {BASIC_ACTIONS.map((action) => {
-              const why = basicActionBlocked(action, ctx)
+      {forms.length > 0 && form && (
+        <Card title={noun === 'mode' ? 'Mode' : 'Form'}>
+          <p className="form-current">
+            <strong>{form.name}</strong>
+            {!form.powerless && <span className={`zone-chip zone-${form.zone}`}>{ZONE_LABEL[form.zone]}</span>}
+          </p>
+          {/* Any option, any time; the app never blocks a change. */}
+          <div className="form-options" role="radiogroup" aria-label={noun === 'mode' ? 'Modes' : 'Forms'}>
+            {forms.map((f) => {
+              const note = formZoneNote(f, zone)
               return (
-                <button key={action} type="button" className="button" disabled={Boolean(why)} aria-describedby={why ? `${formId}-why-${whyIds.indexOf(why)}` : undefined} onClick={() => setRolling({ kind: 'basic', action })}>
-                  <ActionIcon action={action} decorative />
-                  {ACTION_LABEL[action]}
-                </button>
+                <label key={f.key ?? ''} className="form-option">
+                  <input type="radio" name={`${formId}-form`} checked={f.key === form.key} onChange={() => change((p, c) => setForm(p, f.key, f.name, c))} />
+                  <span className="form-option__name">{f.name}</span>
+                  {!f.powerless && <span className={`zone-chip zone-${f.zone}`}>{ZONE_LABEL[f.zone]}</span>}
+                  {note && <span className="form-option__note">{note}</span>}
+                </label>
               )
             })}
           </div>
-          {whyIds.map((why, i) => (
-            <p key={why} id={`${formId}-why-${i}`} className="play-card__note">
-              {why}
-            </p>
-          ))}
+          <FormChanges form={form} base={forms[0]!.traits} noun={noun} />
+          {lockNotice && <p className="form-notice">{lockNotice}</p>}
         </Card>
+      )}
 
-        {(['green', 'yellow', 'red', 'out'] as const).map((z) => {
-          const list = abilities.filter((a) => a.from === z)
-          if (!list.length) return null
-          return (
-            <section key={z} className={`sheet-band sheet-band--${z}`} aria-label={z === 'out' ? 'Out ability' : `${ZONE_LABEL[z]} abilities`}>
-              <h4 className={`sheet-band__head${z === 'out' ? '' : ` zone-${z}`}`}>
-                <span>{z === 'out' ? 'OUT' : ZONE_LABEL[z].toUpperCase()}</span>
-                {z === 'out' && <span className="sheet-band__note">When your Health reaches 0</span>}
-              </h4>
-              <ul className="play-rows">
-                {list.map((a) => (
-                  <AbilityRowPlay key={a.key} ability={a} reactionUsed={play.reactionUsed} onUse={() => setRolling({ kind: 'ability', name: a.name, text: a.text, use: a.use, reaction: a.type === 'R' })} />
-                ))}
-              </ul>
-            </section>
-          )
-        })}
+      {divided && (
+        <Card title="Divided form">
+          <div className="segmented segmented--fill" role="group" aria-label="Divided form">
+            {(['civilian', 'heroic'] as const).map((f) => (
+              <button key={f} type="button" aria-pressed={divided === f} onClick={() => divided !== f && change((p, c) => setDividedForm(p, f, c))}>
+                {f === 'civilian' ? 'Civilian' : 'Heroic'}
+              </button>
+            ))}
+          </div>
+          {transition && <p className="play-card__note form-transition">{transition}</p>}
+          {sheet.divided?.heroicPersonality && (
+            <p className="form-personality">
+              {divided === 'heroic' ? sheet.divided.heroicPersonality : sheet.characteristics.personality}
+              {dice.statusDice && <StatusDiceInline dice={dice.statusDice} />}
+            </p>
+          )}
+          {dice.slots[0] === dice.slots[1] ? (
+            <p className="hint">Divided Psyche: you roll two {dice.slots[0] === 'power' ? 'powers' : 'qualities'} with your status die.</p>
+          ) : (
+            missingHere.length > 0 && <p className="play-card__note">Not in this form: {missingHere.map((t) => t.name).join(', ')}</p>
+          )}
+        </Card>
+      )}
 
-        <History history={play.history} now={tick} />
-      </div>
+      <Card title="Dice" aside={<a href={heroPath(id)}>Full sheet</a>}>
+        <div className="play-dice">
+          {(
+            [
+              ['Powers', dice.powers],
+              ['Qualities', dice.qualities],
+            ] as const
+          ).map(([label, list]) => (
+            <div key={label}>
+              <p className="label">{label}</p>
+              {list.length === 0 ? (
+                <p className="sheet-empty">None</p>
+              ) : (
+                <ul aria-label={label}>
+                  {list.map((t) => {
+                    // A die the form or mode changed is marked, with what it was.
+                    const was = form?.key ? forms[0]!.traits.find((b) => b.trait.kind === t.trait.kind && b.trait.id === t.trait.id)?.die : undefined
+                    return (
+                      <li key={`${t.trait.kind}:${t.trait.id}`} className={was && was !== t.die ? 'play-dice__changed' : undefined}>
+                        <span>
+                          {t.name}
+                          {was && was !== t.die && <span className="visually-hidden"> (was {was})</span>}
+                          {!was && form?.key && (
+                            <>
+                              {' '}
+                              <span className="play-dice__tag">added</span>
+                            </>
+                          )}
+                        </span>
+                        <DieIcon die={t.die} size="compact" />
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      </Card>
 
+      <Card title="Hero points" className="play-card--points">
+        <div className="play-points">
+          <button type="button" className="button" aria-label="Spend a hero point" disabled={play.heroPoints <= 0} onClick={() => change((p, c) => setHeroPoints(p, p.heroPoints - 1, c))}>
+            −
+          </button>
+          <strong aria-live="polite" aria-label={`${play.heroPoints} of ${MAX_HERO_POINTS} hero points`}>
+            {play.heroPoints}
+          </strong>
+          <button type="button" className="button" aria-label="Gain a hero point" disabled={play.heroPoints >= MAX_HERO_POINTS} onClick={() => change((p, c) => setHeroPoints(p, p.heroPoints + 1, c))}>
+            +
+          </button>
+        </div>
+        <label className="checkbox play-reaction">
+          <input type="checkbox" checked={play.reactionUsed} onChange={(e) => change((p, c) => setReactionUsed(p, e.target.checked, c))} />
+          Reaction used this round
+        </label>
+      </Card>
+
+      <Card
+        title="Bonuses and penalties"
+        aside={
+          <button type="button" className="button button--small" aria-expanded={addingMod} onClick={() => setAddingMod(!addingMod)}>
+            {addingMod ? 'Close' : '+ Add'}
+          </button>
+        }
+      >
+        {play.mods.length === 0 ? (
+          <p className="sheet-empty">None.</p>
+        ) : (
+          <ul className="play-list">
+            {play.mods.map((m) => (
+              <li key={m.id}>
+                <ModBadge value={m.value} />
+                <span className="play-list__text">{modName(m)}</span>
+                {m.persistent && <span className="tag">Persistent</span>}
+                {m.exclusive && <span className="tag">Exclusive</span>}
+                <button type="button" className="button button--small" aria-label={`Remove ${describeMod(m)}`} onClick={() => change((p, c) => removeMod(p, m.id, c))}>
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {addingMod && <ModForm targets={targets} onSubmit={(mod, to) => giveOrAdd(mod, to) && setAddingMod(false)} />}
+      </Card>
+
+      <Card
+        title="Twists"
+        aside={
+          <button type="button" className="button button--small" aria-expanded={addingTwist} onClick={() => setAddingTwist(!addingTwist)}>
+            {addingTwist ? 'Close' : '+ Add'}
+          </button>
+        }
+      >
+        {play.twists.length === 0 ? (
+          <p className="sheet-empty">None.</p>
+        ) : (
+          <ul className="play-list">
+            {play.twists.map((t) => (
+              <li key={t.id}>
+                <span className="tag">{t.kind === 'minor' ? 'Minor' : 'Major'}</span>
+                <span className="play-list__text">{t.text}</span>
+                <button type="button" className="button button--small" aria-label={`Resolve the ${t.kind} twist: ${t.text}`} onClick={() => change((p, c) => removeTwist(p, t.id, c))}>
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {addingTwist && (
+          <form
+            className="play-add"
+            onSubmit={(e) => {
+              e.preventDefault()
+              change((p, c) => addTwist(p, { kind: twistKind, text: twistText }, c))
+              setTwistText('')
+              setAddingTwist(false)
+            }}
+          >
+            <label className="field" htmlFor={`${formId}-twist-kind`}>
+              <span>Kind</span>
+              <select id={`${formId}-twist-kind`} value={twistKind} onChange={(e) => setTwistKind(e.target.value as 'minor' | 'major')}>
+                <option value="minor">Minor</option>
+                <option value="major">Major</option>
+              </select>
+            </label>
+            <label className="field" htmlFor={`${formId}-twist-text`}>
+              <span>Twist</span>
+              <input id={`${formId}-twist-text`} type="text" value={twistText} onChange={(e) => setTwistText(e.target.value)} />
+            </label>
+            <button type="submit" className="button" disabled={!twistText.trim()}>
+              Add
+            </button>
+          </form>
+        )}
+      </Card>
+
+      {makesMinions && (
+        <Card title="Your minions">
+          <MinionList
+            minions={play.minions ?? []}
+            forms={sheet.minionForms}
+            onAdd={(m) => change((p, c) => addMinion(p, m, c))}
+            onRemove={(mid) => change((p, c) => removeMinion(p, mid, c))}
+            onShrink={(mid) => change((p, c) => shrinkMinion(p, mid, c))}
+            onAddMod={(mid, mod) => change((p, c) => addMinionMod(p, mid, mod, c))}
+            onRemoveMod={(mid, modId) => change((p, c) => removeMinionMod(p, mid, modId, c))}
+            onUse={(mid, roll) => change((p, c) => recordMinionRoll(p, mid, roll, c))}
+            random={random}
+          />
+        </Card>
+      )}
+
+      <Card title="Game">
+        <PlayerPanel
+          heroId={id}
+          player={session.player}
+          snapshot={snapshot}
+          hosting={Boolean(session.gm)}
+          onLeave={session.leave}
+          lastRoom={session.lastGame?.room}
+          onRejoin={() => session.lastGame && session.join({ ...session.lastGame, heroId: id, sharedUpTo: play.history.at(-1)?.id })}
+        />
+      </Card>
+    </>
+  )
+  const actionCards = (
+    <>
+      <Card title="Basic actions" aside={<span className="play-card__note">Pick any power and quality</span>}>
+        <div className="basic-actions">
+          {BASIC_ACTIONS.map((action) => {
+            const why = basicActionBlocked(action, ctx)
+            return (
+              <button key={action} type="button" className="button" disabled={Boolean(why)} aria-describedby={why ? `${formId}-why-${whyIds.indexOf(why)}` : undefined} onClick={() => setRolling({ kind: 'basic', action })}>
+                <ActionIcon action={action} decorative />
+                {ACTION_LABEL[action]}
+              </button>
+            )
+          })}
+        </div>
+        {whyIds.map((why, i) => (
+          <p key={why} id={`${formId}-why-${i}`} className="play-card__note">
+            {why}
+          </p>
+        ))}
+      </Card>
+
+      {(['green', 'yellow', 'red', 'out'] as const).map((z) => {
+        const list = abilities.filter((a) => a.from === z)
+        if (!list.length) return null
+        return (
+          <section key={z} className={`sheet-band sheet-band--${z}`} aria-label={z === 'out' ? 'Out ability' : `${ZONE_LABEL[z]} abilities`}>
+            <h4 className={`sheet-band__head${z === 'out' ? '' : ` zone-${z}`}`}>
+              <span>{z === 'out' ? 'OUT' : ZONE_LABEL[z].toUpperCase()}</span>
+              {z === 'out' && <span className="sheet-band__note">When your Health reaches 0</span>}
+            </h4>
+            <ul className="play-rows">
+              {list.map((a) => (
+                <AbilityRowPlay key={a.key} ability={a} reactionUsed={play.reactionUsed} compact={phone} onUse={() => setRolling({ kind: 'ability', name: a.name, text: a.text, use: a.use, reaction: a.type === 'R' })} />
+              ))}
+            </ul>
+          </section>
+        )
+      })}
+    </>
+  )
+  const historyCard = <History history={play.history} now={tick} />
+  const overlays = (
+    <>
       {rolling && (
         <RollDialog
           subject={rolling}
@@ -651,10 +699,12 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
           onConfirm={(record, followUps, formChoice, made = []) => {
             // Mods for other heroes go out first; one whose hero has left can't. A mod for one of the
             // hero's own minions goes on it.
-            const gifts = followUps.filter((f) => f.to && !f.to.startsWith(MINION_TARGET)).map((f) => {
-              const target = targets.find((t) => t.id === f.to)
-              return { ...f, name: target?.name ?? 'a hero who left', ok: Boolean(target && player?.giveMod(target.id, f.mod)) }
-            })
+            const gifts = followUps
+              .filter((f) => f.to && !f.to.startsWith(MINION_TARGET))
+              .map((f) => {
+                const target = targets.find((t) => t.id === f.to)
+                return { ...f, name: target?.name ?? 'a hero who left', ok: Boolean(target && player?.giveMod(target.id, f.mod)) }
+              })
             let undo: RollChange | undefined
             let formBefore: Pick<PlayState, 'form' | 'dividedForm'> = {}
             change((p, c) => {
@@ -707,6 +757,99 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
         />
       )}
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+    </>
+  )
+
+  // The overlays sit after either layout, in the same place, so crossing 760px (a phone turned
+  // sideways) keeps an open roll or toast rather than rebuilding it.
+  const layout = phone ? (
+    <div className="play-phone">
+      <div className="play-topbar" role="region" aria-label="At a glance">
+        <div className="play-topbar__row">
+          <div>
+            <p className="play-topbar__name">{heroDisplayName(hero)}</p>
+            {health !== undefined && (
+              <p className="play-topbar__health">
+                <strong>{health}</strong> <span>/ {sheet.maxHealth}</span>
+                {own && <span className={own === 'out' ? 'zone-chip zone-out' : `zone-chip zone-${own}`}>{PLAY_ZONE_LABEL[own]}</span>}
+              </p>
+            )}
+          </div>
+          <div className="play-topbar__stat">
+            {die ? <DieIcon die={die} /> : <span>—</span>}
+            <span>Status</span>
+          </div>
+          <div className="play-topbar__stat">
+            <strong>{play.heroPoints}</strong>
+            <span>Hero pts</span>
+          </div>
+        </div>
+        <div className="play-topbar__row">
+          {health !== undefined && (
+            <>
+              <button type="button" className="button button--small" aria-label="Lose 1 Health" onClick={() => changeHealth(-1)}>
+                −1
+              </button>
+              <button type="button" className="button button--small" aria-label="Gain 1 Health" onClick={() => changeHealth(1)}>
+                +1
+              </button>
+            </>
+          )}
+          <span className="play-topbar__scene">
+            Scene {ZONE_LABEL[scene]}
+            {own && ` · you ${PLAY_ZONE_LABEL[own]}`}
+          </span>
+        </div>
+      </div>
+      <div
+        className="play-tabs"
+        role="tablist"
+        aria-label="Play"
+        onKeyDown={(e) => {
+          // Left and Right move between the tabs (Home and End to the ends), as tabs do.
+          const at = PHONE_TABS.findIndex(([v]) => v === tab)
+          const next = e.key === 'ArrowRight' ? (at + 1) % PHONE_TABS.length : e.key === 'ArrowLeft' ? (at + PHONE_TABS.length - 1) % PHONE_TABS.length : e.key === 'Home' ? 0 : e.key === 'End' ? PHONE_TABS.length - 1 : -1
+          if (next < 0) return
+          e.preventDefault()
+          setTab(PHONE_TABS[next]![0])
+          document.getElementById(`${formId}-tab-${PHONE_TABS[next]![0]}`)?.focus()
+        }}
+      >
+        {PHONE_TABS.map(([value, label]) => (
+          <button key={value} type="button" role="tab" id={`${formId}-tab-${value}`} aria-controls={`${formId}-panel`} aria-selected={tab === value} tabIndex={tab === value ? 0 : -1} onClick={() => setTab(value)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="play-panel" id={`${formId}-panel`} role="tabpanel" aria-labelledby={`${formId}-tab-${tab}`}>
+        {tab === 'actions' ? (
+          <div className="play-actions" role="region" aria-label="Actions">
+            {actionCards}
+          </div>
+        ) : tab === 'status' ? (
+          <div className="play-status" role="region" aria-label="Status">
+            {statusCards}
+          </div>
+        ) : (
+          historyCard
+        )}
+      </div>
     </div>
+  ) : (
+    <div className="play-layout">
+      <div className="play-status" role="region" aria-label="Status">
+        {statusCards}
+      </div>
+      <div className="play-actions" role="region" aria-label="Actions">
+        {actionCards}
+        {historyCard}
+      </div>
+    </div>
+  )
+  return (
+    <>
+      {layout}
+      {overlays}
+    </>
   )
 }

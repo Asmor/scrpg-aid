@@ -3079,7 +3079,7 @@ a.button--primary {
   }
 }
 
-/* Phones get their own layout later; until then the columns stack. */
+/* Without matchMedia (very old browsers) the wide layout is used; under 760px its columns stack. */
 @media (max-width: 47.4375rem) {
   .play-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -3561,6 +3561,128 @@ span.status-chips > span {
   font-size: 1.5rem;
 }
 
+/* Play on a phone: a sticky top bar, three tabs, compact ability rows. */
+.play-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0.5rem calc(-1 * var(--space)) 0;
+  padding: 0.5rem var(--space);
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-surface);
+}
+
+.play-topbar__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.play-topbar__row + .play-topbar__row {
+  margin-top: 0.375rem;
+}
+
+.play-topbar__name {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ui-muted);
+}
+
+.play-topbar__health {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  margin: 0;
+  color: var(--ui-muted);
+}
+
+.play-topbar__health strong {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--ui-text);
+}
+
+.play-topbar__stat {
+  display: grid;
+  justify-items: center;
+  font-size: 0.75rem;
+  color: var(--ui-muted);
+}
+
+/* The name and Health take the room; the status die and hero points sit at the right. */
+.play-topbar__row:first-child > div:first-child {
+  flex: 1;
+}
+
+.play-topbar__stat strong {
+  font-size: 1.25rem;
+  color: var(--ui-text);
+}
+
+.play-topbar__scene {
+  flex: 1;
+  font-size: 0.8125rem;
+  color: var(--ui-muted);
+  text-align: right;
+}
+
+.play-tabs {
+  display: flex;
+  margin: 0.5rem 0;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.play-tabs button {
+  flex: 1;
+  min-height: 2.75rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--ui-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.play-tabs button[aria-selected='true'] {
+  border-bottom-color: var(--ui-accent);
+  color: var(--ui-text);
+  font-weight: 600;
+}
+
+.play-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.play-phone .basic-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.play-row__toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* On a phone the roll fills the screen, and each step's buttons stay in reach. */
+@media (max-width: 47.4375rem) {
+  .roll-dialog > .button-row:last-child,
+  .roll-dialog .manual-roll > .button-row {
+    position: sticky;
+    bottom: 0;
+    margin: 0 calc(-1 * var(--space)) calc(-1 * var(--space));
+    padding: 0.625rem var(--space);
+    border-top: 1px solid var(--ui-border);
+    background: var(--ui-surface);
+  }
+}
+
 /* The roll (docs/design/hero-sheet/spec.md, "Roll flow"): a 560px dialog, full screen on a phone. */
 .dialog-backdrop:has(.roll-dialog) {
   align-items: center;
@@ -3579,10 +3701,15 @@ span.status-chips > span {
     padding: 0;
   }
 
+  /* The dialog is its own scroll container, so the step's buttons can stick to its foot. */
+  .dialog-backdrop:has(.roll-dialog) {
+    align-items: stretch;
+  }
+
   .roll-dialog {
     width: 100%;
-    max-height: none;
-    min-height: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
     border-radius: 0;
   }
 }
