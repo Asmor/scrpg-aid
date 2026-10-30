@@ -21,7 +21,7 @@
  * reaction is noted, not enforced (the user's decision).
  */
 import { traitKey, type TraitRef } from '../rules/catalog'
-import { takesDividedPsyche, withoutOtherForm } from '../creation/divided'
+import { takesDividedPsyche, traitsInForm, withoutOtherForm } from '../creation/divided'
 import type { AbilityUse, HeroSheet, SheetFormAbility } from '../creation/sheet'
 import type { HeroTrait } from '../creation/traits'
 import type { Hero, PlayState } from '../hero/model'
@@ -248,4 +248,39 @@ export function playAbilities(hero: Hero, sheet: HeroSheet, play: PlayState, zon
     ...(sheet.outAbility && sheet.outUse ? [{ key: 'out', name: 'Out ability', type: 'A' as const, text: sheet.outAbility, effects: sheet.outEffects, use: sheet.outUse, from: 'out' as const }] : []),
   ]
   return list.map(({ principle, only, ...a }) => ({ ...a, ...availability({ ...a, principle, only }, ctx) }))
+}
+
+/**
+ * Whether using an ability changes the hero's form or mode (Switch, Quick Switch, Change Forms,
+ * Surprise Shift, Form Recovery, the Emergency ones, Divided's Transform and the like), going
+ * by its text, so the roll's Resolve step offers the picker. The app never forces the change.
+ */
+export function changesForm(text: string): boolean {
+  return /\b(change|switch)(es)? (modes?|forms?)\b|\b(change|switch) to any\b|\bchange from your civilian form\b|\breturn to your base form\b/i.test(text)
+}
+
+const ZONE_ORDER: readonly PlayZone[] = ['green', 'yellow', 'red', 'out']
+
+/** "Normally needs Yellow": a form or mode whose zone is more severe than the hero's (still selectable). */
+export function formZoneNote(form: Pick<PlayForm, 'zone' | 'powerless'>, zone: PlayZone | undefined): string | undefined {
+  if (form.powerless || formAvailable(form, zone)) return undefined
+  return `Normally needs ${ZONE_NAME[form.zone]}`
+}
+
+/**
+ * When the hero's zone has become less severe than the form or mode they're in (healed from
+ * Yellow to Green in a Yellow mode): they stay in it with its dice and ability, but the zone's
+ * other abilities lock.
+ */
+export function zoneLockNotice(form: PlayForm | undefined, zone: PlayZone | undefined): string | undefined {
+  if (!form?.key || form.powerless || form.zone === 'green' || zone === 'out') return undefined
+  if (ZONE_ORDER.indexOf(zone ?? 'green') >= ZONE_ORDER.indexOf(form.zone)) return undefined
+  return `You're in the ${ZONE_NAME[(zone ?? 'green') as Zone]} zone: ${form.name} keeps its dice and its own ability, but your other ${ZONE_NAME[form.zone]} abilities are locked.`
+}
+
+/** The powers and qualities the other Divided form has that this one doesn't ("Not in this form"). */
+export function notInDividedForm(hero: Hero, sheet: HeroSheet, form: 'civilian' | 'heroic'): HeroTrait[] {
+  const base = [...sheet.powers, ...sheet.qualities]
+  const mine = new Set(traitsInForm(hero, base, form).map((t) => traitKey(t.trait)))
+  return [...traitsInForm(hero, base, form === 'civilian' ? 'heroic' : 'civilian')].filter((t) => !mine.has(traitKey(t.trait)))
 }

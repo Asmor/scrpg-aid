@@ -120,10 +120,10 @@ export function setDividedForm(play: PlayState, form: 'civilian' | 'heroic', clo
   return withEntry(form === 'heroic' ? { ...rest, dividedForm: 'heroic' } : rest, entry(clock, `Changed to ${form} form.`))
 }
 
-/** "+2 high ground" or "-3 tied up", with its kind: "'-3 tied up' penalty (persistent)". */
 /** A mod's name, or "Bonus"/"Penalty" for one without (older saves allowed an empty name). */
 export const modName = (m: Pick<PlayMod, 'label' | 'value'>) => m.label.trim() || (m.value > 0 ? 'Bonus' : 'Penalty')
 
+/** "+2 high ground" or "-3 tied up", with its kind: "'-3 tied up' penalty (persistent)". */
 export function describeMod(mod: Pick<PlayMod, 'label' | 'value' | 'persistent' | 'exclusive'>): string {
   const sign = mod.value > 0 ? `+${mod.value}` : `${mod.value}`
   const label = mod.label.trim()

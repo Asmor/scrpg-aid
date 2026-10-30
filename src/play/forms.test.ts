@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildSheet } from '../creation/sheet'
 import type { Hero } from '../hero/model'
 import { A, completeHero, dividedHero, dividedSplitHero, formChangerHero, modularBlasterHero, modularHero, P, Q } from '../test/heroes'
-import { availabilityContext, basicActionBlocked, currentForm, defaultSlots, formAvailable, formDice, formNoun, playAbilities, playForms, traitChoices } from './forms'
+import { availabilityContext, basicActionBlocked, changesForm, formZoneNote, notInDividedForm, zoneLockNotice, currentForm, defaultSlots, formAvailable, formDice, formNoun, playAbilities, playForms, traitChoices } from './forms'
 import { emptyPlay } from './state'
 
 const dice = (hero: Hero, play = {}) => formDice(hero, buildSheet(hero), { ...emptyPlay(), ...play })
@@ -180,5 +180,49 @@ describe('ability availability (the spec’s table, first rule wins)', () => {
 
   it('turns off non-principle Inherent abilities in Powerless mode (ruling 60)', () => {
     expect(abilities(modularHero(), { form: 'powerless' })).toMatchObject({ Immunity: 'Only principle abilities in Powerless mode', 'Principle of Business': 'ok' })
+  })
+})
+
+describe('forms and modes in play (stage 7)', () => {
+  it('knows which abilities change form or mode, from their text', () => {
+    for (const text of [
+      'Boost yourself using [power/quality]. Then change modes.',
+      'Destroy one bonus on you. Change modes, then take an action in the new mode.',
+      'When you are hit with an Attack, you may change to any mode. If you do, take extra damage equal to the Min die or take a minor twist.',
+      'Take a basic action using [Self Control power], then switch to any available form.',
+      'Attack using [Self Control power] and use your Max die. Then change to any available form.',
+      'When hit with an Attack, change to any form before resolving the Attack. Take a minor twist.',
+      'Attack using [Self Control power] and Recover Health equal to your Min die. Return to your base form.',
+      'Change from your civilian form to your heroic form, or vice versa.',
+    ])
+      expect(changesForm(text)).toBe(true)
+    expect(changesForm('Attack using Fire. Hinder that same target using your Min die.')).toBe(false)
+    expect(changesForm('Boost all nearby allies with your Mid die.')).toBe(false)
+  })
+
+  it('notes a form that normally needs a worse zone, but not when Out or for Powerless mode', () => {
+    expect(formZoneNote({ zone: 'yellow', powerless: false }, 'green')).toBe('Normally needs Yellow')
+    expect(formZoneNote({ zone: 'red', powerless: false }, 'yellow')).toBe('Normally needs Red')
+    expect(formZoneNote({ zone: 'yellow', powerless: false }, 'red')).toBeUndefined()
+    expect(formZoneNote({ zone: 'red', powerless: false }, 'out')).toBeUndefined()
+    expect(formZoneNote({ zone: 'green', powerless: true }, 'green')).toBeUndefined()
+  })
+
+  it('says when a better zone leaves the hero in a worse zone’s mode', () => {
+    const sheet = buildSheet(modularBlasterHero())
+    const bombardment = playForms(sheet).find((f) => f.key === 'mode:2')!
+    expect(zoneLockNotice(bombardment, 'green')).toBe("You're in the Green zone: Bombardment Mode keeps its dice and its own ability, but your other Yellow abilities are locked.")
+    expect(zoneLockNotice(bombardment, 'yellow')).toBeUndefined()
+    expect(zoneLockNotice(bombardment, 'out')).toBeUndefined()
+    expect(zoneLockNotice(playForms(sheet)[0], 'green')).toBeUndefined()
+  })
+
+  it('lists what the other Divided form has that this one doesn’t', () => {
+    const hero = dividedSplitHero()
+    const sheet = buildSheet(hero)
+    expect(notInDividedForm(hero, sheet, 'civilian').map((t) => t.name)).toEqual(['Vitality', 'Agility'])
+    expect(notInDividedForm(hero, sheet, 'heroic').map((t) => t.name)).toEqual(['Acrobatics'])
+    // Divided Psyche (no Split Form): both forms have everything.
+    expect(notInDividedForm(dividedHero(), buildSheet(dividedHero()), 'civilian')).toEqual([])
   })
 })

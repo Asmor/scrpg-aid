@@ -13,16 +13,19 @@ import { buildSheet } from '../creation/sheet'
 import { modeLimits } from '../creation/format'
 import { ABILITY_TYPE_LABEL, PLAY_ZONE_LABEL, ZONE_LABEL } from '../hero/labels'
 import type { Hero, PlayHistoryEntry, PlayMod, PlayState } from '../hero/model'
-import type { BasicAction, Zone } from '../rules/types'
+import type { BasicAction, Die, Zone } from '../rules/types'
 import { usePlayerSnapshot, useSession } from '../session/context'
 import { memberName } from '../session/gm'
 import { heroSummary } from '../session/player'
 import { PlayerPanel } from '../session/PlayerPanel'
 import { villainTarget } from '../session/types'
-import { availabilityContext, basicActionBlocked, currentForm, dividedForm, formAvailable, formDice, formNoun, playAbilities, playForms, type PlayAbility } from './forms'
+import { availabilityContext, basicActionBlocked, changesForm, currentForm, dividedForm, formDice, formNoun, formZoneNote, notInDividedForm, playAbilities, playForms, zoneLockNotice, type PlayAbility, type PlayForm } from './forms'
+import { diceChanges, noChanges } from '../creation/dice-changes'
+import type { HeroTrait } from '../creation/traits'
+import { outerLayer } from '../creation/layers'
 import { ModForm, type ModTarget } from './ModForm'
 import { confirmRoll, rollChange, undoRoll, type RollChange } from './roll'
-import { RollDialog, type RollSubject } from './RollDialog'
+import { RollDialog, type FormPicker, type RollSubject } from './RollDialog'
 import { addMod, modName, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, MAX_HERO_POINTS, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
 import { formatFull, formatWhen } from './time'
 import { useTick } from './useTick'
@@ -76,6 +79,58 @@ function AbilityRowPlay({ ability: a, reactionUsed, onUse }: { ability: PlayAbil
         <AbilityText text={a.text} actions={a.effects} />
       </span>
     </li>
+  )
+}
+
+/** What the current form or mode changes, as on the Sheet card: dice changed and added, what's not in it, and its restriction. */
+function FormChanges({ form, base, noun }: { form: PlayForm; base: readonly HeroTrait[]; noun: 'form' | 'mode' }) {
+  const changes = diceChanges(base, form.traits)
+  const limit = form.powerless ? 'Only principle abilities can be used.' : modeLimits(form.cannot, form.immobile)
+  if (noChanges(changes) && !limit) return <p className="play-card__note">Uses your base dice.</p>
+  return (
+    <div className="form-changes">
+      {changes.changed.length + changes.added.length > 0 && (
+        <ul className="dice-changes" aria-label="Dice changes">
+          {changes.changed.map((c) => (
+            <li key={c.name}>
+              <span>{c.name}</span>
+              <DieIcon die={c.from} size="compact" />
+              <span role="img" aria-label="becomes">
+                →
+              </span>
+              <DieIcon die={c.to} size="compact" />
+            </li>
+          ))}
+          {changes.added.map((t) => (
+            <li key={`${t.trait.kind}:${t.trait.id}`}>
+              <span>{t.name}</span>
+              <DieIcon die={t.die} size="compact" />
+              <span className="tag tag--added">Added</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {changes.dropped.length > 0 && (
+        <p className="play-card__note">
+          Not in this {noun}: {changes.dropped.map((t) => t.name).join(', ')}
+        </p>
+      )}
+      {limit && <p className="form-limit">{limit}</p>}
+    </div>
+  )
+}
+
+/** The three status dice, small, in their zones' colors. */
+function StatusDiceInline({ dice }: { dice: Record<Zone, Die> }) {
+  return (
+    <span className="status-chips" aria-label="Status dice">
+      {ZONES.map((z) => (
+        <span key={z} className={`zone-${z}`}>
+          <span className="visually-hidden">{ZONE_LABEL[z]} </span>
+          <DieIcon die={dice[z]} size="compact" />
+        </span>
+      ))}
+    </span>
   )
 }
 
@@ -222,11 +277,23 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
   const die = statusDieFor(dice, zone)
   const noun = formNoun(forms)
   const ctx = availabilityContext(hero, sheet, play, zone)
+  // Divided's transition method, as a one-line reminder: "Controllable: You choose when to change, …".
+  const method = divided ? outerLayer(hero)?.archetype.transitionMethods?.find((m) => m.id === hero.archetype?.divided?.transitionMethod) : undefined
+  const transition = method && `${method.name.replace(/ Transition$/, '')}: ${method.summary}`
   const abilities = playAbilities(hero, sheet, play, zone)
   // Why basic actions can't be taken, each once (the buttons point to theirs).
   const whyIds = [...new Set(BASIC_ACTIONS.map((a) => basicActionBlocked(a, ctx)).filter((w): w is string => Boolean(w)))]
   const delta = Number(amount)
   const validAmount = amount.trim() !== '' && Number.isInteger(delta) && delta > 0
+  /** For an ability that changes form or mode: the choices for its Resolve step. */
+  const formPickerFor = (text: string): FormPicker | undefined => {
+    if (!changesForm(text)) return undefined
+    if (divided && /civilian form/i.test(text)) {
+      return { label: 'Change to', current: divided, options: [{ value: 'civilian', label: 'Civilian form' }, { value: 'heroic', label: 'Heroic form' }] }
+    }
+    if (!forms.length || !form) return undefined
+    return { label: `Change ${noun} to`, current: form.key ?? '', options: forms.map((f) => ({ value: f.key ?? '', label: f.name, ...(formZoneNote(f, zone) ? { note: formZoneNote(f, zone) } : {}) })) }
+  }
   const changeHealth = (by: number) => change((p, c) => setHealth(p, sheet, (currentHealth(sheet, p) ?? 0) + by, c))
   const ranges = sheet.healthRanges
 
@@ -306,43 +373,59 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
           </div>
         </Card>
 
-        {(forms.length > 0 || divided) && (
+        {forms.length > 0 && form && (
           <Card title={noun === 'mode' ? 'Mode' : 'Form'}>
-            {forms.length > 0 && (
-              <label className="field" htmlFor={`${formId}-form`}>
-                <span>{noun === 'mode' ? 'Current mode' : 'Current form'}</span>
-                <select
-                  id={`${formId}-form`}
-                  value={form?.key ?? ''}
-                  onChange={(e) => {
-                    const next = forms.find((f) => (f.key ?? '') === e.target.value)
-                    if (next) change((p, c) => setForm(p, next.key, next.name, c))
-                  }}
-                >
-                  {forms.map((f) => (
-                    <option key={f.key ?? ''} value={f.key ?? ''} disabled={f !== form && !formAvailable(f, zone)}>
-                      {f.name}
-                      {f.zone === 'yellow' ? ' (Yellow)' : f.zone === 'red' ? ' (Red)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {form && !formAvailable(form, zone) && <p className="hint">{form.zone === 'red' ? 'This needs the Red zone.' : 'This needs the Yellow or Red zone.'}</p>}
-            {divided && (
-              <fieldset className="play-scene">
-                <legend>Divided form</legend>
-                {(['civilian', 'heroic'] as const).map((f) => (
-                  <label key={f} className="checkbox">
-                    <input type="radio" name={`${formId}-divided`} checked={divided === f} onChange={() => change((p, c) => setDividedForm(p, f, c))} />
-                    {f === 'civilian' ? 'Civilian' : 'Heroic'}
+            <p className="form-current">
+              <strong>{form.name}</strong>
+              {!form.powerless && <span className={`zone-chip zone-${form.zone}`}>{ZONE_LABEL[form.zone]}</span>}
+            </p>
+            {/* Any option, any time; the app never blocks a change. */}
+            <div className="form-options" role="radiogroup" aria-label={noun === 'mode' ? 'Modes' : 'Forms'}>
+              {forms.map((f) => {
+                const note = formZoneNote(f, zone)
+                return (
+                  <label key={f.key ?? ''} className="form-option">
+                    <input type="radio" name={`${formId}-form`} checked={f.key === form.key} onChange={() => change((p, c) => setForm(p, f.key, f.name, c))} />
+                    <span className="form-option__name">{f.name}</span>
+                    {!f.powerless && <span className={`zone-chip zone-${f.zone}`}>{ZONE_LABEL[f.zone]}</span>}
+                    {note && <span className="form-option__note">{note}</span>}
                   </label>
-                ))}
-              </fieldset>
+                )
+              })}
+            </div>
+            <FormChanges form={form} base={forms[0]!.traits} noun={noun} />
+            {zoneLockNotice(form, zone) && <p className="form-notice">{zoneLockNotice(form, zone)}</p>}
+          </Card>
+        )}
+
+        {divided && (
+          <Card title="Divided form">
+            <div className="segmented segmented--fill" role="group" aria-label="Divided form">
+              {(['civilian', 'heroic'] as const).map((f) => (
+                <button key={f} type="button" aria-pressed={divided === f} onClick={() => divided !== f && change((p, c) => setDividedForm(p, f, c))}>
+                  {f === 'civilian' ? 'Civilian' : 'Heroic'}
+                </button>
+              ))}
+            </div>
+            {transition && <p className="play-card__note form-transition">{transition}</p>}
+            {sheet.divided?.heroicPersonality && (
+              <p className="form-personality">
+                {divided === 'heroic' ? sheet.divided.heroicPersonality : sheet.characteristics.personality}
+                {dice.statusDice && <StatusDiceInline dice={dice.statusDice} />}
+              </p>
             )}
-            {dice.slots[0] === dice.slots[1] && <p className="hint">Divided Psyche: you roll two {dice.slots[0] === 'power' ? 'powers' : 'qualities'} with your status die.</p>}
-            {form && (form.cannot.length > 0 || form.immobile) && <p>{modeLimits(form.cannot, form.immobile)}</p>}
-            {form?.powerless && <p>Only principle abilities can be used.</p>}
+            {dice.slots[0] === dice.slots[1] ? (
+              <p className="hint">Divided Psyche: you roll two {dice.slots[0] === 'power' ? 'powers' : 'qualities'} with your status die.</p>
+            ) : (
+              notInDividedForm(hero, sheet, divided).length > 0 && (
+                <p className="play-card__note">
+                  Not in this form:{' '}
+                  {notInDividedForm(hero, sheet, divided)
+                    .map((t) => t.name)
+                    .join(', ')}
+                </p>
+              )
+            )}
           </Card>
         )}
 
@@ -360,12 +443,20 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
                   <p className="sheet-empty">None</p>
                 ) : (
                   <ul aria-label={label}>
-                    {list.map((t) => (
-                      <li key={`${t.trait.kind}:${t.trait.id}`}>
-                        <span>{t.name}</span>
-                        <DieIcon die={t.die} size="compact" />
-                      </li>
-                    ))}
+                    {list.map((t) => {
+                      // A die the form or mode changed is marked, with what it was.
+                      const was = form?.key ? forms[0]!.traits.find((b) => b.trait.kind === t.trait.kind && b.trait.id === t.trait.id)?.die : undefined
+                      return (
+                        <li key={`${t.trait.kind}:${t.trait.id}`} className={was && was !== t.die ? 'play-dice__changed' : undefined}>
+                          <span>
+                            {t.name}
+                            {was && was !== t.die && <span className="visually-hidden"> (was {was})</span>}
+                            {!was && form?.key && <span className="play-dice__tag">added</span>}
+                          </span>
+                          <DieIcon die={t.die} size="compact" />
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
               </div>
@@ -531,15 +622,24 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
           zone={zone}
           mods={play.mods}
           onClose={() => setRolling(null)}
-          onConfirm={(record, followUps) => {
+          formPicker={rolling.kind === 'ability' ? formPickerFor(rolling.text) : undefined}
+          onConfirm={(record, followUps, formChoice) => {
             // Mods for other heroes go out first; one whose hero has left can't.
             const gifts = followUps.filter((f) => f.to).map((f) => {
               const target = targets.find((t) => t.id === f.to)
               return { ...f, name: target?.name ?? 'a hero who left', ok: Boolean(target && player?.giveMod(target.id, f.mod)) }
             })
             let undo: RollChange | undefined
+            let formBefore: Pick<PlayState, 'form' | 'dividedForm'> = {}
             change((p, c) => {
+              formBefore = { ...(p.form ? { form: p.form } : {}), ...(p.dividedForm ? { dividedForm: p.dividedForm } : {}) }
               let after = confirmRoll(p, record, c)
+              // The form or mode the ability changed to (the app never forces it).
+              if (formChoice === 'civilian' || formChoice === 'heroic') after = setDividedForm(after, formChoice, c)
+              else if (formChoice !== undefined) {
+                const next = forms.find((f) => (f.key ?? '') === formChoice)
+                if (next) after = setForm(after, next.key, next.name, c)
+              }
               if (rolling.kind === 'ability' && rolling.reaction) after = setReactionUsed(after, true, c)
               for (const f of followUps) if (!f.to) after = addMod(after, f.mod, c)
               for (const g of gifts) if (g.ok) after = noteGivenMod(after, g.mod, g.name, c)
@@ -559,7 +659,15 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
                 .filter(Boolean)
                 .join(' '),
               // Undo reverses just this roll; in a game the table saw it, so it notes the undo instead.
-              undo: () => undo && change((p, c) => undoRoll(p, undo!, player ? c : undefined)),
+              undo: () =>
+                undo &&
+                change((p, c) => {
+                  const undone = undoRoll(p, undo!, player ? c : undefined)
+                  if (formChoice === undefined) return undone
+                  // Back to the form or mode it was in.
+                  const { form: _form, dividedForm: _divided, ...rest } = undone
+                  return { ...rest, ...formBefore }
+                }),
             })
           }}
           targets={targets}

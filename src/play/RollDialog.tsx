@@ -12,7 +12,27 @@ import type { HeroTrait } from '../creation/traits'
 import type { PlayMod } from '../hero/model'
 import { checkManualResults, rollDice } from '../rules/rolling'
 import type { Action, BasicAction, Die, EffectUse } from '../rules/types'
-import { activePlans, chosenMods, defaultAssignment, defaultModChoice, defaultPlans, describeEffect, hasDoubles, modFlagsFor, modSize, poolDice, results, sortRolls, toggleMod, USE_LABEL, type EffectPlan, type EffectResult, type GivenValues, type RollRecord, type Rolled } from './roll'
+import {
+  activePlans,
+  chosenMods,
+  defaultAssignment,
+  defaultModChoice,
+  defaultPlans,
+  describeEffect,
+  hasDoubles,
+  modFlagsFor,
+  modSize,
+  poolDice,
+  results,
+  sortRolls,
+  toggleMod,
+  USE_LABEL,
+  type EffectPlan,
+  type EffectResult,
+  type GivenValues,
+  type RollRecord,
+  type Rolled,
+} from './roll'
 import { defaultSlots, traitChoices, type FormDice, type RollTrait } from './forms'
 import { GONE, type ModTarget } from './ModForm'
 import { describeMod, modName, type PlayZone } from './state'
@@ -26,6 +46,13 @@ export interface FollowUpMod {
   to?: string
 }
 
+/** The forms or modes a roll can change to: each choice's value, name and any note, and the current one. */
+export interface FormPicker {
+  label: string
+  options: readonly { value: string; label: string; note?: string }[]
+  current: string
+}
+
 const BASIC_ACTIONS: readonly BasicAction[] = ['attack', 'defend', 'boost', 'hinder', 'overcome']
 const KIND_LABEL = { power: 'Power', quality: 'Quality' } as const
 const ZONE_LABEL: Record<PlayZone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red', out: 'Out' }
@@ -37,8 +64,10 @@ interface RollDialogProps {
   dice: FormDice
   zone: PlayZone | undefined
   mods: readonly PlayMod[]
-  /** Done: the roll to record, and the follow-up mods to add or give. */
-  onConfirm: (record: RollRecord, followUps: readonly FollowUpMod[]) => void
+  /** Done: the roll to record, the follow-up mods to add or give, and the form or mode chosen, if it changed. */
+  onConfirm: (record: RollRecord, followUps: readonly FollowUpMod[], formChoice?: string) => void
+  /** For an ability that changes form or mode: the choices, offered in the Resolve step. */
+  formPicker?: FormPicker
   /** Other heroes in a game session a Boost's or Hinder's mod can go to. */
   targets?: readonly ModTarget[]
   /** What the status die is called in the roll; by default its zone's ("Green status"). A villain's is just "Status". */
@@ -74,7 +103,7 @@ function modMade(action: Action, total: number): string | undefined {
   return action === 'boost' ? `a +${size} bonus` : `a −${size} penalty`
 }
 
-export function RollDialog({ subject, dice, zone, mods, onConfirm, targets = [], statusLabel, onClose, random }: RollDialogProps) {
+export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, targets = [], statusLabel, onClose, random }: RollDialogProps) {
   const titleId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const use = subject.kind === 'ability' ? subject.use : undefined
@@ -123,6 +152,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, targets = [],
   const finalResults = rolled ? results(active, rolled, givenValues, chosen, assignment) : []
   const missingValue = finalResults.some((r) => r.total === undefined)
   const [followUps, setFollowUps] = useState<Record<number, FollowUpMod | undefined>>({})
+  const [formChoice, setFormChoice] = useState(formPicker?.current ?? '')
 
   // Focus moves into the dialog once when it opens, stays inside it while it's open (Tab
   // wraps around), and goes back where it was when it closes. Escape closes it.
@@ -177,6 +207,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, targets = [],
     onConfirm(
       { title: subject.kind === 'ability' ? `Used ability ${subject.name}:` : `Took a basic action (${ACTION_LABEL[basicAction]}):`, rolled, results: finalResults, manual: wasManual },
       Object.values(followUps).filter((f): f is FollowUpMod => Boolean(f)),
+      formPicker && formChoice !== formPicker.current ? formChoice : undefined,
     )
     onClose()
   }
@@ -203,6 +234,22 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, targets = [],
   )
 
   const noEffects = subject.kind === 'ability' && subject.use.effects.length === 0
+  // For an ability that changes form or mode: where to change to, applied on Done.
+  const picker = formPicker && (
+    <fieldset className="roll-section">
+      <legend>{formPicker.label}</legend>
+      {formPicker.options.map((o) => (
+        <label key={o.value} className="form-option">
+          <input type="radio" name={`${titleId}-form`} checked={formChoice === o.value} onChange={() => setFormChoice(o.value)} />
+          <span className="form-option__name">
+            {o.label}
+            {o.value === formPicker.current && ' (now)'}
+          </span>
+          {o.note && <span className="form-option__note">{o.note}</span>}
+        </label>
+      ))}
+    </fieldset>
+  )
 
   return (
     <div className="dialog-backdrop">
@@ -227,12 +274,13 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, targets = [],
         {noEffects ? (
           <>
             <p>This ability doesn’t roll anything.</p>
+            {picker}
             <div className="button-row">
               <button
                 type="button"
                 className="button button--primary"
                 onClick={() => {
-                  onConfirm({ title: `Used ability ${subject.name}.`, rolled: [], results: [], manual: false }, [])
+                  onConfirm({ title: `Used ability ${subject.name}.`, rolled: [], results: [], manual: false }, [], formPicker && formChoice !== formPicker.current ? formChoice : undefined)
                   onClose()
                 }}
               >
@@ -411,7 +459,20 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, targets = [],
                   </form>
                 ) : (
                   <div className="button-row">
-                    <button type="button" className="button button--primary" disabled={!ready} onClick={() => doRoll(rollDice(pool.map((d) => d.die as Die), random), false)}>
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      disabled={!ready}
+                      onClick={() =>
+                        doRoll(
+                          rollDice(
+                            pool.map((d) => d.die as Die),
+                            random,
+                          ),
+                          false,
+                        )
+                      }
+                    >
                       Roll
                     </button>
                     <button type="button" className="button" disabled={!ready} onClick={() => setManual(pool.map(() => ''))}>
@@ -443,9 +504,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, targets = [],
                   <p>No effects with this roll.</p>
                 ) : (
                   <>
-                    <p className="label">
-                      Effects{active.length > 1 && chosen.length > 0 && <span className="roll-mods__rule"> · drag mods between effects, or use each mod’s menu</span>}
-                    </p>
+                    <p className="label">Effects{active.length > 1 && chosen.length > 0 && <span className="roll-mods__rule"> · drag mods between effects, or use each mod’s menu</span>}</p>
                     {active.map((p, i) => {
                       const r = finalResults[i]!
                       return (
@@ -528,22 +587,12 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, targets = [],
                     </li>
                   ))}
                 </ul>
+                {picker}
                 {finalResults.map((r: EffectResult, i) => {
                   if ((r.action !== 'boost' && r.action !== 'hinder') || r.total === undefined || modSize(r.total) === 0) return null
                   const value = (r.action === 'boost' ? 1 : -1) * modSize(r.total)
                   const flags = subject.kind === 'ability' ? modFlagsFor(subject.text, active[i]!) : { persistent: false, exclusive: false }
-                  return (
-                    <ModOffer
-                      key={i}
-                      value={value}
-                      label={title}
-                      persistent={flags.persistent}
-                      exclusive={flags.exclusive}
-                      targets={targets}
-                      chosen={followUps[i]}
-                      onChange={(f) => setFollowUps((all) => ({ ...all, [i]: f }))}
-                    />
-                  )
+                  return <ModOffer key={i} value={value} label={title} persistent={flags.persistent} exclusive={flags.exclusive} targets={targets} chosen={followUps[i]} onChange={(f) => setFollowUps((all) => ({ ...all, [i]: f }))} />
                 })}
                 <div className="button-row">
                   <button type="button" className="button button--primary" onClick={done}>
@@ -605,11 +654,17 @@ function ModOffer({
     const recipient = chosen.to ? targets.find((t) => t.id === chosen.to) : undefined
     return (
       <div className="roll-section roll-followup" role="group" aria-label={`Add the ${what} to the mods list?`}>
-        <p>
-          {chosen.to ? `Will give ${describeMod(chosen.mod)} to ${recipient?.name ?? 'a hero who has left'} when done.` : `Will add ${describeMod(chosen.mod)} when done.`}
-        </p>
+        <p>{chosen.to ? `Will give ${describeMod(chosen.mod)} to ${recipient?.name ?? 'a hero who has left'} when done.` : `Will add ${describeMod(chosen.mod)} when done.`}</p>
         {chosen.to && !recipient && <p className="hint">That hero has left the game. Change who it’s for.</p>}
-        <button type="button" className="button button--small" onClick={() => onChange(undefined)}>
+        <button
+          type="button"
+          className="button button--small"
+          onClick={() => {
+            onChange(undefined)
+            // The button goes away; focus goes to the offer's first field rather than the page.
+            requestAnimationFrame(() => document.getElementById(targets.length ? `${id}-to` : id)?.focus())
+          }}
+        >
           Change
         </button>
       </div>
