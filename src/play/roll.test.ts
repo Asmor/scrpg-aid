@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PlayMod } from '../hero/model'
 import type { AbilityEffect } from '../rules/types'
 import { emptyPlay } from './state'
-import { activePlans, chosenMods, modFlagsFor, confirmRoll, defaultAssignment, defaultModChoice, defaultPlans, describeEffect, describeRolls, hasDoubles, modSize, overcomeOutcome, poolDice, results, sortRolls, useValue, type Rolled } from './roll'
+import { activePlans, chosenMods, modFlagsFor, confirmRoll, defaultAssignment, defaultModChoice, defaultPlans, toggleMod, rollChange, undoRoll, describeEffect, describeRolls, hasDoubles, modSize, overcomeOutcome, poolDice, results, sortRolls, useValue, type Rolled } from './roll'
 
 const r = (label: string, die: Rolled['die'], value: number): Rolled => ({ label, die, value })
 // Speed d12 rolls 7, Fitness d10 rolls 3, Green status d8 rolls 5.
@@ -44,16 +44,28 @@ describe('mods', () => {
     { id: 'xp2', label: 'blinded', value: -2, exclusive: true },
   ]
 
-  it('starts with penalties and persistent bonuses, and the largest exclusive of each', () => {
-    const choice = defaultModChoice(mods)
-    expect(choice).toEqual({ nonExclusive: ['p1', 'b2'], exclusiveBonus: 'xb2', exclusivePenalty: 'xp2' })
-    expect(chosenMods(mods, choice).map((m) => m.id)).toEqual(['p1', 'b2', 'xb2', 'xp2'])
-    expect(chosenMods(mods, { nonExclusive: [], exclusiveBonus: null, exclusivePenalty: null })).toEqual([])
+  it('starts with every penalty that isn’t exclusive, and the largest exclusive penalty; no bonuses', () => {
+    const checked = defaultModChoice(mods)
+    expect(checked).toEqual(['p1', 'xp2'])
+    expect(chosenMods(mods, checked).map((m) => m.id)).toEqual(['p1', 'xp2'])
+    expect(chosenMods(mods, [])).toEqual([])
   })
 
-  it('puts every mod on the largest effect to start with', () => {
-    expect(defaultAssignment(mods.slice(0, 2), [5, 7])).toEqual({ p1: 1, b1: 1 })
-    expect(defaultAssignment(mods.slice(0, 1), [undefined])).toEqual({ p1: 0 })
+  it('never has more than one exclusive bonus and one exclusive penalty checked', () => {
+    let checked = defaultModChoice(mods)
+    checked = toggleMod(mods, checked, 'xb1', true)
+    checked = toggleMod(mods, checked, 'xb2', true)
+    expect(checked).toEqual(['p1', 'xp2', 'xb2'])
+    // Checking the other exclusive penalty swaps it in; bonuses aren't touched.
+    checked = toggleMod(mods, checked, 'xp1', true)
+    expect(checked).toEqual(['p1', 'xb2', 'xp1'])
+    // Non-exclusive ones come and go freely.
+    expect(toggleMod(mods, checked, 'b1', true)).toEqual(['p1', 'xb2', 'xp1', 'b1'])
+    expect(toggleMod(mods, checked, 'p1', false)).toEqual(['xb2', 'xp1'])
+  })
+
+  it('puts every mod on the first effect to start with', () => {
+    expect(defaultAssignment(mods.slice(0, 2))).toEqual({ p1: 0, b1: 0 })
   })
 })
 
@@ -141,5 +153,60 @@ describe('modFlagsFor', () => {
     expect(modFlagsFor(text, { effect: either, use: 'mid' })).toEqual({ persistent: true, exclusive: true })
     expect(modFlagsFor('Boost yourself using [power]. That bonus is persistent and exclusive.', { effect: { actions: ['boost'], use: 'mid' }, use: 'mid' })).toEqual({ persistent: true, exclusive: true })
     expect(modFlagsFor('Boost using [power].', { effect: { actions: ['boost'], use: 'mid' }, use: 'mid' })).toEqual({ persistent: false, exclusive: false })
+  })
+})
+
+describe('a negative roll (ruling 61)', () => {
+  it('shows the roll but makes the effect 0', () => {
+    const r = (action: 'attack' | 'defend' | 'recover', total: number) => describeEffect({ action, use: 'min', base: 2, mods: [{ id: 'p', label: 'x', value: -3 }], total })
+    expect(r('attack', -1)).toBe('Deal 0 (Min, with -3, rolled -1) damage.')
+    expect(r('defend', -1)).toBe('Defend 0 (Min, with -3, rolled -1).')
+    expect(r('recover', -1)).toBe('Recover 0 (Min, with -3, rolled -1) Health.')
+    expect(r('attack', 0)).toBe('Deal 0 (Min, with -3) damage.')
+  })
+})
+
+describe('undoing a roll', () => {
+  const clock = (id = 'u1') => ({ now: new Date('2026-10-29T20:00:00Z'), newId: () => id })
+  const before = {
+    health: 20,
+    reactionUsed: false,
+    mods: [
+      { id: 'p', label: 'tied up', value: -3 },
+      { id: 'b', label: 'armor', value: 2, persistent: true as const },
+    ],
+    twists: [],
+    history: [{ id: 'old', at: '2026-10-29T19:00:00.000Z', text: 'Gained a hero point (now 1).' }],
+  }
+  const after = {
+    ...before,
+    reactionUsed: true,
+    mods: [before.mods[1]!, { id: 'f', label: 'rallied', value: 2 }],
+    history: [...before.history, { id: 'r1', at: '2026-10-29T19:59:00.000Z', text: 'Used ability X:', roll: true as const }, { id: 'r2', at: '2026-10-29T19:59:00.000Z', text: "Used up 'tied up'." }],
+  }
+  const change = rollChange(before, after, 'Used ability X:')
+
+  it('knows what the roll changed', () => {
+    expect(change).toEqual({ history: ['r1', 'r2'], added: ['f'], usedUp: [before.mods[0]], reaction: true, title: 'Used ability X:' })
+  })
+
+  it('reverses just that, keeping changes made since', () => {
+    // Since the roll: lost 5 Health and gained a mod.
+    const now = { ...after, health: 15, mods: [...after.mods, { id: 'n', label: 'new', value: 1 }], history: [...after.history, { id: 'h', at: '2026-10-29T19:59:30.000Z', text: 'Lost 5 HP (20 → 15).' }] }
+    const undone = undoRoll(now, change)
+    expect(undone.health).toBe(15)
+    expect(undone.reactionUsed).toBe(false)
+    expect(undone.mods.map((m) => m.id)).toEqual(['b', 'n', 'p'])
+    expect(undone.history.map((h) => h.id)).toEqual(['old', 'h'])
+  })
+
+  it('leaves the reaction on if the roll didn’t turn it on', () => {
+    expect(undoRoll({ ...after, reactionUsed: true }, { ...change, reaction: false }).reactionUsed).toBe(true)
+  })
+
+  it('in a game, keeps the shared history and notes the undo', () => {
+    const undone = undoRoll(after, change, clock())
+    expect(undone.history.map((h) => h.text)).toEqual(['Gained a hero point (now 1).', 'Used ability X:', "Used up 'tied up'.", 'Undid: Used ability X:'])
+    expect(undone.mods.map((m) => m.id)).toEqual(['b', 'p'])
   })
 })

@@ -6,6 +6,7 @@ import type { Hero } from '../hero/model'
 import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { dividedHero, formChangerHero, modularHero } from '../test/heroes'
 import { PlayPage } from '../components/HeroPage'
+import { readable } from '../test/readable'
 
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
@@ -99,6 +100,6 @@ describe('forms in play', () => {
     expect(dialog.getByRole('group', { name: 'Power' })).toHaveTextContent('Speed')
     expect(dialog.getByLabelText('Second power')).toHaveDisplayValue('Agility (d10)')
     await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
-    expect(dialog.getByRole('list', { name: 'Dice rolled' })).toHaveTextContent('Max: 12 (Speed d12)Mid: 10 (Agility d10)Min: 8 (Green status d8)')
+    expect(within(dialog.getByRole('list', { name: 'Dice rolled' })).getAllByRole('listitem').map(readable)).toEqual(['Max12d12Speed', 'Mid10d10Agility', 'Min8d8Green status'])
   })
 })

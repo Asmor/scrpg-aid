@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { VillainStoreContext } from '../app/villain-store-context'
 import { adaptiveBruiser } from '../test/villains'
+import { readable } from '../test/readable'
 import type { Villain } from './model'
 import { MemoryVillainStore } from './store'
 import { VillainPlayPage } from './VillainPlayPage'
@@ -89,7 +90,7 @@ describe('a villain in the game aid', () => {
     const dialog = within(screen.getByRole('dialog', { name: 'Lash Out' }))
     expect(dialog.getByRole('group', { name: 'Power' })).toHaveTextContent('Strength')
     await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
-    expect(dialog.getByRole('list', { name: 'Dice rolled' })).toHaveTextContent('Max: 10 (Technology d10)Mid: 8 (Strength d8)Min: 6 (Status d6)')
+    expect(within(dialog.getByRole('list', { name: 'Dice rolled' })).getAllByRole('listitem').map(readable)).toEqual(['Max10d10Technology', 'Mid8d8Strength', 'Min6d6Status'])
     await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
     await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
     await waitFor(async () => expect((await saved(store)).play?.history.at(-1)?.text).toBe('Used ability Lash Out:'))

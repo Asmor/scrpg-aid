@@ -3400,6 +3400,249 @@ a.button--primary {
   min-width: 3.5rem;
 }
 
+/* The roll (docs/design/hero-sheet/spec.md, "Roll flow"): a 560px dialog, full screen on a phone. */
+.dialog-backdrop:has(.roll-dialog) {
+  align-items: center;
+}
+
+.roll-dialog {
+  width: min(100%, 35rem);
+  max-height: calc(100vh - 2 * var(--space));
+  overflow-y: auto;
+  background: var(--ui-surface);
+  border-radius: 0.75rem;
+}
+
+@media (max-width: 47.4375rem) {
+  .dialog-backdrop:has(.roll-dialog) {
+    padding: 0;
+  }
+
+  .roll-dialog {
+    width: 100%;
+    max-height: none;
+    min-height: 100%;
+    border-radius: 0;
+  }
+}
+
+.roll-dialog__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.roll-dialog__head h3 {
+  margin: 0;
+  font-size: 1.625rem;
+}
+
+.roll-dialog__text {
+  margin: 0.25rem 0 0;
+  font-size: 0.9375rem;
+}
+
+.roll-steps {
+  display: flex;
+  gap: 0.375rem;
+  margin: 0.875rem 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+.roll-steps li {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: var(--ui-surface-2);
+  color: var(--ui-muted);
+  text-align: center;
+}
+
+.roll-steps li[aria-current='step'] {
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent);
+  font-weight: 600;
+}
+
+.roll-dice-picks {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.roll-pick {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.roll-pick[role='group'] {
+  grid-template-columns: 6rem minmax(0, 1fr) auto;
+}
+
+/* A slot's choice reads like the fixed rows: its label in the first column. */
+.roll-pick .field {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.roll-pick .field > span {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--ui-muted);
+}
+
+.roll-pick__label,
+.roll-pick__note {
+  font-size: 0.8125rem;
+  color: var(--ui-muted);
+}
+
+.roll-mods__rule {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ui-muted);
+}
+
+.roll-mod-check {
+  gap: 0.5rem;
+}
+
+.roll-dice-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.roll-dice-cards li {
+  display: grid;
+  justify-items: center;
+  gap: 0.125rem;
+  padding: 0.5rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.625rem;
+}
+
+.roll-dice-cards strong {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.roll-dice-cards__from {
+  font-size: 0.8125rem;
+  color: var(--ui-muted);
+  text-align: center;
+}
+
+.roll-effect-card {
+  margin-bottom: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.625rem;
+}
+
+/* An outline, not a thicker border, so nothing shifts while dragging. */
+.roll-effect-card--over {
+  outline: 2px dashed var(--ui-accent);
+  outline-offset: -1px;
+}
+
+.roll-effect-card__top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.roll-effect-card__uses {
+  font-size: 0.8125rem;
+  color: var(--ui-muted);
+}
+
+.roll-effect-card__total {
+  margin-left: auto;
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.roll-effect-card__made {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+}
+
+.roll-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roll-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  background: var(--ui-surface-2);
+  cursor: grab;
+}
+
+.roll-chip select {
+  font-size: 0.75rem;
+}
+
+.roll-chips__none {
+  font-size: 0.8125rem;
+  color: var(--ui-muted);
+}
+
+.roll-results {
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.roll-results li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: calc(100% - 2 * var(--space));
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.625rem;
+  background: var(--ui-text);
+  color: var(--ui-bg);
+  transform: translateX(-50%);
+  box-shadow: 0 6px 20px var(--ui-shadow);
+}
+
 /*
  * Printing (docs/design/hero-sheet/spec.md, "Printed PDF"): the Sheet page itself, always in
  * the light theme (../theme/tokens.css keeps dark to screens). Page 1 has the header,

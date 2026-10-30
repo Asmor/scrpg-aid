@@ -362,6 +362,12 @@ These came from questions the user put to the rules-expert agent about an action
 - **Decision:** Yes. In Powerless mode, Inherent abilities that aren't from a principle are off, like other non-principle abilities. Basic actions still work.
 - **Basis:** Interpretation (the user's ruling).
 
+### 61. A negative roll total
+- **Pages:** Mods (p. 22, 26–27).
+- **Question:** Penalties can take an effect's total (its die plus the mods on it) below 0. What happens then?
+- **Decision:** The roll's total can be negative, but its effect can't: a damage roll of −1 deals 0 damage, and the same goes for Defend and Recover. (A Boost or Hinder of 0 or less already makes no mod, and an Overcome of 0 or less is a spectacular failure.)
+- **Basis:** Interpretation (the user's ruling).
+
 ## Villains (p. 208–239)
 
 ### 57. Quality Upgrade's extra abilities and an approach's pattern

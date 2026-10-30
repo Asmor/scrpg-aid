@@ -382,13 +382,14 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
           mods={play.mods}
           statusLabel="Status"
           onClose={() => setRolling(null)}
-          onConfirm={(record) =>
+          onConfirm={(record, followUps) =>
             change((p, c) => {
               const after = confirmRoll(p, record, c)
-              return rolling.kind === 'ability' && rolling.reaction ? setReactionUsed(after, true, c) : after
+              // A villain's follow-up mods go on the villain (it gives none to others here).
+              const withMods = followUps.reduce((q, f) => addMod(q, f.mod, c), after)
+              return rolling.kind === 'ability' && rolling.reaction ? setReactionUsed(withMods, true, c) : withMods
             })
           }
-          onAddMod={(mod) => change((p, c) => addMod(p, mod, c))}
           random={random}
         />
       )}

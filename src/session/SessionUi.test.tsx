@@ -180,8 +180,18 @@ describe('mods between heroes', () => {
     const offer = within(dialog.getByRole('group', { name: /Add the \+\d bonus to the mods list\?/ }))
     await userEvent.selectOptions(offer.getByLabelText('For'), 'Bolt')
     await userEvent.click(offer.getByRole('button', { name: /^Give \+\d bonus to Bolt$/ }))
-    expect(offer.getByRole('button', { name: 'Given' })).toBeDisabled()
-    expect(ace.getByRole('region', { name: 'History' })).toHaveTextContent(/Gave '\+\d Area Alteration' bonus to Bolt\./)
+    expect(dialog.getByRole('group', { name: /Add the \+\d bonus to the mods list\?/ })).toHaveTextContent(/Will give '\+\d Area Alteration' bonus to Bolt when done\./)
+    // Given when the roll is done.
+    await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
+    const history = ace.getByRole('region', { name: 'History' })
+    expect(history).toHaveTextContent(/Gave '\+\d Area Alteration' bonus to Bolt\./)
+    // Undo can't take back a gift, and says so; in a game it notes the undo rather than erasing what the table saw.
+    // Ace's page is the first rendered; the toast is the status that names the roll.
+    const toast = screen.getAllByRole('status').find((el) => el.classList.contains('toast'))!
+    expect(toast).toHaveTextContent("Undo won't take back what you gave Bolt.")
+    await userEvent.click(within(toast).getByRole('button', { name: 'Undo' }))
+    expect(history).toHaveTextContent('Undid: Used ability Area Alteration:')
+    expect(history).toHaveTextContent(/Gave '\+\d Area Alteration' bonus to Bolt\./)
   })
 })
 

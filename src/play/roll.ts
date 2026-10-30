@@ -86,28 +86,28 @@ export function overcomeOutcome(value: number): string {
   return OUTCOMES[band(value)]!
 }
 
-/** Which mods a roll uses: non-exclusive ones by id, and at most one exclusive bonus and penalty. */
-export interface ModChoice {
-  nonExclusive: string[]
-  exclusiveBonus: string | null
-  exclusivePenalty: string | null
-}
-
 /**
- * The starting choice (GOAL.md): every non-exclusive penalty and persistent bonus checked,
- * and the largest exclusive bonus and penalty picked.
+ * The mods checked when a roll starts (docs/design/hero-sheet/spec.md, "Roll flow"; the user
+ * chose this over GOAL.md's older defaults): every non-exclusive penalty and the largest
+ * exclusive penalty. Bonuses start unchecked.
  */
-export function defaultModChoice(mods: readonly PlayMod[]): ModChoice {
-  const largest = (list: PlayMod[]) => list.reduce<PlayMod | undefined>((best, m) => (!best || Math.abs(m.value) > Math.abs(best.value) ? m : best), undefined)?.id ?? null
-  return {
-    nonExclusive: mods.filter((m) => !m.exclusive && (m.value < 0 || m.persistent)).map((m) => m.id),
-    exclusiveBonus: largest(mods.filter((m) => m.exclusive && m.value > 0)),
-    exclusivePenalty: largest(mods.filter((m) => m.exclusive && m.value < 0)),
-  }
+export function defaultModChoice(mods: readonly PlayMod[]): string[] {
+  const exclusive = mods.filter((m) => m.exclusive && m.value < 0).reduce<PlayMod | undefined>((worst, m) => (!worst || m.value < worst.value ? m : worst), undefined)
+  return mods.filter((m) => (m.value < 0 && !m.exclusive) || m === exclusive).map((m) => m.id)
 }
 
-export function chosenMods(mods: readonly PlayMod[], choice: ModChoice): PlayMod[] {
-  return mods.filter((m) => (m.exclusive ? m.id === choice.exclusiveBonus || m.id === choice.exclusivePenalty : choice.nonExclusive.includes(m.id)))
+/** Checks or unchecks a mod. Checking an exclusive one unchecks the other exclusive mod of the same sign (p. 26). */
+export function toggleMod(mods: readonly PlayMod[], checked: readonly string[], id: string, on: boolean): string[] {
+  const mod = mods.find((m) => m.id === id)
+  if (!mod) return [...checked]
+  if (!on) return checked.filter((x) => x !== id)
+  const rivals = mod.exclusive ? mods.filter((m) => m.exclusive && m.id !== id && Math.sign(m.value) === Math.sign(mod.value)).map((m) => m.id) : []
+  return [...checked.filter((x) => !rivals.includes(x) && x !== id), id]
+}
+
+/** The checked mods, in the list's order. */
+export function chosenMods(mods: readonly PlayMod[], checked: readonly string[]): PlayMod[] {
+  return mods.filter((m) => checked.includes(m.id))
 }
 
 /** An effect as the player resolves it: which of its actions and uses, and whether it's taken. */
@@ -139,16 +139,9 @@ export interface EffectResult {
   total: number | undefined
 }
 
-/**
- * The starting mod assignment (GOAL.md): with one effect every mod goes on it; with more,
- * on the effect with the largest value. Returns each mod's effect index.
- */
-export function defaultAssignment(mods: readonly PlayMod[], bases: readonly (number | undefined)[]): Record<string, number> {
-  let best = 0
-  bases.forEach((b, i) => {
-    if ((b ?? -Infinity) > (bases[best] ?? -Infinity)) best = i
-  })
-  return Object.fromEntries(mods.map((m) => [m.id, best]))
+/** The starting mod assignment (the hero sheet spec): every mod on the first effect. Returns each mod's effect index. */
+export function defaultAssignment(mods: readonly PlayMod[]): Record<string, number> {
+  return Object.fromEntries(mods.map((m) => [m.id, 0]))
 }
 
 export function results(plans: readonly EffectPlan[], rolled: readonly Rolled[], given: GivenValues, mods: readonly PlayMod[], assignment: Record<string, number>): EffectResult[] {
@@ -166,12 +159,18 @@ export function describeRolls(rolled: readonly Rolled[]): string[] {
   return (['max', 'mid', 'min'] as const).map((k) => `${USE_LABEL[k]}: ${sorted[k].value} (${sorted[k].label} ${sorted[k].die})`)
 }
 
+/** What an effect amounts to: its total, but never below 0 (ruling 61: a damage roll of −1 deals 0). */
+export function effectAmount(total: number): number {
+  return Math.max(0, total)
+}
+
 /** "Deal 7 (Max) damage.", "Boost 6 (Mid): a +2 bonus.", "Overcome 9 (Max): Full success." */
 export function describeEffect(r: EffectResult): string {
   const how = USE_LABEL[r.use]
   const modText = r.mods.length ? `, with ${r.mods.map((m) => (m.value > 0 ? `+${m.value}` : `${m.value}`)).join(' ')}` : ''
   if (r.total === undefined) return `${ACTION_LABEL[r.action]} (${how}): needs a value.`
-  const v = `${r.total} (${how}${modText})`
+  // A negative roll shows what it came to, but the effect is 0 (ruling 61).
+  const v = `${effectAmount(r.total)} (${how}${modText}${r.total < 0 ? `, rolled ${r.total}` : ''})`
   switch (r.action) {
     case 'attack':
       return `Deal ${v} damage.`
@@ -245,4 +244,46 @@ export function confirmRoll<P extends PlayCore>(play: P, record: RollRecord, clo
     mods: play.mods.filter((m) => !usedUp.some((u) => u.id === m.id)),
     history: [...play.history, ...entries.map(({ details: d, ...e }) => (d?.length ? { ...e, details: d } : e))],
   }
+}
+
+/** What a confirmed roll (and its follow-ups) changed on the roller, so Undo can reverse just that. */
+export interface RollChange {
+  /** The history entries it added. */
+  history: string[]
+  /** The mods it added (follow-ups). */
+  added: string[]
+  /** The mods it used up. */
+  usedUp: PlayMod[]
+  /** Whether it turned the reaction on. */
+  reaction: boolean
+  /** The roll's title, for a note that it was undone. */
+  title: string
+}
+
+/** The difference a roll made between two play states. */
+export function rollChange(before: PlayCore, after: PlayCore, title: string): RollChange {
+  const had = (list: readonly { id: string }[]) => new Set(list.map((x) => x.id))
+  const beforeHistory = had(before.history)
+  const beforeMods = had(before.mods)
+  const afterMods = had(after.mods)
+  return {
+    history: after.history.filter((h) => !beforeHistory.has(h.id)).map((h) => h.id),
+    added: after.mods.filter((m) => !beforeMods.has(m.id)).map((m) => m.id),
+    usedUp: before.mods.filter((m) => !afterMods.has(m.id)),
+    reaction: !before.reactionUsed && after.reactionUsed,
+    title,
+  }
+}
+
+/**
+ * Undoes a roll on the current play state, leaving everything else that changed since alone
+ * (Health, other mods, hero points). In a game the table has already seen the roll, so instead
+ * of deleting its history it adds a note that it was undone.
+ */
+export function undoRoll<P extends PlayCore>(play: P, change: RollChange, shared?: Clock): P {
+  const mods = [...play.mods.filter((m) => !change.added.includes(m.id)), ...change.usedUp.filter((m) => !play.mods.some((x) => x.id === m.id))]
+  const history = shared
+    ? [...play.history, { id: shared.newId(), at: shared.now.toISOString(), text: `Undid: ${change.title}` }]
+    : play.history.filter((h) => !change.history.includes(h.id))
+  return { ...play, mods, history, ...(change.reaction ? { reactionUsed: false } : {}) }
 }

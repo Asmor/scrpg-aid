@@ -6,7 +6,7 @@
  * the hero, and logged to the history (./state.ts has the rules; ./forms.ts says which
  * abilities can be used).
  */
-import { useEffect, useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { heroPath } from '../app/route'
 import { ActionIcon, AbilityIcons, AbilityText, DiceText, DieIcon } from '../components/icons'
 import { buildSheet } from '../creation/sheet'
@@ -21,9 +21,9 @@ import { PlayerPanel } from '../session/PlayerPanel'
 import { villainTarget } from '../session/types'
 import { availabilityContext, basicActionBlocked, currentForm, dividedForm, formAvailable, formDice, formNoun, playAbilities, playForms, type PlayAbility } from './forms'
 import { ModForm, type ModTarget } from './ModForm'
-import { confirmRoll } from './roll'
+import { confirmRoll, rollChange, undoRoll, type RollChange } from './roll'
 import { RollDialog, type RollSubject } from './RollDialog'
-import { addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, MAX_HERO_POINTS, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
+import { addMod, modName, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, MAX_HERO_POINTS, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
 import { formatFull, formatWhen } from './time'
 import { useTick } from './useTick'
 
@@ -76,6 +76,37 @@ function AbilityRowPlay({ ability: a, reactionUsed, onUse }: { ability: PlayAbil
         <AbilityText text={a.text} actions={a.effects} />
       </span>
     </li>
+  )
+}
+
+/** How long a roll's Undo stays offered. */
+const UNDO_MS = 10_000
+
+/** "Roll recorded. Used up: …" with Undo, for about ten seconds. */
+function Toast({ text, undo, onClose }: { text: string; undo: () => void; onClose: () => void }) {
+  // The timer starts once per toast; re-renders (a new onClose) don't restart it.
+  const close = useRef(onClose)
+  useEffect(() => {
+    close.current = onClose
+  })
+  useEffect(() => {
+    const timer = setTimeout(() => close.current(), UNDO_MS)
+    return () => clearTimeout(timer)
+  }, [undo])
+  return (
+    <div className="toast" role="status">
+      <span>{text}</span>
+      <button
+        type="button"
+        className="button button--small"
+        onClick={() => {
+          undo()
+          onClose()
+        }}
+      >
+        Undo
+      </button>
+    </div>
   )
 }
 
@@ -138,6 +169,7 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
   const [twistKind, setTwistKind] = useState<'minor' | 'major'>('minor')
   const [twistText, setTwistText] = useState('')
   const [rolling, setRolling] = useState<RollSubject | null>(null)
+  const [toast, setToast] = useState<{ text: string; undo: () => void } | null>(null)
 
   // A game session this hero is playing in (Phase 4).
   const session = useSession()
@@ -374,7 +406,7 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
               {play.mods.map((m) => (
                 <li key={m.id}>
                   <ModBadge value={m.value} />
-                  <span className="play-list__text">{m.label || (m.value > 0 ? 'Bonus' : 'Penalty')}</span>
+                  <span className="play-list__text">{modName(m)}</span>
                   {m.persistent && <span className="tag">Persistent</span>}
                   {m.exclusive && <span className="tag">Exclusive</span>}
                   <button type="button" className="button button--small" aria-label={`Remove ${describeMod(m)}`} onClick={() => change((p, c) => removeMod(p, m.id, c))}>
@@ -499,17 +531,42 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
           zone={zone}
           mods={play.mods}
           onClose={() => setRolling(null)}
-          onConfirm={(record) =>
-            change((p, c) => {
-              const after = confirmRoll(p, record, c)
-              return rolling.kind === 'ability' && rolling.reaction ? setReactionUsed(after, true, c) : after
+          onConfirm={(record, followUps) => {
+            // Mods for other heroes go out first; one whose hero has left can't.
+            const gifts = followUps.filter((f) => f.to).map((f) => {
+              const target = targets.find((t) => t.id === f.to)
+              return { ...f, name: target?.name ?? 'a hero who left', ok: Boolean(target && player?.giveMod(target.id, f.mod)) }
             })
-          }
+            let undo: RollChange | undefined
+            change((p, c) => {
+              let after = confirmRoll(p, record, c)
+              if (rolling.kind === 'ability' && rolling.reaction) after = setReactionUsed(after, true, c)
+              for (const f of followUps) if (!f.to) after = addMod(after, f.mod, c)
+              for (const g of gifts) if (g.ok) after = noteGivenMod(after, g.mod, g.name, c)
+              undo = rollChange(p, after, record.title)
+              return after
+            })
+            const usedUp = record.results.flatMap((r) => r.mods).filter((m) => !m.persistent)
+            const given = gifts.filter((g) => g.ok)
+            const failed = gifts.filter((g) => !g.ok)
+            setToast({
+              text: [
+                'Roll recorded.',
+                usedUp.length ? `Used up: ${usedUp.map(modName).join(', ')}.` : '',
+                ...failed.map((g) => `Couldn't give ${describeMod(g.mod)} to ${g.name}.`),
+                given.length ? `Undo won't take back what you gave ${[...new Set(given.map((g) => g.name))].join(' and ')}.` : '',
+              ]
+                .filter(Boolean)
+                .join(' '),
+              // Undo reverses just this roll; in a game the table saw it, so it notes the undo instead.
+              undo: () => undo && change((p, c) => undoRoll(p, undo!, player ? c : undefined)),
+            })
+          }}
           targets={targets}
-          onAddMod={giveOrAdd}
           random={random}
         />
       )}
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
     </div>
   )
 }
