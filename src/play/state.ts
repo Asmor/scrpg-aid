@@ -180,5 +180,5 @@ export function removeTwist<P extends PlayCore>(play: P, id: string, clock: Cloc
  */
 export function newIssue(play: PlayState, clock: Clock): PlayState {
   const { form, dividedForm } = play
-  return { ...emptyPlay(), ...(form ? { form } : {}), ...(dividedForm ? { dividedForm } : {}), history: [...play.history, entry(clock, 'Started a new issue: Health restored; mods, twists, and hero points cleared.')] }
+  return { ...emptyPlay(), ...(form ? { form } : {}), ...(dividedForm ? { dividedForm } : {}), history: [...play.history, entry(clock, 'Started a new issue: Health restored; mods, twists, hero points and minions cleared.')] }
 }

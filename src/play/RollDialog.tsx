@@ -9,30 +9,11 @@ import { AbilityText, ActionIcon, DieIcon } from '../components/icons'
 import { ACTION_LABEL } from '../creation/effects'
 import type { AbilityUse } from '../creation/sheet'
 import type { HeroTrait } from '../creation/traits'
-import type { PlayMod } from '../hero/model'
+import type { PlayMinion, PlayMod } from '../hero/model'
 import { checkManualResults, rollDice } from '../rules/rolling'
-import type { Action, BasicAction, Die, EffectUse } from '../rules/types'
-import {
-  activePlans,
-  chosenMods,
-  defaultAssignment,
-  defaultModChoice,
-  defaultPlans,
-  describeEffect,
-  hasDoubles,
-  modFlagsFor,
-  modSize,
-  poolDice,
-  results,
-  sortRolls,
-  toggleMod,
-  USE_LABEL,
-  type EffectPlan,
-  type EffectResult,
-  type GivenValues,
-  type RollRecord,
-  type Rolled,
-} from './roll'
+import type { Action, BasicAction, Die, EffectUse, MinionForm } from '../rules/types'
+import { activePlans, chosenMods, defaultAssignment, defaultModChoice, defaultPlans, describeEffect, hasDoubles, modFlagsFor, modSize, poolDice, results, sortRolls, toggleMod, USE_LABEL, useValue as valueFor, type EffectPlan, type EffectResult, type GivenValues, type RollRecord, type Rolled } from './roll'
+import { minionAction, minionSize, takesAnyAction } from './minions'
 import { defaultSlots, traitChoices, type FormDice, type RollTrait } from './forms'
 import { GONE, type ModTarget } from './ModForm'
 import { describeMod, modName, type PlayZone } from './state'
@@ -45,6 +26,9 @@ export interface FollowUpMod {
   mod: Omit<PlayMod, 'id'>
   to?: string
 }
+
+/** A minion a roll made: its size from the roll, and the name, action and form the player gives it. */
+export type NewMinion = Omit<PlayMinion, 'id' | 'mods'>
 
 /** The forms or modes a roll can change to: each choice's value, name and any note, and the current one. */
 export interface FormPicker {
@@ -65,9 +49,13 @@ interface RollDialogProps {
   zone: PlayZone | undefined
   mods: readonly PlayMod[]
   /** Done: the roll to record, the follow-up mods to add or give, and the form or mode chosen, if it changed. */
-  onConfirm: (record: RollRecord, followUps: readonly FollowUpMod[], formChoice?: string) => void
+  onConfirm: (record: RollRecord, followUps: readonly FollowUpMod[], formChoice?: string, minions?: readonly NewMinion[]) => void
   /** For an ability that changes form or mode: the choices, offered in the Resolve step. */
   formPicker?: FormPicker
+  /** For an ability that makes minions (Make Minion and the like): the die that sizes each one (ruling 62). */
+  creates?: readonly EffectUse[]
+  /** The hero's minion forms, offered for each minion made. */
+  minionForms?: readonly MinionForm[]
   /** Other heroes in a game session a Boost's or Hinder's mod can go to. */
   targets?: readonly ModTarget[]
   /** What the status die is called in the roll; by default its zone's ("Green status"). A villain's is just "Status". */
@@ -95,6 +83,25 @@ function Badge({ value }: { value: number }) {
   return <span className={value > 0 ? 'mod-badge mod-badge--bonus' : 'mod-badge mod-badge--penalty'}>{value > 0 ? `+${value}` : `−${-value}`}</span>
 }
 
+/** A mod on an effect or minion card: drag it, or use its menu, to move it to another card. */
+function ModChip({ mod, at, labels, onMove }: { mod: PlayMod; at: number; labels: readonly string[]; onMove: (id: string, to: number) => void }) {
+  return (
+    <li className="roll-chip" draggable={labels.length > 1} onDragStart={(e) => e.dataTransfer.setData('text/plain', mod.id)}>
+      <Badge value={mod.value} />
+      <span>{modName(mod)}</span>
+      {labels.length > 1 && (
+        <select aria-label={`Move ${modName(mod)}`} value={at} onChange={(e) => onMove(mod.id, Number(e.target.value))}>
+          {labels.map((l, j) => (
+            <option key={j} value={j}>
+              {j === at ? 'Here' : `Move to ${l}`}
+            </option>
+          ))}
+        </select>
+      )}
+    </li>
+  )
+}
+
 /** "a +2 bonus", "no penalty": what a Boost or Hinder total makes. */
 function modMade(action: Action, total: number): string | undefined {
   if (action !== 'boost' && action !== 'hinder') return undefined
@@ -103,7 +110,7 @@ function modMade(action: Action, total: number): string | undefined {
   return action === 'boost' ? `a +${size} bonus` : `a −${size} penalty`
 }
 
-export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, targets = [], statusLabel, onClose, random }: RollDialogProps) {
+export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, creates = [], minionForms = [], targets = [], statusLabel, onClose, random }: RollDialogProps) {
   const titleId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const use = subject.kind === 'ability' ? subject.use : undefined
@@ -153,6 +160,19 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, t
   const missingValue = finalResults.some((r) => r.total === undefined)
   const [followUps, setFollowUps] = useState<Record<number, FollowUpMod | undefined>>({})
   const [formChoice, setFormChoice] = useState(formPicker?.current ?? '')
+  // Minions the roll makes: each sized by its die plus the mods moved onto it, named in Resolve.
+  const [made, setMade] = useState(() => creates.map(() => ({ name: '', action: 'attack' as BasicAction, form: '' })))
+  const minionCards = rolled
+    ? creates.map((u, j) => {
+        const index = active.length + j
+        const base = valueFor(u, rolled) ?? 0
+        const on = chosen.filter((m) => (assignment[m.id] ?? 0) === index)
+        const total = base + on.reduce((sum, m) => sum + m.value, 0)
+        return { index, use: u, base, mods: on, total, die: minionSize(total) }
+      })
+    : []
+  // Every card a mod can sit on: the effects, then the minions made.
+  const cardLabels = [...active.map((p) => effectLabel(p)), ...creates.map((_, j) => (creates.length > 1 ? `Minion ${j + 1}` : 'Minion'))]
 
   // Focus moves into the dialog once when it opens, stays inside it while it's open (Tab
   // wraps around), and goes back where it was when it closes. Escape closes it.
@@ -205,9 +225,20 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, t
   const done = () => {
     if (!rolled) return
     onConfirm(
-      { title: subject.kind === 'ability' ? `Used ability ${subject.name}:` : `Took a basic action (${ACTION_LABEL[basicAction]}):`, rolled, results: finalResults, manual: wasManual },
+      {
+        title: subject.kind === 'ability' ? `Used ability ${subject.name}:` : `Took a basic action (${ACTION_LABEL[basicAction]}):`,
+        rolled,
+        results: finalResults,
+        manual: wasManual,
+        // The minions made, with the mods moved onto them, so those are logged and used up too.
+        ...(minionCards.length ? { made: minionCards.map((c) => ({ label: `${cardLabels[c.index]} (${USE_LABEL[c.use]})`, base: c.base, mods: c.mods, total: c.total, die: c.die })) } : {}),
+      },
       Object.values(followUps).filter((f): f is FollowUpMod => Boolean(f)),
       formPicker && formChoice !== formPicker.current ? formChoice : undefined,
+      minionCards.map((c, j) => {
+        const m = made[j]!
+        return { name: m.name.trim() || (creates.length > 1 ? `Minion ${j + 1}` : 'Minion'), die: c.die, action: minionAction(m.form, m.action), ...(m.form ? { form: m.form } : {}) }
+      }),
     )
     onClose()
   }
@@ -219,7 +250,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, t
     if (id) move(id, index)
   }
   // Two effects with the same action get a number, so cards and "Move to" options stay distinct.
-  const effectLabel = (p: EffectPlan) => {
+  function effectLabel(p: EffectPlan) {
     const same = active.filter((q) => q.action === p.action)
     return same.length > 1 ? `${ACTION_LABEL[p.action]} ${same.indexOf(p) + 1}` : ACTION_LABEL[p.action]
   }
@@ -233,7 +264,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, t
     </label>
   )
 
-  const noEffects = subject.kind === 'ability' && subject.use.effects.length === 0
+  const noEffects = subject.kind === 'ability' && subject.use.effects.length === 0 && creates.length === 0
   // For an ability that changes form or mode: where to change to, applied on Done.
   const picker = formPicker && (
     <fieldset className="roll-section">
@@ -500,7 +531,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, t
                   })()}
                 </ul>
                 {hasDoubles(rolled) && <p className="hint">Doubles!</p>}
-                {active.length === 0 ? (
+                {active.length === 0 && creates.length === 0 ? (
                   <p>No effects with this roll.</p>
                 ) : (
                   <>
@@ -537,25 +568,46 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, t
                           {r.total !== undefined && r.total < 0 && (p.action === 'attack' || p.action === 'defend' || p.action === 'recover') && <p className="roll-effect-card__made">Counts as 0</p>}
                           <ul className="roll-chips" aria-label={`Mods on ${effectLabel(p)}`}>
                             {r.mods.map((m) => (
-                              <li key={m.id} className="roll-chip" draggable={active.length > 1} onDragStart={(e) => e.dataTransfer.setData('text/plain', m.id)}>
-                                <Badge value={m.value} />
-                                <span>{modName(m)}</span>
-                                {active.length > 1 && (
-                                  <select aria-label={`Move ${modName(m)}`} value={i} onChange={(e) => move(m.id, Number(e.target.value))}>
-                                    {active.map((q, j) => (
-                                      <option key={j} value={j}>
-                                        {j === i ? 'Here' : `Move to ${effectLabel(q)}`}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
-                              </li>
+                              <ModChip key={m.id} mod={m} at={i} labels={cardLabels} onMove={move} />
                             ))}
                             {r.mods.length === 0 && <li className="roll-chips__none">No mods</li>}
                           </ul>
                         </div>
                       )
                     })}
+                    {minionCards.map((c, j) => (
+                      <div
+                        key={`minion-${j}`}
+                        className={dragOver === c.index ? 'roll-effect-card roll-effect-card--over' : 'roll-effect-card'}
+                        role="group"
+                        aria-label={`${cardLabels[c.index]} (${USE_LABEL[c.use]})`}
+                        onDragOver={(e) => {
+                          e.preventDefault()
+                          setDragOver(c.index)
+                        }}
+                        onDragLeave={(e) => {
+                          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(null)
+                        }}
+                        onDrop={onDrop(c.index)}
+                      >
+                        <div className="roll-effect-card__top">
+                          <strong>{cardLabels[c.index]}</strong>
+                          <span className="roll-effect-card__uses">
+                            Uses {USE_LABEL[c.use]} ({c.base})
+                          </span>
+                          <span className="roll-effect-card__total">{c.total}</span>
+                        </div>
+                        <p className="roll-effect-card__made">
+                          Makes a <DieIcon die={c.die} size="inline" /> minion
+                        </p>
+                        <ul className="roll-chips" aria-label={`Mods on ${cardLabels[c.index]}`}>
+                          {c.mods.map((m) => (
+                            <ModChip key={m.id} mod={m} at={c.index} labels={cardLabels} onMove={move} />
+                          ))}
+                          {c.mods.length === 0 && <li className="roll-chips__none">No mods</li>}
+                        </ul>
+                      </div>
+                    ))}
                   </>
                 )}
                 {(needs.damage || needs.other) && (
@@ -580,6 +632,11 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, t
               <>
                 <p className="label">Tell the table</p>
                 <ul className="roll-results">
+                  {minionCards.map((c, j) => (
+                    <li key={`m${j}`}>
+                      Make a <DieIcon die={c.die} size="inline" /> minion ({USE_LABEL[c.use]} {c.total}).
+                    </li>
+                  ))}
                   {finalResults.map((r, i) => (
                     <li key={i}>
                       <ActionIcon action={r.action} decorative />
@@ -588,6 +645,40 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, t
                   ))}
                 </ul>
                 {picker}
+                {minionCards.map((c, j) => (
+                  <fieldset key={`made-${j}`} className="roll-section">
+                    <legend>
+                      New minion{creates.length > 1 ? ` ${j + 1}` : ''}: <DieIcon die={c.die} size="inline" />
+                    </legend>
+                    <Field label="Name">{(id) => <input id={id} type="text" value={made[j]!.name} placeholder={creates.length > 1 ? `Minion ${j + 1}` : 'Minion'} onChange={(e) => setMade((all) => all.map((m, k) => (k === j ? { ...m, name: e.target.value } : m)))} />}</Field>
+                    <Field label="Action it can take">
+                      {(id) => (
+                        <select id={id} value={takesAnyAction(made[j]!.form) ? 'any' : made[j]!.action} disabled={takesAnyAction(made[j]!.form)} onChange={(e) => setMade((all) => all.map((m, k) => (k === j ? { ...m, action: e.target.value as BasicAction } : m)))}>
+                          {takesAnyAction(made[j]!.form) && <option value="any">Any basic action</option>}
+                          {BASIC_ACTIONS.map((a) => (
+                            <option key={a} value={a}>
+                              {ACTION_LABEL[a]}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </Field>
+                    {minionForms.length > 0 && (
+                      <Field label="Minion form">
+                        {(id) => (
+                          <select id={id} value={made[j]!.form} onChange={(e) => setMade((all) => all.map((m, k) => (k === j ? { ...m, form: e.target.value } : m)))}>
+                            <option value="">None</option>
+                            {minionForms.map((f) => (
+                              <option key={f.name} value={f.name}>
+                                {f.name} (needs a +{f.minBonus} bonus)
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </Field>
+                    )}
+                  </fieldset>
+                ))}
                 {finalResults.map((r: EffectResult, i) => {
                   if ((r.action !== 'boost' && r.action !== 'hinder') || r.total === undefined || modSize(r.total) === 0) return null
                   const value = (r.action === 'boost' ? 1 : -1) * modSize(r.total)
@@ -662,7 +753,7 @@ function ModOffer({
           onClick={() => {
             onChange(undefined)
             // The button goes away; focus goes to the offer's first field rather than the page.
-            requestAnimationFrame(() => document.getElementById(targets.length ? `${id}-to` : id)?.focus())
+            requestAnimationFrame(() => document.getElementById(targets.length || gone ? `${id}-to` : id)?.focus())
           }}
         >
           Change

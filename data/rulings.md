@@ -368,6 +368,18 @@ These came from questions the user put to the rules-expert agent about an action
 - **Decision:** The roll's total can be negative, but its effect can't: a damage roll of −1 deals 0 damage, and the same goes for Defend and Recover. (A Boost or Hinder of 0 or less already makes no mod, and an Overcome of 0 or less is a spectacular failure.)
 - **Basis:** Interpretation (the user's ruling).
 
+### 62. Which die sets a minion's size
+- **Pages:** Minion-Maker (p. 86–88), Make Minion and its minion chart.
+- **Question:** Make Minion sizes the minion from the roll's result, but doesn't say which die. Which one?
+- **Decision:** The Mid die (plus any mods on it). Mid is always the default; an ability that means Min or Max says so.
+- **Basis:** Interpretation (the user's ruling).
+
+### 63. Giving a minion a form in play
+- **Pages:** Minion-Maker (p. 86–88), minion forms.
+- **Question:** Adding a minion form means discarding a bonus (yours or a willing ally's) that meets the form's requirement. Does the game aid have to check and discard that bonus?
+- **Decision:** No. The player picks any of their forms for a minion, and removes the bonus themselves if they're following that rule; the app never blocks a change.
+- **Basis:** Default (permissive; not asked).
+
 ## Villains (p. 208–239)
 
 ### 57. Quality Upgrade's extra abilities and an approach's pattern

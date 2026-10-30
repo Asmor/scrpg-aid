@@ -22,7 +22,9 @@ import { villainTarget } from '../session/types'
 import { availabilityContext, basicActionBlocked, changesForm, currentForm, dividedForm, formDice, formNoun, formZoneNote, notInDividedForm, playAbilities, playForms, zoneLockNotice, type PlayAbility, type PlayForm } from './forms'
 import { diceChanges, noChanges } from '../creation/dice-changes'
 import type { HeroTrait } from '../creation/traits'
-import { outerLayer } from '../creation/layers'
+import { outerLayer, secondaryLayer } from '../creation/layers'
+import { MinionList } from './MinionList'
+import { addMinion, addMinionMod, minionCreation, removeMinion, removeMinionMod, shrinkMinion, recordMinionRoll } from './minions'
 import { ModForm, type ModTarget } from './ModForm'
 import { confirmRoll, rollChange, undoRoll, type RollChange } from './roll'
 import { RollDialog, type FormPicker, type RollSubject } from './RollDialog'
@@ -31,6 +33,8 @@ import { formatFull, formatWhen } from './time'
 import { useTick } from './useTick'
 
 const ZONES = ['green', 'yellow', 'red'] as const
+/** A follow-up mod's recipient when it's one of the hero's own minions. */
+const MINION_TARGET = 'minion:'
 const BASIC_ACTIONS: readonly BasicAction[] = ['attack', 'defend', 'boost', 'hinder', 'overcome']
 const ACTION_LABEL: Record<BasicAction, string> = { attack: 'Attack', defend: 'Defend', boost: 'Boost', hinder: 'Hinder', overcome: 'Overcome' }
 
@@ -280,6 +284,10 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
   // Divided's transition method, as a one-line reminder: "Controllable: You choose when to change, …".
   const method = divided ? outerLayer(hero)?.archetype.transitionMethods?.find((m) => m.id === hero.archetype?.divided?.transitionMethod) : undefined
   const transition = method && `${method.name.replace(/ Transition$/, '')}: ${method.summary}`
+  const lockNotice = zoneLockNotice(form, zone)
+  // A Minion-Maker (or a Divided hero building on one) tracks the minions they make.
+  const makesMinions = [outerLayer(hero), secondaryLayer(hero)].some((l) => l?.archetype.minionForms)
+  const missingHere = divided ? notInDividedForm(hero, sheet, divided) : []
   const abilities = playAbilities(hero, sheet, play, zone)
   // Why basic actions can't be taken, each once (the buttons point to theirs).
   const whyIds = [...new Set(BASIC_ACTIONS.map((a) => basicActionBlocked(a, ctx)).filter((w): w is string => Boolean(w)))]
@@ -288,7 +296,8 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
   /** For an ability that changes form or mode: the choices for its Resolve step. */
   const formPickerFor = (text: string): FormPicker | undefined => {
     if (!changesForm(text)) return undefined
-    if (divided && /civilian form/i.test(text)) {
+    // Divided's own changes (and any change for a Divided hero with no forms or modes) flip the form.
+    if (divided && (!forms.length || /civilian form/i.test(text))) {
       return { label: 'Change to', current: divided, options: [{ value: 'civilian', label: 'Civilian form' }, { value: 'heroic', label: 'Heroic form' }] }
     }
     if (!forms.length || !form) return undefined
@@ -394,7 +403,7 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
               })}
             </div>
             <FormChanges form={form} base={forms[0]!.traits} noun={noun} />
-            {zoneLockNotice(form, zone) && <p className="form-notice">{zoneLockNotice(form, zone)}</p>}
+            {lockNotice && <p className="form-notice">{lockNotice}</p>}
           </Card>
         )}
 
@@ -417,14 +426,7 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
             {dice.slots[0] === dice.slots[1] ? (
               <p className="hint">Divided Psyche: you roll two {dice.slots[0] === 'power' ? 'powers' : 'qualities'} with your status die.</p>
             ) : (
-              notInDividedForm(hero, sheet, divided).length > 0 && (
-                <p className="play-card__note">
-                  Not in this form:{' '}
-                  {notInDividedForm(hero, sheet, divided)
-                    .map((t) => t.name)
-                    .join(', ')}
-                </p>
-              )
+              missingHere.length > 0 && <p className="play-card__note">Not in this form: {missingHere.map((t) => t.name).join(', ')}</p>
             )}
           </Card>
         )}
@@ -451,7 +453,12 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
                           <span>
                             {t.name}
                             {was && was !== t.die && <span className="visually-hidden"> (was {was})</span>}
-                            {!was && form?.key && <span className="play-dice__tag">added</span>}
+                            {!was && form?.key && (
+                              <>
+                                {' '}
+                                <span className="play-dice__tag">added</span>
+                              </>
+                            )}
                           </span>
                           <DieIcon die={t.die} size="compact" />
                         </li>
@@ -561,6 +568,22 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
           )}
         </Card>
 
+        {makesMinions && (
+          <Card title="Your minions">
+            <MinionList
+              minions={play.minions ?? []}
+              forms={sheet.minionForms}
+              onAdd={(m) => change((p, c) => addMinion(p, m, c))}
+              onRemove={(mid) => change((p, c) => removeMinion(p, mid, c))}
+              onShrink={(mid) => change((p, c) => shrinkMinion(p, mid, c))}
+              onAddMod={(mid, mod) => change((p, c) => addMinionMod(p, mid, mod, c))}
+              onRemoveMod={(mid, modId) => change((p, c) => removeMinionMod(p, mid, modId, c))}
+              onUse={(mid, roll) => change((p, c) => recordMinionRoll(p, mid, roll, c))}
+              random={random}
+            />
+          </Card>
+        )}
+
         <Card title="Game">
           <PlayerPanel
             heroId={id}
@@ -623,9 +646,12 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
           mods={play.mods}
           onClose={() => setRolling(null)}
           formPicker={rolling.kind === 'ability' ? formPickerFor(rolling.text) : undefined}
-          onConfirm={(record, followUps, formChoice) => {
-            // Mods for other heroes go out first; one whose hero has left can't.
-            const gifts = followUps.filter((f) => f.to).map((f) => {
+          creates={rolling.kind === 'ability' ? minionCreation(rolling.text) : undefined}
+          minionForms={sheet.minionForms}
+          onConfirm={(record, followUps, formChoice, made = []) => {
+            // Mods for other heroes go out first; one whose hero has left can't. A mod for one of the
+            // hero's own minions goes on it.
+            const gifts = followUps.filter((f) => f.to && !f.to.startsWith(MINION_TARGET)).map((f) => {
               const target = targets.find((t) => t.id === f.to)
               return { ...f, name: target?.name ?? 'a hero who left', ok: Boolean(target && player?.giveMod(target.id, f.mod)) }
             })
@@ -642,6 +668,8 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
               }
               if (rolling.kind === 'ability' && rolling.reaction) after = setReactionUsed(after, true, c)
               for (const f of followUps) if (!f.to) after = addMod(after, f.mod, c)
+              for (const f of followUps) if (f.to?.startsWith(MINION_TARGET)) after = addMinionMod(after, f.to.slice(MINION_TARGET.length), f.mod, c)
+              for (const m of made) after = addMinion(after, m, c)
               for (const g of gifts) if (g.ok) after = noteGivenMod(after, g.mod, g.name, c)
               undo = rollChange(p, after, record.title)
               return after
@@ -664,13 +692,17 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
                 change((p, c) => {
                   const undone = undoRoll(p, undo!, player ? c : undefined)
                   if (formChoice === undefined) return undone
-                  // Back to the form or mode it was in.
-                  const { form: _form, dividedForm: _divided, ...rest } = undone
-                  return { ...rest, ...formBefore }
+                  // Back to the form or mode it was in: only the one the choice changed.
+                  if (formChoice === 'civilian' || formChoice === 'heroic') {
+                    const { dividedForm: _divided, ...rest } = undone
+                    return { ...rest, ...(formBefore.dividedForm ? { dividedForm: formBefore.dividedForm } : {}) }
+                  }
+                  const { form: _form, ...rest } = undone
+                  return { ...rest, ...(formBefore.form ? { form: formBefore.form } : {}) }
                 }),
             })
           }}
-          targets={targets}
+          targets={[...targets, ...(play.minions ?? []).map((m) => ({ id: `${MINION_TARGET}${m.id}`, name: `${m.name} (your minion)` }))]}
           random={random}
         />
       )}

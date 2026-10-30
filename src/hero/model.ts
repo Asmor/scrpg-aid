@@ -23,7 +23,7 @@
  */
 import { traitKey, type TraitRef } from '../rules/catalog'
 import type { RollRecord } from '../rules/rolling'
-import type { AbilityEffect, Die, PrincipleCategoryId } from '../rules/types'
+import type { AbilityEffect, BasicAction, Die, PrincipleCategoryId } from '../rules/types'
 
 export type { RollRecord }
 
@@ -386,6 +386,22 @@ export interface PlayState {
   twists: PlayTwist[]
   /** Newest last. */
   history: PlayHistoryEntry[]
+  /** A Minion-Maker's minions in the current scene (p. 87). */
+  minions?: PlayMinion[]
+}
+
+/**
+ * A minion a Minion-Maker made (p. 86–88): its size, name, minion form, the one basic action it
+ * was made with (or any, for an Autonomous minion), and its own bonuses and penalties, separate
+ * from the hero's.
+ */
+export interface PlayMinion {
+  id: string
+  name: string
+  die: Die
+  action: BasicAction | 'any'
+  form?: string
+  mods: PlayMod[]
 }
 
 export function emptyDetails(): HeroDetails {

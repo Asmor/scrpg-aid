@@ -142,6 +142,16 @@ const heroShape = object({
     mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
     twists: arrayOf(object({ id: nonEmptyString, kind: oneOf('minor', 'major'), text: string })),
     history: arrayOf(object({ id: nonEmptyString, at: nonEmptyString, text: string, 'details?': arrayOf(string), 'roll?': oneOf(true) })),
+    'minions?': arrayOf(
+      object({
+        id: nonEmptyString,
+        name: string,
+        die,
+        action: oneOf('attack', 'defend', 'boost', 'hinder', 'overcome', 'any'),
+        'form?': string,
+        mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
+      }),
+    ),
   }),
 })
 

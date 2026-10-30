@@ -156,5 +156,8 @@ describe('forms in play', () => {
     await waitFor(async () => expect((await saved(store)).play?.dividedForm).toBe('heroic'))
     expect(card.getByText('Naive')).toBeInTheDocument()
     expect(card.getByText('Not in this form: Acrobatics')).toBeInTheDocument()
+    // Undo puts the form back.
+    await userEvent.click(within(screen.getByRole('status')).getByRole('button', { name: 'Undo' }))
+    await waitFor(async () => expect((await saved(store)).play?.dividedForm).toBeUndefined())
   })
 })

@@ -3498,6 +3498,69 @@ span.status-chips > span {
   color: var(--ui-accent);
 }
 
+/* Your minions (Minion-Maker) */
+.minion-rows {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.minion-row {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.minion-row__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.minion-row__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+  font-size: 0.8125rem;
+  color: var(--ui-muted);
+}
+
+.minion-row .roll-chips {
+  margin: 0;
+}
+
+.minion-row__x {
+  padding: 0 0.125rem;
+  border: 0;
+  background: none;
+  color: var(--ui-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.minion-use {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.5rem;
+  background: var(--ui-surface-2);
+}
+
+.minion-use p {
+  margin: 0;
+}
+
+.minion-use__result strong {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+}
+
 /* The roll (docs/design/hero-sheet/spec.md, "Roll flow"): a 560px dialog, full screen on a phone. */
 .dialog-backdrop:has(.roll-dialog) {
   align-items: center;

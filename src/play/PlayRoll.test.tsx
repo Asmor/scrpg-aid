@@ -215,6 +215,8 @@ describe('using abilities', () => {
     await userEvent.click(offer().getByRole('button', { name: 'Add +3 bonus' }))
     await userEvent.click(offer().getByRole('button', { name: 'Change' }))
     expect(offer().getByRole('button', { name: 'Add +3 bonus' })).toBeInTheDocument()
+    // Focus goes to the offer's first field, not the page.
+    await waitFor(() => expect(offer().getByLabelText('What it is')).toHaveFocus())
     await userEvent.click(offer().getByRole('button', { name: 'Add +3 bonus' }))
     // Back to the results (which could change the bonus): the choice is made again.
     await userEvent.click(dialog.getByRole('button', { name: 'Back' }))

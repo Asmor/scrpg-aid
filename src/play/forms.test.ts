@@ -194,6 +194,11 @@ describe('forms and modes in play (stage 7)', () => {
       'When hit with an Attack, change to any form before resolving the Attack. Take a minor twist.',
       'Attack using [Self Control power] and Recover Health equal to your Min die. Return to your base form.',
       'Change from your civilian form to your heroic form, or vice versa.',
+      'If you have access to your device, change from your civilian form to your heroic form, or vice versa.',
+      'If you have access to a willing compatible person to enable your transform, change from your civilian form to your heroic form, or vice versa.',
+      'Attack using [a power gained from your archetype]. If you incapacitate the target and change forms, you may use your Min die.',
+      'The first time you take damage or change zones in a scene, you must change from your civilian form to your heroic form.',
+      'Attack one target using [power]. Attack a different target with your Min die. At the end of your turn, you may change modes.',
     ])
       expect(changesForm(text)).toBe(true)
     expect(changesForm('Attack using Fire. Hinder that same target using your Min die.')).toBe(false)

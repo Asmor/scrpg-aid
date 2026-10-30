@@ -225,14 +225,18 @@ export interface RollRecord {
   results: EffectResult[]
   /** Whether the dice were typed in from real dice. */
   manual: boolean
+  /** Minions the roll made: each one's die result, the mods moved onto it, and the size they came to. */
+  made?: { label: string; base: number; mods: PlayMod[]; total: number; die: Die }[]
 }
 
 /** Writes the roll to the history and uses up the non-persistent mods it used (p. 26). */
 export function confirmRoll<P extends PlayCore>(play: P, record: RollRecord, clock: Clock): P {
-  const used = record.results.flatMap((r) => r.mods)
+  const made = record.made ?? []
+  const used = [...record.results.flatMap((r) => r.mods), ...made.flatMap((m) => m.mods)]
   const details = [
     ...describeRolls(record.rolled).map((d) => (record.manual ? `${d} (typed in)` : d)),
     ...record.results.map(describeEffect),
+    ...made.map((m) => `${m.label}: ${m.base}${m.mods.map((x) => (x.value > 0 ? ` + ${x.value}` : ` − ${-x.value}`)).join('')} → a ${m.die} minion.`),
     ...used.map((m) => `Applied ${describeMod(m)}.`),
   ]
   const at = clock.now.toISOString()
@@ -258,10 +262,16 @@ export interface RollChange {
   reaction: boolean
   /** The roll's title, for a note that it was undone. */
   title: string
+  /** Minions it made, and mods it gave the roller's minions (Minion-Maker), by id. */
+  minions?: string[]
+  minionMods?: string[]
 }
 
+/** The minions part of a play state, where a hero has one. */
+type WithMinions = { minions?: readonly { id: string; mods: readonly { id: string }[] }[] }
+
 /** The difference a roll made between two play states. */
-export function rollChange(before: PlayCore, after: PlayCore, title: string): RollChange {
+export function rollChange(before: PlayCore & WithMinions, after: PlayCore & WithMinions, title: string): RollChange {
   const had = (list: readonly { id: string }[]) => new Set(list.map((x) => x.id))
   const beforeHistory = had(before.history)
   const beforeMods = had(before.mods)
@@ -272,7 +282,14 @@ export function rollChange(before: PlayCore, after: PlayCore, title: string): Ro
     usedUp: before.mods.filter((m) => !afterMods.has(m.id)),
     reaction: !before.reactionUsed && after.reactionUsed,
     title,
+    ...(after.minions ? minionChanges(before.minions ?? [], after.minions) : {}),
   }
+}
+
+function minionChanges(before: NonNullable<WithMinions['minions']>, after: NonNullable<WithMinions['minions']>): Pick<RollChange, 'minions' | 'minionMods'> {
+  const had = new Set(before.map((m) => m.id))
+  const hadMods = new Set(before.flatMap((m) => m.mods.map((x) => x.id)))
+  return { minions: after.filter((m) => !had.has(m.id)).map((m) => m.id), minionMods: after.flatMap((m) => m.mods.filter((x) => !hadMods.has(x.id)).map((x) => x.id)) }
 }
 
 /**
@@ -285,5 +302,14 @@ export function undoRoll<P extends PlayCore>(play: P, change: RollChange, shared
   const history = shared
     ? [...play.history, { id: shared.newId(), at: shared.now.toISOString(), text: `Undid: ${change.title}` }]
     : play.history.filter((h) => !change.history.includes(h.id))
-  return { ...play, mods, history, ...(change.reaction ? { reactionUsed: false } : {}) }
+  const minions = (play as WithMinions).minions
+  return {
+    ...play,
+    mods,
+    history,
+    ...(change.reaction ? { reactionUsed: false } : {}),
+    ...(minions && (change.minions?.length || change.minionMods?.length)
+      ? { minions: minions.filter((m) => !change.minions?.includes(m.id)).map((m) => ({ ...m, mods: m.mods.filter((x) => !change.minionMods?.includes(x.id)) })) }
+      : {}),
+  }
 }
