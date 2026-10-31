@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { Hero } from '../hero/model'
-import { A, heroWithAbilities, P, Q, validHero } from '../test/heroes'
+import { A, completeHero, dividedHero, heroWithAbilities, P, Q, validHero } from '../test/heroes'
 import { parseSlots, type TraitSlot } from '../rules/slots'
 import { checkAbilities, checkAbilityPick, checkAbilityRetcon, limitedSlotIndex, primaryUse, slotCandidates } from './abilities'
 import { deriveTraits } from './traits'
+import { buildSheet } from './sheet'
 
 const check = (hero: Hero) => checkAbilities(hero, deriveTraits(hero).traits)
 const codes = (hero: Hero) => check(hero).map((w) => w.code)
@@ -460,3 +461,20 @@ describe('limitedSlotIndex', () => {
     expect(limitedSlotIndex(ability('Boost using [quality].'), limit)).toBe(-1)
   })
 })
+
+describe('which list an issue is about', () => {
+  const fields = (hero: Hero, code: string) => buildSheet(hero).warnings.filter((w) => w.code === code).map((w) => w.field)
+
+  it('names the list for a list’s own problems, so they show on that list’s box', () => {
+    const hero = completeHero()
+    hero.powerSource!.abilities = hero.powerSource!.abilities.filter((p) => p.source !== 'powerSource.yellow')
+    expect(fields(hero, 'ability-count')).toEqual(['abilities:powerSource.yellow'])
+    const divided = dividedHero()
+    divided.archetype!.abilities = divided.archetype!.abilities.filter((p) => p.source !== 'archetype.green')
+    expect(fields(divided, 'ability-count')).toEqual(['abilities:archetype.green'])
+    const red = completeHero()
+    red.redAbilities = red.redAbilities.slice(1)
+    expect(fields(red, 'ability-count')).toEqual(['abilities:red'])
+  })
+})
+

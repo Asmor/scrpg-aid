@@ -789,7 +789,7 @@ describe('HeroEditor', () => {
     await openAllParts()
     const rows = within(screen.getByRole('group', { name: 'Improvement Mode' })).getByRole('group', { name: 'Improvement Mode powers' })
     const misfit = within(rows).getByRole('combobox', { name: 'Same size (2)' })
-    expect(misfit).toHaveDisplayValue("Awareness d8 → d10 (doesn't fit)")
+    expect(misfit).toHaveDisplayValue("Awareness d8 → d10 (saved, doesn't fit)")
     expect(misfit).toHaveAttribute('aria-invalid', 'true')
     expect(misfit).toHaveAccessibleDescription('Awareness is d10 in Improvement Mode, but same size makes it d8. Choose it again, or another power.')
     // Choosing it again gives it the row's die.

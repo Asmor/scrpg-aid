@@ -228,6 +228,23 @@ describe('step anatomy', () => {
     expect(card).toHaveFocus()
   })
 
+  it('puts a list’s count issue on that list’s own box, and Red’s on all of its lists', async () => {
+    const hero = completeHero()
+    hero.powerSource!.abilities = hero.powerSource!.abilities.filter((p) => p.source !== 'powerSource.yellow')
+    hero.redAbilities = hero.redAbilities.slice(1)
+    const view = renderEditor(await storeWith(hero), 'power-source')
+    const yellow = await screen.findByRole('group', { name: /^Yellow abilities/ })
+    expect(yellow).toHaveAttribute('aria-invalid', 'true')
+    expect(yellow).toHaveClass('field-group--invalid')
+    expect(yellow).toHaveAccessibleDescription(/^Choose 2 of the .* Yellow abilities; you have 0\.$/)
+    expect(screen.getByRole('group', { name: /^Green abilities/ })).not.toHaveAttribute('aria-invalid')
+    view.rerender(editor(await storeWith(hero), 'red-abilities'))
+    const lists = await screen.findByRole('group', { name: 'Red ability lists' })
+    expect(lists).toHaveAccessibleDescription(/^Choose \d Red abilities; you have \d\.$/)
+    // Not repeated on each category's list.
+    for (const group of within(lists).getAllByRole('group')) expect(group).not.toHaveAttribute('aria-invalid')
+  })
+
   it('shows status dice and Health ranges in their game colors, with their labels', async () => {
     const hero = completeHero()
     renderEditor(await storeWith(hero), 'personality')

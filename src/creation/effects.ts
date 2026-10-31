@@ -62,6 +62,11 @@ function outsideBrackets(text: string): [number, number][] {
   return ranges
 }
 
+/** The insides of [bracketed choices] between actions, like "[Boost or Hinder]": their words get icons too. */
+function actionChoices(text: string): [number, number][] {
+  return [...text.matchAll(/\[((?:Attack|Boost|Defend|Hinder|Overcome|Recover)(?:(?:,| or|, or) (?:Attack|Boost|Defend|Hinder|Overcome|Recover))+)\]/g)].map((m) => [m.index + 1, m.index + 1 + m[1]!.length])
+}
+
 /** Where the sentence holding `from` ends, taking in a following sentence that starts "Use your" (the principles' "… . Use your Max die."). */
 function clauseLimit(text: string, from: number): number {
   let end = from
@@ -135,10 +140,10 @@ export function narrowEffect(effect: AbilityEffect, blanks: AbilityPick['blanks'
 /**
  * The action words in the text that name one of `actions` (an ability's effects), for the
  * inline icons: every one that isn't a noun or trigger ("an Attack", "Attacked") or inside a
- * [bracketed choice].
+ * [bracketed blank], except a blank that's a choice between actions ("[Boost or Hinder]").
  */
 export function actionMentions(text: string, actions: readonly Action[]): EffectMention[] {
-  const outside = outsideBrackets(text)
+  const outside = [...outsideBrackets(text), ...actionChoices(text)]
   const inChoice = (i: number) => !outside.some(([s, e]) => i >= s && i < e)
   return [...text.matchAll(ACTION_WORD)]
     .filter((m) => !inChoice(m.index) && !NOUN_BEFORE.test(text.slice(Math.max(0, m.index - 12), m.index)) && !NOUN_AFTER.test(text.slice(m.index + m[0].length)))

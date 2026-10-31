@@ -44,6 +44,8 @@ function RecipeRow({ label, row, powers, used, field, onChange }: RecipeRowProps
   const id = useId()
   const current = row.power && powers.find((p) => traitKey(p.trait) === traitKey(row.power!.trait))
   const misfit = row.power && !row.fits
+  // A fitting choice is shown over the closed select; an unfitting one keeps the select's own text.
+  const shown = current && row.power && row.fits ? current : undefined
   return (
     <IssueField field={field}>
       {(f) => (
@@ -51,25 +53,27 @@ function RecipeRow({ label, row, powers, used, field, onChange }: RecipeRowProps
           <label htmlFor={id} className="recipe-row__change">
             {label}
           </label>
-          <select id={id} {...f.control} value={row.power ? (misfit ? MISFIT : traitKey(row.power.trait)) : ''} onChange={(e) => onChange(e.target.value && e.target.value !== MISFIT ? parseTraitKey(e.target.value) : undefined)}>
-            <option value="">Choose…</option>
-            {misfit && <option value={MISFIT}>{current ? `${current.name} ${current.die} → ${row.power!.die}` : row.power!.trait.id} (doesn't fit)</option>}
-            {powers.map((p) => {
-              const key = traitKey(p.trait)
-              return (
-                <option key={key} value={key} disabled={used.has(key)}>
-                  {changeText(p.name, row.change, p.die)}
-                  {used.has(key) ? ' (in another row)' : ''}
-                </option>
-              )
-            })}
-          </select>
-          {/* The closed select can only show text: the change again, as dice. */}
-          <span className="recipe-row__dice" aria-hidden="true">
-            {current && row.fits && (
-              <>
-                <DieIcon die={current.die} size="compact" /> → <DieIcon die={row.power!.die} size="compact" />
-              </>
+          {/* The closed select shows only the power and the change as dice (the hero wizard spec): the
+              text the options need would be cut off in a narrow column. The list keeps the full text. */}
+          <span className={shown ? 'recipe-row__control recipe-row__control--shown' : 'recipe-row__control'}>
+            <select id={id} {...f.control} value={row.power ? (misfit ? MISFIT : traitKey(row.power.trait)) : ''} onChange={(e) => onChange(e.target.value && e.target.value !== MISFIT ? parseTraitKey(e.target.value) : undefined)}>
+              <option value="">Choose…</option>
+              {misfit && <option value={MISFIT}>{current ? `${current.name} ${current.die} → ${row.power!.die}` : row.power!.trait.id} (saved, doesn't fit)</option>}
+              {powers.map((p) => {
+                const key = traitKey(p.trait)
+                return (
+                  <option key={key} value={key} disabled={used.has(key)}>
+                    {changeText(p.name, row.change, p.die)}
+                    {used.has(key) ? ' (in another row)' : ''}
+                  </option>
+                )
+              })}
+            </select>
+            {shown && (
+              <span className="recipe-row__shown" aria-hidden="true">
+                <span className="recipe-row__name">{shown.name}</span>
+                <DieIcon die={shown.die} size="compact" /> → <DieIcon die={row.power!.die} size="compact" />
+              </span>
             )}
           </span>
           {f.list}

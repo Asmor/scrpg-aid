@@ -335,6 +335,7 @@ describe('using abilities', () => {
         history: [
           { id: 'a', at: '2026-10-29T10:00:00.000Z', text: 'Used ability Inflict:', details: ['Max: 7 (Speed d12)', 'Deal 7 damage.'], roll: true },
           { id: 'b', at: '2026-10-29T10:01:00.000Z', text: 'Gained a hero point (now 1).' },
+          { id: 'c', at: '2026-10-29T10:02:00.000Z', text: 'Added Drone (d8).' },
         ],
       }),
     )
@@ -348,7 +349,9 @@ describe('using abilities', () => {
     expect(within(latest).getAllByRole('listitem')[0]!.querySelector('.action-icon')).toBeNull()
     // The rest, newest first, without the roll again.
     const rest = history.getByRole('list', { name: 'Earlier' }).querySelectorAll(':scope > li')
-    expect([...rest].map((li) => li.textContent)).toEqual([expect.stringContaining('Gained a hero point (now 1).')])
+    expect([...rest].map((li) => li.textContent)).toEqual([expect.stringContaining('Added Drone'), expect.stringContaining('Gained a hero point (now 1).')])
+    // Dice in the history show as their icons.
+    expect(within(rest[0] as HTMLElement).getByRole('img', { name: 'd8' })).toBeInTheDocument()
   })
 
   it('closes on Escape without recording anything', async () => {

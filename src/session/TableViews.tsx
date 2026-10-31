@@ -7,7 +7,7 @@ import { formatFull, formatWhen } from '../play/time'
 import { PLAY_ZONE_LABEL } from '../hero/labels'
 import { describeMod } from '../play/state'
 import { memberName } from './gm'
-import { DieIcon } from '../components/icons'
+import { DiceText, DieIcon } from '../components/icons'
 import type { FeedEntry, Member, SceneVillain } from './types'
 
 /** The party, one card per player; `actions` adds controls to a member's card (the GM's). */
@@ -108,11 +108,13 @@ export function Feed({ entries, now }: { entries: readonly FeedEntry[]; now: Dat
           <time dateTime={e.at} title={formatFull(e.at)}>
             {formatWhen(e.at, now)}
           </time>{' '}
-          <strong>{e.by}:</strong> {e.text}
+          <strong>{e.by}:</strong> <DiceText text={e.text} />
           {e.details && (
             <ul>
               {e.details.map((d, i) => (
-                <li key={i}>{d}</li>
+                <li key={i}>
+                  <DiceText text={d} />
+                </li>
               ))}
             </ul>
           )}

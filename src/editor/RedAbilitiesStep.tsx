@@ -10,12 +10,13 @@ import { redAbilityCategories, redAbilityStep } from '../rules/data'
 import { formatEntryRef } from '../rules/books'
 import type { Ability } from '../rules/types'
 import type { AbilityPick, AbilitySource, Hero } from '../hero/model'
-import type { SlotLimit } from '../creation/abilities'
+import { abilityListField, type SlotLimit } from '../creation/abilities'
 import { extraRedOptions, redCategoryKey } from '../creation/lookup'
 import { categoryName, hasRedCategory, redPickSection, redSlotLimit } from '../creation/red'
 import { deriveTraits } from '../creation/traits'
 import type { StepId } from '../creation/warnings'
 import { AbilityPicker } from './AbilityPicker'
+import { IssueField } from './inline-issues'
 import { DiceText } from '../components/icons'
 
 type Update = (change: (draft: Hero) => void) => void
@@ -39,8 +40,7 @@ export function RedAbilityLists({ hero, picks, allowed, source, step, onChange }
   // Groups with a pick start open; after that, the player's opening and closing sticks.
   const [open, setOpen] = useState(() => new Set(picks.map((p) => redPickSection(hero, p))))
   // Picks are saved with their category, since names repeat across categories.
-  const setSection = (key: string, next: AbilityPick[], category?: string) =>
-    onChange([...picks.filter((p) => redPickSection(hero, p) !== key), ...next.map((p) => (category ? { ...p, category } : p))])
+  const setSection = (key: string, next: AbilityPick[], category?: string) => onChange([...picks.filter((p) => redPickSection(hero, p) !== key), ...next.map((p) => (category ? { ...p, category } : p))])
   const picker = (key: string, legend: string, options: readonly Ability[], category?: string, hint?: string, slotLimit?: SlotLimit) => {
     const chosen = inSection(key).length
     return (
@@ -74,6 +74,8 @@ export function RedAbilityLists({ hero, picks, allowed, source, step, onChange }
           step={step}
           picks={inSection(key)}
           slotLimit={slotLimit}
+          // The count is about all the lists together: it shows above them.
+          listField={false}
           onChange={(next) => setSection(key, next, category)}
         />
       </details>
@@ -86,28 +88,33 @@ export function RedAbilityLists({ hero, picks, allowed, source, step, onChange }
   // A category with a pick stays listed even when filtered out, so it can be removed.
   const shownOthers = onlyMine ? others.filter((c) => inSection(redCategoryKey(c)).length > 0) : others
   return (
-    <div className="ability-groups">
-      <div className="ability-groups__head">
-        <span className="ability-groups__total">
-          {picks.length} of {allowed} chosen
-        </span>
-        {others.length > 0 && (
-          <label className="checkbox filter-toggle" htmlFor={filterId}>
-            <input id={filterId} type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} />
-            Only ones I can take
-          </label>
-        )}
-      </div>
-      {inSection('stray').length > 0 && picker('stray', 'Red abilities not on any list', [], undefined, 'Untick these to remove them.')}
-      {extras.length > 0 && picker('extra', 'Extra Red abilities from your archetype', extras)}
-      {yours.map(categoryPicker)}
-      {shownOthers.map(categoryPicker)}
-      {onlyMine && others.length > shownOthers.length && (
-        <p className="hint">
-          {others.length - shownOthers.length} more {others.length - shownOthers.length === 1 ? 'category needs' : 'categories need'} a power or quality you don't have. Untick "Only ones I can take" to see them.
-        </p>
+    <IssueField field={abilityListField(source)}>
+      {(f) => (
+        <div className={f.invalid ? 'ability-groups field-group--invalid' : 'ability-groups'} role="group" aria-label="Red ability lists" {...f.control}>
+          {f.list}
+          <div className="ability-groups__head">
+            <span className="ability-groups__total">
+              {picks.length} of {allowed} chosen
+            </span>
+            {others.length > 0 && (
+              <label className="checkbox filter-toggle" htmlFor={filterId}>
+                <input id={filterId} type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} />
+                Only ones I can take
+              </label>
+            )}
+          </div>
+          {inSection('stray').length > 0 && picker('stray', 'Red abilities not on any list', [], undefined, 'Untick these to remove them.')}
+          {extras.length > 0 && picker('extra', 'Extra Red abilities from your archetype', extras)}
+          {yours.map(categoryPicker)}
+          {shownOthers.map(categoryPicker)}
+          {onlyMine && others.length > shownOthers.length && (
+            <p className="hint">
+              {others.length - shownOthers.length} more {others.length - shownOthers.length === 1 ? 'category needs' : 'categories need'} a power or quality you don't have. Untick "Only ones I can take" to see them.
+            </p>
+          )}
+        </div>
       )}
-    </div>
+    </IssueField>
   )
 }
 

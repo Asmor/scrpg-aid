@@ -219,7 +219,9 @@ function History({ history, now }: { history: readonly PlayHistoryEntry[]; now: 
       {latest && (
         <div className="latest-roll" role="group" aria-label="Latest roll">
           <p className="latest-roll__head">
-            <strong>{latest.text}</strong>
+            <strong>
+              <DiceText text={latest.text} />
+            </strong>
             <time dateTime={latest.at} title={formatFull(latest.at)}>
               {formatWhen(latest.at, now)}
             </time>
@@ -246,11 +248,13 @@ function History({ history, now }: { history: readonly PlayHistoryEntry[]; now: 
                 {formatWhen(h.at, now)}
               </time>
               <span>
-                {h.text}
+                <DiceText text={h.text} />
                 {h.details && h.details.length > 0 && (
                   <ul>
                     {h.details.map((d, i) => (
-                      <li key={i}>{d}</li>
+                      <li key={i}>
+                        <DiceText text={d} />
+                      </li>
                     ))}
                   </ul>
                 )}

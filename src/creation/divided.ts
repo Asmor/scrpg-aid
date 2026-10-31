@@ -206,7 +206,7 @@ export function checkDivided(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
     }
   }
   if (ar.greenAbilities) {
-    warnings.push(...checkAbilityBlock(hero, traits, ar.greenAbilities, dividedPicks, `${ar.name} abilities`, ar))
+    warnings.push(...checkAbilityBlock(hero, traits, ar.greenAbilities, dividedPicks, `${ar.name} abilities`, ar, 'archetype.green'))
   }
   markPart(warnings, ownFrom, 'own')
   const splitFrom = warnings.length

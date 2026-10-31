@@ -13,7 +13,7 @@ import { compareDice } from '../rules/dice'
 import { parseSlots } from '../rules/slots'
 import type { Ability, RedAbilityCategory, TraitKind } from '../rules/types'
 import type { AbilityPick, Hero } from '../hero/model'
-import { checkAbilityPick, primaryUse, type SlotLimit } from './abilities'
+import { abilityListField, checkAbilityPick, primaryUse, type SlotLimit } from './abilities'
 import { findRedAbility, redCategoryKey, redCategoryRef } from './lookup'
 import type { HeroTrait } from './traits'
 import { warning, type RuleWarning, type StepId } from './warnings'
@@ -96,7 +96,7 @@ export function checkRedAbilities(hero: Hero, traits: readonly HeroTrait[]): Rul
   // Red abilities are step 5, so the count is checked once the hero has reached it (has a
   // personality), or as soon as there are too many.
   if ((hero.personality || hero.redAbilities.length > redAbilityStep.count) && hero.redAbilities.length !== redAbilityStep.count) {
-    warnings.push(warning('redAbilities', 'ability-count', `Choose ${redAbilityStep.count} Red abilities; you have ${hero.redAbilities.length}.`))
+    warnings.push(warning('redAbilities', 'ability-count', `Choose ${redAbilityStep.count} Red abilities; you have ${hero.redAbilities.length}.`, abilityListField('red')))
   }
   if (hero.retcon?.kind === 'gainRedAbility') {
     note(checkRedPick(hero, traits, hero.retcon.ability, 'retcon', warnings), 'retcon', hero.retcon.ability.name)

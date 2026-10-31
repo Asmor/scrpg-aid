@@ -6,7 +6,7 @@
  */
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { listPath, villainPath } from '../app/route'
-import { ActionIcon, DieIcon } from '../components/icons'
+import { ActionIcon, DiceText, DieIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL, PLAY_ZONE_LABEL } from '../hero/labels'
 import { newId } from '../hero/model'
 import { ModForm } from '../play/ModForm'
@@ -329,9 +329,7 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
         </ul>
         {sheet.vehicle && (
           <>
-            <h4>
-              Vehicle {sheet.vehicle.die && <DieIcon die={sheet.vehicle.die} />}
-            </h4>
+            <h4>Vehicle {sheet.vehicle.die && <DieIcon die={sheet.vehicle.die} />}</h4>
             <p className="hint">The vehicle is a lieutenant and rolls its own die; its abilities are here for reference.</p>
             <ul className="play-abilities">
               {sheet.vehicle.abilities.map((a) => (
@@ -360,11 +358,13 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
                 <time dateTime={h.at} title={formatFull(h.at)}>
                   {formatWhen(h.at, tick)}
                 </time>{' '}
-                {h.text}
+                <DiceText text={h.text} />
                 {h.details && (
                   <ul>
                     {h.details.map((d, j) => (
-                      <li key={j}>{d}</li>
+                      <li key={j}>
+                        <DiceText text={d} />
+                      </li>
                     ))}
                   </ul>
                 )}

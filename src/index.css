@@ -771,7 +771,7 @@ select {
 
 .recipe-row {
   display: grid;
-  grid-template-columns: 8rem minmax(0, 1fr) 4.5rem;
+  grid-template-columns: 8rem minmax(0, 1fr);
   align-items: center;
   gap: 0.25rem 0.75rem;
 }
@@ -780,11 +780,43 @@ select {
   font-weight: 600;
 }
 
-.recipe-row__dice {
-  display: inline-flex;
+/* The closed select's text is hidden under the power's name and dice; the open list keeps its colors. */
+.recipe-row__control {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+/* Only the text: the arrow keeps the select's color. */
+.recipe-row__control--shown select {
+  -webkit-text-fill-color: transparent;
+}
+
+.recipe-row__control--shown select option {
+  -webkit-text-fill-color: var(--ui-text);
+}
+
+.recipe-row__shown {
+  position: absolute;
+  inset: 0 2rem 0 0;
+  display: flex;
   align-items: center;
   gap: 0.25rem;
-  color: var(--ui-muted);
+  padding-left: 0.5rem;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.recipe-row__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 0.25rem;
+}
+
+.recipe-row__shown .die-icon {
+  flex: none;
 }
 
 .recipe-row > .inline-issues {
@@ -808,7 +840,7 @@ select {
 
 @media (max-width: 47.5rem) {
   .recipe-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .recipe-row__change {
@@ -842,18 +874,24 @@ select {
   margin-top: 0.2em;
 }
 
-/* A field with issues: a 2 px outline (a group's box for a card, a bonus or a set of buttons). */
+/* A field with issues: a 2 px outline (a group's box for a card, a bonus or a set of buttons).
+   The class is doubled to outrank `.step-form fieldset`'s own border. */
 input[type='text'][aria-invalid='true'],
 input[type='number'][aria-invalid='true'],
 select[aria-invalid='true'],
 textarea[aria-invalid='true'],
 .segmented[aria-invalid='true'],
 .ability-card.ability-card--invalid,
-.field-group--invalid {
+.field-group--invalid.field-group--invalid {
   border: 2px solid var(--ui-danger);
 }
 
-.field-group--invalid {
+/* A step's fieldsets have a 1 px border already: the thicker one takes from the padding. */
+fieldset.field-group--invalid.field-group--invalid {
+  padding: calc(0.5rem - 1px) calc(0.875rem - 1px) calc(0.875rem - 1px);
+}
+
+div.field-group--invalid {
   border-radius: 0.5rem;
   padding: 0.625rem 0.75rem;
 }

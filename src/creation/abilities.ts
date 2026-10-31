@@ -56,6 +56,9 @@ const warn = (ctx: Context, code: IssueCode, message: string, field?: string) =>
 
 /** The field a problem with one ability is about: its card (RuleWarning.field). */
 export const abilityField = (name: string) => `ability:${name}`
+
+/** The field a problem with a whole list of abilities is about (its count, say): that list's box, by its picks' source. */
+export const abilityListField = (source: string) => `abilities:${source}`
 const label = (ctx: Context, t: TraitRef) => ctx.label(t)
 
 /** The trait an ability pick uses for restrictions (see the module doc). */
@@ -188,13 +191,13 @@ function meetsAtLeast(uses: readonly TraitRef[], clauses: readonly RequireAtLeas
   return search(0)
 }
 
-function checkDistinct(ctx: Context, rule: DistinctRule, uses: readonly TraitRef[], source: string): void {
+function checkDistinct(ctx: Context, rule: DistinctRule, uses: readonly TraitRef[], source: string, field?: string): void {
   const relevant = uses.filter((u) =>
     rule === 'differentPowers' ? u.kind === 'power' : rule === 'differentQualities' ? u.kind === 'quality' : true,
   )
   if (new Set(relevant.map(traitKey)).size < relevant.length) {
     const what = { differentPowers: 'power', differentQualities: 'quality', differentPowersOrQualities: 'power or quality' }[rule]
-    warn(ctx, 'not-different', `Each of your ${source} must use a different ${what}.`)
+    warn(ctx, 'not-different', `Each of your ${source} must use a different ${what}.`, field)
   }
 }
 
@@ -224,7 +227,10 @@ function checkBlock(
   source: string,
   archetype: Archetype | undefined,
   greenUses: readonly TraitRef[] = [],
+  /** The picks' source, naming the list's box for the list's own problems. */
+  list?: string,
 ): Taken[] {
+  const field = list && abilityListField(list)
   const taken: Taken[] = []
   const seen = new Set<string>()
   for (const pick of picks) {
@@ -239,13 +245,13 @@ function checkBlock(
     taken.push({ pick, ability })
   }
   if (picks.length !== block.count) {
-    warn(ctx, 'ability-count', `Choose ${block.count} of the ${source}; you have ${picks.length}.`)
+    warn(ctx, 'ability-count', `Choose ${block.count} of the ${source}; you have ${picks.length}.`, field)
   }
 
   const uses = taken.flatMap(({ ability, pick }) => primaryUse(ability, pick) ?? [])
-  if (block.rule) checkDistinct(ctx, block.rule, uses, source)
+  if (block.rule) checkDistinct(ctx, block.rule, uses, source, field)
   if (block.usesFrom) {
-    const list =
+    const allowed =
       typeof block.usesFrom !== 'string'
         ? block.usesFrom
         : archetype
@@ -256,25 +262,25 @@ function checkBlock(
         ? block.usesFrom.map(describe).join(' or ')
         : `a ${block.usesFrom === 'archetypePowerList' ? 'power' : 'power or quality'} from the ${archetype?.name} lists`
     for (const use of uses) {
-      if (list && !refsMatch(list, use)) warn(ctx, 'uses-not-from-list', `Your ${source} must use ${what}; ${label(ctx, use)} isn't one.`)
+      if (allowed && !refsMatch(allowed, use)) warn(ctx, 'uses-not-from-list', `Your ${source} must use ${what}; ${label(ctx, use)} isn't one.`, field)
     }
   }
   if (block.requireAtLeast && !meetsAtLeast(uses, block.requireAtLeast)) {
     const parts = block.requireAtLeast.map(
       (c) => `${c.count} using ${typeof c.uses === 'string' ? `a ${c.uses}` : c.uses.map(describe).join(' or ')}`,
     )
-    warn(ctx, 'uses-at-least', `Your ${source} need ${parts.join(' and ')}.`)
+    warn(ctx, 'uses-at-least', `Your ${source} need ${parts.join(' and ')}.`, field)
   }
   if (block.minDifferentPowers) {
     const powerUses = uses.filter((u) => u.kind === 'power')
     const needed = Math.min(block.minDifferentPowers, powerUses.length)
     const powers = new Set(powerUses.map(traitKey))
-    if (powers.size < needed) warn(ctx, 'too-few-powers', `Your ${source} must use at least ${needed} different powers.`)
+    if (powers.size < needed) warn(ctx, 'too-few-powers', `Your ${source} must use at least ${needed} different powers.`, field)
   }
   if (block.differentFromGreen) {
     const green = new Set(greenUses.map(traitKey))
     for (const use of uses) {
-      if (green.has(traitKey(use))) warn(ctx, 'same-as-green', `Your ${source} must use something none of your Green abilities use, not ${label(ctx, use)}.`)
+      if (green.has(traitKey(use))) warn(ctx, 'same-as-green', `Your ${source} must use something none of your Green abilities use, not ${label(ctx, use)}.`, field)
     }
   }
   return taken
@@ -309,11 +315,11 @@ function checkPowerSource(ctx: Context, hero: Hero): void {
   const ps = choice && powerSourcesById.get(choice.id)
   if (!choice || !ps) return
   if (ps.greenAbilities) {
-    checkBlock(ctx, ps.greenAbilities, ps.greenAbilities.options ?? [], picksFrom(choice.abilities, 'powerSource.green'), `${ps.name} Green abilities`, undefined)
+    checkBlock(ctx, ps.greenAbilities, ps.greenAbilities.options ?? [], picksFrom(choice.abilities, 'powerSource.green'), `${ps.name} Green abilities`, undefined, [], 'powerSource.green')
   } else if (picksFrom(choice.abilities, 'powerSource.green').length) {
-    warn(ctx, 'unknown-ability', `${ps.name} has no Green abilities to choose.`)
+    warn(ctx, 'unknown-ability', `${ps.name} has no Green abilities to choose.`, abilityListField('powerSource.green'))
   }
-  checkBlock(ctx, ps.yellowAbilities, ps.yellowAbilities.options ?? [], picksFrom(choice.abilities, 'powerSource.yellow'), `${ps.name} Yellow abilities`, undefined)
+  checkBlock(ctx, ps.yellowAbilities, ps.yellowAbilities.options ?? [], picksFrom(choice.abilities, 'powerSource.yellow'), `${ps.name} Yellow abilities`, undefined, [], 'powerSource.yellow')
   for (const pick of choice.abilities) {
     if (pick.source !== 'powerSource.green' && pick.source !== 'powerSource.yellow') {
       warn(ctx, 'unknown-ability', `${pick.name} isn't a power source ability.`, abilityField(pick.name))
@@ -332,7 +338,7 @@ function checkArchetype(ctx: Context, layer: ArchetypeLayer): void {
   const picks = choice.abilities
   const fixedGreen = checkFixed(ctx, ar.fixedGreenAbilities ?? [], picks, 'archetype.fixedGreen')
   if (ar.fixedGreenRule) {
-    checkDistinct(ctx, ar.fixedGreenRule, fixedGreen.flatMap(({ ability, pick }) => primaryUse(ability, pick) ?? []), `${ar.name} fixed Green abilities`)
+    checkDistinct(ctx, ar.fixedGreenRule, fixedGreen.flatMap(({ ability, pick }) => primaryUse(ability, pick) ?? []), `${ar.name} fixed Green abilities`, abilityListField('archetype.fixedGreen'))
   }
   checkFixed(ctx, ar.fixedYellowAbilities ?? [], picks, 'archetype.fixedYellow')
   checkFixed(ctx, ar.fixedRedAbilities ?? [], picks, 'archetype.fixedRed')
@@ -340,17 +346,17 @@ function checkArchetype(ctx: Context, layer: ArchetypeLayer): void {
 
   // Picks left from another archetype (e.g. Yellow picks on an archetype with no Yellow choices).
   for (const [source, block, zone] of [['archetype.green', ar.greenAbilities, 'Green'], ['archetype.yellow', ar.yellowAbilities, 'Yellow']] as const) {
-    if (!block && picksFrom(picks, source).length) warn(ctx, 'unknown-ability', `${ar.name} has no ${zone} abilities to choose.`)
+    if (!block && picksFrom(picks, source).length) warn(ctx, 'unknown-ability', `${ar.name} has no ${zone} abilities to choose.`, abilityListField(source))
   }
   const green = ar.greenAbilities
-    ? checkBlock(ctx, ar.greenAbilities, ar.greenAbilities.options ?? [], picksFrom(picks, 'archetype.green'), `${ar.name} Green abilities`, ar)
+    ? checkBlock(ctx, ar.greenAbilities, ar.greenAbilities.options ?? [], picksFrom(picks, 'archetype.green'), `${ar.name} Green abilities`, ar, [], 'archetype.green')
     : []
   const greenUses = green.flatMap(({ ability, pick }) => primaryUse(ability, pick) ?? [])
   const yellow = ar.yellowAbilities
   if (yellow) {
     const yellowPicks = picksFrom(picks, 'archetype.yellow')
     const options = yellow.fromGreenList ? (ar.greenAbilities?.options ?? []) : (yellow.options ?? [])
-    checkBlock(ctx, yellow, options, yellowPicks, `${ar.name} Yellow abilities`, ar, greenUses)
+    checkBlock(ctx, yellow, options, yellowPicks, `${ar.name} Yellow abilities`, ar, greenUses, 'archetype.yellow')
     if (yellow.fromGreenList) {
       for (const pick of yellowPicks) {
         if (green.some((g) => g.pick.name === pick.name)) {
@@ -369,9 +375,11 @@ export function checkAbilityBlock(
   picks: readonly AbilityPick[],
   source: string,
   archetype: Archetype | undefined,
+  /** The picks' source, for the list's own problems. */
+  list?: AbilitySource,
 ): RuleWarning[] {
   const warnings: RuleWarning[] = []
-  checkBlock(contextFor(hero, traits, 'archetype', warnings), block, block.options ?? [], picks, source, archetype)
+  checkBlock(contextFor(hero, traits, 'archetype', warnings), block, block.options ?? [], picks, source, archetype, [], list)
   return warnings
 }
 

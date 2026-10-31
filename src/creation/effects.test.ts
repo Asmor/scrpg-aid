@@ -59,9 +59,13 @@ describe('effectActions', () => {
 })
 
 describe('actionMentions', () => {
-  it('finds the words naming the given actions, skipping nouns, triggers, and brackets', () => {
+  it('finds the words naming the given actions, skipping nouns, triggers, and brackets other than a choice of actions', () => {
     const text = 'When you are Attacked, Defend by rolling your single [power] die. Then Attack the attacker and [Boost or Hinder] an Attack.'
-    expect(actionMentions(text, ['attack', 'defend', 'boost']).map((m) => text.slice(m.start, m.end))).toEqual(['Defend', 'Attack'])
+    expect(actionMentions(text, ['attack', 'defend', 'boost']).map((m) => text.slice(m.start, m.end))).toEqual(['Defend', 'Attack', 'Boost'])
+    expect(actionMentions(text, ['boost', 'hinder']).map((m) => m.action)).toEqual(['boost', 'hinder'])
+    // A bracket that isn't just actions still gets none.
+    const other = '[Attack an ally] or Boost.'
+    expect(actionMentions(other, ['attack', 'boost']).map((m) => other.slice(m.start, m.end))).toEqual(['Boost'])
     expect(actionMentions(text, ['defend']).map((m) => m.action)).toEqual(['defend'])
   })
 })
