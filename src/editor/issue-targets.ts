@@ -106,6 +106,8 @@ export const ISSUE_SECTION: Readonly<Record<IssueCode, IssueSection>> = {
   'mode-count': 'parts',
   'mode-dice': 'parts',
   'mode-not-held': 'parts',
+  'mode-row-empty': 'parts',
+  'mode-row-misfit': 'parts',
   'mode-twice': 'parts',
   'powerless-dice': 'parts',
   'same-personality': 'parts',

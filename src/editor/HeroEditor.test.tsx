@@ -754,12 +754,17 @@ describe('HeroEditor', () => {
     await userEvent.selectOptions(within(green).getByRole('combobox', { name: 'Green mode' }), 'Debilitator Mode')
     const card = screen.getByRole('group', { name: 'Debilitator Mode' })
     expect(within(card).getByText(/Debilitator Mode uses 4 default-mode powers/)).toBeInTheDocument()
-    // Rows fill in order.
-    expect(within(card).getByRole('combobox', { name: 'Power 2' })).toBeDisabled()
-    await userEvent.selectOptions(within(card).getByRole('combobox', { name: 'Power 1' }), 'Fire (d8)')
-    await userEvent.selectOptions(within(card).getByRole('combobox', { name: 'Die in this mode' }), 'd8 → d10')
-    // A power can be used once per mode.
-    expect(within(within(card).getByRole('combobox', { name: 'Power 2' })).queryByRole('option', { name: 'Fire (d8)' })).not.toBeInTheDocument()
+    // One row per change in the recipe, each with an issue until it's filled.
+    const rows = within(card).getByRole('group', { name: 'Debilitator Mode powers' })
+    expect(within(rows).getAllByRole('combobox').map((c) => (c as HTMLSelectElement).labels[0]?.textContent)).toEqual(['Raise 1 size (1)', 'Raise 1 size (2)', 'Lower 1 size', 'Same size'])
+    expect(within(rows).getByRole('combobox', { name: 'Lower 1 size' })).toHaveAccessibleDescription('Choose a power to lower one size.')
+    // Each option says what the change does to that power.
+    await userEvent.selectOptions(within(rows).getByRole('combobox', { name: 'Raise 1 size (1)' }), 'Fire d8 → d10')
+    // A power used in one row is shown, but can't be picked, in the others.
+    expect(within(within(rows).getByRole('combobox', { name: 'Raise 1 size (2)' })).getByRole('option', { name: 'Fire d8 → d10 (in another row)' })).toBeDisabled()
+    // Past d12 the die stays put (ruling 40), and the option says so.
+    expect(within(within(rows).getByRole('combobox', { name: 'Raise 1 size (2)' })).getByRole('option', { name: 'Speed d12 → d12 (already the largest)' })).toBeEnabled()
+    expect(within(rows).getByText(/^Not in this mode:/)).toHaveTextContent('Not in this mode: Agility, Awareness, Speed, Flight')
     await userEvent.selectOptions(within(card).getByRole('combobox', { name: '[power]' }), 'Fire (d10)')
 
     const powerless = screen.getByRole('group', { name: 'Powerless mode' })
@@ -771,6 +776,29 @@ describe('HeroEditor', () => {
         powerless: [A(P('speed'), 'd10')],
       }),
     )
+  })
+
+  it('opens a mode saved the old way with the rows that fit filled, and an issue on the rest', async () => {
+    const store = await storeWith((h) => {
+      Object.assign(h, { ...modularHero(), id: 'h1' })
+      // Improvement raises 2 and keeps 2: Awareness at d10 kept "the same" doesn't fit, and Flight (d6 at d12) is one too many.
+      h.archetype!.modular!.modes[0]!.powers = [A(P('speed'), 'd12'), A(P('agility'), 'd12'), A(P('fire'), 'd10'), A(P('awareness'), 'd10'), A(P('flight'), 'd12')]
+    })
+    renderEditor(store, 'archetype')
+    await screen.findByRole('region', { name: 'Red mode' })
+    await openAllParts()
+    const rows = within(screen.getByRole('group', { name: 'Improvement Mode' })).getByRole('group', { name: 'Improvement Mode powers' })
+    const misfit = within(rows).getByRole('combobox', { name: 'Same size (2)' })
+    expect(misfit).toHaveDisplayValue("Awareness d8 → d10 (doesn't fit)")
+    expect(misfit).toHaveAttribute('aria-invalid', 'true')
+    expect(misfit).toHaveAccessibleDescription('Awareness is d10 in Improvement Mode, but same size makes it d8. Choose it again, or another power.')
+    // Choosing it again gives it the row's die.
+    await userEvent.selectOptions(misfit, 'Awareness d8 → d8')
+    expect(misfit).not.toHaveAttribute('aria-invalid')
+    // The extra one can be taken out.
+    expect(within(rows).getByText('Also saved: Flight d12')).toBeInTheDocument()
+    await userEvent.click(within(rows).getByRole('button', { name: 'Remove' }))
+    await waitFor(async () => expect((await saved(store)).archetype?.modular?.modes[0]?.powers).toEqual([A(P('agility'), 'd12'), A(P('fire'), 'd10'), A(P('speed'), 'd12'), A(P('awareness'), 'd8')]))
   })
 
   it('switches, removes, and drops modes', async () => {

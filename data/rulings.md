@@ -272,6 +272,7 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 - **Question:** Modes say "die sizes cannot go below d4 or above d12." If a mode raises a power that's already d12, or lowers one that's already d4, what happens?
 - **Decision:** It's allowed, and the die just stays at d12 or d4.
 - **Basis:** Fiat.
+- **Reconfirmed (2026-10-31):** The wizard's Modular mode recipe spec would have disabled these powers; the user kept this ruling instead. A Raise or Lower row offers them, saying the die is "already the largest" or "already the smallest".
 
 ### 41. The ability retcon on a mode ability
 - **Page:** Retcons (p. 112).

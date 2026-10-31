@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Hero } from '../hero/model'
 import { A, completeHero, modularHero, P, Q } from '../test/heroes'
-import { checkModular, describeAdjustment, findMode, modeDieOptions, modeSlots, setModeSlot, strayModes } from './modular'
+import { changeDie, changeLabel, changeNote, checkModular, defaultModeDice, describeAdjustment, findMode, modeRecipe, modeRows, modeSlots, setModeRow, setModeSlot, strayModes } from './modular'
 import { buildSheet } from './sheet'
 import { deriveTraits } from './traits'
 
@@ -42,25 +42,30 @@ describe('Modular', () => {
     expect(codes(unknown)).toEqual(['mode-count', 'unknown-entry'])
   })
 
-  it('adjusts default-mode dice as the mode says', () => {
+  it('checks each change in the mode’s recipe, row by row', () => {
     const hero = modularHero()
-    // Improvement keeps 2 the same and raises 2; raising three is wrong.
+    const issues = () => check(hero).map((w) => [w.code, w.field])
+    // Improvement raises 2 and keeps 2 the same (Speed d12, Agility d10, Fire d8, Awareness d8):
+    // raising three leaves one that fits no row.
     modes(hero)[0]!.powers = [A(P('speed'), 'd12'), A(P('agility'), 'd12'), A(P('fire'), 'd10'), A(P('awareness'), 'd10')]
-    expect(messages(hero)).toEqual(['Improvement Mode uses 4 default-mode powers: it keeps 2 the same, and raises 2 one size.'])
-    // Too few powers.
+    expect(messages(hero)).toEqual(['Awareness is d10 in Improvement Mode, but same size makes it d8. Choose it again, or another power.'])
+    expect(issues()).toEqual([['mode-row-misfit', 'mode-row:improvement:3']])
+    // An empty row.
     modes(hero)[0]!.powers = [A(P('speed'), 'd12'), A(P('fire'), 'd10'), A(P('awareness'), 'd10')]
-    expect(codes(hero)).toEqual(['mode-dice'])
+    expect(messages(hero)).toEqual(['Choose a power to keep at the same size.'])
+    expect(issues()).toEqual([['mode-row-empty', 'mode-row:improvement:3']])
     // A power the hero doesn't have, and one used twice.
     modes(hero)[0]!.powers = [A(P('speed'), 'd12'), A(P('agility'), 'd10'), A(P('fire'), 'd10'), A(P('telepathy'), 'd10')]
-    expect(codes(hero)).toEqual(['mode-not-held', 'mode-dice'])
+    expect(issues()).toEqual([['mode-not-held', 'mode-row:improvement:1']])
     modes(hero)[0]!.powers = [A(P('speed'), 'd12'), A(P('agility'), 'd10'), A(P('fire'), 'd10'), A(P('fire'), 'd10')]
-    expect(codes(hero)).toEqual(['assigned-twice', 'mode-dice'])
+    expect(codes(hero)).toEqual(['assigned-twice'])
+    // More powers than rows.
+    modes(hero)[0]!.powers = [A(P('speed'), 'd12'), A(P('agility'), 'd10'), A(P('fire'), 'd10'), A(P('awareness'), 'd10'), A(P('flight'), 'd6')]
+    expect(messages(hero)).toEqual(['Improvement Mode changes 4 powers; remove Flight.'])
   })
 
   it('handles lowering, two-size raises, and set dice', () => {
-    expect(describeAdjustment(findMode(modularHero(), 'bombardment')!.mode)).toBe(
-      'Bombardment Mode uses 3 default-mode powers: it lowers 2 one size, and sets 1 to d12.',
-    )
+    expect(describeAdjustment(findMode(modularHero(), 'bombardment')!.mode)).toBe('Bombardment Mode uses 3 default-mode powers: it lowers 2 one size, and sets 1 to d12.')
     const hero = modularHero()
     // Bombardment: Fire d8 → d12, Agility d10 → d8, Flight d6 → d4.
     modes(hero)[2] = {
@@ -78,7 +83,7 @@ describe('Modular', () => {
     }
     expect(check(stalwart)).toEqual([])
     modes(stalwart)[2]!.powers[3] = A(P('flight'), 'd8')
-    expect(codes(stalwart)).toEqual(['mode-dice'])
+    expect(codes(stalwart)).toEqual(['mode-row-misfit'])
   })
 
   it('a mode’s ability can only use that mode’s powers (the user’s ruling)', () => {
@@ -130,7 +135,10 @@ describe('Modular', () => {
     hero.archetype!.secondary!.traits = [A(P('speed'), 'd12'), A(Q('finesse'), 'd6')]
     const fillerCodes = new Set(['filler-count', 'filler-die', 'already-have', 'wrong-kind', 'not-on-list', 'unknown-trait'])
     const warnings = () => deriveTraits(hero).warnings.filter((w) => w.step === 'archetype' && fillerCodes.has(w.code))
-    const powers = () => deriveTraits(hero).traits.filter((t) => t.trait.kind === 'power').map((t) => `${t.name} ${t.die}`)
+    const powers = () =>
+      deriveTraits(hero)
+        .traits.filter((t) => t.trait.kind === 'power')
+        .map((t) => `${t.name} ${t.die}`)
     expect(warnings().map((w) => w.message)).toEqual(["Modular needs 4 powers: add 1 d6 power; you've added 0."])
     hero.archetype!.traits = [A(P('leaping'), 'd6')]
     expect(warnings()).toEqual([])
@@ -173,19 +181,58 @@ describe('Modular', () => {
 describe('editing modes', () => {
   const mode = (hero: Hero, id: string) => findMode(hero, id)!.mode
 
-  it('offers the dice a mode allows from a power’s default die', () => {
+  it('lists a mode’s recipe as rows: raises, lowers, same sizes, then set dice', () => {
     const hero = modularHero()
-    expect(modeDieOptions(mode(hero, 'debilitator'), 'd8')).toEqual(['d10', 'd8', 'd6'])
-    expect(modeDieOptions(mode(hero, 'bombardment'), 'd8')).toEqual(['d12', 'd6'])
-    expect(modeDieOptions(mode(hero, 'regeneration'), 'd10')).toEqual(['d12', 'd10'])
-    // Past d12 the die stays at d12 (the user's ruling), so there's just the one.
-    expect(modeDieOptions(mode(hero, 'hunter-killer'), 'd12')).toEqual(['d12'])
+    expect(modeRecipe(mode(hero, 'debilitator')).map(changeLabel)).toEqual(['Raise 1 size', 'Raise 1 size', 'Lower 1 size', 'Same size'])
+    expect(modeRecipe(mode(hero, 'bombardment')).map(changeLabel)).toEqual(['Lower 1 size', 'Lower 1 size', 'Set to d12'])
+    expect(modeRecipe(mode(hero, 'stalwart')).map(changeLabel)).toEqual(['Raise 2 sizes', 'Lower 1 size', 'Lower 1 size', 'Same size'])
+  })
+
+  it('works out a change’s die, which stays put past d12 or d4 (ruling 40)', () => {
+    expect(changeDie({ kind: 'up', steps: 1 }, 'd6')).toBe('d8')
+    expect(changeDie({ kind: 'up', steps: 2 }, 'd10')).toBe('d12')
+    expect(changeDie({ kind: 'down' }, 'd8')).toBe('d6')
+    expect(changeDie({ kind: 'same' }, 'd8')).toBe('d8')
+    expect(changeDie({ kind: 'set', die: 'd12' }, 'd4')).toBe('d12')
+    expect(changeDie({ kind: 'up', steps: 1 }, 'd12')).toBe('d12')
+    expect(changeNote({ kind: 'up', steps: 1 }, 'd12')).toBe('already the largest')
+    expect(changeNote({ kind: 'down' }, 'd4')).toBe('already the smallest')
+    expect(changeNote({ kind: 'down' }, 'd6')).toBeUndefined()
+  })
+
+  it('reads saved powers into rows, the closest fit first, and writes rows back as powers', () => {
+    const hero = modularHero()
+    const defaults = defaultModeDice(deriveTraits(hero).traits)
+    const improvement = mode(hero, 'improvement')
+    // In any order, each power finds the row its die fits.
+    const { rows } = modeRows(improvement, [A(P('speed'), 'd12'), A(P('fire'), 'd10'), A(P('agility'), 'd10'), A(P('awareness'), 'd10')], defaults)
+    expect(rows.map((r) => [changeLabel(r.change), r.power?.trait.id, r.fits])).toEqual([
+      ['Raise 1 size', 'fire', true],
+      ['Raise 1 size', 'awareness', true],
+      ['Same size', 'speed', true],
+      ['Same size', 'agility', true],
+    ])
+    // An old save that doesn't fit: the fitting ones placed, the other in the first empty row, unfitting.
+    const old = modeRows(improvement, [A(P('fire'), 'd12'), A(P('speed'), 'd12')], defaults)
+    expect(old.rows.map((r) => [r.power?.trait.id, r.fits])).toEqual([
+      ['fire', false],
+      [undefined, false],
+      ['speed', true],
+      [undefined, false],
+    ])
+    // Picking a power for a row gives it that row's die; the saved list is the rows in order.
+    const set = setModeRow(improvement, [A(P('fire'), 'd12'), A(P('speed'), 'd12')], defaults, 0, P('awareness'))
+    expect(set).toEqual([A(P('awareness'), 'd10'), A(P('speed'), 'd12')])
+    expect(setModeRow(improvement, set, defaults, 2, undefined)).toEqual([A(P('awareness'), 'd10')])
   })
 
   it('shows one slot per mode a zone asks for, plus extras, and sets modes aside that aren’t modes', () => {
     const hero = modularHero()
     const list = modes(hero)
-    expect(modeSlots(hero, list, 'yellow', 2)).toEqual([{ mode: list[1], index: 1 }, { mode: list[2], index: 2 }])
+    expect(modeSlots(hero, list, 'yellow', 2)).toEqual([
+      { mode: list[1], index: 1 },
+      { mode: list[2], index: 2 },
+    ])
     expect(modeSlots(hero, list, 'green', 2)).toEqual([{ mode: list[0], index: 0 }, {}])
     const withStray = [...list, { id: 'nope', powers: [] }]
     expect(strayModes(hero, withStray)).toEqual([{ mode: withStray[4], index: 4 }])

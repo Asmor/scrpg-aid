@@ -5,78 +5,81 @@
  * ../creation/modular.ts warn about anything that doesn't fit.
  */
 import { useId } from 'react'
-import { getTrait, parseTraitKey, traitKey } from '../rules/catalog'
+import { getTrait, parseTraitKey, traitKey, type TraitRef } from '../rules/catalog'
 import type { Archetype, Die, ModularMode, Zone } from '../rules/types'
 import type { Hero, ModeChoice, ModularChoice } from '../hero/model'
 import { modeLimits } from '../creation/format'
-import { describeAdjustment, findMode, modeDieOptions, modeSlots, modeTraits, setModeSlot, strayModes } from '../creation/modular'
+import { changeDie, changeLabel, changeNote, defaultModeDice, describeAdjustment, findMode, modeRowField, modeRows, modeSlots, modeTraits, setModeRow, setModeSlot, strayModes, type ModeChange, type ModeRow } from '../creation/modular'
 import { traitLabel, type HeroTrait } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
 import { DiceAssigner } from './DiceAssigner'
-import { DiceText } from '../components/icons'
-import { SectionIssues } from './inline-issues'
+import { DiceText, DieIcon } from '../components/icons'
+import { IssueField, SectionIssues } from './inline-issues'
 
 const ZONE_NAME: Record<Zone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red' }
 
-interface PowerRowProps {
-  hero: Hero
+interface RecipeRowProps {
   label: string
+  row: ModeRow
+  /** The default mode's powers, with their dice. */
   powers: readonly HeroTrait[]
-  mode: ModularMode | undefined
-  value: ModeChoice['powers'][number] | undefined
-  /** Until the rows before it are filled. */
-  disabled: boolean
-  onChange: (value: ModeChoice['powers'][number] | undefined) => void
+  /** Powers other rows use. */
+  used: ReadonlySet<string>
+  field: string
+  onChange: (trait: TraitRef | undefined) => void
 }
 
-/** One power a mode uses: which default-mode power, and the die the mode gives it. */
-function PowerRow({ hero, label, powers, mode, value, disabled, onChange }: PowerRowProps) {
+/** "Cosmic d6 → d8", with why a die stays put at the end of the range. */
+function changeText(name: string, change: ModeChange, from: Die): string {
+  const note = changeNote(change, from)
+  return `${name} ${from} → ${changeDie(change, from)}${note ? ` (${note})` : ''}`
+}
+
+/**
+ * One change in a mode's recipe, and the default-mode power it applies to. A power another
+ * row uses is shown but can't be picked. A power saved under the old editor that doesn't fit
+ * stays chosen, marked, until another is picked.
+ */
+function RecipeRow({ label, row, powers, used, field, onChange }: RecipeRowProps) {
   const id = useId()
-  const from = value && powers.find((p) => traitKey(p.trait) === traitKey(value.trait))?.die
-  const dice = mode && from ? modeDieOptions(mode, from) : []
-  const offList = value && !from
+  const current = row.power && powers.find((p) => traitKey(p.trait) === traitKey(row.power!.trait))
+  const misfit = row.power && !row.fits
   return (
-    <div className="mode-card__power">
-      <label className="field" htmlFor={`${id}-power`}>
-        <span>{label}</span>
-        <select
-          id={`${id}-power`}
-          disabled={disabled}
-          value={value ? traitKey(value.trait) : ''}
-          onChange={(e) => {
-            if (!e.target.value) return onChange(undefined)
-            const trait = parseTraitKey(e.target.value)
-            const die = powers.find((p) => traitKey(p.trait) === e.target.value)!.die
-            const options = mode ? modeDieOptions(mode, die) : [die]
-            // Start with the same die if the mode allows it, otherwise the first it allows.
-            onChange({ trait, die: options.includes(die) ? die : (options[0] ?? die) })
-          }}
-        >
-          <option value="">Choose…</option>
-          {offList && <option value={traitKey(value.trait)}>{traitLabel(hero, value.trait)} (not a default-mode power)</option>}
-          {powers.map((p) => (
-            <option key={traitKey(p.trait)} value={traitKey(p.trait)}>
-              {p.name} ({p.die})
-            </option>
-          ))}
-        </select>
-      </label>
-      {value && (
-        <label className="field" htmlFor={`${id}-die`}>
-          <span>Die in this mode</span>
-          <select id={`${id}-die`} value={value.die} onChange={(e) => onChange({ ...value, die: e.target.value as Die })}>
-            {!dice.includes(value.die) && <option value={value.die}>{value.die} (doesn't fit)</option>}
-            {dice.map((d) => (
-              <option key={d} value={d}>
-                {from ? `${from} → ${d}` : d}
-              </option>
-            ))}
+    <IssueField field={field}>
+      {(f) => (
+        <div className="recipe-row">
+          <label htmlFor={id} className="recipe-row__change">
+            {label}
+          </label>
+          <select id={id} {...f.control} value={row.power ? (misfit ? MISFIT : traitKey(row.power.trait)) : ''} onChange={(e) => onChange(e.target.value && e.target.value !== MISFIT ? parseTraitKey(e.target.value) : undefined)}>
+            <option value="">Choose…</option>
+            {misfit && <option value={MISFIT}>{current ? `${current.name} ${current.die} → ${row.power!.die}` : row.power!.trait.id} (doesn't fit)</option>}
+            {powers.map((p) => {
+              const key = traitKey(p.trait)
+              return (
+                <option key={key} value={key} disabled={used.has(key)}>
+                  {changeText(p.name, row.change, p.die)}
+                  {used.has(key) ? ' (in another row)' : ''}
+                </option>
+              )
+            })}
           </select>
-        </label>
+          {/* The closed select can only show text: the change again, as dice. */}
+          <span className="recipe-row__dice" aria-hidden="true">
+            {current && row.fits && (
+              <>
+                <DieIcon die={current.die} size="compact" /> → <DieIcon die={row.power!.die} size="compact" />
+              </>
+            )}
+          </span>
+          {f.list}
+        </div>
       )}
-    </div>
+    </IssueField>
   )
 }
+
+const MISFIT = 'misfit'
 
 interface ModeCardProps {
   hero: Hero
@@ -98,13 +101,9 @@ function ModeCard({ hero, traits, zone, options, mode, label, taken, onChange, o
   const entry = mode && findMode(hero, mode.id)?.mode
   const powers = traits.filter((t) => t.trait.kind === 'power')
   const title = mode?.name?.trim() || entry?.name || label
-  const rows = Math.max(entry?.pickPowers ?? 0, mode?.powers.length ?? 0)
-  const setPower = (i: number, value: ModeChoice['powers'][number] | undefined) => {
-    const list = [...mode!.powers]
-    if (value) list[i] = value
-    else list.splice(i, 1)
-    onChange({ ...mode!, powers: list })
-  }
+  const defaults = defaultModeDice(traits)
+  const recipe = entry && mode ? modeRows(entry, mode.powers, defaults) : { rows: [], extra: [] }
+  const unused = powers.filter((p) => !recipe.rows.some((r) => r.power && traitKey(r.power.trait) === traitKey(p.trait)))
   return (
     <fieldset className="mode-card">
       <legend>{title}</legend>
@@ -150,18 +149,38 @@ function ModeCard({ hero, traits, zone, options, mode, label, taken, onChange, o
               }}
             />
           </label>
-          {Array.from({ length: rows }, (_, i) => (
-            <PowerRow
-              key={i}
-              hero={hero}
-              label={`Power ${i + 1}`}
-              powers={powers.filter((p) => !mode.powers.some((a, j) => j !== i && traitKey(a.trait) === traitKey(p.trait)))}
-              mode={entry}
-              value={mode.powers[i]}
-              disabled={i > mode.powers.length}
-              onChange={(value) => setPower(i, value)}
-            />
-          ))}
+          <div className="recipe-rows" role="group" aria-label={`${title} powers`}>
+            {recipe.rows.map((row, i) => {
+              const label = changeLabel(row.change)
+              // Tells apart rows with the same change, e.g. two "Raise 1 size".
+              const nth = recipe.rows.slice(0, i + 1).filter((r) => changeLabel(r.change) === label).length
+              const twin = recipe.rows.filter((r) => changeLabel(r.change) === label).length > 1
+              const others = new Set(recipe.rows.flatMap((r, j) => (j !== i && r.power ? [traitKey(r.power.trait)] : [])))
+              return (
+                <RecipeRow
+                  key={i}
+                  label={twin ? `${label} (${nth})` : label}
+                  row={row}
+                  powers={powers}
+                  used={others}
+                  field={modeRowField(mode.id, i)}
+                  onChange={(trait) => onChange({ ...mode, powers: setModeRow(entry, mode.powers, defaults, i, trait) })}
+                />
+              )
+            })}
+            {/* More powers than the recipe has rows (an old save): each can be taken out. */}
+            {recipe.extra.map((a) => (
+              <p key={traitKey(a.trait)} className="recipe-rows__extra">
+                <span>
+                  Also saved: {traitLabel(hero, a.trait)} {a.die}
+                </span>
+                <button type="button" className="button button--small" onClick={() => onChange({ ...mode, powers: mode.powers.filter((x) => x !== a) })}>
+                  Remove
+                </button>
+              </p>
+            ))}
+            {unused.length > 0 && <p className="recipe-rows__unused">Not in this mode: {unused.map((p) => p.name).join(', ')}</p>}
+          </div>
           <AbilityPicker
             hero={hero}
             traits={modeTraits(hero, traits, mode.powers)}
@@ -211,65 +230,68 @@ export function ModesEditor({ hero, ar, traits, modular, onChange, part }: { her
         </p>
       )}
       {(['green', 'yellow', 'red'] as const).map((zone) =>
-        modeSlots(hero, modes, zone, spec[zone].count).map((slot, i) => !shows(zone, i, spec[zone].count) ? null : (
+        modeSlots(hero, modes, zone, spec[zone].count).map((slot, i) =>
+          !shows(zone, i, spec[zone].count) ? null : (
+            <ModeCard
+              key={`${zone}-${i}`}
+              hero={hero}
+              traits={traits}
+              zone={zone}
+              options={spec[zone].options}
+              mode={slot.mode}
+              label={`${ZONE_NAME[zone]} mode ${i + 1}`}
+              taken={modes.map((m) => m.id)}
+              onChange={(next) => set({ modes: setModeSlot(modes, slot, next) })}
+              onRemove={i >= spec[zone].count ? () => set({ modes: setModeSlot(modes, slot, undefined) }) : undefined}
+            />
+          ),
+        ),
+      )}
+      {first &&
+        strayModes(hero, modes).map(({ mode, index }) => (
           <ModeCard
-            key={`${zone}-${i}`}
+            key={`stray-${index}`}
             hero={hero}
             traits={traits}
-            zone={zone}
-            options={spec[zone].options}
-            mode={slot.mode}
-            label={`${ZONE_NAME[zone]} mode ${i + 1}`}
-            taken={modes.map((m) => m.id)}
-            onChange={(next) => set({ modes: setModeSlot(modes, slot, next) })}
-            onRemove={i >= spec[zone].count ? () => set({ modes: setModeSlot(modes, slot, undefined) }) : undefined}
+            zone="green"
+            options={[]}
+            mode={mode}
+            label={mode.id}
+            taken={[]}
+            onChange={(next) => set({ modes: setModeSlot(modes, { index }, next) })}
+            onRemove={() => set({ modes: setModeSlot(modes, { index }, undefined) })}
           />
-        )),
-      )}
-      {first && strayModes(hero, modes).map(({ mode, index }) => (
-        <ModeCard
-          key={`stray-${index}`}
-          hero={hero}
-          traits={traits}
-          zone="green"
-          options={[]}
-          mode={mode}
-          label={mode.id}
-          taken={[]}
-          onChange={(next) => set({ modes: setModeSlot(modes, { index }, next) })}
-          onRemove={() => set({ modes: setModeSlot(modes, { index }, undefined) })}
-        />
-      ))}
+        ))}
 
       {(!part || part === 'powerless') && (
-      <fieldset className="mode-card">
-        <legend>Powerless mode</legend>
-        <p className="hint">
-          <DiceText text={spec.powerless.summary} />
-        </p>
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={Boolean(modular?.powerless)}
-            onChange={(e) => {
-              if (e.target.checked) set({ powerless: [] })
-              else onChange({ modes })
-            }}
-          />
-          Take a Powerless mode
-        </label>
-        {modular?.powerless && (
-          <DiceAssigner
-            label={(t) => traitLabel(hero, t)}
-            legend="Powerless mode powers"
-            dice={spec.powerless.dice}
-            assignments={modular.powerless}
-            options={defaultPowers.flatMap((t) => getTrait(t.trait) ?? [])}
-            earlier={[]}
-            onChange={(powerless) => set({ powerless })}
-          />
-        )}
-      </fieldset>
+        <fieldset className="mode-card">
+          <legend>Powerless mode</legend>
+          <p className="hint">
+            <DiceText text={spec.powerless.summary} />
+          </p>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={Boolean(modular?.powerless)}
+              onChange={(e) => {
+                if (e.target.checked) set({ powerless: [] })
+                else onChange({ modes })
+              }}
+            />
+            Take a Powerless mode
+          </label>
+          {modular?.powerless && (
+            <DiceAssigner
+              label={(t) => traitLabel(hero, t)}
+              legend="Powerless mode powers"
+              dice={spec.powerless.dice}
+              assignments={modular.powerless}
+              options={defaultPowers.flatMap((t) => getTrait(t.trait) ?? [])}
+              earlier={[]}
+              onChange={(powerless) => set({ powerless })}
+            />
+          )}
+        </fieldset>
       )}
     </div>
   )

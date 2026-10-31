@@ -16,10 +16,10 @@
  * - the retcon that changes which power an ability uses can target a mode's ability,
  *   and the new power must be one of that mode's powers.
  */
-import { traitKey } from '../rules/catalog'
-import { sortDice, stepDie } from '../rules/dice'
+import { traitKey, type TraitRef } from '../rules/catalog'
+import { stepDie } from '../rules/dice'
 import type { Ability, Die, ModularMode, Zone } from '../rules/types'
-import type { AbilityPick, Hero, ModeChoice } from '../hero/model'
+import type { AbilityPick, Hero, ModeChoice, TraitAssignment } from '../hero/model'
 import { checkAbilityPick } from './abilities'
 import { outerLayer } from './layers'
 import { traitLabel, type HeroTrait } from './traits'
@@ -38,58 +38,10 @@ export function findMode(hero: Hero, id: string): { mode: ModularMode; zone: Zon
 
 /** The hero's powers and qualities in a mode: that mode's powers at their mode dice, plus every quality. */
 export function modeTraits(hero: Hero, traits: readonly HeroTrait[], powers: ModeChoice['powers']): HeroTrait[] {
-  return [
-    ...powers.map((a) => ({ trait: a.trait, die: a.die, step: 'archetype' as const, name: traitLabel(hero, a.trait) })),
-    ...traits.filter((t) => t.trait.kind === 'quality'),
-  ]
-}
-
-/** How a mode changes its powers, as a list of slots each picked power fills. */
-function slotsOf(mode: ModularMode): ((from: Die, to: Die) => boolean)[] {
-  const slots: ((from: Die, to: Die) => boolean)[] = []
-  const add = (count: number | undefined, fits: (from: Die, to: Die) => boolean) => {
-    for (let i = 0; i < (count ?? 0); i++) slots.push(fits)
-  }
-  // Steps past d4 or d12 leave the die where it is (the user's ruling).
-  add(mode.same, (from, to) => to === from)
-  add(mode.down, (from, to) => to === stepDie(from, -1))
-  add(mode.upCount, (from, to) => to === stepDie(from, 1))
-  add(mode.upTwoSteps, (from, to) => to === stepDie(from, 2))
-  add(mode.setTo?.count, (_from, to) => to === mode.setTo!.die)
-  return slots
-}
-
-/** Whether each picked power can fill a different slot (a small bipartite matching). */
-function fitsSlots(changes: readonly { from: Die; to: Die }[], slots: readonly ((from: Die, to: Die) => boolean)[]): boolean {
-  if (changes.length !== slots.length) return false
-  const used = new Array<boolean>(slots.length).fill(false)
-  const place = (i: number): boolean => {
-    if (i === changes.length) return true
-    for (let s = 0; s < slots.length; s++) {
-      if (!used[s] && slots[s]!(changes[i]!.from, changes[i]!.to)) {
-        used[s] = true
-        if (place(i + 1)) return true
-        used[s] = false
-      }
-    }
-    return false
-  }
-  return place(0)
+  return [...powers.map((a) => ({ trait: a.trait, die: a.die, step: 'archetype' as const, name: traitLabel(hero, a.trait) })), ...traits.filter((t) => t.trait.kind === 'quality')]
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
-
-/** The dice a mode may give a default-mode power at `from`, largest first, for the UI. */
-export function modeDieOptions(mode: ModularMode, from: Die): Die[] {
-  const dice = [
-    mode.upTwoSteps && stepDie(from, 2),
-    mode.upCount && stepDie(from, 1),
-    mode.setTo?.die,
-    mode.same && from,
-    mode.down && stepDie(from, -1),
-  ].filter((d): d is Die => Boolean(d))
-  return sortDice([...new Set(dice)]).reverse()
-}
 
 /**
  * The modes of one zone the editor shows: one slot per mode the zone asks for, plus any
@@ -125,6 +77,153 @@ export function describeAdjustment(mode: ModularMode): string {
   return `${mode.name} uses ${plural(mode.pickPowers, 'default-mode power')}: it ${list}.`
 }
 
+/** One change in a mode's recipe: raise a power one or two sizes, lower it one, keep it, or set it to a die. */
+export type ModeChange = { kind: 'up'; steps: 1 | 2 } | { kind: 'down' } | { kind: 'same' } | { kind: 'set'; die: Die }
+
+/**
+ * A mode's recipe as rows, one per power it changes, in the order the editor lists them
+ * (the hero wizard spec, "Modular mode recipes"): raises, lowers, same sizes, then set dice.
+ */
+export function modeRecipe(mode: ModularMode): ModeChange[] {
+  const rows: ModeChange[] = []
+  const add = (count: number | undefined, change: ModeChange) => {
+    for (let i = 0; i < (count ?? 0); i++) rows.push(change)
+  }
+  add(mode.upTwoSteps, { kind: 'up', steps: 2 })
+  add(mode.upCount, { kind: 'up', steps: 1 })
+  add(mode.down, { kind: 'down' })
+  add(mode.same, { kind: 'same' })
+  if (mode.setTo) add(mode.setTo.count, { kind: 'set', die: mode.setTo.die })
+  return rows
+}
+
+/** "Raise 1 size", "Lower 1 size", "Same size", "Set to d12". */
+export function changeLabel(change: ModeChange): string {
+  switch (change.kind) {
+    case 'up':
+      return `Raise ${change.steps} ${change.steps === 1 ? 'size' : 'sizes'}`
+    case 'down':
+      return 'Lower 1 size'
+    case 'same':
+      return 'Same size'
+    case 'set':
+      return `Set to ${change.die}`
+  }
+}
+
+/** The die a power at `from` has after `change`. Past d12 or d4 it stays where it is (ruling 40). */
+export function changeDie(change: ModeChange, from: Die): Die {
+  switch (change.kind) {
+    case 'up':
+      return stepDie(from, change.steps)
+    case 'down':
+      return stepDie(from, -1)
+    case 'same':
+      return from
+    case 'set':
+      return change.die
+  }
+}
+
+/** Why a change leaves a die where it is, for the option text: a d12 raised, a d4 lowered (ruling 40). */
+export function changeNote(change: ModeChange, from: Die): string | undefined {
+  if (change.kind === 'up' && from === 'd12') return 'already the largest'
+  if (change.kind === 'down' && from === 'd4') return 'already the smallest'
+  return undefined
+}
+
+/** "Choose a power to raise one size." for an empty row. */
+function emptyRowText(change: ModeChange): string {
+  switch (change.kind) {
+    case 'up':
+      return `Choose a power to raise ${change.steps === 1 ? 'one size' : 'two sizes'}.`
+    case 'down':
+      return 'Choose a power to lower one size.'
+    case 'same':
+      return 'Choose a power to keep at the same size.'
+    case 'set':
+      return `Choose a power to set to ${change.die}.`
+  }
+}
+
+/** One row of a mode: its change, the power in it (if any), and whether that power's die is what the change gives. */
+export interface ModeRow {
+  change: ModeChange
+  power?: TraitAssignment
+  fits: boolean
+}
+
+/**
+ * Reads a mode's recorded powers as its recipe rows. Each power goes in a row its die fits
+ * (as many as can, earliest rows first); a power that fits none, as a mode saved by the old
+ * editor might have, takes the first empty row, unfitting; any left over are `extra`. The
+ * saved format stays a list of powers at their mode dice; the rows are only a view of it.
+ * `defaults` is the default mode's powers' dice, by traitKey.
+ */
+export function modeRows(mode: ModularMode, powers: readonly TraitAssignment[], defaults: ReadonlyMap<string, Die>): { rows: ModeRow[]; extra: TraitAssignment[] } {
+  const recipe = modeRecipe(mode)
+  const fits = (change: ModeChange, a: TraitAssignment) => {
+    const from = defaults.get(traitKey(a.trait))
+    return from !== undefined && changeDie(change, from) === a.die
+  }
+  // A maximum matching of powers to rows that fit them (augmenting paths). A d12 fits a Raise
+  // row too (ruling 40), so each power tries the rows that really change its die first.
+  const rowOf = new Array<number | undefined>(recipe.length).fill(undefined)
+  const order = (a: TraitAssignment) => {
+    const from = defaults.get(traitKey(a.trait))
+    const real = (r: number) => !from || !changeNote(recipe[r]!, from)
+    return recipe.map((_, r) => r).sort((x, y) => Number(!real(x)) - Number(!real(y)))
+  }
+  // A free row is taken before moving another power, so powers saved in row order read back the same.
+  const place = (p: number, seen: Set<number>): boolean => {
+    const free = order(powers[p]!).find((r) => rowOf[r] === undefined && !seen.has(r) && fits(recipe[r]!, powers[p]!))
+    if (free !== undefined) {
+      rowOf[free] = p
+      return true
+    }
+    for (const r of order(powers[p]!)) {
+      if (seen.has(r) || !fits(recipe[r]!, powers[p]!)) continue
+      seen.add(r)
+      if (rowOf[r] === undefined || place(rowOf[r]!, seen)) {
+        rowOf[r] = p
+        return true
+      }
+    }
+    return false
+  }
+  powers.forEach((_, p) => place(p, new Set()))
+  const unplaced = powers.filter((_, p) => !rowOf.includes(p))
+  const rows: ModeRow[] = recipe.map((change, r) => (rowOf[r] === undefined ? { change, fits: false } : { change, power: powers[rowOf[r]!]!, fits: true }))
+  for (const row of rows) {
+    if (!row.power && unplaced.length) row.power = unplaced.shift()!
+  }
+  return { rows, extra: unplaced }
+}
+
+/**
+ * Puts `trait` (a default-mode power) in row `index` at the die that row's change gives it, or
+ * empties the row; returns the mode's new powers. The saved list can't record an empty row, so
+ * rows with the same change are interchangeable: a power picked in the second of two empty
+ * "Raise 1 size" rows reads back in the first.
+ */
+export function setModeRow(mode: ModularMode, powers: readonly TraitAssignment[], defaults: ReadonlyMap<string, Die>, index: number, trait: TraitRef | undefined): TraitAssignment[] {
+  const { rows, extra } = modeRows(mode, powers, defaults)
+  const row = rows[index]
+  if (!row) return [...powers]
+  const from = trait && defaults.get(traitKey(trait))
+  if (trait && from) row.power = { trait, die: changeDie(row.change, from) }
+  else delete row.power
+  return [...rows.flatMap((r) => (r.power ? [r.power] : [])), ...extra]
+}
+
+/** The default mode's powers' dice, by traitKey: what modes change. */
+export function defaultModeDice(traits: readonly HeroTrait[]): Map<string, Die> {
+  return new Map(traits.filter((t) => t.trait.kind === 'power').map((t) => [traitKey(t.trait), t.die]))
+}
+
+/** The field a mode row's problem is about (RuleWarning.field). */
+export const modeRowField = (modeId: string, index: number) => `mode-row:${modeId}:${index}`
+
 /** A mode's ability pick with the ability retcon applied, if it targets this mode's ability. */
 export function modeAbilityPick(hero: Hero, mode: ModeChoice): AbilityPick | undefined {
   const retcon = hero.retcon
@@ -137,7 +236,7 @@ export function modeAbilityPick(hero: Hero, mode: ModeChoice): AbilityPick | und
 /** Checks Modular's modes, its Powerless mode, and the ability retcon on a mode ability. */
 export function checkModular(hero: Hero, traits: readonly HeroTrait[]): RuleWarning[] {
   const warnings: RuleWarning[] = []
-  const warn = (code: IssueCode, message: string) => warnings.push(warning('archetype', code, message))
+  const warn = (code: IssueCode, message: string, field?: string) => warnings.push(warning('archetype', code, message, field))
   const outer = outerLayer(hero)
   const spec = outer?.archetype.modes
   const choice = hero.archetype?.modular
@@ -161,6 +260,7 @@ export function checkModular(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
   markPart(warnings, ownFrom, 'own')
 
   const powers = new Map(traits.filter((t) => t.trait.kind === 'power').map((t) => [traitKey(t.trait), t]))
+  const defaults = defaultModeDice(traits)
   const modes = choice?.modes ?? []
   const placed = modes.map((m) => ({ choice: m, found: findMode(hero, m.id) }))
 
@@ -190,20 +290,26 @@ export function checkModular(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
     if (seen.has(mode.id)) warn('mode-twice', `Each mode must be different; you took ${mode.name} more than once.`)
     seen.add(mode.id)
 
-    // Its powers: default-mode powers, each once, adjusted as the mode says.
+    // Its powers: default-mode powers, each once, one per change in the mode's recipe.
     const keys = new Set<string>()
     for (const a of m.powers) {
       const key = traitKey(a.trait)
       if (keys.has(key)) warn('assigned-twice', `${mode.name} uses ${traitLabel(hero, a.trait)} more than once.`)
       keys.add(key)
-      if (!powers.has(key)) warn('mode-not-held', `${mode.name} can only use your default-mode powers; ${traitLabel(hero, a.trait)} isn't one.`)
     }
-    const changes = m.powers.flatMap((a) => {
-      const from = powers.get(traitKey(a.trait))?.die
-      return from ? [{ from, to: a.die }] : []
+    const { rows, extra } = modeRows(mode, m.powers, defaults)
+    rows.forEach((row, i) => {
+      const field = modeRowField(m.id, i)
+      if (!row.power) return warn('mode-row-empty', emptyRowText(row.change), field)
+      if (row.fits) return
+      const name = traitLabel(hero, row.power.trait)
+      const from = defaults.get(traitKey(row.power.trait))
+      if (!from) warn('mode-not-held', `${mode.name} can only use your default-mode powers; ${name} isn't one.`, field)
+      else warn('mode-row-misfit', `${name} is ${row.power.die} in ${mode.name}, but ${changeLabel(row.change).toLowerCase()} makes it ${changeDie(row.change, from)}. Choose it again, or another power.`, field)
     })
-    if (m.powers.length !== mode.pickPowers || keys.size !== m.powers.length || !fitsSlots(changes, slotsOf(mode))) {
-      warn('mode-dice', describeAdjustment(mode))
+    if (extra.length) {
+      const names = extra.map((a) => traitLabel(hero, a.trait))
+      warn('mode-dice', `${mode.name} changes ${plural(mode.pickPowers, 'power')}; remove ${names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0]}.`)
     }
 
     // Its ability, using that mode's powers.
@@ -223,7 +329,10 @@ export function checkModular(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
   const powerlessFrom = warnings.length
   if (powerless) {
     const keys = new Set(powerless.map((a) => traitKey(a.trait)))
-    const dice = powerless.map((a) => a.die).sort().join()
+    const dice = powerless
+      .map((a) => a.die)
+      .sort()
+      .join()
     const wanted = [...spec.powerless.dice].sort().join()
     if (keys.size !== powerless.length || dice !== wanted) {
       warn('powerless-dice', `Powerless mode puts ${spec.powerless.dice.join(' and ')} on two different default-mode powers.`)

@@ -71,6 +71,8 @@ export const ISSUE_CODES = [
   'mode-count',
   'mode-dice',
   'mode-not-held',
+  'mode-row-empty',
+  'mode-row-misfit',
   'mode-twice',
   'name-roleplaying-quality',
   'not-an-upgrade',
