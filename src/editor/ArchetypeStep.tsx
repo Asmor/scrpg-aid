@@ -34,6 +34,7 @@ import { TablePicker } from './TablePicker'
 import { DiceText, DieIcon } from '../components/icons'
 import { switchArchetype, useParts } from './parts-context'
 import { StepMarkIcon } from './StepRail'
+import { IssueScope } from './inline-issues'
 
 function ArchetypeSummary({ ar }: { ar: Archetype }) {
   const category = principleCategories.find((c) => c.id === ar.principleCategory)?.name
@@ -198,13 +199,7 @@ function ArchetypeDetails({ hero, update, ar, choice, at, skipAbilities = false,
           {ar.fixedGreenAbilities && picker('archetype.fixedGreen', 'Green abilities you always have', ar.fixedGreenAbilities, ar.fixedGreenConstraint, true)}
           {ar.greenAbilities && picker('archetype.green', blockLegend('Green', ar.greenAbilities), ar.greenAbilities.options, ar.greenAbilities.constraint)}
           {ar.fixedYellowAbilities && picker('archetype.fixedYellow', 'Yellow abilities you always have', ar.fixedYellowAbilities, undefined, true)}
-          {ar.yellowAbilities &&
-            picker(
-              'archetype.yellow',
-              blockLegend('Yellow', ar.yellowAbilities),
-              ar.yellowAbilities.fromGreenList ? ar.greenAbilities?.options : ar.yellowAbilities.options,
-              ar.yellowAbilities.constraint,
-            )}
+          {ar.yellowAbilities && picker('archetype.yellow', blockLegend('Yellow', ar.yellowAbilities), ar.yellowAbilities.fromGreenList ? ar.greenAbilities?.options : ar.yellowAbilities.options, ar.yellowAbilities.constraint)}
           {ar.fixedRedAbilities && picker('archetype.fixedRed', 'Red abilities you always have', ar.fixedRedAbilities, undefined, true)}
         </>
       )}
@@ -356,9 +351,7 @@ function SecondArchetype({ hero, update, outer }: { hero: Hero; update: Update; 
           describe={(entry) => <ArchetypeSummary ar={entry} />}
         />
       )}
-      {choice && second && (
-        <ArchetypeDetails hero={hero} update={update} ar={second} choice={choice} at={(h) => h.archetype!.secondary!} skipAbilities={spec.skipAbilities} skipPrinciple />
-      )}
+      {choice && second && <ArchetypeDetails hero={hero} update={update} ar={second} choice={choice} at={(h) => h.archetype!.secondary!} skipAbilities={spec.skipAbilities} skipPrinciple />}
     </div>
   )
 }
@@ -383,7 +376,9 @@ function FillerPowers({ hero, update, outer }: { hero: Hero; update: Update; out
     <>
       {others > 0 && (
         <div className="leftovers">
-          <p className="hint">You have {others === 1 ? 'a power or quality' : `${others} powers and qualities`} from another archetype on {outer.name} itself, which only adds {spec.fillerPowerDie} powers.</p>
+          <p className="hint">
+            You have {others === 1 ? 'a power or quality' : `${others} powers and qualities`} from another archetype on {outer.name} itself, which only adds {spec.fillerPowerDie} powers.
+          </p>
           <button
             type="button"
             className="button"
@@ -399,11 +394,7 @@ function FillerPowers({ hero, update, outer }: { hero: Hero; update: Update; out
       )}
       {rows > 0 && (
         <>
-          <p className="hint">
-            {wanted
-              ? `You have ${have} powers; add ${wanted} ${spec.fillerPowerDie} power${wanted === 1 ? '' : 's'} so you have ${spec.minimumPowers}.`
-              : `You have ${have} powers, so you don't need filler powers; clear these.`}
-          </p>
+          <p className="hint">{wanted ? `You have ${have} powers; add ${wanted} ${spec.fillerPowerDie} power${wanted === 1 ? '' : 's'} so you have ${spec.minimumPowers}.` : `You have ${have} powers, so you don't need filler powers; clear these.`}</p>
           <DiceAssigner
             label={(t) => traitLabel(hero, t)}
             legend="Filler powers"
@@ -516,7 +507,7 @@ function PartCard({ hero, ar, part, open, onToggle, children }: { hero: Hero; ar
       </h4>
       {open && (
         <div className="part__body" id={bodyId}>
-          {children}
+          <IssueScope issues={part.issues}>{children}</IssueScope>
         </div>
       )}
     </section>
@@ -718,35 +709,37 @@ export function ArchetypeStep({ hero, update }: { hero: Hero; update: Update }) 
       )}
       {showList && (dice || hero.method === 'constructed' || choice) && (
         <div ref={list}>
-        <TablePicker
-          what="archetype"
-          method={dice ? hero.method : 'constructed'}
-          rollMode={hero.rollMode}
-          dice={dice ?? []}
-          table={archetypes}
-          roll={roll}
-          selectedId={choice?.id}
-          onRoll={(r) => update((h) => setStepRoll(h, 'archetype', r))}
-          onSelect={(entry) => {
-            // A complex archetype collapses into its card; focus goes to the card's button.
-            const next = archetypesById.get(entry.id)
-            if (next && hasParts(next)) focusNext.current = 'card'
-            setChanging(false)
-            update((h) => {
-              const pending = takePendingRoll(h, 'archetype')
-              const kept = h.archetype?.roll ?? pending
-              // The old archetype's own parts are kept for this visit, in case the player switches back.
-              if (h.archetype) switchArchetype(h, entry.id, memory)
-              // Keep earlier choices that may still fit; the checks flag the ones that don't.
-              h.archetype = { traits: [], abilities: [], bonus: [], ...h.archetype, id: entry.id, ...(kept ? { roll: kept } : {}) }
-            })
-          }}
-          describe={(entry) => <ArchetypeSummary ar={entry} />}
-        />
+          <TablePicker
+            what="archetype"
+            method={dice ? hero.method : 'constructed'}
+            rollMode={hero.rollMode}
+            dice={dice ?? []}
+            table={archetypes}
+            roll={roll}
+            selectedId={choice?.id}
+            onRoll={(r) => update((h) => setStepRoll(h, 'archetype', r))}
+            onSelect={(entry) => {
+              // A complex archetype collapses into its card; focus goes to the card's button.
+              const next = archetypesById.get(entry.id)
+              if (next && hasParts(next)) focusNext.current = 'card'
+              setChanging(false)
+              update((h) => {
+                const pending = takePendingRoll(h, 'archetype')
+                const kept = h.archetype?.roll ?? pending
+                // The old archetype's own parts are kept for this visit, in case the player switches back.
+                if (h.archetype) switchArchetype(h, entry.id, memory)
+                // Keep earlier choices that may still fit; the checks flag the ones that don't.
+                h.archetype = { traits: [], abilities: [], bonus: [], ...h.archetype, id: entry.id, ...(kept ? { roll: kept } : {}) }
+              })
+            }}
+            describe={(entry) => <ArchetypeSummary ar={entry} />}
+          />
         </div>
       )}
 
-      {choice && ar && split &&
+      {choice &&
+        ar &&
+        split &&
         parts.map((part) => (
           <PartCard key={part.id} hero={hero} ar={ar} part={part} open={isOpen(part.id)} onToggle={() => toggle(part.id)}>
             <PartBody hero={hero} update={update} ar={ar} part={part.id} />

@@ -19,8 +19,8 @@ import type { ArchetypeChoice, DividedChoice, Hero } from '../hero/model'
 import { checkAbilityBlock, checkAbilityPick } from './abilities'
 import { dividedChoice, outerLayer } from './layers'
 import { compareDice } from '../rules/dice'
-import { deriveTraits, ROLEPLAYING_QUALITY, traitLabel, type HeroTrait } from './traits'
-import { markPart, warning, type RuleWarning } from './warnings'
+import { deriveTraits, ROLEPLAYING_QUALITY, traitField, traitLabel, type HeroTrait } from './traits'
+import { markPart, warning, type IssueCode, type RuleWarning } from './warnings'
 
 const SPLIT_FORM = 'Split Form'
 const DIVIDED_PSYCHE = 'Divided Psyche'
@@ -110,7 +110,7 @@ export function splitCandidates(hero: Hero, traits: readonly HeroTrait[]): HeroT
 
 function checkSplit(hero: Hero, traits: readonly HeroTrait[], warnings: RuleWarning[]): void {
   const split = hero.archetype!.divided?.split
-  const warn = (code: string, message: string) => warnings.push(warning('archetype', code, message))
+  const warn = (code: IssueCode, message: string, field?: string) => warnings.push(warning('archetype', code, message, field))
   if (!split) {
     warn('split-missing', 'Split Form: choose two powers and two qualities you always have, and divide the rest between your forms.')
     return
@@ -131,21 +131,21 @@ function checkSplit(hero: Hero, traits: readonly HeroTrait[], warnings: RuleWarn
     const key = traitKey(t)
     placed.set(key, (placed.get(key) ?? 0) + 1)
     if (key === ROLEPLAYING_KEY) {
-      warn('split-roleplaying', 'Split Form: your roleplaying quality is available in both forms, so leave it out of the split.')
+      warn('split-roleplaying', 'Split Form: your roleplaying quality is available in both forms, so leave it out of the split.', traitField(t))
     } else if (held.has(key)) {
       continue
     } else if (inSomeForm.has(key)) {
-      warn('split-form-only', `Split Form: ${traitLabel(hero, t)} comes from one personality's bonus, so it's only in that form; leave it out of the split.`)
+      warn('split-form-only', `Split Form: ${traitLabel(hero, t)} comes from one personality's bonus, so it's only in that form; leave it out of the split.`, traitField(t))
     } else {
-      warn('slot-not-held', `Split Form lists ${traitLabel(hero, t)}, which you don't have.`)
+      warn('slot-not-held', `Split Form lists ${traitLabel(hero, t)}, which you don't have.`, traitField(t))
     }
   }
   for (const [key, count] of placed) {
-    if (count > 1) warn('split-twice', `Split Form puts ${held.get(key)?.name ?? key} in more than one place.`)
+    if (count > 1) warn('split-twice', `Split Form puts ${held.get(key)?.name ?? key} in more than one place.`, `trait:${key}`)
   }
   for (const t of shared) {
     if (!placed.has(traitKey(t.trait))) {
-      warn('split-unplaced', `Split Form: put ${t.name} in your civilian form, your heroic form, or the ones you always have.`)
+      warn('split-unplaced', `Split Form: put ${t.name} in your civilian form, your heroic form, or the ones you always have.`, traitField(t.trait))
     }
   }
 }
@@ -169,7 +169,7 @@ export function checkDivided(hero: Hero, traits: readonly HeroTrait[]): RuleWarn
   const divided = hero.archetype?.divided
   if (!outer) return warnings
   const ar = outer.archetype
-  const warn = (code: string, message: string) => warnings.push(warning('archetype', code, message))
+  const warn = (code: IssueCode, message: string) => warnings.push(warning('archetype', code, message))
   const second = hero.archetype?.secondary
   if (second?.divided) warn('unexpected-divided', `Record Divided's choices on Divided, not on ${archetypesById.get(second.id)?.name ?? 'the archetype it builds on'}.`)
   if (!ar.transitionMethods) {

@@ -14,6 +14,7 @@ import { traitLabel, type HeroTrait } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
 import { DiceAssigner } from './DiceAssigner'
 import { DiceText } from '../components/icons'
+import { SectionIssues } from './inline-issues'
 
 interface FormCardProps {
   hero: Hero
@@ -136,6 +137,7 @@ export function FormChangerForms({ hero, ar, traits, forms, onChange, part }: { 
   return (
     <div className="forms-editor" data-section="parts">
       {!part && <h4>Forms</h4>}
+      <SectionIssues section="parts" />
       {first && (
         <p className="hint">
           <DiceText text={spec.summary} />
@@ -175,6 +177,7 @@ export function MinionForms({ hero, ar, traits, choice, onChange }: { hero: Hero
   return (
     <fieldset className="minion-forms" data-section="parts">
       <legend>Minion forms</legend>
+      <SectionIssues section="parts" />
       <p className="hint">
         {spec.selection} <span className="page-ref">{formatEntryRef(spec)}</span>
       </p>

@@ -6,7 +6,7 @@
 import { archetypesById } from '../rules/data'
 import type { Archetype } from '../rules/types'
 import type { ArchetypeChoice, DividedChoice, Hero } from '../hero/model'
-import { warning, type RuleWarning } from './warnings'
+import { warning, type IssueCode, type RuleWarning } from './warnings'
 
 export interface ArchetypeLayer {
   choice: ArchetypeChoice
@@ -63,7 +63,7 @@ export function checkSecondary(hero: Hero): RuleWarning[] {
   if (!outer) return []
   const choice = outer.choice.secondary
   const spec = outer.archetype.secondaryArchetype
-  const warn = (code: string, message: string) => [warning('archetype', code, message)]
+  const warn = (code: IssueCode, message: string) => [warning('archetype', code, message)]
   if (!spec) return choice ? warn('unexpected-secondary', `${outer.archetype.name} doesn't build on a second archetype.`) : []
   if (!choice) return warn('secondary-missing', `Choose the archetype ${outer.archetype.name} builds on.`)
   const second = archetypesById.get(choice.id)

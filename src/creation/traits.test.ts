@@ -111,7 +111,7 @@ describe('deriveTraits', () => {
       // Fitness d10 from the background can't be "upgraded" to d6 to move its d10 elsewhere.
       hero.archetype!.traits = [A(Q('fitness'), 'd6', true), A(P('speed'), 'd12'), A(P('flight'), 'd10')]
       expect(deriveTraits(hero).warnings).toEqual([
-        { step: 'archetype', code: 'not-an-upgrade', message: 'Only a bigger die can upgrade Fitness, which is already d10.' },
+        { step: 'archetype', code: 'not-an-upgrade', message: 'Only a bigger die can upgrade Fitness, which is already d10.', field: 'trait:quality:fitness' },
       ])
       // An equal die isn't an upgrade either.
       hero.archetype!.traits = [A(Q('fitness'), 'd10', true), A(P('speed'), 'd12'), A(P('flight'), 'd6')]
@@ -236,6 +236,7 @@ describe('deriveTraits', () => {
         step: 'powerSource',
         code: 'not-an-upgrade',
         message: "Mystical's bonus can only upgrade History, which is already d10. Choose something else.",
+        field: 'bonus',
       })
     })
 

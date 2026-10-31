@@ -13,7 +13,7 @@ import { findAbility, findRedAbility, optionsFor, recordedPicks, retconnedPick }
 import type { AbilitySource } from '../hero/model'
 import { heroPrinciples, principleOf } from './principles'
 import { deriveTraits, ROLEPLAYING_QUALITY, traitLabel } from './traits'
-import { warning, type RuleWarning } from './warnings'
+import { warning, type IssueCode, type RuleWarning } from './warnings'
 
 /**
  * The ability lists a swap can work within: the ones the player picks from. Fixed abilities
@@ -122,7 +122,7 @@ export function describeChange(hero: Hero, change: AdvancementChange): string {
 }
 
 function checkChange(before: Hero, change: AdvancementChange, n: number): RuleWarning[] {
-  const warn = (code: string, message: string) => [warning('advancement', code, `Change ${n}: ${message}`)]
+  const warn = (code: IssueCode, message: string) => [warning('advancement', code, `Change ${n}: ${message}`)]
   const traits = deriveTraits(before).traits
   switch (change.kind) {
     case 'swapPower':

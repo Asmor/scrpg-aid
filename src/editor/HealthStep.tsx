@@ -15,6 +15,7 @@ import { buildSheet } from '../creation/sheet'
 import { deriveTraits, traitLabel } from '../creation/traits'
 import { DiceText, DieIcon } from '../components/icons'
 import { HealthChips } from '../components/SheetPreview'
+import { SectionIssues } from './inline-issues'
 
 type Update = (change: (draft: Hero) => void) => void
 
@@ -77,6 +78,7 @@ export function HealthStep({ hero, update, random }: { hero: Hero; update: Updat
 
   return (
     <div className="step-form" data-section="choose">
+      <SectionIssues section="choose" />
       <p className="hint">
         <DiceText text={healthFormula.summary} /> <span className="page-ref">{formatEntryRef(healthStep)}</span>
       </p>

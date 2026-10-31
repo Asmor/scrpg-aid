@@ -18,7 +18,7 @@ import type { FormChoice, Hero } from '../hero/model'
 import { checkAbilityPick } from './abilities'
 import { layers, traitLayer, type ArchetypeLayer } from './layers'
 import { traitLabel, type HeroTrait } from './traits'
-import { markPart, warning, type RuleWarning } from './warnings'
+import { markPart, warning, type IssueCode, type RuleWarning } from './warnings'
 
 export interface FormTraits {
   form: FormChoice
@@ -93,7 +93,7 @@ function checkFormChanger(hero: Hero, traits: readonly HeroTrait[], layer: Arche
   const ar = layer.archetype
   const spec = ar.forms!
   const forms = layer.choice.forms ?? []
-  const warn = (code: string, message: string) => warnings.push(warning('archetype', code, message))
+  const warn = (code: IssueCode, message: string) => warnings.push(warning('archetype', code, message))
   const green = forms.filter((f) => f.zone === 'green')
   const yellow = forms.filter((f) => f.zone === 'yellow')
   // A missing form goes with the first one of its color still to make.
@@ -204,7 +204,7 @@ export function formAbilityPick(hero: Hero, form: FormChoice): FormChoice['abili
 function checkMinionForms(hero: Hero, traits: readonly HeroTrait[], layer: ArchetypeLayer, warnings: RuleWarning[]): void {
   const spec = layer.archetype.minionForms!
   const choice = layer.choice.minionForms
-  const warn = (code: string, message: string) => warnings.push(warning('archetype', code, message))
+  const warn = (code: IssueCode, message: string) => warnings.push(warning('archetype', code, message))
   if (!choice?.quality) {
     warn('minion-forms-quality', 'Choose the quality that sets how many minion forms you have.')
     return

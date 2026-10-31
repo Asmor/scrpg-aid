@@ -26,7 +26,7 @@ describe('wizard steps', () => {
 })
 
 describe('step states', () => {
-  const warning = (step: RuleWarning['step']): RuleWarning => ({ step, code: 'x', message: 'x' })
+  const warning = (step: RuleWarning['step']): RuleWarning => ({ step, code: 'dice-mismatch', message: 'x' })
 
   it('marks steps not started, done, or with issues, whatever else is filled in', () => {
     const hero = createHero('guided')

@@ -9,13 +9,14 @@ import { parseTraitKey, traitKey, type TraitRef } from '../rules/catalog'
 import { parseSlots, type ChoiceSlot, type TraitSlot } from '../rules/slots'
 import type { Ability } from '../rules/types'
 import type { AbilityPick, AbilitySource, Hero } from '../hero/model'
-import { limitedSlotIndex, slotCandidates, type SlotLimit } from '../creation/abilities'
+import { abilityField, limitedSlotIndex, slotCandidates, type SlotLimit } from '../creation/abilities'
 import { canSetUse, replacePick, setBlank, setCustomName, setUse } from '../creation/picks'
 import { fillTextWith } from '../creation/sheet'
 import { traitLabel, type HeroTrait } from '../creation/traits'
 import type { StepId } from '../creation/warnings'
 import { AbilityText } from '../components/icons'
 import { effectActions } from '../creation/effects'
+import { IssueField, SectionIssues } from './inline-issues'
 
 const TYPE_NAME: Record<Ability['type'], string> = { A: 'Action', R: 'Reaction', I: 'Inherent', 'A/I': 'Action/Inherent' }
 
@@ -115,11 +116,7 @@ function ChoiceSlotField({ slot, value, onChange }: { slot: ChoiceSlot; value: s
       <legend>[{slot.label}]</legend>
       {slot.options.map((o) => (
         <label key={o} className="checkbox">
-          <input
-            type="checkbox"
-            checked={chosen.includes(o)}
-            onChange={(e) => onChange(e.target.checked ? [...chosen, o] : chosen.filter((c) => c !== o))}
-          />
+          <input type="checkbox" checked={chosen.includes(o)} onChange={(e) => onChange(e.target.checked ? [...chosen, o] : chosen.filter((c) => c !== o))} />
           {o}
         </label>
       ))}
@@ -149,36 +146,14 @@ function PickFields<P extends EditablePick>({ filling, ability, pick, nameable, 
       {slots.map((slot, i) => {
         if (slot.type === 'trait') {
           const index = traitIndex++
-          return (
-            <TraitSlotField
-              key={i}
-              filling={filling}
-              slot={slot}
-              limit={index === limited ? slotLimit : undefined}
-              value={pick.uses?.[index]}
-              disabled={!canSetUse(pick, index)}
-              onChange={(t) => onChange(setUse(pick, index, t))}
-            />
-          )
+          return <TraitSlotField key={i} filling={filling} slot={slot} limit={index === limited ? slotLimit : undefined} value={pick.uses?.[index]} disabled={!canSetUse(pick, index)} onChange={(t) => onChange(setUse(pick, index, t))} />
         }
-        return (
-          <ChoiceSlotField
-            key={i}
-            slot={slot}
-            value={pick.blanks?.[slot.label]}
-            onChange={(v) => onChange(setBlank(pick, slot.label, v))}
-          />
-        )
+        return <ChoiceSlotField key={i} slot={slot} value={pick.blanks?.[slot.label]} onChange={(v) => onChange(setBlank(pick, slot.label, v))} />
       })}
       {nameable && (
         <label className="field" htmlFor={`${id}-name`}>
           <span>Your name for it (optional)</span>
-          <input
-            id={`${id}-name`}
-            type="text"
-            value={pick.customName ?? ''}
-            onChange={(e) => onChange(setCustomName(pick, e.target.value))}
-          />
+          <input id={`${id}-name`} type="text" value={pick.customName ?? ''} onChange={(e) => onChange(setCustomName(pick, e.target.value))} />
         </label>
       )}
       {/* With no blanks, the text above already says it all. */}
@@ -227,52 +202,68 @@ export function AbilityChooser<P extends EditablePick>({ filling, legend, hint, 
     <fieldset className="ability-picker" data-section="abilities">
       <legend className={hideLegend ? 'visually-hidden' : undefined}>{legend}</legend>
       {hint && <p className="hint">{hint}</p>}
+      <SectionIssues section="abilities" />
       {options.map((ability) => {
         const pick = picks.find((p) => p.name === ability.name)
         if (fixed) {
           // The hero has it either way; a pick is saved once a blank is filled or it's given a name.
           return (
-            <div key={ability.name} className="ability-pick ability-card">
-              <p className="ability-pick__fixed">
-                <span className="choice__title">
-                  {ability.name} <span className="choice__note">({TYPE_NAME[ability.type]})</span>
-                </span>
-                <span className="choice__detail">
-                  <AbilityText text={ability.text} actions={ability.effects && effectActions(ability.effects)} />
-                </span>
-              </p>
-              <PickFields filling={filling} ability={ability} pick={pick ?? ({ source, name: ability.name } as P)} nameable={nameable} slotLimit={slotLimit} onChange={(p) => replace(ability.name, p)} />
-            </div>
+            <IssueField key={ability.name} field={abilityField(ability.name)}>
+              {(f) => (
+                <div className={f.invalid ? 'ability-pick ability-card ability-card--invalid' : 'ability-pick ability-card'} {...f.control}>
+                  {f.list}
+                  <p className="ability-pick__fixed">
+                    <span className="choice__title">
+                      {ability.name} <span className="choice__note">({TYPE_NAME[ability.type]})</span>
+                    </span>
+                    <span className="choice__detail">
+                      <AbilityText text={ability.text} actions={ability.effects && effectActions(ability.effects)} />
+                    </span>
+                  </p>
+                  <PickFields filling={filling} ability={ability} pick={pick ?? ({ source, name: ability.name } as P)} nameable={nameable} slotLimit={slotLimit} onChange={(p) => replace(ability.name, p)} />
+                </div>
+              )}
+            </IssueField>
           )
         }
         return (
-          <div key={ability.name} className="ability-pick ability-card">
-            <label className="choice">
-              <input type="checkbox" checked={Boolean(pick)} onChange={(e) => replace(ability.name, e.target.checked ? ({ source, name: ability.name } as P) : undefined)} />
-              <span className="choice__body">
-                <span className="choice__title">
-                  {ability.name} <span className="choice__note">({TYPE_NAME[ability.type]})</span>
-                </span>
-                <span className="choice__detail">
-                  <AbilityText text={ability.text} actions={ability.effects && effectActions(ability.effects)} />
-                </span>
-              </span>
-            </label>
-            {pick && <PickFields filling={filling} ability={ability} pick={pick} nameable={nameable} slotLimit={slotLimit} onChange={(p) => replace(ability.name, p)} />}
-          </div>
+          <IssueField key={ability.name} field={abilityField(ability.name)}>
+            {(f) => (
+              <div className={f.invalid ? 'ability-pick ability-card ability-card--invalid' : 'ability-pick ability-card'}>
+                <label className="choice">
+                  <input type="checkbox" {...f.control} checked={Boolean(pick)} onChange={(e) => replace(ability.name, e.target.checked ? ({ source, name: ability.name } as P) : undefined)} />
+                  <span className="choice__body">
+                    <span className="choice__title">
+                      {ability.name} <span className="choice__note">({TYPE_NAME[ability.type]})</span>
+                    </span>
+                    <span className="choice__detail">
+                      <AbilityText text={ability.text} actions={ability.effects && effectActions(ability.effects)} />
+                    </span>
+                  </span>
+                </label>
+                {f.list}
+                {pick && <PickFields filling={filling} ability={ability} pick={pick} nameable={nameable} slotLimit={slotLimit} onChange={(p) => replace(ability.name, p)} />}
+              </div>
+            )}
+          </IssueField>
         )
       })}
       {stray.map((p) => (
-        <div key={p.name} className="ability-pick ability-card">
-          <label className="choice">
-            <input type="checkbox" checked onChange={() => replace(p.name, undefined)} />
-            <span className="choice__body">
-              <span className="choice__title">
-                {p.customName || p.name} <span className="choice__note">(not on this list)</span>
-              </span>
-            </span>
-          </label>
-        </div>
+        <IssueField key={p.name} field={abilityField(p.name)}>
+          {(f) => (
+            <div className={f.invalid ? 'ability-pick ability-card ability-card--invalid' : 'ability-pick ability-card'}>
+              <label className="choice">
+                <input type="checkbox" {...f.control} checked onChange={() => replace(p.name, undefined)} />
+                <span className="choice__body">
+                  <span className="choice__title">
+                    {p.customName || p.name} <span className="choice__note">(not on this list)</span>
+                  </span>
+                </span>
+              </label>
+              {f.list}
+            </div>
+          )}
+        </IssueField>
       ))}
     </fieldset>
   )

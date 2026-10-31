@@ -601,7 +601,8 @@ describe('HeroEditor', () => {
     renderEditor(store, 'archetype')
     const group = await screen.findByRole('group', { name: 'Minion forms' })
     await userEvent.selectOptions(within(group).getByRole('combobox', { name: 'Quality that sets how many' }), 'Creativity (d6)')
-    expect(readable(within(group).getByText(/^Choose 6/))).toBe('Choose 6 (your Creativity is d6); you have 0.')
+    // The tally, not the same words in the issue at the top of the group.
+    expect(readable(within(group).getAllByText(/^Choose 6/).find((el) => !el.closest('.inline-issues'))!)).toBe('Choose 6 (your Creativity is d6); you have 0.')
     await userEvent.click(within(group).getByRole('checkbox', { name: /Floating/ }))
     await waitFor(async () => expect((await saved(store)).archetype?.minionForms).toEqual({ quality: Q('creativity'), forms: ['Floating'] }))
   })

@@ -349,7 +349,7 @@ describe('checkAbilities', () => {
       const ability = { name: 'Test', type: 'A' as const, text: 'Attack using [a power gained from your archetype].' }
       expect(checkAbilityPick(hero, traits, ability, { source: 'archetype.green', name: 'Test', uses: [P('speed')] }, 'archetype')).toEqual([])
       expect(checkAbilityPick(hero, traits, ability, { source: 'archetype.green', name: 'Test', uses: [P('agility')] }, 'archetype')).toEqual([
-        { step: 'archetype', code: 'slot-wrong-trait', message: "[a power gained from your archetype] for Test can't be Agility." },
+        { step: 'archetype', code: 'slot-wrong-trait', message: "[a power gained from your archetype] for Test can't be Agility.", field: 'ability:Test' },
       ])
     })
 
@@ -391,7 +391,7 @@ describe('checkAbilities', () => {
       const t = deriveTraits(hero).traits
       expect(checkAbilityPick(hero, t, onboard, { source: 'powerSource.yellow', name: 'Onboard Upgrade', uses: [P('power-suit')] }, 'powerSource')).toEqual([])
       expect(checkAbilityPick(hero, t, onboard, { source: 'powerSource.yellow', name: 'Onboard Upgrade', uses: [P('fire')] }, 'powerSource')).toEqual([
-        { step: 'powerSource', code: 'slot-extra', message: 'Onboard Upgrade always uses Power Suit; remove the extra.' },
+        { step: 'powerSource', code: 'slot-extra', message: 'Onboard Upgrade always uses Power Suit; remove the extra.', field: 'ability:Onboard Upgrade' },
       ])
     })
   })

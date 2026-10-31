@@ -24,7 +24,7 @@ import { compareDice, sortDice, stepDie } from '../rules/dice'
 import type { Archetype, Bonus, Die, OptionRef, PowerSource, RequiredRef } from '../rules/types'
 import type { ArchetypeChoice, Hero, TraitAssignment } from '../hero/model'
 import { traitLayer } from './layers'
-import { warning, type RuleWarning, type StepId } from './warnings'
+import { warning, type IssueCode, type RuleWarning, type StepId } from './warnings'
 
 export interface HeroTrait {
   trait: TraitRef
@@ -75,6 +75,13 @@ function sameDice(a: readonly Die[], b: readonly Die[]): boolean {
   return x.length === y.length && x.every((d, i) => d === y[i])
 }
 
+/** The field an assign row's problem is about: the row with that trait (RuleWarning.field). */
+export const traitField = (trait: TraitRef) => `trait:${traitKey(trait)}`
+/** A bonus picker as a whole. */
+export const BONUS_FIELD = 'bonus'
+/** The roleplaying quality's name. */
+export const ROLEPLAYING_FIELD = 'roleplaying-quality'
+
 /** A required entry as a plain option reference (without dieCount). */
 function requiredRef(r: RequiredRef): OptionRef {
   const { dieCount, ...ref } = r
@@ -95,8 +102,9 @@ class TraitState {
     return traitLabel(this.hero, trait)
   }
 
-  warn(step: StepId, code: string, message: string): void {
-    this.warnings.push(warning(step, code, message))
+  /** `field` names the one field the problem is about, if it's about one (see RuleWarning). */
+  warn(step: StepId, code: IssueCode, message: string, field?: string): void {
+    this.warnings.push(warning(step, code, message, field))
   }
 
   get(trait: TraitRef): HeroTrait | undefined {
@@ -122,9 +130,10 @@ class TraitState {
     const inStep = new Set<string>()
     for (const a of assignments) {
       const key = traitKey(a.trait)
-      if (!getTrait(a.trait)) this.warn(step, 'unknown-trait', `"${a.trait.id}" isn't a known ${a.trait.kind}.`)
+      const field = traitField(a.trait)
+      if (!getTrait(a.trait)) this.warn(step, 'unknown-trait', `"${a.trait.id}" isn't a known ${a.trait.kind}.`, field)
       if (inStep.has(key)) {
-        this.warn(step, 'assigned-twice', `${this.label(a.trait)} gets more than one die in this step.`)
+        this.warn(step, 'assigned-twice', `${this.label(a.trait)} gets more than one die in this step.`, field)
       }
       inStep.add(key)
       const existing = this.get(a.trait)
@@ -132,17 +141,18 @@ class TraitState {
         if (a.upgrades) {
           freed.push({ die: existing.die, from: this.label(a.trait) })
           if (compareDice(a.die, existing.die) <= 0 && !canSwap(a.trait)) {
-            this.warn(step, 'not-an-upgrade', `Only a bigger die can upgrade ${this.label(a.trait)}, which is already ${existing.die}.`)
+            this.warn(step, 'not-an-upgrade', `Only a bigger die can upgrade ${this.label(a.trait)}, which is already ${existing.die}.`, field)
           }
         } else {
           this.warn(
             step,
             'already-have',
             `You already have ${this.label(a.trait)} at ${existing.die}. Either upgrade it with this ${a.die} (and assign the old die elsewhere in this step) or put the ${a.die} on something else.`,
+            field,
           )
         }
       } else if (!existing && a.upgrades) {
-        this.warn(step, 'nothing-to-upgrade', `${this.label(a.trait)} is marked as an upgrade, but you don't have it yet.`)
+        this.warn(step, 'nothing-to-upgrade', `${this.label(a.trait)} is marked as an upgrade, but you don't have it yet.`, field)
       }
       this.set(a.trait, a.die, step)
     }
@@ -168,7 +178,7 @@ class TraitState {
   checkOnList(step: StepId, assignments: readonly TraitAssignment[], allowed: readonly OptionRef[], what: string): void {
     for (const a of assignments) {
       if (getTrait(a.trait) && !refsMatch(allowed, a.trait)) {
-        this.warn(step, 'not-on-list', `${this.label(a.trait)} isn't on the ${what} list.`)
+        this.warn(step, 'not-on-list', `${this.label(a.trait)} isn't on the ${what} list.`, traitField(a.trait))
       }
     }
   }
@@ -187,7 +197,8 @@ interface BonusContext {
 /** Applies a bonus's assignments and checks them against the bonus's rules. */
 function applyBonus(state: TraitState, bonus: Bonus, assignments: readonly TraitAssignment[], ctx: BonusContext): void {
   const { step, source } = ctx
-  const warn = (code: string, message: string) => state.warn(step, code, message)
+  // A bonus's problems are about its picker as a whole.
+  const warn = (code: IssueCode, message: string) => state.warn(step, code, message, BONUS_FIELD)
   const prior = (t: TraitRef) => ctx.before.get(traitKey(t))
   const expectCount = (n: number) => {
     if (assignments.length === 0) {
@@ -323,7 +334,7 @@ function backgroundStep(state: TraitState, hero: Hero): void {
   const freed = state.assign('background', choice.qualities)
   const required = (bg.qualities.required ?? []).map(requiredRef)
   for (const a of choice.qualities) {
-    if (a.trait.kind !== 'quality') state.warn('background', 'wrong-kind', `${bg.name} gives qualities, but ${state.label(a.trait)} is a power.`)
+    if (a.trait.kind !== 'quality') state.warn('background', 'wrong-kind', `${bg.name} gives qualities, but ${state.label(a.trait)} is a power.`, traitField(a.trait))
   }
   state.checkOnList('background', choice.qualities.filter((a) => a.trait.kind === 'quality'), [...bg.qualities.options, ...required], bg.name)
   for (const r of bg.qualities.required ?? []) {
@@ -340,7 +351,7 @@ function powerSourceStep(state: TraitState, hero: Hero, ps: PowerSource): void {
   const freed = state.assign('powerSource', choice.powers)
   const required = (ps.powers.required ?? []).map(requiredRef)
   for (const a of choice.powers) {
-    if (a.trait.kind !== 'power') state.warn('powerSource', 'wrong-kind', `${ps.name} gives powers, but ${state.label(a.trait)} is a quality.`)
+    if (a.trait.kind !== 'power') state.warn('powerSource', 'wrong-kind', `${ps.name} gives powers, but ${state.label(a.trait)} is a quality.`, traitField(a.trait))
   }
   state.checkOnList('powerSource', choice.powers.filter((a) => a.trait.kind === 'power'), [...ps.powers.options, ...required], ps.name)
   for (const r of ps.powers.required ?? []) {
@@ -417,12 +428,13 @@ function modularFillers(state: TraitState, hero: Hero, outer: Archetype, base: A
   const wanted = Math.max(0, minimum - have)
   const seen = new Set<string>()
   for (const a of fillers) {
-    if (!getTrait(a.trait)) state.warn('archetype', 'unknown-trait', `"${a.trait.id}" isn't a known ${a.trait.kind}.`)
-    if (a.trait.kind !== 'power') state.warn('archetype', 'wrong-kind', `${outer.name} adds powers, but ${state.label(a.trait)} is a quality.`)
-    else if (state.get(a.trait) || seen.has(traitKey(a.trait))) state.warn('archetype', 'already-have', `You already have ${state.label(a.trait)}; add a different power.`)
+    const field = traitField(a.trait)
+    if (!getTrait(a.trait)) state.warn('archetype', 'unknown-trait', `"${a.trait.id}" isn't a known ${a.trait.kind}.`, field)
+    if (a.trait.kind !== 'power') state.warn('archetype', 'wrong-kind', `${outer.name} adds powers, but ${state.label(a.trait)} is a quality.`, field)
+    else if (state.get(a.trait) || seen.has(traitKey(a.trait))) state.warn('archetype', 'already-have', `You already have ${state.label(a.trait)}; add a different power.`, field)
     seen.add(traitKey(a.trait))
     if (spec.fillerPowerDie && a.die !== spec.fillerPowerDie) {
-      state.warn('archetype', 'filler-die', `${outer.name} adds powers at ${spec.fillerPowerDie}, not ${a.die}.`)
+      state.warn('archetype', 'filler-die', `${outer.name} adds powers at ${spec.fillerPowerDie}, not ${a.die}.`, field)
     }
   }
   if (fillers.length !== wanted) {
@@ -456,7 +468,7 @@ function personalityStepTraits(state: TraitState, hero: Hero): void {
   if (!personality) return state.warn('personality', 'unknown-entry', `Unknown personality "${choice.id}".`)
   if (!state.get(ROLEPLAYING_QUALITY)) state.set(ROLEPLAYING_QUALITY, personalityStep.roleplayingQuality.die, 'personality')
   if (!hero.traitNames[traitKey(ROLEPLAYING_QUALITY)]?.trim()) {
-    state.warn('personality', 'name-roleplaying-quality', 'Name your roleplaying quality: a few words that sum up your hero.')
+    state.warn('personality', 'name-roleplaying-quality', 'Name your roleplaying quality: a few words that sum up your hero.', ROLEPLAYING_FIELD)
   }
   applyBonuses(state, personality.bonuses ?? [], choice.bonus, {
     step: 'personality',

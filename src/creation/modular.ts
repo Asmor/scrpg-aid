@@ -23,7 +23,7 @@ import type { AbilityPick, Hero, ModeChoice } from '../hero/model'
 import { checkAbilityPick } from './abilities'
 import { outerLayer } from './layers'
 import { traitLabel, type HeroTrait } from './traits'
-import { markPart, warning, type RuleWarning } from './warnings'
+import { markPart, warning, type IssueCode, type RuleWarning } from './warnings'
 
 /** A mode's entry in the data, and the zone whose list it's on. */
 export function findMode(hero: Hero, id: string): { mode: ModularMode; zone: Zone } | undefined {
@@ -137,7 +137,7 @@ export function modeAbilityPick(hero: Hero, mode: ModeChoice): AbilityPick | und
 /** Checks Modular's modes, its Powerless mode, and the ability retcon on a mode ability. */
 export function checkModular(hero: Hero, traits: readonly HeroTrait[]): RuleWarning[] {
   const warnings: RuleWarning[] = []
-  const warn = (code: string, message: string) => warnings.push(warning('archetype', code, message))
+  const warn = (code: IssueCode, message: string) => warnings.push(warning('archetype', code, message))
   const outer = outerLayer(hero)
   const spec = outer?.archetype.modes
   const choice = hero.archetype?.modular

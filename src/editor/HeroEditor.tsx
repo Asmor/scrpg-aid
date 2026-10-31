@@ -42,8 +42,9 @@ import { RedAbilitiesStep } from './RedAbilitiesStep'
 import { RetconStep } from './RetconStep'
 import { StartStep } from './StartStep'
 import { StepMarkIcon, StepRail } from './StepRail'
-import { focusIssue } from './issue-targets'
+import { focusIssue, type IssueRef } from './issue-targets'
 import { RenameHeading } from '../components/RenameHeading'
+import { IssueScope } from './inline-issues'
 import { PartsContext, type PartFields } from './parts-context'
 import { StepIssues } from './StepSection'
 import { useHeroEditor } from './useHeroEditor'
@@ -71,7 +72,12 @@ const STEP_VIEWS: Record<WizardStepId, StepView> = {
   start: { purpose: 'Two choices before Background. You can change them later; dice already rolled stay as they are.', render: (hero, update) => <StartStep hero={hero} update={update} /> },
   background: { purpose: 'Who your hero was before the powers. Gives qualities, a principle, and the dice for Power source.', ref: backgroundStep, render: (hero, update) => <BackgroundStep hero={hero} update={update} /> },
   'power-source': { purpose: 'Where the powers come from. Gives powers, abilities, and the dice for Archetype.', ref: powerSourceStep, render: (hero, update) => <PowerSourceStep hero={hero} update={update} /> },
-  archetype: { purpose: 'How your hero uses those powers. Gives powers and qualities, abilities, a principle, and the dice for Personality.', ref: archetypeStep, forHero: archetypeView, render: (hero, update) => <ArchetypeStep hero={hero} update={update} /> },
+  archetype: {
+    purpose: 'How your hero uses those powers. Gives powers and qualities, abilities, a principle, and the dice for Personality.',
+    ref: archetypeStep,
+    forHero: archetypeView,
+    render: (hero, update) => <ArchetypeStep hero={hero} update={update} />,
+  },
   personality: { purpose: 'How your hero acts under pressure. Gives a roleplaying quality, status dice, and an Out ability.', ref: personalityStep, render: (hero, update) => <PersonalityStep hero={hero} update={update} /> },
   'red-abilities': { purpose: "Your hero's strongest moves, usable only once your hero is in the Red zone.", ref: redAbilityStep, render: (hero, update) => <RedAbilitiesStep hero={hero} update={update} /> },
   retcon: { purpose: 'One last change to tidy up the build.', ref: retconStep, render: (hero, update) => <RetconStep hero={hero} update={update} /> },
@@ -92,7 +98,19 @@ const stepTitle = (index: number, label: string) => (index > 0 ? `${index} · ${
 const SUMMARY_PURPOSE = 'Everything this hero is made of. Change opens that step; nothing later in the wizard is erased.'
 
 /** Before finishing a hero with rule issues: each issue, with a way to it, and Finish anyway. */
-function FinishDialog({ issues, href, onGo, onFinish, onClose }: { issues: readonly { step: WizardStepId; label: string; warning: RuleWarning; part?: string }[]; href: (id: WizardStepId, part?: string) => string; onGo: (issue: IssueTarget) => void; onFinish: () => void; onClose: () => void }) {
+function FinishDialog({
+  issues,
+  href,
+  onGo,
+  onFinish,
+  onClose,
+}: {
+  issues: readonly { step: WizardStepId; label: string; warning: RuleWarning; part?: string }[]
+  href: (id: WizardStepId, part?: string) => string
+  onGo: (issue: IssueTarget) => void
+  onFinish: () => void
+  onClose: () => void
+}) {
   return (
     <Modal title="Finish with rule issues?" onClose={onClose}>
       <p>
@@ -104,7 +122,7 @@ function FinishDialog({ issues, href, onGo, onFinish, onClose }: { issues: reado
             <span>
               <span className="finish-issues__step">{label}:</span> <DiceText text={warning.message} />
             </span>
-            <a className="button button--small" href={href(step, part)} onClick={() => onGo({ step, code: warning.code, part })}>
+            <a className="button button--small" href={href(step, part)} onClick={() => onGo({ step, issue: warning, part })}>
               Go to issue
             </a>
           </li>
@@ -125,7 +143,7 @@ function FinishDialog({ issues, href, onGo, onFinish, onClose }: { issues: reado
 /** Where an issue link takes the player: a step, and for a complex archetype the part the issue is in. */
 interface IssueTarget {
   step: WizardStepId
-  code: string
+  issue: IssueRef
   part?: string
 }
 
@@ -232,7 +250,7 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
     if (!goTo || goTo.step !== WIZARD_STEPS[index]!.id) return
     const panel = document.querySelector<HTMLElement>('.wizard__step')
     const container = goTo.part ? panel?.querySelector<HTMLElement>(`[data-part="${goTo.part}"]`) : panel
-    if (container) focusIssue(container, goTo.code)
+    if (container) focusIssue(container, goTo.issue)
     setGoTo(null)
   }, [goTo, index])
   // Reaching a later step counts as progress on a saved draft (an unsaved one waits for a choice).
@@ -324,7 +342,9 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
     </a>
   )
   // On the summary this is only the phone bar's button (the summary has no step navigation).
-  const nextButton = summary ? doneLink : next ? (
+  const nextButton = summary ? (
+    doneLink
+  ) : next ? (
     <a className="button button--primary" href={href(next.id)}>
       {next.label}
     </a>
@@ -338,186 +358,187 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
 
   return (
     <PartsContext.Provider value={{ parts, isOpen: (p) => open.has(p), toggle: togglePart, memory: partMemory }}>
-    <div className="wizard">
-      <header className="wizard__head">
-        <div>
-          <p className="crumb">
-            <a href={listPath} onClick={leave(listPath)}>
-              Your heroes
-            </a>{' '}
-            /{' '}
-            {draft ? (
-              'New hero'
-            ) : (
-              <>
-                <a href={heroPath(hero.id)} onClick={leave(heroPath(hero.id))}>
-                  {heroDisplayName(hero)}
-                </a>{' '}
-                / Edit
-              </>
+      <div className="wizard">
+        <header className="wizard__head">
+          <div>
+            <p className="crumb">
+              <a href={listPath} onClick={leave(listPath)}>
+                Your heroes
+              </a>{' '}
+              /{' '}
+              {draft ? (
+                'New hero'
+              ) : (
+                <>
+                  <a href={heroPath(hero.id)} onClick={leave(heroPath(hero.id))}>
+                    {heroDisplayName(hero)}
+                  </a>{' '}
+                  / Edit
+                </>
+              )}
+            </p>
+            <div className="wizard__title">
+              <RenameHeading
+                shown={heroDisplayName(hero)}
+                name={hero.details.name}
+                placeholder={!named}
+                noun="hero"
+                onRename={(name) =>
+                  save((h) => {
+                    h.details.name = name
+                  })
+                }
+              />
+              {hero.details.name.trim() && hero.details.alias.trim() && <span className="wizard__alias">{hero.details.alias}</span>}
+              {draft && (
+                <span className="draft-chip" role="status">
+                  Draft{lastSaved ? ` · ${savedText(lastSaved, now)}` : ' · not saved yet'}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="button-row">
+            {!phone && (
+              <button type="button" className="button" onClick={togglePreview} aria-expanded={wide ? previewShown : previewOpen}>
+                {wide && previewShown ? 'Hide preview' : 'Show preview'}
+              </button>
             )}
-          </p>
-          <div className="wizard__title">
-            <RenameHeading
-              shown={heroDisplayName(hero)}
-              name={hero.details.name}
-              placeholder={!named}
-              noun="hero"
-              onRename={(name) =>
-                save((h) => {
-                  h.details.name = name
-                })
-              }
-            />
-            {hero.details.name.trim() && hero.details.alias.trim() && <span className="wizard__alias">{hero.details.alias}</span>}
-            {draft && (
-              <span className="draft-chip" role="status">
-                Draft{lastSaved ? ` · ${savedText(lastSaved, now)}` : ' · not saved yet'}
-              </span>
+            {draft ? (
+              <button type="button" className="button" onClick={finish}>
+                Finish hero
+              </button>
+            ) : (
+              doneLink
             )}
           </div>
-        </div>
-        <div className="button-row">
-          {!phone && (
-            <button type="button" className="button" onClick={togglePreview} aria-expanded={wide ? previewShown : previewOpen}>
-              {wide && previewShown ? 'Hide preview' : 'Show preview'}
-            </button>
-          )}
-          {draft ? (
-            <button type="button" className="button" onClick={finish}>
-              Finish hero
-            </button>
-          ) : (
-            doneLink
-          )}
-        </div>
-      </header>
-      {saveError && (
-        <p role="alert" className="error">
-          Your last change couldn't be saved: {saveError}
-        </p>
-      )}
-
-      <div className={`wizard__layout${docked ? ' wizard__layout--preview' : ''}`}>
-        {!phone && (
-          <nav className="wizard__rail" aria-label="Creation steps">
-            <StepRail steps={states} current={summary ? 'summary' : step.id} href={href} summaryHref={summaryHref} parts={parts} currentPart={part} partHref={(p) => partPath(hero.id, p)} onPart={showPart} />
-            <p className="rail-foot">{hero.method === 'constructed' ? 'Constructed method.' : `Guided method · ${hero.rollMode === 'manual' ? 'rolling your own dice' : 'rolling in the app'}.`}</p>
-          </nav>
+        </header>
+        {saveError && (
+          <p role="alert" className="error">
+            Your last change couldn't be saved: {saveError}
+          </p>
         )}
+
+        <div className={`wizard__layout${docked ? ' wizard__layout--preview' : ''}`}>
+          {!phone && (
+            <nav className="wizard__rail" aria-label="Creation steps">
+              <StepRail steps={states} current={summary ? 'summary' : step.id} href={href} summaryHref={summaryHref} parts={parts} currentPart={part} partHref={(p) => partPath(hero.id, p)} onPart={showPart} />
+              <p className="rail-foot">{hero.method === 'constructed' ? 'Constructed method.' : `Guided method · ${hero.rollMode === 'manual' ? 'rolling your own dice' : 'rolling in the app'}.`}</p>
+            </nav>
+          )}
+
+          {phone && (
+            <button type="button" className="step-button" aria-haspopup="dialog" onClick={() => setStepsOpen(true)}>
+              {summary ? (
+                <strong>Summary</strong>
+              ) : (
+                <>
+                  <span className="step-button__where">{index > 0 ? `Step ${index} of ${NUMBERED_STEPS} ·` : 'Before step 1 ·'}</span>
+                  <strong>{step.label}</strong>
+                  {current.mark === 'issues' && <StepMarkIcon mark="issues" count={current.issues.length} />}
+                </>
+              )}
+              <span className="visually-hidden">: all steps</span>
+            </button>
+          )}
+          <section className="wizard__step panel" aria-labelledby="editor-step-title">
+            {summary ? (
+              <>
+                <div className="step-head">
+                  <div>
+                    <h3 id="editor-step-title">Summary</h3>
+                    <p className="lede">{SUMMARY_PURPOSE}</p>
+                  </div>
+                </div>
+                <EditSummary hero={hero} steps={states} parts={parts} href={href} partHref={(p) => partPath(hero.id, p)} advancementHref={advancementPath(hero.id)} changed={changed} onRevert={() => setReverting(true)} revertRef={revertButton} />
+              </>
+            ) : (
+              <>
+                <div className="step-head">
+                  <div>
+                    <h3 id="editor-step-title">{stepTitle(index, step.label)}</h3>
+                    <p className="lede">{purpose}</p>
+                  </div>
+                  {pageRef && <span className="page-ref">{formatEntryRef(pageRef)}</span>}
+                </div>
+                {/* Issues show where they happen; an archetype part's show inside its card. */}
+                <IssueScope issues={current.issues.filter((w) => !partOf(w))}>{view.render(hero, update)}</IssueScope>
+                {step.id !== 'start' && <StepIssues issues={current.issues} onGo={(w) => goToIssue({ step: step.id, issue: w, part: partOf(w) })} />}
+                <div className="stepnav">
+                  {prev ? (
+                    <a className="button" href={href(prev.id)}>
+                      {prev.label}
+                    </a>
+                  ) : summaryHref ? (
+                    <a className="button" href={summaryHref}>
+                      Summary
+                    </a>
+                  ) : (
+                    <span />
+                  )}
+                  {nextButton}
+                </div>
+              </>
+            )}
+          </section>
+
+          {docked && (
+            <aside className="wizard__preview" aria-labelledby="sheet-preview-title">
+              <div className="wizard__preview-head">
+                <h3 id="sheet-preview-title">Sheet preview</h3>
+                <button type="button" className="button button--small" onClick={togglePreview}>
+                  Hide
+                </button>
+              </div>
+              <SheetPreview hero={hero} />
+            </aside>
+          )}
+        </div>
 
         {phone && (
-          <button type="button" className="step-button" aria-haspopup="dialog" onClick={() => setStepsOpen(true)}>
-            {summary ? (
-              <strong>Summary</strong>
-            ) : (
-              <>
-                <span className="step-button__where">{index > 0 ? `Step ${index} of ${NUMBERED_STEPS} ·` : 'Before step 1 ·'}</span>
-                <strong>{step.label}</strong>
-                {current.mark === 'issues' && <StepMarkIcon mark="issues" count={current.issues.length} />}
-              </>
-            )}
-            <span className="visually-hidden">: all steps</span>
-          </button>
+          <div className="phonebar">
+            <button type="button" className="button" aria-haspopup="dialog" onClick={() => setPreviewOpen(true)}>
+              Preview
+            </button>
+            {nextButton}
+          </div>
         )}
-        <section className="wizard__step panel" aria-labelledby="editor-step-title">
-          {summary ? (
-            <>
-              <div className="step-head">
-                <div>
-                  <h3 id="editor-step-title">Summary</h3>
-                  <p className="lede">{SUMMARY_PURPOSE}</p>
-                </div>
-              </div>
-              <EditSummary hero={hero} steps={states} parts={parts} href={href} partHref={(p) => partPath(hero.id, p)} advancementHref={advancementPath(hero.id)} changed={changed} onRevert={() => setReverting(true)} revertRef={revertButton} />
-            </>
-          ) : (
-            <>
-              <div className="step-head">
-                <div>
-                  <h3 id="editor-step-title">{stepTitle(index, step.label)}</h3>
-                  <p className="lede">{purpose}</p>
-                </div>
-                {pageRef && <span className="page-ref">{formatEntryRef(pageRef)}</span>}
-              </div>
-              {view.render(hero, update)}
-              {step.id !== 'start' && <StepIssues issues={current.issues} onGo={(w) => goToIssue({ step: step.id, code: w.code, part: partOf(w) })} />}
-              <div className="stepnav">
-                {prev ? (
-                  <a className="button" href={href(prev.id)}>
-                    {prev.label}
-                  </a>
-                ) : summaryHref ? (
-                  <a className="button" href={summaryHref}>
-                    Summary
-                  </a>
-                ) : (
-                  <span />
-                )}
-                {nextButton}
-              </div>
-            </>
-          )}
-        </section>
 
-        {docked && (
-          <aside className="wizard__preview" aria-labelledby="sheet-preview-title">
-            <div className="wizard__preview-head">
-              <h3 id="sheet-preview-title">Sheet preview</h3>
-              <button type="button" className="button button--small" onClick={togglePreview}>
-                Hide
+        {stepsOpen && (
+          <Modal title="Steps" variant="sheet" onClose={() => setStepsOpen(false)}>
+            <StepRail steps={states} current={summary ? 'summary' : step.id} href={href} summaryHref={summaryHref} parts={parts} currentPart={part} partHref={(p) => partPath(hero.id, p)} onPart={showPart} onNavigate={() => setStepsOpen(false)} />
+          </Modal>
+        )}
+        {previewOpen && !wide && (
+          <Modal title="Sheet preview" variant={phone ? 'sheet' : 'drawer'} onClose={() => setPreviewOpen(false)}>
+            <SheetPreview hero={hero} />
+          </Modal>
+        )}
+        {reverting && (
+          <Modal title="Revert changes?" onClose={() => setReverting(false)}>
+            <p>This puts {heroDisplayName(hero)} back exactly as it was when you opened edit. Every change since then is lost.</p>
+            <div className="button-row">
+              <button type="button" className="button button--danger" onClick={revert}>
+                Revert changes
+              </button>
+              <button type="button" className="button" onClick={() => setReverting(false)}>
+                Keep changes
               </button>
             </div>
-            <SheetPreview hero={hero} />
-          </aside>
+          </Modal>
+        )}
+        {finishing && (
+          <FinishDialog
+            issues={states.flatMap((s) => s.issues.map((warning) => ({ step: s.id, label: stepTitle(s.index, s.label), warning, part: s.id === 'archetype' ? partOf(warning) : undefined })))}
+            href={(s, p) => (p ? partPath(hero.id, p) : href(s))}
+            onGo={(issue) => {
+              setFinishing(false)
+              goToIssue(issue)
+            }}
+            onFinish={complete}
+            onClose={() => setFinishing(false)}
+          />
         )}
       </div>
-
-      {phone && (
-        <div className="phonebar">
-          <button type="button" className="button" aria-haspopup="dialog" onClick={() => setPreviewOpen(true)}>
-            Preview
-          </button>
-          {nextButton}
-        </div>
-      )}
-
-      {stepsOpen && (
-        <Modal title="Steps" variant="sheet" onClose={() => setStepsOpen(false)}>
-          <StepRail steps={states} current={summary ? 'summary' : step.id} href={href} summaryHref={summaryHref} parts={parts} currentPart={part} partHref={(p) => partPath(hero.id, p)} onPart={showPart} onNavigate={() => setStepsOpen(false)} />
-        </Modal>
-      )}
-      {previewOpen && !wide && (
-        <Modal title="Sheet preview" variant={phone ? 'sheet' : 'drawer'} onClose={() => setPreviewOpen(false)}>
-          <SheetPreview hero={hero} />
-        </Modal>
-      )}
-      {reverting && (
-        <Modal title="Revert changes?" onClose={() => setReverting(false)}>
-          <p>This puts {heroDisplayName(hero)} back exactly as it was when you opened edit. Every change since then is lost.</p>
-          <div className="button-row">
-            <button type="button" className="button button--danger" onClick={revert}>
-              Revert changes
-            </button>
-            <button type="button" className="button" onClick={() => setReverting(false)}>
-              Keep changes
-            </button>
-          </div>
-        </Modal>
-      )}
-      {finishing && (
-        <FinishDialog
-          issues={states.flatMap((s) => s.issues.map((warning) => ({ step: s.id, label: stepTitle(s.index, s.label), warning, part: s.id === 'archetype' ? partOf(warning) : undefined })))}
-          href={(s, p) => (p ? partPath(hero.id, p) : href(s))}
-          onGo={(issue) => {
-            setFinishing(false)
-            goToIssue(issue)
-          }}
-          onFinish={complete}
-          onClose={() => setFinishing(false)}
-        />
-      )}
-    </div>
     </PartsContext.Provider>
   )
 }

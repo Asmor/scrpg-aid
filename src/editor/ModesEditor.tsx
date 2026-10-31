@@ -14,6 +14,7 @@ import { traitLabel, type HeroTrait } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
 import { DiceAssigner } from './DiceAssigner'
 import { DiceText } from '../components/icons'
+import { SectionIssues } from './inline-issues'
 
 const ZONE_NAME: Record<Zone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red' }
 
@@ -203,6 +204,7 @@ export function ModesEditor({ hero, ar, traits, modular, onChange, part }: { her
   return (
     <div className="modes-editor" data-section="parts">
       {!part && <h4>Modes</h4>}
+      <SectionIssues section="parts" />
       {first && (
         <p className="hint">
           <DiceText text={`${spec.summary} Your default ${ZONE_NAME[spec.default.zone]} mode: ${spec.default.summary}`} />

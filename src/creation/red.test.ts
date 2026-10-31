@@ -122,7 +122,7 @@ describe('checkRedAbilities', () => {
     expect(check(hero)).toEqual([])
     hero.retcon.ability.uses = [Q('fitness')]
     expect(check(hero)).toEqual([
-      { step: 'retcon', code: 'slot-wrong-trait', message: "[power] for Reactive Strike can't be Fitness." },
+      { step: 'retcon', code: 'slot-wrong-trait', message: "[power] for Reactive Strike can't be Fitness.", field: 'ability:Reactive Strike' },
     ])
     hero.retcon.ability = { ...hero.redAbilities[0]! }
     expect(messages(hero)).toEqual(['You already have a Red ability called Paragon Feat; choose a different one.'])

@@ -11,6 +11,7 @@ import type { Die } from '../rules/types'
 import type { CreationMethod, RollMode } from '../hero/model'
 import { DiceRoll } from '../components/DiceRoll'
 import { DiceList } from '../components/icons'
+import { SectionIssues } from './inline-issues'
 
 interface Entry {
   id: string
@@ -120,6 +121,7 @@ export function TablePicker<T extends Entry>({ what, method, rollMode, dice, tab
           <h4 id={`${name}-title`}>
             Choose {article} {what}
           </h4>
+          <SectionIssues section="choose" />
           {method === 'guided' && shown && (
             <p className="lede">
               Showing the {reachedCount} {reachedCount === 1 ? what : plural(what)} your roll allows.

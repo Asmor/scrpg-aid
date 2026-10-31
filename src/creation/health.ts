@@ -16,7 +16,7 @@ import type { Hero } from '../hero/model'
 import { traitsInAnyForm } from './divided'
 import { dividedChoice, layers } from './layers'
 import { traitLabel, type HeroTrait } from './traits'
-import { warning, type RuleWarning } from './warnings'
+import { warning, type IssueCode, type RuleWarning } from './warnings'
 
 /**
  * The form whose status die the status retcon raises. With two personalities the player
@@ -87,7 +87,7 @@ export interface HealthResult {
 
 export function computeHealth(hero: Hero, traits: readonly HeroTrait[]): HealthResult {
   const warnings: RuleWarning[] = []
-  const note = (code: string, message: string) => warnings.push(warning('health', code, message))
+  const note = (code: IssueCode, message: string) => warnings.push(warning('health', code, message))
   const dice = statusDice(hero)
   const choice = hero.health
   if (!dice || !choice) return { warnings }

@@ -9,8 +9,9 @@ import { getCategory, getTrait, parseTraitKey, traitKey, type CatalogTrait, type
 import type { Die } from '../rules/types'
 import type { TraitAssignment } from '../hero/model'
 import { assignStepRow, dieRows, freedDice } from '../creation/assign'
-import type { HeroTrait } from '../creation/traits'
+import { traitField, type HeroTrait } from '../creation/traits'
 import { DieIcon } from '../components/icons'
+import { IssueField, SectionIssues } from './inline-issues'
 
 interface DiceAssignerProps {
   /** A trait's name for this character (the player's name for it, or the catalog's). */
@@ -51,6 +52,7 @@ export function DiceAssigner({ label, legend, dice, assignments, options, earlie
   return (
     <fieldset className="dice-assigner" data-section="assign">
       <legend>{legend}</legend>
+      <SectionIssues section="assign" />
       {rows.map((row, i) => {
         const current = row.assignment
         const selectId = `${baseId}-${i}`
@@ -59,52 +61,49 @@ export function DiceAssigner({ label, legend, dice, assignments, options, earlie
         const offList = current && !options.some((o) => traitKey(o) === traitKey(current.trait))
         const freedFrom = freed[i - dice.length]?.from
         return (
-          <div key={i} className="dice-assigner__row">
-            <label htmlFor={selectId} className="die">
-              <DieIcon die={row.die} />
-              {/* Tells apart dice of the same size, e.g. "d6 #2". */}
-              {/* The spaces sit outside the spans so they're kept in the accessible name. */}
-              {all.filter((d) => d === row.die).length > 1 && (
-                <>
-                  {' '}
-                  <span className="visually-hidden">#{all.slice(0, i + 1).filter((d) => d === row.die).length}</span>
-                </>
-              )}
-              {freedFrom && (
-                <>
-                  {' '}
-                  <span className="dice-assigner__freed">(was {label(freedFrom)}'s)</span>
-                </>
-              )}
-            </label>
-            <select
-              id={selectId}
-              value={current ? traitKey(current.trait) : ''}
-              onChange={(e) => assign(i, e.target.value ? parseTraitKey(e.target.value) : undefined)}
-            >
-              <option value="">Choose…</option>
-              {offList && <option value={traitKey(current.trait)}>{label(current.trait)} (not on this list)</option>}
-              {groups.map((g) => (
-                <optgroup key={g.label} label={g.label}>
-                  {g.traits.map((t) => (
-                    <option key={traitKey(t)} value={traitKey(t)}>
-                      {label(t)}
-                    </option>
+          <IssueField key={i} field={current && traitField(current.trait)}>
+            {(f) => (
+              <div className="dice-assigner__row">
+                <label htmlFor={selectId} className="die">
+                  <DieIcon die={row.die} />
+                  {/* Tells apart dice of the same size, e.g. "d6 #2". */}
+                  {/* The spaces sit outside the spans so they're kept in the accessible name. */}
+                  {all.filter((d) => d === row.die).length > 1 && (
+                    <>
+                      {' '}
+                      <span className="visually-hidden">#{all.slice(0, i + 1).filter((d) => d === row.die).length}</span>
+                    </>
+                  )}
+                  {freedFrom && (
+                    <>
+                      {' '}
+                      <span className="dice-assigner__freed">(was {label(freedFrom)}'s)</span>
+                    </>
+                  )}
+                </label>
+                <select id={selectId} {...f.control} value={current ? traitKey(current.trait) : ''} onChange={(e) => assign(i, e.target.value ? parseTraitKey(e.target.value) : undefined)}>
+                  <option value="">Choose…</option>
+                  {offList && <option value={traitKey(current.trait)}>{label(current.trait)} (not on this list)</option>}
+                  {groups.map((g) => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.traits.map((t) => (
+                        <option key={traitKey(t)} value={traitKey(t)}>
+                          {label(t)}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
-                </optgroup>
-              ))}
-            </select>
-            {had && (
-              <label className="dice-assigner__upgrade">
-                <input
-                  type="checkbox"
-                  checked={Boolean(current.upgrades)}
-                  onChange={(e) => assign(i, current.trait, e.target.checked)}
-                />
-                {canSwap(had.trait) ? 'Swap this die onto' : 'Upgrade'} my {getTrait(had.trait)?.name ?? had.name} (<DieIcon die={had.die} />)
-              </label>
+                </select>
+                {had && (
+                  <label className="dice-assigner__upgrade">
+                    <input type="checkbox" checked={Boolean(current.upgrades)} onChange={(e) => assign(i, current.trait, e.target.checked)} />
+                    {canSwap(had.trait) ? 'Swap this die onto' : 'Upgrade'} my {getTrait(had.trait)?.name ?? had.name} (<DieIcon die={had.die} />)
+                  </label>
+                )}
+                {f.list}
+              </div>
             )}
-          </div>
+          </IssueField>
         )
       })}
       <p className="count">

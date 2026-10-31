@@ -7,7 +7,8 @@ import { expandRefs, traitKey, type CatalogTrait, type TraitRef } from '../rules
 import type { Bonus, Die, OptionRef } from '../rules/types'
 import type { Hero, TraitAssignment } from '../hero/model'
 import { fallbackOptions, gainOptions, shiftTargets, splitShift, upgradeTargets, usesFallback, type BonusTarget } from '../creation/bonus'
-import { traitLabel, type HeroTrait } from '../creation/traits'
+import { BONUS_FIELD, traitLabel, type HeroTrait } from '../creation/traits'
+import { IssueField, SectionIssues } from './inline-issues'
 import { DiceText } from '../components/icons'
 
 interface BonusPickerProps {
@@ -92,11 +93,7 @@ export function BonusPicker({ hero, legend, bonus, listed, before, archetypeQual
   let body
   switch (bonus.kind) {
     case 'extraArchetypeQuality':
-      body = archetypeQualities ? (
-        <TraitSelect hero={hero} label="Quality" options={gained(hero, expandRefs(archetypeQualities), bonus.die)} value={assignments[0]} onChange={single} />
-      ) : (
-        <p>You take this in the archetype step.</p>
-      )
+      body = archetypeQualities ? <TraitSelect hero={hero} label="Quality" options={gained(hero, expandRefs(archetypeQualities), bonus.die)} value={assignments[0]} onChange={single} /> : <p>You take this in the archetype step.</p>
       break
     case 'gainQuality':
     case 'gainPower':
@@ -141,13 +138,20 @@ export function BonusPicker({ hero, legend, bonus, listed, before, archetypeQual
       break
     }
   }
+  // The picker is one field: its problems show at its top, with its box outlined.
   return (
-    <fieldset className="bonus-picker" data-section="bonus">
-      <legend>{legend}</legend>
-      <p>
-        <DiceText text={bonus.summary} />
-      </p>
-      {body}
-    </fieldset>
+    <IssueField field={BONUS_FIELD}>
+      {(f) => (
+        <fieldset className={f.invalid ? 'bonus-picker field-group--invalid' : 'bonus-picker'} data-section="bonus" {...f.control}>
+          <legend>{legend}</legend>
+          {f.list}
+          <SectionIssues section="bonus" />
+          <p>
+            <DiceText text={bonus.summary} />
+          </p>
+          {body}
+        </fieldset>
+      )}
+    </IssueField>
   )
 }

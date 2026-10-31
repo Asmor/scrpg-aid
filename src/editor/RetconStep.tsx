@@ -16,6 +16,7 @@ import { AbilityPicker } from './AbilityPicker'
 import { PrinciplePicker } from './PrinciplePicker'
 import { RedAbilityLists } from './RedAbilitiesStep'
 import { DiceText, DieIcon } from '../components/icons'
+import { SectionIssues } from './inline-issues'
 
 type Update = (change: (draft: Hero) => void) => void
 
@@ -193,6 +194,7 @@ export function RetconStep({ hero, update }: { hero: Hero; update: Update }) {
 
   return (
     <div className="step-form" data-section="choose">
+      <SectionIssues section="choose" />
       <p className="hint">
         Choose {retconStep.count} change to your hero. <span className="page-ref">{formatEntryRef(retconStep)}</span>
       </p>

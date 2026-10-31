@@ -14,7 +14,8 @@ import { setStepRoll, stepRoll, takePendingRoll } from '../creation/rolls'
 import { outTraits } from '../creation/divided'
 import { dividedChoice, outerLayer } from '../creation/layers'
 import { OUT_ABILITY_NAME } from '../creation/lookup'
-import { deriveTraits, ROLEPLAYING_QUALITY, traitsBefore } from '../creation/traits'
+import { deriveTraits, ROLEPLAYING_FIELD, ROLEPLAYING_QUALITY, traitsBefore } from '../creation/traits'
+import { IssueField } from './inline-issues'
 import { AbilityPicker } from './AbilityPicker'
 import { BonusPicker } from './BonusPicker'
 import { DiceIn } from './StepSection'
@@ -28,7 +29,8 @@ type Update = (change: (draft: Hero) => void) => void
 function PersonalitySummary({ p }: { p: Personality }) {
   return (
     <>
-      Status dice: Green <DieIcon die={p.statusDice.green} size="inline" />, Yellow <DieIcon die={p.statusDice.yellow} size="inline" />, Red <DieIcon die={p.statusDice.red} size="inline" />. Out: <DiceText text={p.outAbility} /> <span className="page-ref">{formatEntryRef(p)}</span>
+      Status dice: Green <DieIcon die={p.statusDice.green} size="inline" />, Yellow <DieIcon die={p.statusDice.yellow} size="inline" />, Red <DieIcon die={p.statusDice.red} size="inline" />. Out: <DiceText text={p.outAbility} />{' '}
+      <span className="page-ref">{formatEntryRef(p)}</span>
     </>
   )
 }
@@ -162,22 +164,31 @@ export function PersonalityStep({ hero, update }: { hero: Hero; update: Update }
 
       {choice && personality && (
         <>
-          <label className="field" htmlFor={`${id}-rp`}>
-            <span>
-              Roleplaying quality (<DieIcon die={personalityStep.roleplayingQuality.die} />)
-            </span>
-            <input
-              id={`${id}-rp`}
-              type="text"
-              value={hero.traitNames[rpKey] ?? ''}
-              onChange={(e) =>
-                update((h) => {
-                  if (e.target.value) h.traitNames[rpKey] = e.target.value
-                  else delete h.traitNames[rpKey]
-                })
-              }
-            />
-          </label>
+          <IssueField field={ROLEPLAYING_FIELD}>
+            {(f) => (
+              <>
+                <label className="field" htmlFor={`${id}-rp`}>
+                  <span>
+                    Roleplaying quality (<DieIcon die={personalityStep.roleplayingQuality.die} />)
+                  </span>
+                  <input
+                    id={`${id}-rp`}
+                    type="text"
+                    {...f.control}
+                    value={hero.traitNames[rpKey] ?? ''}
+                    onChange={(e) =>
+                      update((h) => {
+                        if (e.target.value) h.traitNames[rpKey] = e.target.value
+                        else delete h.traitNames[rpKey]
+                      })
+                    }
+                  />
+                </label>
+                {/* Outside the label, so it isn't part of the field's name. */}
+                {f.list}
+              </>
+            )}
+          </IssueField>
           <p className="hint">
             <DiceText text={personalityStep.roleplayingQuality.summary} /> <span className="page-ref">{formatEntryRef(personalityStep.roleplayingQuality)}</span>
           </p>

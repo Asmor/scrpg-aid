@@ -5,9 +5,8 @@
  */
 import { useId, type ReactNode } from 'react'
 import type { Die } from '../rules/types'
-import type { RuleWarning } from '../creation/warnings'
 import { DiceText, DieIcon } from '../components/icons'
-import { focusIssue, type IssueSection } from './issue-targets'
+import { focusIssue, type IssueRef, type IssueSection } from './issue-targets'
 
 /** One titled part of a step. `section` lets issue links find it. */
 export function StepSection({ title, section, children }: { title: string; section?: IssueSection; children: ReactNode }) {
@@ -58,7 +57,7 @@ export function DiceOut({ to, dice, note }: { to: string; dice: readonly Die[]; 
  * The step's rule issues, pinned at its end: each a link that takes the player to the part
  * it's about (and focuses its first control). Without any, a quiet line says so.
  */
-export function StepIssues<W extends Pick<RuleWarning, 'code' | 'message'>>({ issues, onGo }: { issues: readonly W[]; onGo?: (issue: W) => void }) {
+export function StepIssues<W extends IssueRef>({ issues, onGo }: { issues: readonly W[]; onGo?: (issue: W) => void }) {
   const titleId = useId()
   if (issues.length === 0) return <p className="step-ok">No rule issues in this step.</p>
   return (
@@ -74,7 +73,7 @@ export function StepIssues<W extends Pick<RuleWarning, 'code' | 'message'>>({ is
               onClick={(e) => {
                 if (onGo) return onGo(w)
                 const step = e.currentTarget.closest<HTMLElement>('.wizard__step')
-                if (step) focusIssue(step, w.code)
+                if (step) focusIssue(step, w)
               }}
             >
               <DiceText text={w.message} />

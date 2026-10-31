@@ -9,6 +9,7 @@ import type { PrincipleCategoryId } from '../rules/types'
 import { CUSTOM_PRINCIPLE_ID, type CustomPrinciple, type PrincipleChoice } from '../hero/model'
 import { ACTION_LABEL, ACTIONS, textEffects, type Action } from '../creation/effects'
 import type { AbilityEffect, EffectUse } from '../rules/types'
+import { SectionIssues } from './inline-issues'
 
 interface PrinciplePickerProps {
   /** Leave out to offer every principle (the change-principle retcon). */
@@ -81,6 +82,7 @@ export function PrinciplePicker({ category, label = 'Principle', choice, onChang
   const offList = principle && category && principle.category !== category
   return (
     <div className="principle-picker" data-section="principle">
+      <SectionIssues section="principle" />
       <label htmlFor={`${id}-principle`}>{category ? `Principle of ${categoryName}` : label}</label>
       <select
         id={`${id}-principle`}

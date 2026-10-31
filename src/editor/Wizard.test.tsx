@@ -206,6 +206,28 @@ describe('step anatomy', () => {
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'd10' })).toHaveFocus())
   })
 
+  it('shows each issue under its field, outlined and linked, as well as in the summary', async () => {
+    const hero = completeHero()
+    hero.powerSource!.powers[1]!.trait = hero.powerSource!.powers[0]!.trait
+    const inflict = hero.powerSource!.abilities.find((p) => p.uses?.length)!
+    delete inflict.uses
+    renderEditor(await storeWith(hero), 'power-source')
+    const summary = await screen.findByRole('region', { name: '2 things to look at' })
+    // The assign row: its select outlined and described by the issue under it.
+    const twice = screen.getAllByRole('combobox').filter((s) => s.getAttribute('aria-invalid') === 'true')
+    expect(twice).toHaveLength(1)
+    expect(twice[0]).toHaveAccessibleDescription(/gets more than one die in this step/)
+    expect(twice[0]!.closest('.dice-assigner__row')!.querySelector('.inline-issues')).toBeInTheDocument()
+    // The ability card: its box outlined, its checkbox described by the issue.
+    const card = screen.getByRole('checkbox', { name: new RegExp(inflict.name) })
+    expect(card).toHaveAttribute('aria-invalid', 'true')
+    expect(card).toHaveAccessibleDescription(`Fill in [power] for ${inflict.name}.`)
+    expect(card.closest('.ability-card')).toHaveClass('ability-card--invalid')
+    // The summary's link takes the player to the field.
+    await userEvent.click(within(summary).getByRole('button', { name: `Fill in [power] for ${inflict.name}.` }))
+    expect(card).toHaveFocus()
+  })
+
   it('shows status dice and Health ranges in their game colors, with their labels', async () => {
     const hero = completeHero()
     renderEditor(await storeWith(hero), 'personality')

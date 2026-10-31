@@ -25,7 +25,7 @@ import type { HeroTrait } from './traits'
 import { layers, traitLayer, type ArchetypeLayer } from './layers'
 import { findAbility, outPick, recordedPicks } from './lookup'
 import { traitLabel } from './traits'
-import { markPart, warning, type RuleWarning, type StepId } from './warnings'
+import { markPart, warning, type IssueCode, type RuleWarning, type StepId } from './warnings'
 
 /**
  * Extra limit on the first trait slot of `kind`, e.g. a Red ability's category: the
@@ -46,13 +46,16 @@ interface Context {
   /** Traits given dice in the archetype step, for "[a power gained from your archetype]". */
   archetypeTraits: ReadonlySet<string>
   slotLimit?: SlotLimit
-  warnings: { step: string; code: string; message: string }[]
+  warnings: { step: string; code: string; message: string; field?: string }[]
 }
 
 /** The fields of an ability pick the checks read (heroes' and villains' picks both have them). */
 type PickLike = Pick<AbilityPick, 'name' | 'uses' | 'blanks' | 'customName'>
 
-const warn = (ctx: Context, code: string, message: string) => ctx.warnings.push({ step: ctx.step, code, message })
+const warn = (ctx: Context, code: IssueCode, message: string, field?: string) => ctx.warnings.push({ step: ctx.step, code, message, ...(field ? { field } : {}) })
+
+/** The field a problem with one ability is about: its card (RuleWarning.field). */
+export const abilityField = (name: string) => `ability:${name}`
 const label = (ctx: Context, t: TraitRef) => ctx.label(t)
 
 /** The trait an ability pick uses for restrictions (see the module doc). */
@@ -108,19 +111,20 @@ function hasMatching(ctx: Context, refs: readonly OptionRef[]): boolean {
 /** Checks one ability pick: its blanks are filled, with traits the hero has, and its requirement is met. */
 function checkPick(ctx: Context, ability: Ability, pick: PickLike): void {
   const name = pick.customName?.trim() || ability.name
+  const field = abilityField(ability.name)
   let traitIndex = 0
   let limited = false
   for (const slot of parseSlots(ability.text)) {
     if (slot.type === 'trait') {
       const use = pick.uses?.[traitIndex++]
       if (!use) {
-        warn(ctx, 'slot-empty', `Fill in [${slot.label}] for ${name}.`)
+        warn(ctx, 'slot-empty', `Fill in [${slot.label}] for ${name}.`, field)
       } else if (!ctx.traits.has(traitKey(use))) {
-        warn(ctx, 'slot-not-held', `${name} uses ${label(ctx, use)}, which you don't have.`)
+        warn(ctx, 'slot-not-held', `${name} uses ${label(ctx, use)}, which you don't have.`, field)
       } else if (!slotAccepts(ctx.archetypeTraits, slot, use)) {
-        warn(ctx, 'slot-wrong-trait', `[${slot.label}] for ${name} can't be ${label(ctx, use)}.`)
+        warn(ctx, 'slot-wrong-trait', `[${slot.label}] for ${name} can't be ${label(ctx, use)}.`, field)
       } else if (ctx.slotLimit && !limited && slot.kinds.includes(ctx.slotLimit.kind) && !refsMatch(ctx.slotLimit.refs, use)) {
-        warn(ctx, 'slot-wrong-trait', `${name} must use ${ctx.slotLimit.what}, not ${label(ctx, use)}.`)
+        warn(ctx, 'slot-wrong-trait', `${name} must use ${ctx.slotLimit.what}, not ${label(ctx, use)}.`, field)
       }
       if (ctx.slotLimit && slot.kinds.includes(ctx.slotLimit.kind)) limited = true
     } else {
@@ -129,11 +133,11 @@ function checkPick(ctx: Context, ability: Ability, pick: PickLike): void {
       const filled = values.filter((v) => v.trim() !== '')
       const count = slot.count ?? 1
       if (filled.length < count) {
-        warn(ctx, 'blank-empty', `Fill in [${slot.label}] for ${name}.`)
+        warn(ctx, 'blank-empty', `Fill in [${slot.label}] for ${name}.`, field)
       } else if (slot.options && filled.some((v) => !slot.options!.includes(v))) {
-        warn(ctx, 'blank-invalid', `[${slot.label}] for ${name} must be ${slot.options.join(' or ')}.`)
+        warn(ctx, 'blank-invalid', `[${slot.label}] for ${name} must be ${slot.options.join(' or ')}.`, field)
       } else if (count > 1 && new Set(filled).size < filled.length) {
-        warn(ctx, 'blank-invalid', `[${slot.label}] for ${name} needs ${count} different choices.`)
+        warn(ctx, 'blank-invalid', `[${slot.label}] for ${name} needs ${count} different choices.`, field)
       }
     }
   }
@@ -146,10 +150,10 @@ function checkPick(ctx: Context, ability: Ability, pick: PickLike): void {
       : traitIndex === 0
         ? "doesn't use a power or quality"
         : `only uses ${traitIndex === 1 ? 'one power or quality' : `${traitIndex} powers or qualities`}`
-    warn(ctx, 'slot-extra', `${name} ${has}; remove the extra.`)
+    warn(ctx, 'slot-extra', `${name} ${has}; remove the extra.`, field)
   }
   if (ability.requires && !hasMatching(ctx, [ability.requires])) {
-    warn(ctx, 'requirement-unmet', `${name} requires ${describe(ability.requires)}, which you don't have.`)
+    warn(ctx, 'requirement-unmet', `${name} requires ${describe(ability.requires)}, which you don't have.`, field)
   }
 }
 
@@ -226,10 +230,10 @@ function checkBlock(
   for (const pick of picks) {
     const ability = available.find((a) => a.name === pick.name)
     if (!ability) {
-      warn(ctx, 'unknown-ability', `${pick.name} isn't one of the ${source} you can choose.`)
+      warn(ctx, 'unknown-ability', `${pick.name} isn't one of the ${source} you can choose.`, abilityField(pick.name))
       continue
     }
-    if (seen.has(pick.name)) warn(ctx, 'ability-twice', `You took ${pick.name} more than once.`)
+    if (seen.has(pick.name)) warn(ctx, 'ability-twice', `You took ${pick.name} more than once.`, abilityField(pick.name))
     seen.add(pick.name)
     checkPick(ctx, ability, pick)
     taken.push({ pick, ability })
@@ -285,17 +289,17 @@ function checkFixed(ctx: Context, fixed: readonly Ability[], picks: readonly Abi
   const taken: Taken[] = []
   for (const ability of fixed) {
     const matching = picks.filter((p) => p.source === source && p.name === ability.name)
-    if (matching.length > 1) warn(ctx, 'ability-twice', `${ability.name} is recorded more than once.`)
+    if (matching.length > 1) warn(ctx, 'ability-twice', `${ability.name} is recorded more than once.`, abilityField(ability.name))
     const pick = matching[0]
     if (pick) {
       checkPick(ctx, ability, pick)
       taken.push({ pick, ability })
     } else if (parseSlots(ability.text).length > 0) {
-      warn(ctx, 'fixed-unfilled', `Fill in the blanks for ${ability.name}.`)
+      warn(ctx, 'fixed-unfilled', `Fill in the blanks for ${ability.name}.`, abilityField(ability.name))
     }
   }
   for (const pick of picks.filter((p) => p.source === source)) {
-    if (!fixed.some((a) => a.name === pick.name)) warn(ctx, 'unknown-ability', `${pick.name} isn't one of your fixed abilities.`)
+    if (!fixed.some((a) => a.name === pick.name)) warn(ctx, 'unknown-ability', `${pick.name} isn't one of your fixed abilities.`, abilityField(pick.name))
   }
   return taken
 }
@@ -312,7 +316,7 @@ function checkPowerSource(ctx: Context, hero: Hero): void {
   checkBlock(ctx, ps.yellowAbilities, ps.yellowAbilities.options ?? [], picksFrom(choice.abilities, 'powerSource.yellow'), `${ps.name} Yellow abilities`, undefined)
   for (const pick of choice.abilities) {
     if (pick.source !== 'powerSource.green' && pick.source !== 'powerSource.yellow') {
-      warn(ctx, 'unknown-ability', `${pick.name} isn't a power source ability.`)
+      warn(ctx, 'unknown-ability', `${pick.name} isn't a power source ability.`, abilityField(pick.name))
     }
   }
 }
@@ -350,7 +354,7 @@ function checkArchetype(ctx: Context, layer: ArchetypeLayer): void {
     if (yellow.fromGreenList) {
       for (const pick of yellowPicks) {
         if (green.some((g) => g.pick.name === pick.name)) {
-          warn(ctx, 'ability-twice', `${pick.name} is already one of your Green abilities; take a different one as your Yellow ability.`)
+          warn(ctx, 'ability-twice', `${pick.name} is already one of your Green abilities; take a different one as your Yellow ability.`, abilityField(pick.name))
         }
       }
     }
