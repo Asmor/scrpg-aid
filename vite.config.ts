@@ -56,6 +56,13 @@ export default defineConfig({
     },
   },
   server: {
-    watch: { usePolling: true },
+    // Polling, since the file watcher misses edits on /mnt/c under WSL. Skip folders that never
+    // change while developing, and poll less often, so it doesn't swamp the CPU.
+    watch: {
+      usePolling: true,
+      interval: 1000,
+      binaryInterval: 3000,
+      ignored: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/coverage/**", "**/sources/**"],
+    },
   },
 });
