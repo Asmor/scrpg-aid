@@ -110,5 +110,8 @@ export function useLibraryData(stores: LibraryStores, searchStore: SavedSearchSt
     [searchStore, set],
   )
 
-  return { state, reload, saveDoc, removeDoc, saveSearch, removeSearch }
+  /** The latest ready state, including changes not rendered yet. */
+  const current = useCallback(() => (latest.current.status === 'ready' ? latest.current : undefined), [])
+
+  return { state, current, reload, saveDoc, removeDoc, saveSearch, removeSearch }
 }

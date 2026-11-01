@@ -16,6 +16,7 @@ import { ExportMenu } from './ExportMenu'
 import { HeroSheetView } from './HeroSheetView'
 import { IssueBanner, ModeSwitch, type CharacterMode } from './CharacterHead'
 import { Modal } from './Modal'
+import { SheetTags } from '../library/SheetTags'
 
 const defaultClock = (): Clock => ({ now: new Date(), newId: () => newId() })
 
@@ -126,6 +127,15 @@ export function HeroPage({ id, mode = 'sheet', clock = defaultClock, random }: {
         </p>
       )}
       {draft ? <p className="hint screen-only">This hero is a draft. Finish it to play it.</p> : <IssueBanner issues={stepStates(hero, sheet.warnings).flatMap((s) => s.issues)} href={editPath(id)} />}
+
+      {mode === 'sheet' && (
+        <SheetTags
+          tags={hero.tags}
+          itemName={heroDisplayName(hero)}
+          onChange={(tags) => update((h) => void (h.tags = tags))}
+          onOpenTag={(path) => void flush().then(() => navigate(path))}
+        />
+      )}
 
       {mode === 'sheet' ? <HeroSheetView hero={hero} advancement={draft ? undefined : { href: advancementPath(id), onClick: leave(advancementPath(id)) }} /> : <PlayView hero={hero} update={update} clock={clock} random={random} />}
 

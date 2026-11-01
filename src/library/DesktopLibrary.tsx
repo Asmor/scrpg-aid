@@ -121,6 +121,7 @@ export function SaveSearchField({ initial, onSave, onCancel }: { initial: string
   const input = useRef<HTMLInputElement>(null)
   const errorId = useId()
   useEffect(() => {
+    input.current?.focus()
     input.current?.select()
   }, [])
   const save = async () => setError(await onSave(name))

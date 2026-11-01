@@ -28,6 +28,7 @@ import { allTags, withoutTag, withTag } from './tags'
 import { itemKey, useLibraryData } from './useLibraryData'
 import { useLibraryView } from './useLibraryView'
 import { DesktopLibrary } from './DesktopLibrary'
+import { PhoneLibrary } from './PhoneLibrary'
 import { exportFileName, nameList } from './names'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -85,7 +86,8 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
 
   /** Changes an item's tags: a change to the document, so it's saved with a new updatedAt. */
   const changeTags = (key: string, change: (tags: string[]) => string[]) => {
-    const it = item(key)
+    // The latest copy, so two quick edits to one item don't overwrite each other.
+    const it = data.current()?.items.get(key)
     if (!it) return Promise.resolve()
     const tagsNow = change(it.doc.tags)
     if (tagsNow.length === it.doc.tags.length && tagsNow.every((t, i) => t === it.doc.tags[i])) return Promise.resolve()
@@ -200,14 +202,15 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
   const suggestedName = defaultSearchName(view.query, (t) => libraryType(t)?.plural ?? t)
 
   // Escape clears the selection (a popover or dialog takes Escape first).
+  const { selected, setSelected } = view
   useEffect(() => {
-    if (view.selected.size === 0) return
+    if (selected.size === 0) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !e.defaultPrevented) view.setSelected(new Set())
+      if (e.key === 'Escape' && !e.defaultPrevented) setSelected(new Set())
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [view.selected, view])
+  }, [selected, setSelected])
 
   const importControl = ready && (
     <ImportControl
@@ -292,7 +295,7 @@ export function LibraryPage({ theme, setTheme, searchStore, backupTime }: Librar
     <PopoverGroup>
       <div className="library">
         <LibraryHeader phone={phone} theme={theme} setTheme={setTheme} data={model.dataActions} heroName={model.heroName} now={model.now} />
-        <DesktopLibrary model={model} />
+        {phone ? <PhoneLibrary model={model} /> : <DesktopLibrary model={model} />}
         {model.deleteDialog}
       </div>
     </PopoverGroup>

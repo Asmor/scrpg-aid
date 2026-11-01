@@ -4,7 +4,7 @@
  * Edit and Export) over the villain's sheet. Villain Play belongs with the GM screens, so Play
  * is still its own page for now. Give it `key={id}`.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { listPath, navigate, villainEditPath, villainPlayPath } from '../app/route'
 import { useVillainStore } from '../app/villain-store-context'
 import type { VillainGetResult } from './store'
@@ -12,12 +12,16 @@ import { IssueBanner, ModeSwitch } from '../components/CharacterHead'
 import { ExportMenu } from '../components/ExportMenu'
 import { buildVillainSheet, villainIdentity } from './sheet'
 import { VillainSheetView } from './VillainSheetView'
+import { SheetTags } from '../library/SheetTags'
 
 type State = { status: 'loading' } | VillainGetResult | { status: 'error'; message: string }
 
 export function VillainPage({ id }: { id: string }) {
   const store = useVillainStore()
   const [state, setState] = useState<State>({ status: 'loading' })
+  const [saveError, setSaveError] = useState<string | null>(null)
+  // Tag changes save in order, so a quick second change can't land before the first.
+  const saving = useRef(Promise.resolve())
 
   useEffect(() => {
     let current = true
@@ -69,7 +73,24 @@ export function VillainPage({ id }: { id: string }) {
           </div>
         </div>
       </header>
+      {saveError && (
+        <p role="alert" className="error screen-only">
+          Your last change couldn't be saved: {saveError}
+        </p>
+      )}
       <IssueBanner issues={sheet.warnings} href={villainEditPath(id)} />
+      <SheetTags
+        tags={villain.tags}
+        itemName={sheet.name}
+        onChange={(tags) => {
+          // A tag change is a change to the villain: saved with a new updatedAt (docs/design/library/spec.md).
+          const next = { ...villain, tags, updatedAt: new Date().toISOString() }
+          setState({ status: 'found', villain: next })
+          setSaveError(null)
+          saving.current = saving.current.then(() => store.save(next)).catch((e: unknown) => setSaveError(e instanceof Error ? e.message : String(e)))
+        }}
+        onOpenTag={(path) => void saving.current.then(() => navigate(path))}
+      />
       <VillainSheetView villain={villain} />
     </div>
   )

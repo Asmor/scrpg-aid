@@ -5,6 +5,9 @@
  */
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 
+/** Open modals, innermost last: only the innermost one answers Escape and Tab. */
+const open: object[] = []
+
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]'
 
 interface ModalProps {
@@ -26,9 +29,14 @@ export function Modal({ title, hideTitle = false, variant = 'dialog', onClose, c
   })
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null
+    const self = {}
+    open.push(self)
     heading.current?.focus()
     const onKey = (e: KeyboardEvent) => {
+      if (open.at(-1) !== self) return
       if (e.key === 'Escape') {
+        // Something inside (a field's own Escape) already handled it.
+        if (e.defaultPrevented) return
         e.preventDefault()
         closeRef.current()
         return
@@ -50,6 +58,7 @@ export function Modal({ title, hideTitle = false, variant = 'dialog', onClose, c
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
+      open.splice(open.indexOf(self), 1)
       // Back to where focus was, if that's still on the page.
       if (before?.isConnected) before.focus()
     }
