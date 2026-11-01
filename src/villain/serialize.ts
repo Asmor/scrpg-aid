@@ -2,9 +2,11 @@
 import { parseJson, readEnvelope, type Migration } from '../saved'
 import type { Villain } from './model'
 import { villainProblem } from './validate'
+import { cleanTags } from '../library/tags'
 
 export const VILLAIN_FORMAT = 'scrpg-villain'
-export const VILLAIN_VERSION = 1
+/** Version 2 added `tags`. */
+export const VILLAIN_VERSION = 2
 
 export interface SavedVillain {
   format: typeof VILLAIN_FORMAT
@@ -12,8 +14,10 @@ export interface SavedVillain {
   villain: Villain
 }
 
-/** Migrations keyed by the version they upgrade from (none yet). */
-export const VILLAIN_MIGRATIONS: Readonly<Record<number, Migration>> = {}
+/** Migrations keyed by the version they upgrade from. */
+export const VILLAIN_MIGRATIONS: Readonly<Record<number, Migration>> = {
+  1: (villain) => ({ ...villain, tags: [] }),
+}
 
 export type VillainParseResult = { ok: true; villain: Villain; migratedFrom?: number } | { ok: false; error: string }
 
@@ -25,7 +29,8 @@ export function villainToSaved(villain: Villain): SavedVillain {
 export function parseSavedVillain(value: unknown, migrations = VILLAIN_MIGRATIONS, currentVersion = VILLAIN_VERSION): VillainParseResult {
   const result = readEnvelope<Villain>(value, { format: VILLAIN_FORMAT, key: 'villain', currentVersion, migrations, problem: villainProblem })
   if (!result.ok) return result
-  return result.migratedFrom === undefined ? { ok: true, villain: result.doc } : { ok: true, villain: result.doc, migratedFrom: result.migratedFrom }
+  const villain = { ...result.doc, tags: cleanTags(result.doc.tags) }
+  return result.migratedFrom === undefined ? { ok: true, villain } : { ok: true, villain, migratedFrom: result.migratedFrom }
 }
 
 /** Reads a saved villain from JSON text. */

@@ -7,7 +7,6 @@ import { readable } from '../test/readable'
 import { createVillain, type Villain } from './model'
 import { MemoryVillainStore, type VillainStore } from './store'
 import { VillainEditor } from './VillainEditor'
-import { VillainList } from './VillainList'
 import { VillainPage } from './VillainPage'
 import { VillainSheetView } from './VillainSheetView'
 
@@ -27,22 +26,6 @@ const saved = async (store: VillainStore) => {
 
 afterEach(() => {
   window.location.hash = ''
-})
-
-describe('the villain list', () => {
-  it('starts a new villain in the editor, lists saved ones, and deletes after asking', async () => {
-    const store = await storeWith(adaptiveBruiser())
-    withStore(store, <VillainList />)
-    const card = await screen.findByRole('link', { name: /Ironclad/ })
-    expect(card).toHaveTextContent('Adaptive Bruiser')
-    expect(card).toHaveAttribute('href', '#/villain/v1')
-    await userEvent.click(screen.getByRole('button', { name: 'Delete Ironclad' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Yes, delete' }))
-    await screen.findByText('No villains yet.')
-    await userEvent.click(screen.getByRole('button', { name: 'New villain' }))
-    await waitFor(() => expect(window.location.hash).toMatch(/^#\/villain\/.+\/edit\/approach$/))
-    expect((await store.list()).villains).toHaveLength(1)
-  })
 })
 
 describe('the villain editor', () => {

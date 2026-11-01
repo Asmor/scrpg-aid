@@ -315,6 +315,8 @@ export interface Hero {
   status?: HeroStatus
   /** A draft's furthest wizard step reached: 0 for Start, 1–8 for the numbered steps. */
   furthestStep?: number
+  /** The player's own labels for organizing the library (docs/design/library/spec.md); see ../library/tags.ts. */
+  tags: string[]
   details: HeroDetails
   /**
    * The player's names for traits that need one (Signature Weaponry, the roleplaying
@@ -423,6 +425,7 @@ export function createHero(method: CreationMethod, options: { id?: string; now?:
     createdAt: timestamp,
     updatedAt: timestamp,
     method,
+    tags: [],
     details: emptyDetails(),
     traitNames: {},
     background: null,
@@ -448,4 +451,18 @@ export function heroDisplayName(hero: Hero): string {
 /** The player's name for a trait, if they've given it one. */
 export function traitName(hero: Hero, trait: TraitRef): string | undefined {
   return hero.traitNames[traitKey(trait)]
+}
+
+/**
+ * A copy of the hero to save as a new one (the library's Duplicate): a new id, "(copy)" after
+ * its name, the same tags, and no play state or history. A draft stays a draft. `id` and `now`
+ * are injectable for tests.
+ */
+export function duplicateHero(hero: Hero, options: { id?: string; now?: Date } = {}): Hero {
+  const timestamp = (options.now ?? new Date()).toISOString()
+  const { play: _play, currentHealth: _health, ...rest } = structuredClone(hero)
+  const details = { ...rest.details }
+  if (details.name.trim()) details.name = `${details.name.trim()} (copy)`
+  else if (details.alias.trim()) details.alias = `${details.alias.trim()} (copy)`
+  return { ...rest, id: options.id ?? newId(), createdAt: timestamp, updatedAt: timestamp, details }
 }

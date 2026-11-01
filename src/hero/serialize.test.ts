@@ -83,7 +83,7 @@ describe('serialize', () => {
       [{ play: { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [{ id: 'h', text: 'x' }] } }, 'hero.play.history[0].at is missing'],
     ]
     for (const [patch, error] of cases) {
-      expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: { ...hero(), ...patch } })).toEqual({ ok: false, error })
+      expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: { ...hero(), ...patch } })).toEqual({ ok: false, error })
     }
   })
 
@@ -104,9 +104,9 @@ describe('serialize', () => {
   it('keeps draft status, furthest step, and who rolls; rejects bad values', () => {
     const draft = { ...hero(), status: 'draft' as const, furthestStep: 4, rollMode: 'manual' as const }
     expect(parseSavedJson(JSON.stringify(toSaved(draft)))).toEqual({ ok: true, hero: draft })
-    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: { ...hero(), status: 'half' } }).ok).toBe(false)
-    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: { ...hero(), rollMode: 'gm' } }).ok).toBe(false)
-    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: { ...hero(), furthestStep: 1.5 } }).ok).toBe(false)
+    expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: { ...hero(), status: 'half' } }).ok).toBe(false)
+    expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: { ...hero(), rollMode: 'gm' } }).ok).toBe(false)
+    expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: { ...hero(), furthestStep: 1.5 } }).ok).toBe(false)
   })
 
   it('accepts fully filled-in heroes', () => {
@@ -138,9 +138,9 @@ describe('serialize', () => {
       currentHealth: 20,
       notes: 'n',
     }
-    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: full })).toEqual({ ok: true, hero: full })
+    expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: full })).toEqual({ ok: true, hero: full })
     const swap = { ...hero(), retcon: { id: 'swap-power-dice', kind: 'swapDice', traits: [t, { kind: 'quality', id: 'finesse' }] } }
-    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: swap })).toEqual({ ok: true, hero: swap })
+    expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: swap })).toEqual({ ok: true, hero: swap })
   })
 
   it('round-trips Form-Changer, Minion-Maker, and Divided heroes', () => {
@@ -176,6 +176,14 @@ describe('serialize', () => {
     expect(badModular((h) => Object.assign(h.archetype!.modular!, { modes: 'all' }))).toBe(false)
     expect(badModular((h) => Object.assign(h.archetype!.modular!.modes[0]!, { powers: [{ trait: { kind: 'power', id: 'fire' }, die: 'd7' }] }))).toBe(false)
     expect(badModular((h) => Object.assign(h.archetype!.modular!, { powerless: [{}] }))).toBe(false)
+  })
+
+  it('reads a version-1 hero with no tags, and tidies the tags it reads', () => {
+    const { tags: _, ...v1 } = hero()
+    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: v1 })).toEqual({ ok: true, hero: hero(), migratedFrom: 1 })
+    const messy = { ...hero(), tags: ['  scene   3 ', 'Scene 3', '   ', 'x'.repeat(50)] }
+    expect(parseSaved(toSaved(messy))).toEqual({ ok: true, hero: { ...hero(), tags: ['scene 3', 'x'.repeat(40)] } })
+    expect(parseSaved(toSaved({ ...hero(), tags: [3] as unknown as string[] }))).toEqual({ ok: false, error: 'hero.tags[0] should be text' })
   })
 
   it('migrates old versions forward, one version at a time', () => {

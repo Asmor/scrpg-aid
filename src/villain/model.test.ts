@@ -42,7 +42,7 @@ describe('saving villains', () => {
 
   it('round-trips through the versioned envelope and JSON', () => {
     const v = full()
-    expect(villainToSaved(v)).toEqual({ format: VILLAIN_FORMAT, version: 1, villain: v })
+    expect(villainToSaved(v)).toEqual({ format: VILLAIN_FORMAT, version: 2, villain: v })
     expect(parseSavedVillain(villainToSaved(v))).toEqual({ ok: true, villain: v })
     expect(parseSavedVillainJson(JSON.stringify(villainToSaved(v)))).toEqual({ ok: true, villain: v })
   })
@@ -66,6 +66,14 @@ describe('saving villains', () => {
     expect(bad((v) => (v.play = { reactionUsed: false, mods: [], twists: [], history: [], sceneAdvanced: false }))).toEqual({ ok: false, error: 'villain.play.sceneAdvanced has an unknown value' })
     expect(bad((v) => (v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd7', abilities: [] } }]))).toEqual({ ok: false, error: 'villain.upgrades[0].vehicle.die has an unknown value' })
     expect(bad((v) => (v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd10' } }]))).toEqual({ ok: false, error: 'villain.upgrades[0].vehicle.abilities should be a list' })
+  })
+
+  it('reads a version-1 villain with no tags, and tidies the tags it reads', () => {
+    const { tags: _, ...v1 } = full()
+    expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 1, villain: v1 })).toEqual({ ok: true, villain: { ...v1, tags: [] }, migratedFrom: 1 })
+    const messy = { ...full(), tags: ['  scene   3 ', 'Scene 3', '', 'prep'] }
+    expect(parseSavedVillain(villainToSaved(messy))).toEqual({ ok: true, villain: { ...messy, tags: ['scene 3', 'prep'] } })
+    expect(parseSavedVillain(villainToSaved({ ...full(), tags: 'prep' as unknown as string[] }))).toEqual({ ok: false, error: 'villain.tags should be a list' })
   })
 
   it('migrates an older version forward', () => {

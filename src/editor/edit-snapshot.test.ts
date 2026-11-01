@@ -12,6 +12,15 @@ describe('edit snapshot', () => {
     expect(changedSince(before, after)).toBe(false)
   })
 
+  it('leaves tags out: changing them is not an edit, and reverting keeps the current ones', () => {
+    const before = exampleHero()
+    const after = { ...structuredClone(before), tags: ['scene-3'], notes: 'new' }
+    expect(changedSince(before, { ...structuredClone(before), tags: ['scene-3'] })).toBe(false)
+    restoreSnapshot(after, before)
+    expect(after.notes).toBeUndefined()
+    expect(after.tags).toEqual(['scene-3'])
+  })
+
   it('treats a key set to undefined as missing', () => {
     const before = exampleHero()
     const after = { ...structuredClone(before), notes: undefined }

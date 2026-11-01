@@ -10,10 +10,14 @@ import { parseSaved, toSaved, type SavedHero } from '../hero/serialize'
 import type { Villain } from '../villain/model'
 import { parseSavedVillain, villainToSaved, VILLAIN_FORMAT, type SavedVillain } from '../villain/serialize'
 import { extractEmbedded } from './embed'
+import { parseSavedSearch, searchToSaved, type SavedSearch, type SavedSearchEnvelope } from '../library/saved-searches'
 
 export const BACKUP_FORMAT = 'scrpg-backup'
-/** Version 2 added villains; a version-1 backup (heroes only) still reads. */
-export const BACKUP_VERSION = 2
+/**
+ * Version 2 added villains, and version 3 the library's saved searches; older backups still
+ * read. A multi-item export from the library uses the same format, with no saved searches.
+ */
+export const BACKUP_VERSION = 3
 
 export interface Backup {
   format: typeof BACKUP_FORMAT
@@ -21,6 +25,7 @@ export interface Backup {
   exportedAt: string
   heroes: SavedHero[]
   villains: SavedVillain[]
+  savedSearches: SavedSearchEnvelope[]
 }
 
 /** One hero as JSON, the same envelope the app stores. */
@@ -33,9 +38,16 @@ export function villainJson(villain: Villain): string {
   return JSON.stringify(villainToSaved(villain), null, 2)
 }
 
-/** Every hero and villain in one JSON file. `now` is injectable for tests. */
-export function backupJson(heroes: readonly Hero[], villains: readonly Villain[] = [], now: Date = new Date()): string {
-  const backup: Backup = { format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt: now.toISOString(), heroes: heroes.map(toSaved), villains: villains.map(villainToSaved) }
+/** Heroes, villains and saved searches in one JSON file: a backup, or a library export. `now` is injectable for tests. */
+export function backupJson(heroes: readonly Hero[], villains: readonly Villain[] = [], savedSearches: readonly SavedSearch[] = [], now: Date = new Date()): string {
+  const backup: Backup = {
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    exportedAt: now.toISOString(),
+    heroes: heroes.map(toSaved),
+    villains: villains.map(villainToSaved),
+    savedSearches: savedSearches.map(searchToSaved),
+  }
   return JSON.stringify(backup, null, 2)
 }
 
@@ -66,14 +78,14 @@ export function backupFileName(now: Date = new Date()): string {
   return `scrpg-aid-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.json`
 }
 
-/** A hero or villain in an imported backup that couldn't be read; `index` counts from 1 within its list. */
+/** A hero, villain or saved search in an imported backup that couldn't be read; `index` counts from 1 within its list. */
 export interface SkippedHero {
-  kind: 'hero' | 'villain'
+  kind: 'hero' | 'villain' | 'savedSearch'
   index: number
   error: string
 }
 
-export type ImportResult = { ok: true; heroes: Hero[]; villains: Villain[]; skipped: SkippedHero[] } | { ok: false; error: string }
+export type ImportResult = { ok: true; heroes: Hero[]; villains: Villain[]; savedSearches: SavedSearch[]; skipped: SkippedHero[] } | { ok: false; error: string }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -103,10 +115,10 @@ export function readImport(text: string): ImportResult {
   if (isRecord(value) && value.format === BACKUP_FORMAT) return readBackup(value)
   if (isRecord(value) && value.format === VILLAIN_FORMAT) {
     const villain = parseSavedVillain(value)
-    return villain.ok ? { ok: true, heroes: [], villains: [villain.villain], skipped: [] } : { ok: false, error: `This villain couldn't be read: ${villain.error}.` }
+    return villain.ok ? { ok: true, heroes: [], villains: [villain.villain], savedSearches: [], skipped: [] } : { ok: false, error: `This villain couldn't be read: ${villain.error}.` }
   }
   const result = parseSaved(value)
-  if (result.ok) return { ok: true, heroes: [result.hero], villains: [], skipped: [] }
+  if (result.ok) return { ok: true, heroes: [result.hero], villains: [], savedSearches: [], skipped: [] }
   return { ok: false, error: result.error === 'not a saved hero' ? NOT_OURS : `This hero couldn't be read: ${result.error}.` }
 }
 
@@ -117,8 +129,11 @@ function readBackup(value: Record<string, unknown>): ImportResult {
   if (!Array.isArray(value.heroes)) return { ok: false, error: "This backup couldn't be read: it has no list of heroes." }
   // Version 1 had no villains.
   if (version >= 2 && !Array.isArray(value.villains)) return { ok: false, error: "This backup couldn't be read: it has no list of villains." }
+  // Version 3 added saved searches.
+  if (version >= 3 && !Array.isArray(value.savedSearches)) return { ok: false, error: "This backup couldn't be read: it has no list of saved searches." }
   const heroes: Hero[] = []
   const villains: Villain[] = []
+  const savedSearches: SavedSearch[] = []
   const skipped: SkippedHero[] = []
   value.heroes.forEach((saved, i) => {
     const result = parseSaved(saved)
@@ -130,7 +145,12 @@ function readBackup(value: Record<string, unknown>): ImportResult {
     if (result.ok) villains.push(result.villain)
     else skipped.push({ kind: 'villain', index: i + 1, error: result.error })
   })
-  return { ok: true, heroes, villains, skipped }
+  ;((version >= 3 ? value.savedSearches : []) as unknown[]).forEach((saved, i) => {
+    const result = parseSavedSearch(saved)
+    if (result.ok) savedSearches.push(result.search)
+    else skipped.push({ kind: 'savedSearch', index: i + 1, error: result.error })
+  })
+  return { ok: true, heroes, villains, savedSearches, skipped }
 }
 
 /** How to import a hero or villain whose id is already saved. */

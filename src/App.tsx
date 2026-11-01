@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { listPath, useRoute } from './app/route'
 import { StoreContext } from './app/store-context'
-import { Home } from './components/Home'
+import { LibraryPage } from './library/LibraryPage'
+import { createDefaultSavedSearchStore, type SavedSearchStore } from './library/saved-searches'
+import { SavedSearchStoreContext } from './app/saved-search-context'
+import type { BackupTimeStore } from './library/backup-time'
 import { HeroPage } from './components/HeroPage'
 import { AdvancementPage } from './editor/AdvancementPage'
 import { HeroEditor } from './editor/HeroEditor'
@@ -19,16 +22,33 @@ import { ThemeToggle } from './components/ThemeToggle'
 import { createDefaultStore, type HeroStore } from './hero/store'
 import { useTheme } from './theme/useTheme'
 
-/** `store`, `villainStore`, `connect`, and `sessionStore` are injectable for tests. */
-export default function App({ store: given, villainStore: givenVillains, connect, sessionStore }: { store?: HeroStore; villainStore?: VillainStore; connect?: Connect; sessionStore?: SessionStore }) {
+interface AppProps {
+  store?: HeroStore
+  villainStore?: VillainStore
+  searchStore?: SavedSearchStore
+  backupTime?: BackupTimeStore
+  connect?: Connect
+  sessionStore?: SessionStore
+}
+
+/** The stores, `connect`, `sessionStore`, and `backupTime` are injectable for tests. */
+export default function App({ store: given, villainStore: givenVillains, searchStore: givenSearches, backupTime, connect, sessionStore }: AppProps) {
   const [theme, setTheme] = useTheme()
   const [store] = useState(() => given ?? createDefaultStore())
   const [villainStore] = useState(() => givenVillains ?? createDefaultVillainStore())
+  const [searchStore] = useState(() => givenSearches ?? createDefaultSavedSearchStore())
   const route = useRoute()
   return (
     <StoreContext.Provider value={store}>
       <VillainStoreContext.Provider value={villainStore}>
+      <SavedSearchStoreContext.Provider value={searchStore}>
       <SessionProvider {...(connect ? { connect } : {})} {...(sessionStore ? { store: sessionStore } : {})}>
+      {/* The library (the home screen) has its own header bar and layout. */}
+      {route.name === 'list' ? (
+        <div className="app">
+          <LibraryPage theme={theme} setTheme={setTheme} searchStore={searchStore} {...(backupTime ? { backupTime } : {})} />
+        </div>
+      ) : (
       <div className="app">
         <header className="app-header">
           <h1>
@@ -37,7 +57,6 @@ export default function App({ store: given, villainStore: givenVillains, connect
           <ThemeToggle value={theme} onChange={setTheme} />
         </header>
         <main className={route.name === 'edit' ? 'app-main app-main--wide' : 'app-main'}>
-          {route.name === 'list' && <Home />}
           {route.name === 'villain' && <VillainPage key={route.id} id={route.id} />}
           {route.name === 'villainPlay' && <VillainPlayPage key={route.id} id={route.id} />}
           {route.name === 'villainEdit' && <VillainEditor key={route.id} id={route.id} step={route.step} />}
@@ -49,12 +68,14 @@ export default function App({ store: given, villainStore: givenVillains, connect
           {route.name === 'join' && <JoinPage key={route.room ?? ''} room={route.room} />}
           {route.name === 'notFound' && (
             <p role="alert">
-              That page doesn't exist. <a href={listPath}>Go to your heroes</a>.
+              That page doesn't exist. <a href={listPath}>Go to your library</a>.
             </p>
           )}
         </main>
       </div>
+      )}
       </SessionProvider>
+      </SavedSearchStoreContext.Provider>
       </VillainStoreContext.Provider>
     </StoreContext.Provider>
   )

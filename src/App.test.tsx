@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { exampleHero } from './hero/example'
 import { MemoryHeroStore } from './hero/store'
+import { MemorySavedSearchStore } from './library/saved-searches'
+import { MemoryVillainStore } from './villain/store'
 
 const go = (hash: string) =>
   act(() => {
@@ -15,17 +17,19 @@ afterEach(() => {
 })
 
 describe('App', () => {
-  it('renders the app title, linking home', () => {
-    render(<App store={new MemoryHeroStore()} />)
-    const title = screen.getByRole('heading', { level: 1, name: 'SCRPG Aid' })
+  it('renders the app title, linking home, on the library and on other pages', async () => {
+    render(<App store={new MemoryHeroStore()} villainStore={new MemoryVillainStore()} searchStore={new MemorySavedSearchStore()} />)
+    expect(screen.getByRole('link', { name: 'SCRPG Aid' })).toHaveAttribute('href', '#/')
+    go('#/gm')
+    const title = await screen.findByRole('heading', { level: 1, name: 'SCRPG Aid' })
     expect(title.querySelector('a')).toHaveAttribute('href', '#/')
   })
 
   it('shows the hero list, a hero’s sheet, a missing hero, and unknown pages', async () => {
     const store = new MemoryHeroStore()
     await store.save(exampleHero({ id: 'maya' }))
-    render(<App store={store} />)
-    expect(await screen.findByRole('heading', { name: 'Your heroes' })).toBeInTheDocument()
+    render(<App store={store} villainStore={new MemoryVillainStore()} searchStore={new MemorySavedSearchStore()} />)
+    expect(await screen.findByRole('link', { name: 'Maya Reyes' })).toHaveAttribute('href', '#/hero/maya')
 
     go('#/hero/maya')
     expect(await screen.findByRole('heading', { level: 2, name: 'Maya Reyes' })).toBeInTheDocument()

@@ -14,6 +14,7 @@ const villainShape = object({
   id: nonEmptyString,
   createdAt: string,
   updatedAt: string,
+  tags: arrayOf(string),
   details: object(Object.fromEntries(VILLAIN_DETAIL_FIELDS.map((f) => [f, string]))),
   traitNames: recordOf(string),
   approach: nullable(object({ id: nonEmptyString, traits: arrayOf(assignment), abilities: arrayOf(pick) })),

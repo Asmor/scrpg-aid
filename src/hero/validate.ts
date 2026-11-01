@@ -108,6 +108,7 @@ const heroShape = object({
   createdAt: nonEmptyString,
   updatedAt: nonEmptyString,
   method: oneOf('guided', 'constructed'),
+  tags: arrayOf(string),
   details: object(Object.fromEntries(DETAIL_FIELDS.map((f) => [f, string]))),
   traitNames: recordOf(string),
   background: nullable(object({ id: nonEmptyString, 'roll?': rollRecord, qualities: arrayOf(assignment), 'principle?': principle })),

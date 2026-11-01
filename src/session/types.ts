@@ -227,9 +227,11 @@ export interface LastGame {
   v: typeof SAVED_VERSION
   room: string
   password?: string
+  /** When it was joined (ISO 8601), for the library's "Last game: K7QX-2M, 3 days ago". Older saves have none. */
+  at?: string
 }
 
-const lastGame = object({ v: oneOf(SAVED_VERSION), room: id, 'password?': text(MAX_NAME) })
+const lastGame = object({ v: oneOf(SAVED_VERSION), room: id, 'password?': text(MAX_NAME), 'at?': text(40) })
 
 /** A stored last game, or undefined if it's malformed or from another version. */
 export function readLastGame(value: unknown): LastGame | undefined {

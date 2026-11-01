@@ -16,13 +16,17 @@ function same(a: unknown, b: unknown): boolean {
   return ak.every((k) => Object.hasOwn(b, k) && same((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]))
 }
 
-/** Whether the hero differs from the snapshot, ignoring when it was last saved. */
+/**
+ * Whether the hero differs from the snapshot, ignoring when it was last saved. Tags are
+ * outside the snapshot (docs/design/library/spec.md): changing them isn't an edit to revert.
+ */
 export function changedSince(snapshot: Hero, hero: Hero): boolean {
-  return !same({ ...snapshot, updatedAt: '' }, { ...hero, updatedAt: '' })
+  return !same({ ...snapshot, updatedAt: '', tags: [] }, { ...hero, updatedAt: '', tags: [] })
 }
 
-/** Puts the snapshot's data back into `draft` (an editor change), keeping nothing else. */
+/** Puts the snapshot's data back into `draft` (an editor change), keeping only its current tags. */
 export function restoreSnapshot(draft: Hero, snapshot: Hero): void {
+  const tags = [...draft.tags]
   for (const key of Object.keys(draft)) delete (draft as unknown as Record<string, unknown>)[key]
-  Object.assign(draft, structuredClone(snapshot))
+  Object.assign(draft, structuredClone(snapshot), { tags })
 }

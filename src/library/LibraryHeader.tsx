@@ -1,0 +1,226 @@
+/**
+ * The library's header bar (docs/design/library/spec.md, "Page layout"): the app's name, Play
+ * together (host, join, or the game you're in), Data (backup, import, the example hero), and
+ * the color scheme switch. On phones, Data and the color scheme share one menu.
+ */
+import { gmPath, joinPath, playPath } from '../app/route'
+import { ThemeToggle } from '../components/ThemeToggle'
+import { useGmState, useSession } from '../session/context'
+import type { ThemePreference } from '../theme/theme'
+import { PopoverDialog } from './Popover'
+import { usePopover } from './popover-state'
+import type { BackupStatus } from './backup-time'
+import { formatAgoInline } from './when'
+
+const PeopleIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="9" cy="8" r="3.5" />
+    <path d="M2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5" />
+    <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8" />
+    <path d="M18.5 14.8c1.6.8 2.7 2.6 3 5.2" />
+  </svg>
+)
+
+const MenuIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+    <path d="M4 7h16M4 12h16M4 17h16" />
+  </svg>
+)
+
+/** What Play together shows: no game, hosting, or playing in one. */
+function useGame(heroName: (id: string) => string | undefined) {
+  const session = useSession()
+  const gmState = useGmState(session.gm)
+  if (session.gm) {
+    const connected = (gmState?.members ?? []).filter((m) => m.connected).length
+    return { kind: 'hosting' as const, room: session.gm.room, connected }
+  }
+  if (session.player) {
+    const id = session.player.heroId
+    return { kind: 'playing' as const, room: session.player.room, heroId: id, heroName: heroName(id) ?? 'your hero', leave: session.leave }
+  }
+  return { kind: 'none' as const, lastGame: session.lastGame }
+}
+
+const players = (n: number) => (n === 1 ? '1 player connected' : `${n} players connected`)
+
+export function PlayTogether({ heroName, now, compact = false }: { heroName: (id: string) => string | undefined; now: Date; compact?: boolean }) {
+  const [popover, bindPopover] = usePopover()
+  const game = useGame(heroName)
+  const inGame = game.kind !== 'none'
+  const label = inGame ? `In game · ${game.room}` : 'Play together'
+  return (
+    <span className="popover-anchor">
+      <button
+        ref={bindPopover}
+        type="button"
+        className={compact ? 'icon-button' : 'button button--quiet'}
+        aria-haspopup="dialog"
+        aria-expanded={popover.open}
+        {...(compact ? { 'aria-label': label } : {})}
+        onClick={popover.toggle}
+      >
+        <PeopleIcon />
+        {!compact && label}
+        {compact && inGame && <span className="dot" aria-hidden="true" />}
+      </button>
+      {popover.open && (
+        <PopoverDialog popover={popover} label="Play together" className={compact ? 'popover--sheet' : 'popover--end'}>
+          {game.kind === 'none' && (
+            <div className="popover__stack">
+              <a className="button button--primary" href={gmPath}>
+                Host a game as GM
+              </a>
+              <a className="button" href={joinPath()}>
+                Join a game
+              </a>
+              {game.lastGame && (
+                <p className="popover__line">
+                  Last game: {game.lastGame.room}
+                  {game.lastGame.at ? `, ${formatAgoInline(game.lastGame.at, now)}` : ''} · <a href={joinPath(game.lastGame.room)}>Rejoin</a>
+                </p>
+              )}
+            </div>
+          )}
+          {game.kind === 'hosting' && (
+            <div className="popover__stack">
+              <p className="popover__line">
+                You're hosting {game.room} · {players(game.connected)}
+              </p>
+              <a className="button button--primary" href={gmPath}>
+                Return to table
+              </a>
+            </div>
+          )}
+          {game.kind === 'playing' && (
+            <div className="popover__stack">
+              <p className="popover__line">
+                You're in {game.room} as {game.heroName}
+              </p>
+              <a className="button button--primary" href={playPath(game.heroId)}>
+                Play {game.heroName}
+              </a>
+              <button
+                type="button"
+                className="button"
+                onClick={() => {
+                  popover.close()
+                  game.leave()
+                }}
+              >
+                Leave game
+              </button>
+            </div>
+          )}
+        </PopoverDialog>
+      )}
+    </span>
+  )
+}
+
+export interface DataActions {
+  status: BackupStatus
+  busy: boolean
+  backUp: () => void
+  importFile: () => void
+  addExample: () => void
+}
+
+/** The Data menu's contents: the backup line and its three actions. */
+function DataItems({ data, close }: { data: DataActions; close: () => void }) {
+  const run = (action: () => void) => () => {
+    close()
+    action()
+  }
+  return (
+    <div className="popover__stack">
+      <p className="popover__line">{data.status.text}</p>
+      <div role="menu" aria-label="Data" className="popover__menu">
+        <button type="button" role="menuitem" className="menu-item" disabled={data.busy} onClick={run(data.backUp)}>
+          Back up everything
+        </button>
+        <button type="button" role="menuitem" className="menu-item" disabled={data.busy} onClick={run(data.importFile)}>
+          Import from a file…
+        </button>
+        <button type="button" role="menuitem" className="menu-item" disabled={data.busy} onClick={run(data.addExample)}>
+          Add an example hero
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export function DataMenu({ data }: { data: DataActions }) {
+  const [popover, bindPopover] = usePopover()
+  return (
+    <span className="popover-anchor">
+      <button
+        ref={bindPopover}
+        type="button"
+        className="button button--quiet"
+        aria-haspopup="dialog"
+        aria-expanded={popover.open}
+        {...(data.status.remind ? { 'aria-label': 'Data: backup reminder' } : {})}
+        onClick={popover.toggle}
+      >
+        Data
+        {data.status.remind && <span className="dot" aria-hidden="true" />}
+      </button>
+      {popover.open && (
+        <PopoverDialog popover={popover} label="Data" className="popover--end popover--wide">
+          <DataItems data={data} close={popover.close} />
+        </PopoverDialog>
+      )}
+    </span>
+  )
+}
+
+/** The phone's header menu: Data's items, then the color scheme. */
+export function PhoneMenu({ data, theme, setTheme }: { data: DataActions; theme: ThemePreference; setTheme: (t: ThemePreference) => void }) {
+  const [popover, bindPopover] = usePopover()
+  const label = data.status.remind ? 'Menu: data, color scheme. Backup reminder' : 'Menu: data, color scheme'
+  return (
+    <span className="popover-anchor">
+      <button ref={bindPopover} type="button" className="icon-button" aria-label={label} aria-haspopup="dialog" aria-expanded={popover.open} onClick={popover.toggle}>
+        <MenuIcon />
+        {data.status.remind && <span className="dot" aria-hidden="true" />}
+      </button>
+      {popover.open && (
+        <PopoverDialog popover={popover} label="Menu" className="popover--sheet">
+          <DataItems data={data} close={popover.close} />
+          <ThemeToggle value={theme} onChange={setTheme} />
+        </PopoverDialog>
+      )}
+    </span>
+  )
+}
+
+interface HeaderProps {
+  phone: boolean
+  theme: ThemePreference
+  setTheme: (t: ThemePreference) => void
+  data: DataActions
+  heroName: (id: string) => string | undefined
+  now: Date
+}
+
+export function LibraryHeader({ phone, theme, setTheme, data, heroName, now }: HeaderProps) {
+  return (
+    <header className="app-header library-header">
+      <a className="library-header__name" href="#/">
+        SCRPG Aid
+      </a>
+      <span className="library-header__actions">
+        <PlayTogether heroName={heroName} now={now} compact={phone} />
+        {phone ? (
+          <PhoneMenu data={data} theme={theme} setTheme={setTheme} />
+        ) : (
+          <>
+            <DataMenu data={data} />
+            <ThemeToggle value={theme} onChange={setTheme} />
+          </>
+        )}
+      </span>
+    </header>
+  )
+}

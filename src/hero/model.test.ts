@@ -10,6 +10,7 @@ describe('hero model', () => {
       createdAt: '2026-10-23T12:00:00.000Z',
       updatedAt: '2026-10-23T12:00:00.000Z',
       method: 'guided',
+      tags: [],
       details: emptyDetails(),
       traitNames: {},
       background: null,

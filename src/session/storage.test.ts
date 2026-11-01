@@ -27,6 +27,8 @@ describe('session storage', () => {
     expect(store.loadLastGame()).toBeUndefined()
     store.saveLastGame({ v: 1, room: 'ABCD-EFGH', password: 'pw' })
     expect(localSessionStore(storage).loadLastGame()).toEqual({ v: 1, room: 'ABCD-EFGH', password: 'pw' })
+    store.saveLastGame({ v: 1, room: 'ABCD-EFGH', at: '2026-10-27T10:00:00.000Z' })
+    expect(store.loadLastGame()).toEqual({ v: 1, room: 'ABCD-EFGH', at: '2026-10-27T10:00:00.000Z' })
     storage.setItem('scrpg.session.lastGame', '{"room":"ABCD-EFGH"}')
     expect(store.loadLastGame()).toBeUndefined()
   })

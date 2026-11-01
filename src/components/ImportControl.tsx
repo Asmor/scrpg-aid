@@ -3,9 +3,11 @@
  * Markdown or HTML export. When one is already saved (the same id), the player chooses each
  * time whether to replace theirs or keep both.
  */
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react'
 import { useStore } from '../app/store-context'
 import { useOptionalVillainStore } from '../app/villain-store-context'
+import { useOptionalSavedSearchStore } from '../app/saved-search-context'
+import { searchesToRestore, type SavedSearch } from '../library/saved-searches'
 import { heroDisplayName, type Hero } from '../hero/model'
 import { conflicts, heroesToSave, readImport, type Resolution, type SkippedHero } from '../transfer/files'
 import { villainDisplayName, type Villain } from '../villain/model'
@@ -23,6 +25,7 @@ interface Conflict {
 interface Pending {
   heroes: Hero[]
   villains: Villain[]
+  savedSearches: SavedSearch[]
   skipped: SkippedHero[]
   savedIds: Set<string>
   villainIds: Set<string>
@@ -34,9 +37,13 @@ const villainCount = (n: number) => (n === 1 ? 'one villain' : `${n} villains`)
 /** "2 heroes", "one villain", "2 heroes and one villain" */
 const count = (heroes: number, villains: number) => (villains ? (heroes ? `${heroCount(heroes)} and ${villainCount(villains)}` : villainCount(villains)) : heroCount(heroes))
 
+const KIND_TEXT: Record<SkippedHero['kind'], string> = { hero: 'Hero', villain: 'Villain', savedSearch: 'Saved search' }
+
 function skippedText(skipped: readonly SkippedHero[]): string {
-  return skipped.map((s) => `${s.kind === 'hero' ? 'Hero' : 'Villain'} ${s.index} in the file couldn't be read: ${s.error}.`).join(' ')
+  return skipped.map((s) => `${KIND_TEXT[s.kind]} ${s.index} in the file couldn't be read: ${s.error}.`).join(' ')
 }
+
+const searchCount = (n: number) => (n === 1 ? 'one saved search' : `${n} saved searches`)
 
 /** "You already have this hero", "… these villains", or "… these" for a mix. */
 function conflictLegend(list: readonly Conflict[]): string {
@@ -61,11 +68,20 @@ interface ImportControlProps {
   onImported: () => void
   /** Other buttons for the same row (the backup). */
   children?: ReactNode
+  /** Leaves out the Import button, for a page that opens the file picker from its own control (`ref.open`). */
+  hideButton?: boolean
+  ref?: Ref<ImportHandle>
 }
 
-export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange, onImported, children }: ImportControlProps) {
+/** Opens the file picker from elsewhere on the page (the library's Data menu). */
+export interface ImportHandle {
+  open: () => void
+}
+
+export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange, onImported, children, hideButton = false, ref }: ImportControlProps) {
   const store = useStore()
   const villainStore = useOptionalVillainStore()
+  const searchStore = useOptionalSavedSearchStore()
   const id = useId()
   const input = useRef<HTMLInputElement>(null)
   const button = useRef<HTMLButtonElement>(null)
@@ -81,6 +97,7 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
     onBusyChange?.(b)
   }
 
+  useImperativeHandle(ref, () => ({ open: () => input.current?.click() }), [])
   useEffect(() => {
     if (pending) prompt.current?.focus()
   }, [pending])
@@ -109,7 +126,17 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
         await villainStore!.save(villain)
         villains++
       }
-      setMessage({ error: false, text: [`Imported ${count(heroes, villains)}.`, skippedText(p.skipped)].filter(Boolean).join(' ') })
+      // A backup's saved searches come back too (docs/design/library/spec.md, "Saved searches").
+      let searches = 0
+      if (searchStore && p.savedSearches.length) {
+        for (const search of searchesToRestore(p.savedSearches, (await searchStore.list()).searches)) {
+          await searchStore.save(search)
+          searches++
+        }
+      }
+      const items = heroes + villains ? count(heroes, villains) : ''
+      const imported = [items, searches ? searchCount(searches) : ''].filter(Boolean).join(' and ') || count(0, 0)
+      setMessage({ error: false, text: [`Imported ${imported}.`, skippedText(p.skipped)].filter(Boolean).join(' ') })
     } catch (e) {
       setMessage({ error: true, text: `The import stopped after ${count(heroes, villains)} of ${count(p.heroes.length, p.villains.length)}: ${errorText(e)}` })
     } finally {
@@ -133,7 +160,7 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
       setMessage({ error: true, text: result.error })
       return
     }
-    if (result.heroes.length === 0 && result.villains.length === 0) {
+    if (result.heroes.length === 0 && result.villains.length === 0 && (result.savedSearches.length === 0 || !searchStore)) {
       setMessage({ error: true, text: ['There are no heroes or villains in this file to import.', skippedText(result.skipped)].filter(Boolean).join(' ') })
       return
     }
@@ -157,6 +184,7 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
     const p: Pending = {
       heroes: result.heroes,
       villains: result.villains,
+      savedSearches: result.savedSearches,
       skipped: result.skipped,
       savedIds: ids,
       villainIds,
@@ -190,12 +218,14 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
           if (file) void read(file)
         }}
       />
-      <div className="button-row">
-        <button ref={button} type="button" className="button" disabled={disabled || busy || pending !== null} onClick={() => input.current?.click()}>
-          Import from a file…
-        </button>
-        {children}
-      </div>
+      {!hideButton && (
+        <div className="button-row">
+          <button ref={button} type="button" className="button" disabled={disabled || busy || pending !== null} onClick={() => input.current?.click()}>
+            Import from a file…
+          </button>
+          {children}
+        </div>
+      )}
 
       {/* Always present, so screen readers announce the text when it changes. */}
       <p role="status">{message && !message.error ? message.text : ''}</p>

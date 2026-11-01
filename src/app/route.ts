@@ -1,6 +1,6 @@
 /**
  * Hash-based routes, so the app works from any URL prefix on GitHub Pages and offline
- * without server rewrites: "#/" is the hero list, "#/hero/<id>" one hero's sheet,
+ * without server rewrites: "#/" is the library ("#/?<query>" a view of it, ../library/query.ts), "#/hero/<id>" one hero's sheet,
  * "#/hero/<id>/edit" its edit summary (a draft continues at its furthest step),
  * "#/hero/<id>/edit/<step>" a step of its editor ("#/hero/<id>/edit/archetype/<part>" one part of
  * a complex archetype's step), "#/hero/<id>/advancement" its advancement,
@@ -11,7 +11,8 @@
 import { useEffect, useState } from 'react'
 
 export type Route =
-  | { name: 'list' }
+  /** `search` is the library view's query string, without the "?". */
+  | { name: 'list'; search: string }
   | { name: 'villain'; id: string }
   | { name: 'villainEdit'; id: string; step?: string }
   | { name: 'villainPlay'; id: string }
@@ -19,7 +20,8 @@ export type Route =
 
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#/, '') || '/'
-  if (path === '/') return { name: 'list' }
+  if (path === '/') return { name: 'list', search: '' }
+  if (path.startsWith('/?')) return { name: 'list', search: path.slice(2) }
   if (path === '/gm') return { name: 'gm' }
   const villain = /^\/villain\/([^/]+)(\/edit(?:\/([^/]+))?|\/play)?$/.exec(path)
   if (villain) {

@@ -8,7 +8,7 @@ export const SessionContext = createContext<SessionManager | null>(null)
 
 export interface SessionApi extends CurrentSession {
   /** The last game joined, kept after leaving it. */
-  lastGame?: { room: string; password?: string }
+  lastGame?: { room: string; password?: string; at?: string }
   host(password?: string): void
   join(options: { room: string; password?: string; heroId: string; sharedUpTo?: string }): void
   leave(): void

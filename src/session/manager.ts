@@ -38,7 +38,7 @@ export class SessionManager {
   /** The last game joined (kept after leaving), to join again without typing. */
   lastGame(): Omit<LastGame, 'v'> | undefined {
     const game = this.store.loadLastGame()
-    return game && { room: game.room, ...(game.password ? { password: game.password } : {}) }
+    return game && { room: game.room, ...(game.password ? { password: game.password } : {}), ...(game.at ? { at: game.at } : {}) }
   }
 
   /** Reconnects to the saved session, if there is one and nothing's connected. */
@@ -76,7 +76,7 @@ export class SessionManager {
     if (current && current.room === room && current.heroId === heroId && current.password === password) return
     this.disconnect()
     this.store.saveGm(undefined)
-    this.store.saveLastGame({ v: SAVED_VERSION, room, ...(password ? { password } : {}) })
+    this.store.saveLastGame({ v: SAVED_VERSION, room, ...(password ? { password } : {}), at: this.clock().now.toISOString() })
     const saved: PlayerSaved = { v: SAVED_VERSION, room, ...(password ? { password } : {}), clientId: this.store.clientId(), heroId, ...(sharedUpTo ? { sharedUpTo } : {}), applied: [] }
     this.set({ player: new PlayerSession(this.connect, saved, this.clock, (s) => this.store.savePlayer(s)) })
   }

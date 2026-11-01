@@ -68,6 +68,8 @@ export interface Villain {
   id: string
   createdAt: string
   updatedAt: string
+  /** The GM's own labels for organizing the library (docs/design/library/spec.md); see ../library/tags.ts. */
+  tags: string[]
   details: VillainDetails
   /** The GM's names for traits that need one (the roleplaying quality, ...), keyed by traitKey. */
   traitNames: Record<string, string>
@@ -115,6 +117,7 @@ export function createVillain(options: { id?: string; now?: Date } = {}): Villai
     id: options.id ?? newId(),
     createdAt: timestamp,
     updatedAt: timestamp,
+    tags: [],
     details: emptyVillainDetails(),
     traitNames: {},
     approach: null,
@@ -133,4 +136,14 @@ export function villainDisplayName(villain: Villain): string {
 /** The GM's name for a trait, if they've given it one. */
 export function villainTraitName(villain: Villain, trait: TraitRef): string | undefined {
   return villain.traitNames[traitKey(trait)]
+}
+
+/** A copy of the villain to save as a new one, like ../hero/model.ts duplicateHero. */
+export function duplicateVillain(villain: Villain, options: { id?: string; now?: Date } = {}): Villain {
+  const timestamp = (options.now ?? new Date()).toISOString()
+  const { play: _play, ...rest } = structuredClone(villain)
+  const details = { ...rest.details }
+  if (details.name.trim()) details.name = `${details.name.trim()} (copy)`
+  else if (details.alias.trim()) details.alias = `${details.alias.trim()} (copy)`
+  return { ...rest, id: options.id ?? newId(), createdAt: timestamp, updatedAt: timestamp, details }
 }

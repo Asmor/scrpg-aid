@@ -39,9 +39,9 @@ describe('the browser’s session', () => {
     expect(again.getSnapshot()).toEqual({})
     expect(storage.data.has('scrpg.session.player')).toBe(false)
     // The game joined is remembered after leaving, to join again.
-    expect(again.lastGame()).toEqual({ room: gm.room })
+    expect(again.lastGame()).toEqual({ room: gm.room, at: '2026-10-27T10:00:00.000Z' })
     again.join({ room: 'WXYZ-2345', password: 'pw', heroId: 'h2' })
-    expect(again.lastGame()).toEqual({ room: 'WXYZ-2345', password: 'pw' })
+    expect(again.lastGame()).toEqual({ room: 'WXYZ-2345', password: 'pw', at: '2026-10-27T10:00:00.000Z' })
     expect(changes).toBeGreaterThan(0)
   })
 

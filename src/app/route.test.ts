@@ -3,8 +3,9 @@ import { advancementPath, editPath, partPath, gmPath, heroPath, joinPath, joinUr
 
 describe('routes', () => {
   it('parses the list, a hero, and anything else', () => {
-    expect(parseRoute('')).toEqual({ name: 'list' })
-    expect(parseRoute('#/')).toEqual({ name: 'list' })
+    expect(parseRoute('')).toEqual({ name: 'list', search: '' })
+    expect(parseRoute('#/')).toEqual({ name: 'list', search: '' })
+    expect(parseRoute('#/?tag=scene-3&q=gr')).toEqual({ name: 'list', search: 'tag=scene-3&q=gr' })
     expect(parseRoute('#/hero/abc-123')).toEqual({ name: 'hero', id: 'abc-123' })
     expect(parseRoute('#/hero/')).toEqual({ name: 'notFound' })
     expect(parseRoute('#/villains')).toEqual({ name: 'notFound' })
