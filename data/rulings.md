@@ -389,6 +389,12 @@ These came from questions the user put to the rules-expert agent about an action
 - **Decision:** No. The pattern covers the approach's usual number of abilities; an extra one may use any power or quality.
 - **Basis:** Default (permissive; not asked).
 
+### 64. The scene tracker and a villain's zone
+- **Pages:** Zones and the scene tracker (p. 14).
+- **Question:** A hero's zone is whichever of their Health zone and the scene's zone is further along. Does the scene tracker raise a villain's zone the same way (and so a Health-zone villain's status die)?
+- **Decision:** No. The scene zone raises heroes' zones only; a villain's zone comes from its own Health.
+- **Basis:** Interpretation (the user's ruling).
+
 ## Minions and lieutenants (p. 16–17, 204–207)
 
 ### 58. What makes a minion's save successful

@@ -472,7 +472,7 @@ describe('the empty library', () => {
     await loaded()
     await userEvent.click(screen.getByRole('button', { name: 'New' }))
     const menu = within(screen.getByRole('menu', { name: 'New' }))
-    expect(menu.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Hero', 'Villain'])
+    expect(menu.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Hero', 'Villain', 'Game'])
     await userEvent.click(menu.getByRole('menuitem', { name: 'Hero' }))
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/hero\/[^/]+\/edit\/start$/))
   })

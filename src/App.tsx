@@ -13,6 +13,9 @@ import { createDefaultVillainStore, type VillainStore } from './villain/store'
 import { VillainEditor } from './villain/VillainEditor'
 import { VillainPage } from './villain/VillainPage'
 import { VillainPlayPage } from './villain/VillainPlayPage'
+import { GameStoreContext } from './app/game-store-context'
+import { createDefaultGameStore, type GameStore } from './game/store'
+import { GamePage } from './game/GamePage'
 import { GmPage } from './session/GmPage'
 import { JoinPage } from './session/JoinPage'
 import { SessionProvider } from './session/SessionProvider'
@@ -25,6 +28,7 @@ import { useTheme } from './theme/useTheme'
 interface AppProps {
   store?: HeroStore
   villainStore?: VillainStore
+  gameStore?: GameStore
   searchStore?: SavedSearchStore
   backupTime?: BackupTimeStore
   connect?: Connect
@@ -32,21 +36,27 @@ interface AppProps {
 }
 
 /** The stores, `connect`, `sessionStore`, and `backupTime` are injectable for tests. */
-export default function App({ store: given, villainStore: givenVillains, searchStore: givenSearches, backupTime, connect, sessionStore }: AppProps) {
+export default function App({ store: given, villainStore: givenVillains, gameStore: givenGames, searchStore: givenSearches, backupTime, connect, sessionStore }: AppProps) {
   const [theme, setTheme] = useTheme()
   const [store] = useState(() => given ?? createDefaultStore())
   const [villainStore] = useState(() => givenVillains ?? createDefaultVillainStore())
+  const [gameStore] = useState(() => givenGames ?? createDefaultGameStore())
   const [searchStore] = useState(() => givenSearches ?? createDefaultSavedSearchStore())
   const route = useRoute()
   return (
     <StoreContext.Provider value={store}>
       <VillainStoreContext.Provider value={villainStore}>
+      <GameStoreContext.Provider value={gameStore}>
       <SavedSearchStoreContext.Provider value={searchStore}>
       <SessionProvider {...(connect ? { connect } : {})} {...(sessionStore ? { store: sessionStore } : {})}>
-      {/* The library (the home screen) has its own header bar and layout. */}
+      {/* The library (the home screen) and the game table have their own header bars and layouts. */}
       {route.name === 'list' ? (
         <div className="app">
           <LibraryPage theme={theme} setTheme={setTheme} searchStore={searchStore} {...(backupTime ? { backupTime } : {})} />
+        </div>
+      ) : route.name === 'game' ? (
+        <div className="app">
+          <GamePage key={route.id} id={route.id} />
         </div>
       ) : (
       <div className="app">
@@ -76,6 +86,7 @@ export default function App({ store: given, villainStore: givenVillains, searchS
       )}
       </SessionProvider>
       </SavedSearchStoreContext.Provider>
+      </GameStoreContext.Provider>
       </VillainStoreContext.Provider>
     </StoreContext.Provider>
   )

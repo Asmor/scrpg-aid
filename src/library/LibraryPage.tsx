@@ -8,6 +8,8 @@ import { heroPath, navigate } from '../app/route'
 import { useNewHeroes } from '../app/new-heroes'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
+import { useGameStore } from '../app/game-store-context'
+import type { Game } from '../game/model'
 import { ImportControl, type ImportHandle } from '../components/ImportControl'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
@@ -51,7 +53,8 @@ export type LibraryModel = ReturnType<typeof useLibraryModel>
 function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearchStore; backupTime: BackupTimeStore }) {
   const heroes = useStore()
   const villains = useVillainStore()
-  const stores: LibraryStores = useMemo(() => ({ heroes, villains }), [heroes, villains])
+  const games = useGameStore()
+  const stores: LibraryStores = useMemo(() => ({ heroes, villains, games }), [heroes, villains, games])
   const newHeroes = useNewHeroes()
   const data = useLibraryData(stores, searchStore)
   const ready = data.state.status === 'ready' ? data.state : undefined
@@ -106,8 +109,9 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
 
   /** Downloads one file in the backup format: everything (with saved searches), or some items. */
   const download = (list: readonly LibraryItem[], withSearches: boolean, fileName: string) => {
-    const of = (key: 'heroes' | 'villains') => list.filter((i) => i.type.backupKey === key).map((i) => i.doc)
-    downloadFile(fileName, backupJson(of('heroes') as unknown as Hero[], of('villains') as unknown as Villain[], withSearches ? searches : []), 'application/json')
+    const of = (key: LibraryType['backupKey']) => list.filter((i) => i.type.backupKey === key).map((i) => i.doc)
+    const contents = { heroes: of('heroes') as unknown as Hero[], villains: of('villains') as unknown as Villain[], games: of('games') as unknown as Game[], savedSearches: withSearches ? searches : [] }
+    downloadFile(fileName, backupJson(contents), 'application/json')
   }
   const backUp = () => {
     setError(null)

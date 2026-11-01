@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { advancementPath, editPath, partPath, gmPath, heroPath, joinPath, joinUrl, parseRoute, playPath, villainEditPath, villainPath, villainPlayPath } from './route'
+import { advancementPath, editPath, gamePath, partPath, gmPath, heroPath, joinPath, joinUrl, parseRoute, playPath, villainEditPath, villainPath, villainPlayPath } from './route'
 
 describe('routes', () => {
   it('parses the list, a hero, and anything else', () => {
@@ -48,5 +48,12 @@ describe('routes', () => {
     const id = 'a/b c?#'
     expect(parseRoute(villainPath(id))).toEqual({ name: 'villain', id })
     expect(parseRoute(villainEditPath(id, 'approach'))).toEqual({ name: 'villainEdit', id, step: 'approach' })
+  })
+
+  it('parses game tables', () => {
+    expect(parseRoute('#/game/g1')).toEqual({ name: 'game', id: 'g1' })
+    const id = 'a/b c?#'
+    expect(parseRoute(gamePath(id))).toEqual({ name: 'game', id })
+    for (const bad of ['#/game/', '#/game/x/y', '#/game/%E0%A4%A']) expect(parseRoute(bad)).toEqual({ name: 'notFound' })
   })
 })

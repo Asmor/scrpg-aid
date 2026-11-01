@@ -6,7 +6,9 @@ import { completeHero, dividedHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { createVillain } from '../villain/model'
 import { villainToSaved, VILLAIN_FORMAT } from '../villain/serialize'
-import { BACKUP_FORMAT, BACKUP_VERSION, backupFileName, backupJson, conflicts, heroesToSave, heroFileName, heroJson, readImport, villainFileName, villainJson } from './files'
+import { createGame } from '../game/model'
+import { gameToSaved } from '../game/serialize'
+import { BACKUP_FORMAT, BACKUP_VERSION, backupFileName, backupJson, conflicts, gameFileName, gameJson, heroesToSave, heroFileName, heroJson, readImport, villainFileName, villainJson } from './files'
 
 const now = new Date('2026-10-26T12:00:00Z')
 const hero = (id: string, name = '') => {
@@ -20,47 +22,47 @@ describe('heroJson', () => {
     const h = { ...dividedHero(), id: 'd1' }
     const text = heroJson(h)
     expect(JSON.parse(text)).toEqual({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: h })
-    expect(readImport(text)).toEqual({ ok: true, heroes: [h], villains: [], savedSearches: [], skipped: [] })
+    expect(readImport(text)).toEqual({ ok: true, heroes: [h], villains: [], games: [], savedSearches: [], skipped: [] })
   })
 })
 
 describe('play state', () => {
   it('stays in a hero’s JSON and in backups', () => {
     const h = { ...hero('a', 'Ann'), play: { health: 4, heroPoints: 2, reactionUsed: false, mods: [], twists: [], history: [] } }
-    expect(readImport(heroJson(h))).toEqual({ ok: true, heroes: [h], villains: [], savedSearches: [], skipped: [] })
-    expect(readImport(backupJson([h], [], [], now))).toEqual({ ok: true, heroes: [h], villains: [], savedSearches: [], skipped: [] })
+    expect(readImport(heroJson(h))).toEqual({ ok: true, heroes: [h], villains: [], games: [], savedSearches: [], skipped: [] })
+    expect(readImport(backupJson({ heroes: [h] }, now))).toEqual({ ok: true, heroes: [h], villains: [], games: [], savedSearches: [], skipped: [] })
   })
 })
 
 describe('backupJson', () => {
   it('wraps every hero in a versioned backup, which reads back in order', () => {
     const heroes = [hero('a', 'Ann'), { ...completeHero(), id: 'b' }]
-    const text = backupJson(heroes, [], [], now)
-    expect(JSON.parse(text)).toEqual({ format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt: '2026-10-26T12:00:00.000Z', heroes: heroes.map(toSaved), villains: [], savedSearches: [] })
-    expect(readImport(text)).toEqual({ ok: true, heroes, villains: [], savedSearches: [], skipped: [] })
+    const text = backupJson({ heroes }, now)
+    expect(JSON.parse(text)).toEqual({ format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt: '2026-10-26T12:00:00.000Z', heroes: heroes.map(toSaved), villains: [], games: [], savedSearches: [] })
+    expect(readImport(text)).toEqual({ ok: true, heroes, villains: [], games: [], savedSearches: [], skipped: [] })
   })
 })
 
 describe('saved searches in backups', () => {
   it('backs up saved searches and reads them back; a version-2 backup has none', () => {
     const search = createSavedSearch('Scene 3', { text: '', types: ['villain'], tags: ['scene-3'] }, { id: 's1', now })
-    const text = backupJson([], [], [search], now)
-    expect(JSON.parse(text)).toMatchObject({ version: 3, savedSearches: [searchToSaved(search)] })
-    expect(readImport(text)).toEqual({ ok: true, heroes: [], villains: [], savedSearches: [search], skipped: [] })
+    const text = backupJson({ savedSearches: [search] }, now)
+    expect(JSON.parse(text)).toMatchObject({ version: 4, savedSearches: [searchToSaved(search)] })
+    expect(readImport(text)).toEqual({ ok: true, heroes: [], villains: [], games: [], savedSearches: [search], skipped: [] })
     const v2 = JSON.stringify({ format: BACKUP_FORMAT, version: 2, exportedAt: 'x', heroes: [], villains: [] })
-    expect(readImport(v2)).toEqual({ ok: true, heroes: [], villains: [], savedSearches: [], skipped: [] })
+    expect(readImport(v2)).toEqual({ ok: true, heroes: [], villains: [], games: [], savedSearches: [], skipped: [] })
   })
 
   it('skips a bad saved search, and needs the list in a version-3 backup', () => {
-    const bad = JSON.stringify({ format: BACKUP_FORMAT, version: 3, exportedAt: 'x', heroes: [], villains: [], savedSearches: [{ nope: 1 }] })
-    expect(readImport(bad)).toEqual({ ok: true, heroes: [], villains: [], savedSearches: [], skipped: [{ kind: 'savedSearch', index: 1, error: 'not a saved search' }] })
+    const bad = JSON.stringify({ format: BACKUP_FORMAT, version: 3, exportedAt: 'x', heroes: [], villains: [], games: [], savedSearches: [{ nope: 1 }] })
+    expect(readImport(bad)).toEqual({ ok: true, heroes: [], villains: [], games: [], savedSearches: [], skipped: [{ kind: 'savedSearch', index: 1, error: 'not a saved search' }] })
     const missing = JSON.stringify({ format: BACKUP_FORMAT, version: 3, exportedAt: 'x', heroes: [], villains: [] })
     expect(readImport(missing)).toEqual({ ok: false, error: "This backup couldn't be read: it has no list of saved searches." })
   })
 
   it('keeps tags with heroes and villains', () => {
     const h = { ...hero('a', 'Ann'), tags: ['scene-3', 'Prep'] }
-    expect(readImport(backupJson([h], [], [], now))).toMatchObject({ heroes: [{ tags: ['scene-3', 'Prep'] }] })
+    expect(readImport(backupJson({ heroes: [h] }, now))).toMatchObject({ heroes: [{ tags: ['scene-3', 'Prep'] }] })
     expect(readImport(heroJson(h))).toMatchObject({ heroes: [{ tags: ['scene-3', 'Prep'] }] })
   })
 })
@@ -83,7 +85,7 @@ describe('file names', () => {
 
 describe('readImport', () => {
   it('explains files it can’t read', () => {
-    const notOurs = "This file isn't a hero, villain, or backup the app can read."
+    const notOurs = "This file isn't a hero, villain, game, or backup the app can read."
     expect(readImport('{nope')).toEqual({ ok: false, error: notOurs })
     expect(readImport('[1, 2]')).toEqual({ ok: false, error: notOurs })
     expect(readImport(JSON.stringify({ format: 'other' }))).toEqual({ ok: false, error: notOurs })
@@ -110,6 +112,7 @@ describe('readImport', () => {
       ok: true,
       heroes: [good],
       villains: [],
+      games: [],
       savedSearches: [],
       skipped: [
         { kind: 'hero', index: 1, error: 'not a saved hero' },
@@ -153,7 +156,7 @@ describe('import conflicts', () => {
 describe('villains in files', () => {
   it('reads a villain’s JSON back, and names its file after it', () => {
     const v = adaptiveBruiser()
-    expect(readImport(villainJson(v))).toEqual({ ok: true, heroes: [], villains: [v], savedSearches: [], skipped: [] })
+    expect(readImport(villainJson(v))).toEqual({ ok: true, heroes: [], villains: [v], games: [], savedSearches: [], skipped: [] })
     expect(villainFileName(v, 'pdf')).toBe('ironclad.pdf')
     expect(villainFileName(createVillain({ id: 'x' }), 'json')).toBe('villain.json')
   })
@@ -161,17 +164,17 @@ describe('villains in files', () => {
   it('backs up heroes and villains together, and still reads a version-1 backup of heroes', () => {
     const v = adaptiveBruiser()
     const h = hero('a', 'Ann')
-    const text = backupJson([h], [v], [], now)
-    expect(JSON.parse(text)).toMatchObject({ version: 3, villains: [villainToSaved(v)] })
-    expect(readImport(text)).toEqual({ ok: true, heroes: [h], villains: [v], savedSearches: [], skipped: [] })
+    const text = backupJson({ heroes: [h], villains: [v] }, now)
+    expect(JSON.parse(text)).toMatchObject({ version: 4, villains: [villainToSaved(v)] })
+    expect(readImport(text)).toEqual({ ok: true, heroes: [h], villains: [v], games: [], savedSearches: [], skipped: [] })
     const v1 = JSON.stringify({ format: BACKUP_FORMAT, version: 1, exportedAt: 'x', heroes: [toSaved(h)] })
-    expect(readImport(v1)).toEqual({ ok: true, heroes: [h], villains: [], savedSearches: [], skipped: [] })
+    expect(readImport(v1)).toEqual({ ok: true, heroes: [h], villains: [], games: [], savedSearches: [], skipped: [] })
   })
 
   it('lists villains in a backup it can’t read, and explains a damaged villain file', () => {
     const v = adaptiveBruiser()
     const text = JSON.stringify({ format: BACKUP_FORMAT, version: 2, exportedAt: 'x', heroes: [], villains: [{ nope: 1 }, villainToSaved(v)] })
-    expect(readImport(text)).toEqual({ ok: true, heroes: [], villains: [v], savedSearches: [], skipped: [{ kind: 'villain', index: 1, error: 'not a saved villain' }] })
+    expect(readImport(text)).toEqual({ ok: true, heroes: [], villains: [v], games: [], savedSearches: [], skipped: [{ kind: 'villain', index: 1, error: 'not a saved villain' }] })
     expect(readImport(JSON.stringify({ format: BACKUP_FORMAT, version: 2, exportedAt: 'x', heroes: [] }))).toEqual({ ok: false, error: "This backup couldn't be read: it has no list of villains." })
     expect(readImport(JSON.stringify({ format: VILLAIN_FORMAT, version: 99, villain: {} }))).toEqual({ ok: false, error: "This villain couldn't be read: saved by a newer version of the app (format 99)." })
   })
@@ -180,5 +183,26 @@ describe('villains in files', () => {
     const v = adaptiveBruiser()
     expect(conflicts([v], new Set(['v1']))).toEqual([v])
     expect(heroesToSave([v], new Set(['v1']), {}, () => 'new')).toEqual([{ ...v, id: 'new' }])
+  })
+})
+
+describe('games', () => {
+  it('reads one game’s JSON, and backs games up with the rest', () => {
+    const g = { ...createGame({ id: 'g', now }), name: 'Thursday game', tags: ['campaign'] }
+    expect(readImport(gameJson(g))).toEqual({ ok: true, heroes: [], villains: [], games: [g], savedSearches: [], skipped: [] })
+    expect(gameFileName(g, 'json')).toBe('thursday-game.json')
+    const text = backupJson({ games: [g] }, now)
+    expect(JSON.parse(text)).toMatchObject({ version: 4, games: [gameToSaved(g)] })
+    expect(readImport(text)).toEqual({ ok: true, heroes: [], villains: [], games: [g], savedSearches: [], skipped: [] })
+  })
+
+  it('skips a damaged game, still reads a version-3 backup, and needs the list from version 4', () => {
+    const g = createGame({ id: 'g', now })
+    const v4 = JSON.stringify({ format: BACKUP_FORMAT, version: 4, exportedAt: 'x', heroes: [], villains: [], games: [{ nope: 1 }, gameToSaved(g)], savedSearches: [] })
+    expect(readImport(v4)).toEqual({ ok: true, heroes: [], villains: [], games: [g], savedSearches: [], skipped: [{ kind: 'game', index: 1, error: 'not a saved game' }] })
+    const v3 = JSON.stringify({ format: BACKUP_FORMAT, version: 3, exportedAt: 'x', heroes: [], villains: [], savedSearches: [] })
+    expect(readImport(v3)).toEqual({ ok: true, heroes: [], villains: [], games: [], savedSearches: [], skipped: [] })
+    const missing = JSON.stringify({ format: BACKUP_FORMAT, version: 4, exportedAt: 'x', heroes: [], villains: [], savedSearches: [] })
+    expect(readImport(missing)).toEqual({ ok: false, error: "This backup couldn't be read: it has no list of games." })
   })
 })

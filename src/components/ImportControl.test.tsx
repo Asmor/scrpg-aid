@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { SavedSearchStoreContext } from '../app/saved-search-context'
 import { StoreContext } from '../app/store-context'
 import { VillainStoreContext } from '../app/villain-store-context'
+import { GameStoreContext } from '../app/game-store-context'
+import { createGame } from '../game/model'
+import { MemoryGameStore } from '../game/store'
 import { exampleHero } from '../hero/example'
 import { MemoryHeroStore } from '../hero/store'
 import { createHero } from '../hero/model'
@@ -22,18 +25,21 @@ function setup() {
   const heroes = new MemoryHeroStore()
   const villains = new MemoryVillainStore()
   const searches = new MemorySavedSearchStore()
+  const games = new MemoryGameStore()
   const onImported = vi.fn()
   render(
     <StoreContext.Provider value={heroes}>
       <VillainStoreContext.Provider value={villains}>
-        <SavedSearchStoreContext.Provider value={searches}>
-          <ImportControl savedIds={new Set()} unreadableIds={new Set()} disabled={false} onImported={onImported} />
-        </SavedSearchStoreContext.Provider>
+        <GameStoreContext.Provider value={games}>
+          <SavedSearchStoreContext.Provider value={searches}>
+            <ImportControl savedIds={new Set()} unreadableIds={new Set()} disabled={false} onImported={onImported} />
+          </SavedSearchStoreContext.Provider>
+        </GameStoreContext.Provider>
       </VillainStoreContext.Provider>
     </StoreContext.Provider>,
   )
   const upload = (text: string) => userEvent.upload(document.querySelector<HTMLInputElement>('input[type="file"]')!, new File([text], 'backup.json', { type: 'application/json' }))
-  return { heroes, searches, onImported, upload }
+  return { heroes, searches, games, onImported, upload }
 }
 
 describe('ImportControl and saved searches', () => {
@@ -42,7 +48,7 @@ describe('ImportControl and saved searches', () => {
     await searches.save(createSavedSearch('Scene 3', { text: '', types: [], tags: ['old'] }, { id: 'other', now }))
     const hero = { ...exampleHero({ id: 'h' }), tags: ['scene-3'] }
     const search = createSavedSearch('scene 3', { text: '', types: [], tags: ['scene-3'] }, { id: 's1', now })
-    await upload(backupJson([hero], [], [search], now))
+    await upload(backupJson({ heroes: [hero], savedSearches: [search] }, now))
     expect(await screen.findByText('Imported one hero and one saved search.')).toBeInTheDocument()
     expect((await heroes.list()).heroes[0]!.tags).toEqual(['scene-3'])
     // The clashing name gets a number, so names stay unique.
@@ -50,9 +56,22 @@ describe('ImportControl and saved searches', () => {
     expect(onImported).toHaveBeenCalled()
   })
 
+  it('imports games, asking about one already saved', async () => {
+    const { games, upload } = setup()
+    const game = { ...createGame({ id: 'g', now }), name: 'Thursday game', tags: ['campaign'] }
+    await games.save({ ...game, name: 'Mine' })
+    await upload(backupJson({ heroes: [exampleHero({ id: 'h' })], games: [game] }, now))
+    expect(await screen.findByText('You already have this game')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Import one hero and one game' }))
+    expect(await screen.findByText('Imported one hero and one game.')).toBeInTheDocument()
+    const saved = (await games.list()).games
+    expect(saved.map((g) => g.name).sort()).toEqual(['Mine', 'Thursday game'])
+    expect(saved.find((g) => g.name === 'Thursday game')!.tags).toEqual(['campaign'])
+  })
+
   it('imports a backup holding only saved searches', async () => {
     const { searches, upload } = setup()
-    await upload(backupJson([], [], [createSavedSearch('Prep', { text: '', types: [], tags: ['prep'] }, { id: 's1', now })], now))
+    await upload(backupJson({ savedSearches: [createSavedSearch('Prep', { text: '', types: [], tags: ['prep'] }, { id: 's1', now })] }, now))
     expect(await screen.findByText('Imported one saved search.')).toBeInTheDocument()
     expect((await searches.list()).searches).toHaveLength(1)
   })
@@ -96,7 +115,7 @@ describe('ImportControl', () => {
   it('explains a file it can’t import, and which heroes in a backup couldn’t be read', async () => {
     const { upload } = await renderOver(new MemoryHeroStore())
     await upload('not json')
-    expect(await screen.findByRole('alert')).toHaveTextContent("This file isn't a hero, villain, or backup the app can read.")
+    expect(await screen.findByRole('alert')).toHaveTextContent("This file isn't a hero, villain, game, or backup the app can read.")
     await upload(JSON.stringify({ format: 'scrpg-backup', version: 1, heroes: [{ nope: 1 }, toSaved(named('n1', 'Nova'))] }))
     expect(await screen.findByRole('status')).toHaveTextContent("Imported one hero. Hero 1 in the file couldn't be read: not a saved hero.")
   })
@@ -106,7 +125,7 @@ describe('ImportControl', () => {
     await store.save(named('a', 'Old A'))
     await store.save(named('b', 'Old B'))
     const { upload } = await renderOver(store)
-    await upload(backupJson([named('a', 'New A'), named('b', 'New B'), named('c', 'New C')]))
+    await upload(backupJson({ heroes: [named('a', 'New A'), named('b', 'New B'), named('c', 'New C')] }))
     const a = await screen.findByRole('radiogroup', { name: 'New A' })
     // Keeping both is chosen to start with.
     expect(within(a).getByRole('radio', { name: 'Keep both' })).toBeChecked()
@@ -144,7 +163,7 @@ describe('ImportControl', () => {
       await save(hero)
     }
     const { upload } = await renderOver(store)
-    await upload(backupJson([named('a', 'A'), named('b', 'B')]))
+    await upload(backupJson({ heroes: [named('a', 'A'), named('b', 'B')] }))
     expect(await screen.findByRole('alert')).toHaveTextContent('The import stopped after one hero of 2 heroes: disk full')
   })
 })

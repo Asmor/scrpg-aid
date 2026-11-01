@@ -1,7 +1,7 @@
 /**
- * Exporting heroes and villains to files and reading them back in (Phases 2 and 5). A single
- * hero or villain is saved in the same versioned envelope as the browser store
- * (../hero/serialize.ts, ../villain/serialize.ts), and a backup wraps several in a versioned
+ * Exporting heroes, villains and games to files and reading them back in (Phases 2 and 5, and
+ * the game table). A single hero, villain or game is saved in the same versioned envelope as
+ * the browser store (../hero/serialize.ts, ../villain/serialize.ts, ../game/serialize.ts), and a backup wraps several in a versioned
  * envelope of its own. Imports go through the same checks and migrations as loading a saved
  * document.
  */
@@ -11,13 +11,15 @@ import type { Villain } from '../villain/model'
 import { parseSavedVillain, villainToSaved, VILLAIN_FORMAT, type SavedVillain } from '../villain/serialize'
 import { extractEmbedded } from './embed'
 import { parseSavedSearch, searchToSaved, type SavedSearch, type SavedSearchEnvelope } from '../library/saved-searches'
+import type { Game } from '../game/model'
+import { GAME_FORMAT, gameToSaved, parseSavedGame, type SavedGame } from '../game/serialize'
 
 export const BACKUP_FORMAT = 'scrpg-backup'
 /**
- * Version 2 added villains, and version 3 the library's saved searches; older backups still
- * read. A multi-item export from the library uses the same format, with no saved searches.
+ * Version 2 added villains, version 3 the library's saved searches, and version 4 games; older
+ * backups still read. A multi-item export from the library uses the same format, with no saved searches.
  */
-export const BACKUP_VERSION = 3
+export const BACKUP_VERSION = 4
 
 export interface Backup {
   format: typeof BACKUP_FORMAT
@@ -25,6 +27,7 @@ export interface Backup {
   exportedAt: string
   heroes: SavedHero[]
   villains: SavedVillain[]
+  games: SavedGame[]
   savedSearches: SavedSearchEnvelope[]
 }
 
@@ -38,14 +41,23 @@ export function villainJson(villain: Villain): string {
   return JSON.stringify(villainToSaved(villain), null, 2)
 }
 
-/** Heroes, villains and saved searches in one JSON file: a backup, or a library export. `now` is injectable for tests. */
-export function backupJson(heroes: readonly Hero[], villains: readonly Villain[] = [], savedSearches: readonly SavedSearch[] = [], now: Date = new Date()): string {
+/** One game as JSON, the same envelope the app stores. */
+export function gameJson(game: Game): string {
+  return JSON.stringify(gameToSaved(game), null, 2)
+}
+
+/** Heroes, villains, games and saved searches in one JSON file: a backup, or a library export. `now` is injectable for tests. */
+export function backupJson(
+  { heroes = [], villains = [], games = [], savedSearches = [] }: { heroes?: readonly Hero[]; villains?: readonly Villain[]; games?: readonly Game[]; savedSearches?: readonly SavedSearch[] },
+  now: Date = new Date(),
+): string {
   const backup: Backup = {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: now.toISOString(),
     heroes: heroes.map(toSaved),
     villains: villains.map(villainToSaved),
+    games: games.map(gameToSaved),
     savedSearches: savedSearches.map(searchToSaved),
   }
   return JSON.stringify(backup, null, 2)
@@ -54,6 +66,11 @@ export function backupJson(heroes: readonly Hero[], villains: readonly Villain[]
 /** A file name from the hero's name: "Maya Reyes" → "maya-reyes.json". */
 export function heroFileName(hero: Hero, extension: string): string {
   return fileName(hero.details.name.trim() || hero.details.alias.trim(), 'hero', extension)
+}
+
+/** A file name from the game's name, like heroFileName. */
+export function gameFileName(game: Game, extension: string): string {
+  return fileName(game.name.trim(), 'game', extension)
 }
 
 /** A file name from the villain's name, like heroFileName. */
@@ -78,18 +95,18 @@ export function backupFileName(now: Date = new Date()): string {
   return `scrpg-aid-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.json`
 }
 
-/** A hero, villain or saved search in an imported backup that couldn't be read; `index` counts from 1 within its list. */
+/** A hero, villain, game or saved search in an imported backup that couldn't be read; `index` counts from 1 within its list. */
 export interface SkippedHero {
-  kind: 'hero' | 'villain' | 'savedSearch'
+  kind: 'hero' | 'villain' | 'game' | 'savedSearch'
   index: number
   error: string
 }
 
-export type ImportResult = { ok: true; heroes: Hero[]; villains: Villain[]; savedSearches: SavedSearch[]; skipped: SkippedHero[] } | { ok: false; error: string }
+export type ImportResult = { ok: true; heroes: Hero[]; villains: Villain[]; games: Game[]; savedSearches: SavedSearch[]; skipped: SkippedHero[] } | { ok: false; error: string }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
-const NOT_OURS = "This file isn't a hero, villain, or backup the app can read."
+const NOT_OURS = "This file isn't a hero, villain, game, or backup the app can read."
 
 const parseJson = (text: string): { ok: true; value: unknown } | { ok: false } => {
   try {
@@ -115,10 +132,14 @@ export function readImport(text: string): ImportResult {
   if (isRecord(value) && value.format === BACKUP_FORMAT) return readBackup(value)
   if (isRecord(value) && value.format === VILLAIN_FORMAT) {
     const villain = parseSavedVillain(value)
-    return villain.ok ? { ok: true, heroes: [], villains: [villain.villain], savedSearches: [], skipped: [] } : { ok: false, error: `This villain couldn't be read: ${villain.error}.` }
+    return villain.ok ? { ok: true, heroes: [], villains: [villain.villain], games: [], savedSearches: [], skipped: [] } : { ok: false, error: `This villain couldn't be read: ${villain.error}.` }
+  }
+  if (isRecord(value) && value.format === GAME_FORMAT) {
+    const game = parseSavedGame(value)
+    return game.ok ? { ok: true, heroes: [], villains: [], games: [game.game], savedSearches: [], skipped: [] } : { ok: false, error: `This game couldn't be read: ${game.error}.` }
   }
   const result = parseSaved(value)
-  if (result.ok) return { ok: true, heroes: [result.hero], villains: [], savedSearches: [], skipped: [] }
+  if (result.ok) return { ok: true, heroes: [result.hero], villains: [], games: [], savedSearches: [], skipped: [] }
   return { ok: false, error: result.error === 'not a saved hero' ? NOT_OURS : `This hero couldn't be read: ${result.error}.` }
 }
 
@@ -131,8 +152,11 @@ function readBackup(value: Record<string, unknown>): ImportResult {
   if (version >= 2 && !Array.isArray(value.villains)) return { ok: false, error: "This backup couldn't be read: it has no list of villains." }
   // Version 3 added saved searches.
   if (version >= 3 && !Array.isArray(value.savedSearches)) return { ok: false, error: "This backup couldn't be read: it has no list of saved searches." }
+  // Version 4 added games.
+  if (version >= 4 && !Array.isArray(value.games)) return { ok: false, error: "This backup couldn't be read: it has no list of games." }
   const heroes: Hero[] = []
   const villains: Villain[] = []
+  const games: Game[] = []
   const savedSearches: SavedSearch[] = []
   const skipped: SkippedHero[] = []
   value.heroes.forEach((saved, i) => {
@@ -145,12 +169,17 @@ function readBackup(value: Record<string, unknown>): ImportResult {
     if (result.ok) villains.push(result.villain)
     else skipped.push({ kind: 'villain', index: i + 1, error: result.error })
   })
+  ;((version >= 4 ? value.games : []) as unknown[]).forEach((saved, i) => {
+    const result = parseSavedGame(saved)
+    if (result.ok) games.push(result.game)
+    else skipped.push({ kind: 'game', index: i + 1, error: result.error })
+  })
   ;((version >= 3 ? value.savedSearches : []) as unknown[]).forEach((saved, i) => {
     const result = parseSavedSearch(saved)
     if (result.ok) savedSearches.push(result.search)
     else skipped.push({ kind: 'savedSearch', index: i + 1, error: result.error })
   })
-  return { ok: true, heroes, villains, savedSearches, skipped }
+  return { ok: true, heroes, villains, games, savedSearches, skipped }
 }
 
 /** How to import a hero or villain whose id is already saved. */

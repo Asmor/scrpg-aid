@@ -6,7 +6,8 @@
  * a complex archetype's step), "#/hero/<id>/advancement" its advancement,
  * "#/hero/<id>/play" the game aid, "#/gm"
  * the GM's page for hosting a game, "#/join" (or "#/join/<room code>") joining one, and
- * "#/villain/<id>" a villain's sheet ("#/villain/<id>/edit/<step>" its editor).
+ * "#/villain/<id>" a villain's sheet ("#/villain/<id>/edit/<step>" its editor), and "#/game/<id>"
+ * a game's table.
  */
 import { useEffect, useState } from 'react'
 
@@ -16,6 +17,7 @@ export type Route =
   | { name: 'villain'; id: string }
   | { name: 'villainEdit'; id: string; step?: string }
   | { name: 'villainPlay'; id: string }
+  | { name: 'game'; id: string }
   | { name: 'gm' } | { name: 'join'; room?: string } | { name: 'hero'; id: string } | { name: 'edit'; id: string; step?: string; part?: string } | { name: 'play'; id: string } | { name: 'advancement'; id: string } | { name: 'notFound' }
 
 export function parseRoute(hash: string): Route {
@@ -23,6 +25,14 @@ export function parseRoute(hash: string): Route {
   if (path === '/') return { name: 'list', search: '' }
   if (path.startsWith('/?')) return { name: 'list', search: path.slice(2) }
   if (path === '/gm') return { name: 'gm' }
+  const game = /^\/game\/([^/]+)$/.exec(path)
+  if (game) {
+    try {
+      return { name: 'game', id: decodeURIComponent(game[1]!) }
+    } catch {
+      return { name: 'notFound' }
+    }
+  }
   const villain = /^\/villain\/([^/]+)(\/edit(?:\/([^/]+))?|\/play)?$/.exec(path)
   if (villain) {
     let id: string
@@ -99,6 +109,10 @@ export function villainPlayPath(id: string): string {
 
 export function villainEditPath(id: string, step?: string): string {
   return `${villainPath(id)}/edit${step ? `/${step}` : ''}`
+}
+
+export function gamePath(id: string): string {
+  return `#/game/${encodeURIComponent(id)}`
 }
 
 export const gmPath = '#/gm'

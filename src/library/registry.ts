@@ -7,14 +7,16 @@
  * (../minion/), but no page of their own to open them on yet, so there's nothing for a row to
  * link to. Add an entry once they do.
  */
-import { editPath, playPath, heroPath, villainEditPath, villainPath, villainPlayPath } from '../app/route'
+import { editPath, gamePath, playPath, heroPath, villainEditPath, villainPath, villainPlayPath } from '../app/route'
 import type { NewHeroes } from '../app/new-heroes'
 import { buildSheet } from '../creation/sheet'
 import { createHero, duplicateHero, heroDisplayName, isDraft, type Hero } from '../hero/model'
 import type { HeroStore } from '../hero/store'
 import { continueStep, NUMBERED_STEPS, WIZARD_STEPS, wizardStepIndex } from '../hero/wizard-steps'
 import { currentHealth, effectiveZone, type PlayZone } from '../play/state'
-import { heroFileName, heroJson, villainFileName, villainJson } from '../transfer/files'
+import { gameFileName, gameJson, heroFileName, heroJson, villainFileName, villainJson } from '../transfer/files'
+import { createGame, duplicateGame, gameDisplayName, sceneDisplayName, type Game } from '../game/model'
+import type { GameStore } from '../game/store'
 import { createVillain, duplicateVillain, villainDisplayName, type Villain } from '../villain/model'
 import { villainHealth, villainZone } from '../villain/play'
 import { buildVillainSheet } from '../villain/sheet'
@@ -31,6 +33,7 @@ export interface LibraryDoc {
 export interface LibraryStores {
   heroes: HeroStore
   villains: VillainStore
+  games: GameStore
 }
 
 /** What a row shows for one item, worked out from its document. */
@@ -47,7 +50,7 @@ export interface RowInfo {
   /** The Status column; absent shows "—". */
   status?: { zone?: PlayZone; health?: number; maxHealth?: number }
   openHref: string
-  primary: { label: 'Play' | 'Continue'; href: string }
+  primary: { label: 'Play' | 'Continue' | 'Run'; href: string }
   editHref: string
 }
 
@@ -66,7 +69,7 @@ export interface LibraryType<D extends LibraryDoc = LibraryDoc> {
   /** The single-item export: JSON in the same envelope as storage. */
   exportFile(doc: D): { name: string; text: string }
   /** Which list of a backup file it goes in. */
-  backupKey: 'heroes' | 'villains'
+  backupKey: 'heroes' | 'villains' | 'games'
   /** Starts a new one from the New menu, returning the page to open (unset if the type can't be created). */
   create?(context: { stores: LibraryStores; newHeroes: NewHeroes }): Promise<string>
 }
@@ -164,8 +167,38 @@ export const villainType: LibraryType<Villain> = {
   },
 }
 
+/** "Round 2 · The Foundry", or "Not started · The Foundry" before the first round. */
+export function gameDetails(game: Game): string {
+  return [game.round > 0 ? `Round ${game.round}` : 'Not started', game.scene.name.trim() ? sceneDisplayName(game) : ''].filter(Boolean).join(' · ')
+}
+
+export const gameType: LibraryType<Game> = {
+  key: 'game',
+  label: 'Game',
+  plural: 'Games',
+  backupKey: 'games',
+  list: async (stores) => {
+    const { games, unreadable } = await stores.games.list()
+    return { docs: games, unreadable }
+  },
+  save: (stores, game) => stores.games.save(game),
+  remove: (stores, id) => stores.games.remove(id),
+  row(game) {
+    const href = gamePath(game.id)
+    // No Status column: a game has no Health.
+    return { name: gameDisplayName(game), named: Boolean(game.name.trim()), draft: false, details: gameDetails(game), openHref: href, primary: { label: 'Run', href }, editHref: href }
+  },
+  duplicate: (game) => duplicateGame(game),
+  exportFile: (game) => ({ name: gameFileName(game, 'json'), text: gameJson(game) }),
+  async create({ stores }) {
+    const game = createGame()
+    await stores.games.save(game)
+    return gamePath(game.id)
+  },
+}
+
 /** Every library type, in the order the type chips and New menu list them. */
-export const LIBRARY_TYPES: readonly LibraryType[] = [heroType as unknown as LibraryType, villainType as unknown as LibraryType]
+export const LIBRARY_TYPES: readonly LibraryType[] = [heroType as unknown as LibraryType, villainType as unknown as LibraryType, gameType as unknown as LibraryType]
 
 export function libraryType(key: string): LibraryType | undefined {
   return LIBRARY_TYPES.find((t) => t.key === key)

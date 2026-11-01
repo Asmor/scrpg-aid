@@ -24,7 +24,7 @@ function Badge({ value }: { value: number }) {
 }
 
 /** A minion's roll, under its row: action, its mods, the roll, the result. Done records it. */
-function MinionUse({ minion, random, onDone, onCancel }: { minion: PlayMinion; random?: () => number; onDone: (roll: MinionRoll) => void; onCancel: () => void }) {
+export function MinionUse({ minion, random, onDone, onCancel }: { minion: PlayMinion; random?: () => number; onDone: (roll: MinionRoll) => void; onCancel: () => void }) {
   const id = useId()
   const [action, setAction] = useState<BasicAction>(minion.action === 'any' ? 'attack' : minion.action)
   const [checked, setChecked] = useState(() => defaultModChoice(minion.mods))

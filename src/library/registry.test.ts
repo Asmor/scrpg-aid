@@ -6,16 +6,19 @@ import { MemoryHeroStore } from '../hero/store'
 import { emptyPlay } from '../play/state'
 import { adaptiveBruiser } from '../test/villains'
 import { createVillain, duplicateVillain } from '../villain/model'
+import { MemoryGameStore } from '../game/store'
 import { MemoryVillainStore } from '../villain/store'
-import { draftStepText, heroType, issuesText, itemFields, LIBRARY_TYPES, libraryType, toItem, villainType } from './registry'
+import { createGame } from '../game/model'
+import { draftStepText, gameType, heroType, issuesText, itemFields, LIBRARY_TYPES, libraryType, toItem, villainType } from './registry'
 
-const stores = () => ({ heroes: new MemoryHeroStore(), villains: new MemoryVillainStore() })
+const stores = () => ({ heroes: new MemoryHeroStore(), villains: new MemoryVillainStore(), games: new MemoryGameStore() })
 
 describe('library types', () => {
-  it('lists heroes then villains, by key', () => {
+  it('lists heroes, villains, then games, by key', () => {
     expect(LIBRARY_TYPES.map((t) => [t.key, t.label, t.plural])).toEqual([
       ['hero', 'Hero', 'Heroes'],
       ['villain', 'Villain', 'Villains'],
+      ['game', 'Game', 'Games'],
     ])
     expect(libraryType('villain')).toBe(villainType)
     expect(libraryType('minion')).toBeUndefined()
@@ -140,5 +143,31 @@ describe('items', () => {
   it('gives the query and sort what they look at', () => {
     const item = toItem(villainType as never, { ...adaptiveBruiser(), tags: ['a'] })
     expect(itemFields(item)).toEqual({ type: 'villain', typeLabel: 'Villain', name: 'Ironclad', tags: ['a'], updatedAt: '2026-10-27T12:00:00.000Z' })
+  })
+})
+
+describe('game rows', () => {
+  it('shows the round and scene, no status, and Run to the table', () => {
+    const game = { ...createGame({ id: 'g' }), name: 'Thursday game', round: 2, scene: { name: 'The Foundry', tracker: ['green' as const], position: 0 } }
+    const row = gameType.row(game)
+    expect(row).toMatchObject({ name: 'Thursday game', named: true, draft: false, details: 'Round 2 · The Foundry', openHref: '#/game/g', primary: { label: 'Run', href: '#/game/g' }, editHref: '#/game/g' })
+    expect(row.status).toBeUndefined()
+    expect(gameType.row(createGame({ id: 'x' }))).toMatchObject({ name: 'Unnamed game', named: false, details: 'Not started' })
+  })
+
+  it('creates a game and opens its table', async () => {
+    const s = stores()
+    const path = await gameType.create!({ stores: s, newHeroes: new NewHeroes() })
+    const { docs } = await gameType.list(s)
+    expect(docs).toHaveLength(1)
+    expect(path).toBe(`#/game/${docs[0]!.id}`)
+  })
+
+  it('duplicates with "(copy)" and exports in the saved envelope', () => {
+    const game = { ...createGame({ id: 'g' }), name: 'Thursday game', tags: ['campaign'] }
+    expect(gameType.duplicate(game)).toMatchObject({ name: 'Thursday game (copy)', tags: ['campaign'] })
+    const file = gameType.exportFile(game)
+    expect(file.name).toBe('thursday-game.json')
+    expect(JSON.parse(file.text)).toMatchObject({ format: 'scrpg-game', version: 1, game: { id: 'g' } })
   })
 })

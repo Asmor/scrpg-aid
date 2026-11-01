@@ -98,11 +98,13 @@ export interface MenuItem {
   danger?: boolean
   /** A link instead of an action. */
   href?: string
+  /** One of a set of radio choices (role menuitemradio), checked or not. */
+  checked?: boolean
 }
 
 /** Arrow keys move between a menu's items; Home and End jump. */
 function moveFocus(e: KeyboardEvent<HTMLElement>) {
-  const items = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemcheckbox"]')]
+  const items = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]')]
   const at = items.indexOf(document.activeElement as HTMLElement)
   const go = (i: number) => {
     e.preventDefault()
@@ -119,7 +121,8 @@ export function PopoverMenu({ popover, label, items, className, header }: { popo
   const panel = useRef<HTMLDivElement>(null)
   useDismiss(panel, popover.close, () => popover.setOpen(false))
   useEffect(() => {
-    panel.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+    // The checked radio choice, if there is one, or else the first item.
+    ;(panel.current?.querySelector<HTMLElement>('[aria-checked="true"]') ?? panel.current?.querySelector<HTMLElement>('[role="menuitem"], [role="menuitemradio"]'))?.focus()
   }, [])
   return (
     <div ref={panel} className={`popover popover--menu ${className ?? ''}`}>
@@ -134,7 +137,8 @@ export function PopoverMenu({ popover, label, items, className, header }: { popo
             <button
               key={item.label}
               type="button"
-              role="menuitem"
+              role={item.checked === undefined ? 'menuitem' : 'menuitemradio'}
+              aria-checked={item.checked}
               tabIndex={-1}
               className={item.danger ? 'menu-item menu-item--danger' : 'menu-item'}
               onClick={() => {
@@ -142,6 +146,7 @@ export function PopoverMenu({ popover, label, items, className, header }: { popo
                 item.onSelect()
               }}
             >
+              {item.checked !== undefined && <span className={item.checked ? 'menu-radio menu-radio--on' : 'menu-radio'} aria-hidden="true" />}
               {item.label}
             </button>
           ),
