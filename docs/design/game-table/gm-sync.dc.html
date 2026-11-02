@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>GM sync approval and Update from library</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.p{min-height:100%;background:#12141C;color:#E8EAF2;font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5;padding:28px;box-sizing:border-box;--muted:#A3A9BF;--surface:#1B1E2A;--surface2:#232736;--border:#2C3042;--accent:#9599FF;--on-accent:#12141C;--accent-soft:#262A4A;--danger:#D07BE0;--g:#1D6E31;--g-ink:#E8EAF2;--y:#E3B600;--y-ink:#12141C}
+.p h2,.p h3{font-family:'Barlow Condensed',sans-serif;font-weight:700;margin:0;line-height:1.15}
+.p button{font:inherit;color:inherit}
+.cols{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:20px;align-items:start}
+.col{display:flex;flex-direction:column;gap:20px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.cap{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sub{color:var(--muted);font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 12px;min-height:40px;cursor:pointer;font-weight:500;color:#E8EAF2;box-sizing:border-box;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.btn.sm{min-height:32px;padding:3px 10px;font-size:14px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.nm{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;line-height:1.1}
+.zg{background:var(--g);color:var(--g-ink)}.zy{background:var(--y);color:var(--y-ink)}
+.zc{border-radius:5px;padding:1px 7px;font-size:11px;font-weight:700;letter-spacing:.08em}
+.hp{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px}
+.req{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:4px 8px;font-size:13px;font-weight:600}
+.badge{background:var(--accent);color:var(--on-accent);border-radius:999px;font-size:12px;font-weight:700;padding:0 7px}
+.tbl{display:grid;grid-template-columns:110px 1fr;gap:4px 12px;font-size:14px}
+.tbl .k{color:var(--muted)}
+.adj{display:flex;flex-direction:column;gap:6px;font-size:14px}
+.adj div{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;background:var(--surface2);border-radius:8px}
+.menu{background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.3);padding:6px;display:flex;flex-direction:column}
+.menu span{padding:8px 10px;border-radius:6px}
+.menu .h{font-size:12px;color:var(--muted)}
+.tag{display:inline-flex;border:1px solid var(--border);background:var(--surface2);border-radius:6px;padding:0 8px;font-size:12px}
+</style>
+</helmet>
+<div class="p">
+  <div class="cols">
+    <div class="col">
+      <section class="panel" aria-labelledby="g1">
+        <div class="cap">Hero card with a pending request</div>
+        <div class="row"><span class="nm grow" id="g1">Maya Reyes</span><span class="btn sm">⋯</span></div>
+        <div class="sub">Alex</div>
+        <div class="row"><span class="zc zy">YELLOW</span><span class="hp">18 <span class="sub">/ 30</span></span></div>
+        <button type="button" class="req">Sheet update requested · Review</button>
+      </section>
+      <section class="panel" aria-labelledby="g2">
+        <div class="cap">GM screen, top: Requests</div>
+        <div class="row"><h2 id="g2" style="font-size:20px" class="grow">Requests</h2><span class="badge">1</span></div>
+        <div class="row" style="border-top:1px solid var(--border);padding-top:8px"><span class="grow"><strong>Maya Reyes</strong><div class="sub">Alex updated the sheet: 3 changes, 1 adjustment</div></span><button type="button" class="btn sm primary">Review</button></div>
+        <div class="sub">The section shows only while there are requests. Each one also posts a GM-only log line.</div>
+      </section>
+      <section class="panel" aria-labelledby="g4">
+        <div class="cap">Villain card ⋯ (GM)</div>
+        <h2 id="g4" style="font-size:20px">Gravelord</h2>
+        <div class="menu"><span class="h">Library sheet changed 2 days ago</span><span>Update from library…</span><span>What players see…</span><span>Hide from players</span><span>Remove from the game…</span></div>
+        <div class="sub">In Bring in, a villain whose library sheet differs from the game's copy shows <span class="tag">Library changed</span> with Update.</div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel" aria-labelledby="g5" style="box-shadow:0 20px 48px rgba(0,0,0,.4)">
+        <div class="cap">Update from library (dialog)</div>
+        <h2 id="g5" style="font-size:24px">Update Gravelord from your library?</h2>
+        <div class="tbl">
+          <span class="k">Abilities</span><span>Iron Grip: text changed</span>
+          <span class="k">Abilities</span><span>New: Seismic Slam (Red)</span>
+          <span class="k">Health</span><span>Max 60 → 55</span>
+        </div>
+        <div class="cap">What happens in this game</div>
+        <div class="adj"><div>Health 58 → 55 (the new max). Shown in the log.</div><div>Mods, twists and the "Pinned" penalty stay.</div></div>
+        <div class="sub">Only this game's Gravelord changes. Other games keep their own copy.</div>
+        <div class="row" style="justify-content:flex-end"><button type="button" class="btn">Cancel</button><button type="button" class="btn primary">Update</button></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel" aria-labelledby="g3" style="box-shadow:0 20px 48px rgba(0,0,0,.4)">
+        <div class="cap">Review a sheet update (dialog)</div>
+        <h2 id="g3" style="font-size:24px">Update Maya Reyes to Alex's sheet?</h2>
+        <div class="sub">Requested 2 minutes ago, when Alex rejoined.</div>
+        <div class="cap">What changed on the sheet</div>
+        <div class="tbl">
+          <span class="k">Powers</span><span>Speed d10 → d12</span>
+          <span class="k">Abilities</span><span>New: Blinding Strike (Yellow)</span>
+          <span class="k">Abilities</span><span>Removed: Inferno Mode (a Modular mode)</span>
+          <span class="k">Health</span><span>Max 30 → 28</span>
+        </div>
+        <div class="cap">What happens in this game</div>
+        <div class="adj">
+          <div>Health 30 → 28: it was above the new max.</div>
+          <div>Mode: Inferno Mode is gone, so she switches to her default Green mode.</div>
+          <div>Minion "Spark" was made from a form that's gone. It stays, marked "Pick a new form", and can't act until it has one.</div>
+          <div>Kept as they are: mods, twists, hero points, reaction, the play log.</div>
+        </div>
+        <div class="row" style="justify-content:flex-end"><button type="button" class="btn">Decline</button><button type="button" class="btn primary">Approve</button></div>
+        <div class="sub">Approve: the game's copy gets the new sheet, the adjustments above are applied and logged, and Alex sees "Updated". Decline: nothing changes, and Alex sees "Not updated" and can ask again.</div>
+      </section>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

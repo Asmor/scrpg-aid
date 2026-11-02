@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Game table, player phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.m{position:relative;width:390px;min-height:1400px;background:#12141C;color:#E8EAF2;font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5;--muted:#A3A9BF;--surface:#1B1E2A;--surface2:#232736;--border:#2C3042;--accent:#9599FF;--on-accent:#12141C;--accent-soft:#262A4A;--g:#1D6E31;--g-ink:#E8EAF2;--y:#E3B600;--y-ink:#12141C;--r:#A8261F;--r-ink:#E8EAF2}
+.m h1,.m h2{font-family:'Barlow Condensed',sans-serif;font-weight:700;margin:0;line-height:1.15}
+.m button{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:2;background:var(--surface);border-bottom:1px solid var(--border)}
+.topr{display:flex;align-items:center;gap:8px;padding:8px 12px}
+.tabs{display:flex}
+.tabs button{flex:1;border:0;background:transparent;min-height:46px;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer}
+.tabs button.on{color:#E8EAF2;font-weight:600;border-bottom-color:var(--accent)}
+.turn{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--accent-soft);border-top:1px solid var(--accent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 12px;min-height:44px;cursor:pointer;font-weight:500;color:#E8EAF2;text-decoration:none;box-sizing:border-box;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.wrap{padding:12px 12px 40px;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.box{width:22px;height:22px;border-radius:5px;display:inline-block;box-sizing:border-box}
+.g{background:var(--g);color:var(--g-ink)}.y{background:var(--y);color:var(--y-ink)}.r{background:var(--r);color:var(--r-ink)}
+.past{opacity:.35}.now{outline:2px solid #E8EAF2;outline-offset:2px}
+.chip{border-radius:5px;padding:1px 7px;font-size:11px;font-weight:700;letter-spacing:.08em}
+.scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.actor{border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:14px;white-space:nowrap}
+.actor.done{color:var(--muted);background:var(--surface2)}
+.actor.now{border:2px solid var(--accent);background:var(--accent-soft);font-weight:600}
+.ent{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
+.ent:first-of-type{border-top:0}
+.nm{font-weight:600}
+.sub{color:var(--muted);font-size:13px}
+.die{height:22px;width:auto;display:block}
+.ctl{display:grid;grid-template-columns:56px 1fr 56px;gap:8px;align-items:center}
+.ctl button{height:56px;border:1px solid var(--border);background:var(--surface);border-radius:10px;font-size:24px;cursor:pointer}
+.big{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:48px;line-height:1;text-align:center}
+.abil{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border)}
+.mod{font-size:12px;border:1px solid var(--border);background:var(--surface2);border-radius:6px;padding:0 7px}
+</style>
+</helmet>
+<div class="m">
+  <header class="top">
+    <div class="topr"><a class="btn" href="#" aria-label="Back to library" style="border:0;background:transparent;width:44px;padding:0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></a><div class="grow"><h1 style="font-size:20px">Thursday game</h1><div class="sub">Round 2 · The Foundry</div></div><span class="chip g">SCENE GREEN</span></div>
+    <sc-if value="{{myTurn}}" hint-placeholder-val="{{true}}"><div class="turn" role="status"><strong class="grow">Your turn</strong><button type="button" class="btn primary" style="min-height:38px">Hand off to…</button></div></sc-if>
+    <div class="tabs" role="tablist"><button type="button" role="tab" aria-selected="{{tableTab}}" class="{{tableOn}}" onClick="{{showTable}}">Table</button><button type="button" role="tab" aria-selected="{{heroTab}}" class="{{heroOn}}" onClick="{{showHero}}">Maya Reyes</button></div>
+  </header>
+
+  <sc-if value="{{tableTab}}" hint-placeholder-val="{{true}}">
+    <main class="wrap">
+      <section class="card">
+        <div class="lbl" style="margin-bottom:6px">Scene tracker</div>
+        <div class="row" style="gap:5px" role="img" aria-label="Scene tracker at Green 3 of 8"><span class="box g past"></span><span class="box g past"></span><span class="box g now"></span><span class="box y"></span><span class="box y"></span><span class="box y"></span><span class="box r"></span><span class="box r"></span></div>
+      </section>
+      <section class="card">
+        <div class="lbl" style="margin-bottom:6px">Round 2</div>
+        <ol class="scroll" style="list-style:none;margin:0;padding:0 0 4px"><li class="actor done">Duality</li><li class="actor now">Maya Reyes</li><li class="actor">Paradigm</li><li class="actor">Swarmwright</li><li class="actor">Gravelord</li><li class="actor">Static Choir</li><li class="actor">Scrap drones</li><li class="actor">Collapsing Foundry</li></ol>
+      </section>
+      <section class="card" aria-labelledby="ph-h">
+        <h2 id="ph-h" style="font-size:20px">Heroes</h2>
+        <div class="ent"><span class="grow"><span class="nm">Maya Reyes</span><div class="sub">+2 Tailwind</div></span><span class="chip y">YELLOW</span><span>18/30</span><img class="die" src="/_blob/efe0a8474f39dd5b87d1e899c9b5e266" alt="Status die d8"></div>
+        <div class="ent"><span class="grow"><span class="nm">Paradigm</span><div class="sub">Reaction used</div></span><span class="chip g">GREEN</span><span>32/32</span><img class="die" src="/_blob/caae28b92ddb64b92d08988275579eba" alt="Status die d6"></div>
+        <div class="ent"><span class="grow"><span class="nm">Duality</span><div class="sub">−1 Shaken</div></span><span class="chip r">RED</span><span>6/28</span><img class="die" src="/_blob/fd0aeb696f9fad0c6c3752425d3e9e0c" alt="Status die d10"></div>
+        <div class="ent"><span class="grow"><span class="nm">Swarmwright</span><div class="sub">Disconnected</div></span><span class="chip g">GREEN</span><span>30/30</span><img class="die" src="/_blob/caae28b92ddb64b92d08988275579eba" alt="Status die d6"></div>
+      </section>
+      <section class="card" aria-labelledby="po-h">
+        <h2 id="po-h" style="font-size:20px">Opposition</h2>
+        <div class="ent"><span class="grow"><span class="nm">Gravelord</span><div class="sub">Villain · −2 Pinned</div></span><span class="chip g">GREEN</span></div>
+        <div class="ent"><span class="grow"><span class="nm">Static Choir</span><div class="sub">Lieutenants · 1: +1 Harmonize</div></span><img class="die" src="/_blob/fd0aeb696f9fad0c6c3752425d3e9e0c" alt="d10"><span>× 2</span></div>
+        <div class="ent"><span class="grow"><span class="nm">Scrap drones</span><div class="sub">Minions · 2: −1 Dazed</div></span><img class="die" src="/_blob/caae28b92ddb64b92d08988275579eba" alt="d6"><span>× 2</span><img class="die" src="/_blob/86f03c8644cae0cd4d52a0c77581b1c7" alt="d4"><span>× 1</span></div>
+        <div class="ent"><span class="grow"><span class="nm">Shut down the crucible</span><div class="sub">Challenge · 1 of 3 done</div></span></div>
+      </section>
+      <section class="card"><h2 style="font-size:20px">Table log</h2><div class="sub" style="margin-top:4px">Duality handed off to Maya Reyes. · Duality rolled Attack: 7 damage to Gravelord.</div></section>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{heroTab}}" hint-placeholder-val="{{false}}">
+    <main class="wrap">
+      <section class="card" style="display:flex;flex-direction:column;gap:12px">
+        <div class="ctl"><button type="button" aria-label="Lose 1 Health">−</button><div><div class="big">18</div><div class="sub" style="text-align:center">of 30 · <span class="chip y">YELLOW</span></div></div><button type="button" aria-label="Gain 1 Health">+</button></div>
+        <div class="row"><span class="sub">Status die</span><img class="die" src="/_blob/efe0a8474f39dd5b87d1e899c9b5e266" alt="d8"><span class="grow"></span><span class="sub">Hero points</span><strong>2</strong></div>
+        <label class="row"><input type="checkbox"> Reaction used this round</label>
+        <div class="row"><span class="mod">+2 Tailwind</span></div>
+        <button type="button" class="btn primary">Roll</button>
+      </section>
+      <section class="card">
+        <div class="abil" style="border-top:0"><span class="grow"><strong>Always on the Move</strong><div class="sub">Action</div></span><button type="button" class="btn">Use</button></div>
+        <div class="abil"><span class="grow"><strong>Non-stop Assault</strong><div class="sub">Action</div></span><button type="button" class="btn">Use</button></div>
+        <div class="abil"><span class="grow"><strong>Speedy Analysis</strong><div class="sub">Action · Yellow</div></span><button type="button" class="btn">Use</button></div>
+        <a href="#" class="sub" style="display:block;margin-top:8px;color:var(--accent)">Full Play view</a>
+      </section>
+    </main>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1400}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tab: 'table' }; }
+  renderVals() {
+    const t = this.state.tab;
+    return {
+      myTurn: true, tableTab: t === 'table', heroTab: t === 'hero', tableOn: t === 'table' ? 'on' : '', heroOn: t === 'hero' ? 'on' : '',
+      showTable: () => this.setState({ tab: 'table' }), showHero: () => this.setState({ tab: 'hero' })
+    };
+  }
+}
+</script>
+</body>
+</html>

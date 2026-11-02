@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Game table, desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.theme-light{--bg:#F6F7FB;--surface:#FFFFFF;--surface2:#EEF0F6;--text:#1A1D2B;--muted:#565C70;--border:#DDE0EA;--accent:#4347C9;--on-accent:#FFFFFF;--accent-soft:#E8E9FA;--danger:#8E2BA0;--danger-soft:#F6E8F8;--g:#72CC82;--g-ink:#1A1D2B;--y:#F5D044;--y-ink:#1A1D2B;--r:#F28A80;--r-ink:#1A1D2B}
+.theme-dark{--bg:#12141C;--surface:#1B1E2A;--surface2:#232736;--text:#E8EAF2;--muted:#A3A9BF;--border:#2C3042;--accent:#9599FF;--on-accent:#12141C;--accent-soft:#262A4A;--danger:#D07BE0;--danger-soft:#2E2236;--g:#1D6E31;--g-ink:#E8EAF2;--y:#E3B600;--y-ink:#12141C;--r:#A8261F;--r-ink:#E8EAF2}
+.page{min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5}
+.page h1,.page h2,.page h3{font-family:'Barlow Condensed',sans-serif;font-weight:700;margin:0;line-height:1.15}
+.page button,.page input,.page select,.page textarea{font:inherit;color:inherit}
+.page a{color:var(--accent)}
+.bar{display:flex;align-items:center;gap:10px;padding:10px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 12px;min-height:40px;cursor:pointer;font-weight:500;text-decoration:none;color:var(--text);box-sizing:border-box;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.btn.quiet{border-color:transparent;background:transparent}
+.btn.sm{min-height:32px;padding:3px 10px;font-size:14px}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid transparent;background:transparent;border-radius:8px;cursor:pointer;color:var(--muted);flex:none}
+.iconbtn:hover{background:var(--surface2);color:var(--text)}
+.code{font-family:ui-monospace,Consolas,monospace;font-weight:600;letter-spacing:.06em}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:2px 10px;font-size:13px;color:var(--muted)}
+.live{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.layout{display:flex;flex-wrap:wrap;gap:20px;padding:20px;max-width:1600px;margin:0 auto;box-sizing:border-box;align-items:flex-start}
+.center{flex:999 1 700px;min-width:0;display:flex;flex-direction:column;gap:16px}
+.side{flex:1 1 360px;max-width:420px;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px}
+.pad{padding:14px 16px}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.scene{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:center}
+.tracker{display:flex;gap:4px;align-items:center}
+.box{width:30px;height:30px;border-radius:6px;border:2px solid transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;cursor:default;padding:0}
+.box.g{background:var(--g);color:var(--g-ink)}.box.y{background:var(--y);color:var(--y-ink)}.box.r{background:var(--r);color:var(--r-ink)}
+.box.past{opacity:.35}
+.box.now{border-color:var(--text);box-shadow:0 0 0 2px var(--bg)}
+.box.edit{cursor:pointer}
+.zchip{border-radius:5px;padding:1px 7px;font-size:11px;font-weight:700;letter-spacing:.08em;white-space:nowrap}
+.zg{background:var(--g);color:var(--g-ink)}.zy{background:var(--y);color:var(--y-ink)}.zr{background:var(--r);color:var(--r-ink)}
+.zo{background:var(--surface2);color:var(--text);box-shadow:inset 0 0 0 1px var(--border)}
+.turns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.actor{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:3px 12px 3px 8px;font-size:14px;min-height:34px;box-sizing:border-box}
+.actor.done{color:var(--muted);background:var(--surface2)}
+.actor.now{border:2px solid var(--accent);background:var(--accent-soft);font-weight:600}
+.actor .k{font-size:11px;color:var(--muted);font-weight:500}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.ent{padding:12px 14px;display:flex;flex-direction:column;gap:8px;position:relative;text-align:left;width:100%;box-sizing:border-box}
+.ent.sel{outline:2px solid var(--accent);outline-offset:-1px}
+.ent.hidden{border-style:dashed;background:transparent}
+.ent .nm{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;line-height:1.1}
+.sub{color:var(--muted);font-size:13px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hp{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px;white-space:nowrap}
+.hp small{font-family:Inter,sans-serif;font-weight:400;font-size:13px;color:var(--muted)}
+.hbar{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden}
+.hbar span{display:block;height:100%}
+.die{height:24px;width:auto;display:block}
+.mod{font-size:12px;border:1px solid var(--border);background:var(--surface2);border-radius:6px;padding:0 7px;white-space:nowrap}
+.flag{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:4px}
+.hiddenbadge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--muted);border:1px dashed var(--muted);border-radius:6px;padding:0 6px}
+.secthead{display:flex;align-items:center;gap:10px;margin:2px 2px 8px}
+.secthead h2{font-size:22px}
+.feed{display:flex;flex-direction:column}
+.feed div{display:flex;gap:12px;padding:6px 0;border-top:1px solid var(--border);font-size:14px}
+.feed div:first-child{border-top:0}
+.feed .t{color:var(--muted);width:64px;flex:none;font-size:13px}
+.menu{position:absolute;z-index:9;right:8px;top:40px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.3);padding:6px;min-width:220px;display:flex;flex-direction:column}
+.menu .h{font-size:12px;color:var(--muted);padding:4px 10px}
+.menu button{border:0;background:transparent;text-align:left;padding:8px 10px;min-height:36px;border-radius:6px;cursor:pointer;display:flex;gap:8px;align-items:center}
+.menu button:hover{background:var(--surface2)}
+.menu .on{font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--muted);flex:none}
+.dot.on{background:var(--accent);border-color:var(--accent)}
+.tabs{display:flex;border-bottom:1px solid var(--border)}
+.tabs button{flex:1;border:0;background:transparent;min-height:42px;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer}
+.tabs button.on{color:var(--text);font-weight:600;border-bottom-color:var(--accent)}
+.lib{display:flex;flex-direction:column}
+.lib .it{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border)}
+.lib .it:first-child{border-top:0}
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--bg);border-radius:8px;padding:0 10px;min-height:38px}
+.search input{border:0;background:transparent;outline:none;flex:1;min-width:0}
+.tag{display:inline-flex;align-items:center;border:1px solid var(--border);background:var(--surface2);border-radius:6px;padding:0 8px;min-height:24px;font-size:12px}
+.ctl{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;align-items:center}
+.ctl button{height:44px;border:1px solid var(--border);background:var(--surface);border-radius:8px;cursor:pointer;font-size:20px}
+.big{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:40px;line-height:1;text-align:center}
+.abil{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border);font-size:14px}
+.yourturn{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px}
+.scrim{position:fixed;inset:0;background:rgba(10,12,20,.55);display:flex;align-items:center;justify-content:center;z-index:20}
+.dialog{width:440px;max-width:calc(100% - 32px);background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 48px rgba(0,0,0,.35)}
+.field{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.field input,.field select{border:1px solid var(--border);background:var(--bg);border-radius:8px;padding:6px 10px;min-height:40px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;padding:2px;background:var(--surface2)}
+.seg button{border:0;background:transparent;padding:4px 10px;border-radius:6px;min-height:34px;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--border);font-weight:600}
+.checkbox{width:22px;height:22px;border:2px solid var(--muted);border-radius:5px;background:transparent;padding:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.checkbox.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+@media (max-width:1100px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</helmet>
+<div class="page {{themeClass}}">
+  <header class="bar">
+    <a class="btn quiet sm" href="#"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>Library</a>
+    <h1 style="font-size:24px">Thursday game</h1>
+    <span class="pill"><span class="live" aria-hidden="true"></span>Hosting · <span class="code">K7QX-2M</span></span>
+    <span class="pill">4 players · 1 watching</span>
+    <span class="grow"></span>
+    <sc-if value="{{isGm}}" hint-placeholder-val="{{true}}">
+      <button type="button" class="btn sm">Invite</button>
+      <button type="button" class="btn sm">Open display view</button>
+    </sc-if>
+    <sc-if value="{{isObserver}}" hint-placeholder-val="{{false}}"><span class="pill">Watching</span></sc-if>
+    <div class="seg" role="group" aria-label="Mockup only: whose view"><button type="button" class="{{gmOn}}" onClick="{{asGm}}">GM</button><button type="button" class="{{playerOn}}" onClick="{{asPlayer}}">Player</button><button type="button" class="{{obsOn}}" onClick="{{asObs}}">Observer</button></div>
+  </header>
+
+  <div class="layout">
+    <main class="center">
+      <sc-if value="{{showYourTurn}}" hint-placeholder-val="{{false}}">
+        <div class="yourturn" role="status">
+          <strong>Your turn, Maya Reyes.</strong><span class="sub" style="color:var(--text)">Your reaction is ready again.</span>
+          <span class="grow"></span>
+          <button type="button" class="btn primary sm" onClick="{{toggleHand}}">Hand off to…</button>
+        </div>
+      </sc-if>
+
+      <section class="card pad" aria-labelledby="h-scene">
+        <div class="scene">
+          <div>
+            <div class="lbl">Scene</div>
+            <h2 id="h-scene" style="font-size:26px">The Foundry</h2>
+            <div class="sub">Environment: Collapsing Foundry</div>
+          </div>
+          <div>
+            <div class="lbl" style="margin-bottom:4px">Scene tracker</div>
+            <div class="tracker">
+              <sc-for list="{{boxes}}" as="b" hint-placeholder-count="8">
+                <button type="button" class="box {{b.cls}}" aria-label="{{b.label}}" aria-current="{{b.current}}" onClick="{{b.set}}" disabled="{{b.disabled}}"><sc-if value="{{b.isNow}}" hint-placeholder-val="{{false}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="6"></circle></svg></sc-if></button>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <div class="lbl">Scene zone</div>
+            <span class="zchip {{sceneZc}}" style="font-size:13px;padding:3px 10px">{{sceneZl}}</span>
+          </div>
+          <span class="grow"></span>
+          <div class="sub" style="max-width:240px">Advances when the environment takes its turn.<sc-if value="{{isGm}}" hint-placeholder-val="{{true}}"> Click a box to correct it.</sc-if></div>
+        </div>
+      </section>
+
+      <section class="card pad" aria-labelledby="h-turns" style="position:relative">
+        <div class="row" style="margin-bottom:10px">
+          <h2 id="h-turns" style="font-size:22px">Round {{round}}</h2>
+          <span class="sub">Whoever acts picks who goes next.</span>
+          <span class="grow"></span>
+          <sc-if value="{{canHand}}" hint-placeholder-val="{{true}}"><button type="button" class="btn sm" aria-haspopup="menu" aria-expanded="{{handOpen}}" onClick="{{toggleHand}}">{{handLabel}}</button></sc-if>
+        </div>
+        <ol class="turns" style="list-style:none;margin:0;padding:0" aria-label="Turn order this round">
+          <sc-for list="{{actors}}" as="a" hint-placeholder-count="8">
+            <li class="actor {{a.cls}}"><sc-if value="{{a.done}}" hint-placeholder-val="{{false}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-label="Acted"><path d="m5 12 5 5 9-10"></path></svg></sc-if>{{a.name}} <span class="k">{{a.state}}</span></li>
+          </sc-for>
+        </ol>
+        <sc-if value="{{handOpen}}" hint-placeholder-val="{{false}}">
+          <div class="menu" role="menu" aria-label="Hand off to" style="top:52px">
+            <div class="h">Hasn't acted this round</div>
+            <sc-for list="{{handTargets}}" as="t" hint-placeholder-count="4"><button type="button" role="menuitem" onClick="{{t.pick}}">{{t.name}}</button></sc-for>
+            <sc-if value="{{roundDone}}" hint-placeholder-val="{{false}}"><button type="button" role="menuitem" onClick="{{newRound}}">End round; start round {{nextRound}}</button></sc-if>
+          </div>
+        </sc-if>
+      </section>
+
+      <section aria-labelledby="h-heroes">
+        <div class="secthead"><h2 id="h-heroes">Heroes</h2></div>
+        <div class="grid4">
+          <sc-for list="{{heroes}}" as="h" hint-placeholder-count="4">
+            <article class="card ent {{h.cls}}" aria-labelledby="{{h.hid}}">
+              <sc-if value="{{h.menuOpen}}" hint-placeholder-val="{{false}}">
+                <div class="menu" role="menu" aria-label="{{h.moreLabel}}">
+                  <div class="h">Changes this game's copy</div>
+                  <button type="button" role="menuitem">Change Health…</button>
+                  <button type="button" role="menuitem">Give a bonus or penalty…</button>
+                  <button type="button" role="menuitem">Add a twist…</button>
+                  <button type="button" role="menuitem" onClick="{{h.toggleReaction}}">{{h.reactionAction}}</button>
+                  <button type="button" role="menuitem">Remove from the game…</button>
+                </div>
+              </sc-if>
+              <div class="row"><span class="nm grow" id="{{h.hid}}">{{h.name}}</span><sc-if value="{{h.gmMenu}}" hint-placeholder-val="{{true}}"><button type="button" class="iconbtn" aria-label="{{h.moreLabel}}" aria-haspopup="menu" aria-expanded="{{h.menuOpen}}" onClick="{{h.toggleMenu}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button></sc-if></div>
+              <div class="sub">{{h.player}}</div>
+              <div class="row"><span class="zchip {{h.zc}}">{{h.zl}}</span><span class="hp">{{h.hp}} <small>/ {{h.max}}</small></span><span class="grow"></span><img class="die" src="{{h.dieSrc}}" alt="{{h.dieAlt}}" title="{{h.dieAlt}}"></div>
+              <div class="hbar" aria-hidden="true"><span style="width:{{h.pct}};background:{{h.barColor}}"></span></div>
+              <div class="row">
+                <sc-for list="{{h.mods}}" as="m" hint-placeholder-count="1"><span class="mod">{{m}}</span></sc-for>
+                <sc-if value="{{h.reaction}}" hint-placeholder-val="{{false}}"><span class="flag"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v4h4"></path></svg>Reaction used</span></sc-if>
+                <sc-if value="{{h.offline}}" hint-placeholder-val="{{false}}"><span class="flag">Disconnected</span></sc-if>
+              </div>
+            </article>
+          </sc-for>
+        </div>
+      </section>
+
+      <section aria-labelledby="h-opp">
+        <div class="secthead"><h2 id="h-opp">Opposition</h2><span class="grow"></span><sc-if value="{{isGm}}" hint-placeholder-val="{{true}}"><span class="sub">Click a card to run it in the GM screen.</span></sc-if></div>
+        <div class="grid3">
+          <sc-for list="{{opp}}" as="o" hint-placeholder-count="5">
+            <article class="card ent {{o.cls}}" aria-labelledby="{{o.oid}}">
+              <div class="row">
+                <div class="grow"><div class="sub">{{o.kind}}</div><span class="nm" id="{{o.oid}}">{{o.name}}</span></div>
+                <sc-if value="{{o.gmEye}}" hint-placeholder-val="{{false}}"><button type="button" class="iconbtn" aria-label="{{o.eyeLabel}}" aria-haspopup="menu" onClick="{{o.toggleEye}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></sc-if>
+                <sc-if value="{{o.gmRun}}" hint-placeholder-val="{{false}}"><button type="button" class="btn sm" onClick="{{o.select}}">{{o.runLabel}}</button></sc-if>
+              </div>
+              <sc-if value="{{o.isHidden}}" hint-placeholder-val="{{false}}">
+                <div class="row"><span class="hiddenbadge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.2 6.3C3.6 8 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 4.3-1"></path></svg>Hidden from players</span><span class="grow"></span><button type="button" class="btn primary sm" onClick="{{o.reveal}}">Reveal</button></div>
+              </sc-if>
+              <sc-if value="{{o.showStatus}}" hint-placeholder-val="{{true}}"><div class="row"><span class="zchip {{o.zc}}">{{o.zl}}</span><sc-if value="{{o.showHp}}" hint-placeholder-val="{{true}}"><span class="hp">{{o.hp}} <small>/ {{o.max}}</small></span></sc-if><span class="grow"></span><sc-if value="{{o.hasDie}}" hint-placeholder-val="{{true}}"><img class="die" src="{{o.dieSrc}}" alt="{{o.dieAlt}}" title="{{o.dieAlt}}"></sc-if></div></sc-if>
+              <sc-if value="{{o.isMinion}}" hint-placeholder-val="{{false}}">
+                <div class="row">
+                  <sc-for list="{{o.summary}}" as="g" hint-placeholder-count="2"><span style="display:inline-flex;align-items:center;gap:4px;margin-right:6px"><img class="die" src="{{g.src}}" alt="{{g.alt}}" title="{{g.alt}}"><span class="hp" style="font-size:18px">× {{g.count}}</span></span></sc-for>
+                  <span class="grow"></span>
+                  <button type="button" class="btn quiet sm" aria-expanded="{{o.expanded}}" onClick="{{o.toggleExpand}}">{{o.expandLabel}}</button>
+                </div>
+                <sc-if value="{{o.expanded}}" hint-placeholder-val="{{false}}">
+                  <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column">
+                    <sc-for list="{{o.members}}" as="mm" hint-placeholder-count="3">
+                      <li class="row" style="padding:6px 0;border-top:1px solid var(--border)">
+                        <img class="die" src="{{mm.src}}" alt="{{mm.alt}}" title="{{mm.alt}}">
+                        <span class="sub" style="color:var(--text)">{{mm.label}}</span>
+                        <sc-for list="{{mm.mods}}" as="md" hint-placeholder-count="1"><span class="mod">{{md}}</span></sc-for>
+                        <span class="grow"></span>
+                        <sc-if value="{{mm.gm}}" hint-placeholder-val="{{true}}">
+                          <button type="button" class="btn quiet sm" aria-label="{{mm.modLabel}}">+ Mod</button>
+                          <button type="button" class="btn sm" aria-label="{{mm.shrinkLabel}}" onClick="{{mm.shrink}}">{{mm.shrinkText}}</button>
+                        </sc-if>
+                      </li>
+                    </sc-for>
+                  </ul>
+                </sc-if>
+              </sc-if>
+              <sc-if value="{{o.isChallenge}}" hint-placeholder-val="{{false}}"><div class="row"><sc-for list="{{o.steps}}" as="s" hint-placeholder-count="3"><button type="button" class="checkbox {{s.cls}}" aria-label="{{s.label}}" aria-pressed="{{s.on}}" disabled="{{s.disabled}}" onClick="{{s.toggle}}"><sc-if value="{{s.on}}" hint-placeholder-val="{{false}}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></sc-if></button></sc-for><span class="sub">{{o.stepsText}}</span></div></sc-if>
+              <sc-if value="{{o.nameOnly}}" hint-placeholder-val="{{false}}"><div class="sub">{{o.nameOnlyText}}</div></sc-if>
+              <sc-if value="{{o.hasMods}}" hint-placeholder-val="{{false}}"><div class="row"><sc-for list="{{o.mods}}" as="m" hint-placeholder-count="1"><span class="mod">{{m}}</span></sc-for></div></sc-if>
+              <sc-if value="{{o.eyeOpen}}" hint-placeholder-val="{{false}}">
+                <div class="menu" role="menu" aria-label="{{o.eyeLabel}}">
+                  <div class="h">Players see</div>
+                  <sc-for list="{{o.visOpts}}" as="v" hint-placeholder-count="3"><button type="button" role="menuitemradio" aria-checked="{{v.on}}" class="{{v.cls}}" onClick="{{v.pick}}"><span class="dot {{v.cls}}" aria-hidden="true"></span>{{v.label}}</button></sc-for>
+                  <div style="border-top:1px solid var(--border);margin:4px 0"></div>
+                  <button type="button" role="menuitem" onClick="{{o.hide}}">Hide from players</button>
+                </div>
+              </sc-if>
+            </article>
+          </sc-for>
+        </div>
+      </section>
+
+      <section class="card pad" aria-labelledby="h-feed">
+        <div class="row" style="margin-bottom:6px"><h2 id="h-feed" style="font-size:22px">Table log</h2></div>
+        <div class="feed">
+          <div><span class="t">now</span><span><strong>Duality</strong> handed off to <strong>Maya Reyes</strong>.</span></div>
+          <div><span class="t">1 min</span><span><strong>Duality</strong> rolled Attack: 7 damage to Gravelord.</span></div>
+          <div><span class="t">3 min</span><span><strong>GM</strong> revealed Scrap drones.</span></div>
+          <div><span class="t">4 min</span><span><strong>GM</strong> started round 2. The scene tracker moved to Green 3.</span></div>
+        </div>
+      </section>
+    </main>
+
+    <sc-if value="{{isGm}}" hint-placeholder-val="{{true}}">
+      <aside class="side" aria-label="GM screen">
+        <div class="card pad" style="display:flex;flex-direction:column;gap:10px">
+          <div class="row"><h2 style="font-size:22px" class="grow">GM screen</h2><span class="flag"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Only you see this</span></div>
+          <div class="lbl">Quick add</div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
+            <button type="button" class="btn sm" onClick="{{openQuick}}">+ Minion</button>
+            <button type="button" class="btn sm" onClick="{{openQuick}}">+ Lieutenant</button>
+            <button type="button" class="btn sm" onClick="{{openQuick}}">+ Challenge</button>
+          </div>
+        </div>
+
+        <sc-if value="{{hasSel}}" hint-placeholder-val="{{true}}">
+          <section class="card pad" aria-labelledby="h-run" style="display:flex;flex-direction:column;gap:10px">
+            <div class="row"><div class="grow"><div class="lbl">Running</div><h2 id="h-run" style="font-size:24px">{{selName}}</h2></div><button type="button" class="iconbtn" aria-label="Stop running this" onClick="{{deselect}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+            <div class="ctl"><button type="button" aria-label="Lose 1 Health">−</button><div><div class="big">52</div><div class="sub" style="text-align:center">of 60 Health · <span class="zchip zg">GREEN</span></div></div><button type="button" aria-label="Gain 1 Health">+</button></div>
+            <div class="row"><button type="button" class="btn primary sm grow">Roll</button><button type="button" class="btn sm">+ Mod</button><button type="button" class="btn sm">+ Twist</button></div>
+            <div>
+              <div class="abil"><span class="grow"><strong>Crushing Advance</strong> <span class="sub">Action</span></span><button type="button" class="btn sm">Use</button></div>
+              <div class="abil"><span class="grow"><strong>Iron Grip</strong> <span class="sub">Action</span></span><button type="button" class="btn sm">Use</button></div>
+              <div class="abil"><span class="grow"><strong>Unbowed</strong> <span class="sub">Reaction</span></span><button type="button" class="btn sm">Use</button></div>
+            </div>
+            <a href="#" class="small">Open this villain's sheet</a>
+          </section>
+        </sc-if>
+
+        <section class="card" aria-label="Library and notes">
+          <div class="tabs" role="tablist"><button type="button" role="tab" aria-selected="{{libTab}}" class="{{libOn}}" onClick="{{showLib}}">Bring in</button><button type="button" role="tab" aria-selected="{{notesTab}}" class="{{notesOn}}" onClick="{{showNotes}}">Notes</button></div>
+          <sc-if value="{{libTab}}" hint-placeholder-val="{{true}}">
+            <div class="pad" style="display:flex;flex-direction:column;gap:10px">
+              <label class="field">From your library<select><option>Scene 3 (saved search)</option><option>Still to prep (saved search)</option><option>All villains</option></select></label>
+              <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="color:var(--muted)"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><input type="search" placeholder="Search by name" aria-label="Search the library"></label>
+              <div class="lib">
+                <div class="it"><span class="grow"><strong>Gravelord</strong><div class="sub">Villain · <span class="tag">scene-3</span></div></span><span class="sub">On the table</span></div>
+                <div class="it"><span class="grow"><strong>Rust Hound</strong><div class="sub">Villain · <span class="tag">scene-3</span></div></span><span class="sub">Hidden</span></div>
+                <div class="it"><span class="grow"><strong>Cinder</strong><div class="sub">Villain · <span class="tag">scene-3</span></div></span><button type="button" class="btn sm">Bring in</button></div>
+                <div class="it"><span class="grow"><strong>Scrap drones</strong><div class="sub">Minions (template) · <span class="tag">scene-3</span></div></span><button type="button" class="btn sm">Add another</button></div>
+                <div class="it"><span class="grow"><strong>Collapsing Foundry</strong><div class="sub">Environment (template) · <span class="tag">scene-3</span></div></span><span class="sub">In use</span></div>
+              </div>
+              <button type="button" class="btn">Bring in the rest (1), hidden</button>
+              <p class="sub" style="margin:0">Everything is copied into this game, so damage here never touches your library or other games. Everything arrives hidden from players.</p>
+            </div>
+          </sc-if>
+          <sc-if value="{{notesTab}}" hint-placeholder-val="{{false}}">
+            <div class="pad"><label class="field">Private notes<textarea rows="8" style="border:1px solid var(--border);background:var(--bg);border-radius:8px;padding:8px 10px;resize:vertical">Rust Hound bursts through the east wall when the tracker hits Yellow.</textarea></label></div>
+          </sc-if>
+        </section>
+      </aside>
+    </sc-if>
+
+    <sc-if value="{{isPlayer}}" hint-placeholder-val="{{false}}">
+      <aside class="side" aria-label="My hero">
+        <section class="card pad" style="display:flex;flex-direction:column;gap:12px" aria-labelledby="h-me">
+          <div class="row"><div class="grow"><div class="lbl">My hero</div><h2 id="h-me" style="font-size:26px">Maya Reyes</h2></div><a class="btn sm" href="#">Full Play view</a></div>
+          <div class="ctl"><button type="button" aria-label="Lose 1 Health">−</button><div><div class="big">18</div><div class="sub" style="text-align:center">of 30 Health · <span class="zchip zy">YELLOW</span></div></div><button type="button" aria-label="Gain 1 Health">+</button></div>
+          <div class="row"><span class="sub">Status die</span><img class="die" src="/_blob/efe0a8474f39dd5b87d1e899c9b5e266" alt="d8" title="d8"><span class="grow"></span><span class="sub">Hero points</span><strong>2</strong></div>
+          <label class="row" style="font-size:14px"><input type="checkbox"> Reaction used this round</label>
+          <div class="row"><span class="mod">+2 Tailwind</span><button type="button" class="btn quiet sm">+ Mod</button></div>
+          <button type="button" class="btn primary">Roll</button>
+          <div>
+            <div class="abil"><span class="grow"><strong>Always on the Move</strong> <span class="sub">Action</span></span><button type="button" class="btn sm">Use</button></div>
+            <div class="abil"><span class="grow"><strong>Non-stop Assault</strong> <span class="sub">Action</span></span><button type="button" class="btn sm">Use</button></div>
+            <div class="abil"><span class="grow"><strong>Speedy Analysis</strong> <span class="sub">Action · Yellow</span></span><button type="button" class="btn sm">Use</button></div>
+          </div>
+        </section>
+      </aside>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{quickOpen}}" hint-placeholder-val="{{false}}">
+    <div class="scrim">
+      <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="qa-h">
+        <h2 id="qa-h" style="font-size:24px">Add minions</h2>
+        <label class="field">Name<input type="text" value="Scrap drones"></label>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+          <label class="field">Die<select><option>d4</option><option selected>d6</option><option>d8</option><option>d10</option><option>d12</option></select></label>
+          <label class="field">How many<input type="number" value="3" min="1"></label>
+        </div>
+        <label class="row" style="font-size:14px"><input type="checkbox" checked> Hidden from players until revealed</label>
+        <label class="row" style="font-size:14px"><input type="checkbox"> Save to library</label>
+        <div class="row" style="justify-content:flex-end"><button type="button" class="btn" onClick="{{closeQuick}}">Cancel</button><button type="button" class="btn primary" onClick="{{closeQuick}}">Add to table</button></div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"role":{"editor":"enum","options":["gm","player","observer"],"default":"gm"},"$preview":{"width":1440,"height":1120}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      role: null, pos: 2, round: 2, sel: 'grav', eye: null, handOpen: false, tab: 'lib', quick: false,
+      order: ['Duality', 'Maya Reyes', 'Paradigm', 'Swarmwright', 'Gravelord', 'Static Choir', 'Scrap drones', 'Collapsing Foundry'],
+      acted: ['Duality'], current: 'Maya Reyes', reactions: { 'Paradigm': true }, heroMenu: null, expanded: { drones: true },
+      members: { choir: [{ die: 'd10', mods: ['+1 Harmonize'] }, { die: 'd10', mods: [] }], drones: [{ die: 'd6', mods: [] }, { die: 'd6', mods: ['−1 Dazed'] }, { die: 'd4', mods: [] }] },
+      log: ['Duality handed off to Maya Reyes.'],
+      vis: { grav: 'status', hound: 'status' }, revealed: { grav: true, choir: true, drones: true, hound: false, crucible: true },
+      steps: [true, false, false]
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const role = s.role || this.props.role || 'gm';
+    const isGm = role === 'gm', isPlayer = role === 'player', isObs = role === 'observer';
+    const D = { d4: '/_blob/86f03c8644cae0cd4d52a0c77581b1c7', d6: '/_blob/caae28b92ddb64b92d08988275579eba', d8: '/_blob/efe0a8474f39dd5b87d1e899c9b5e266', d10: '/_blob/fd0aeb696f9fad0c6c3752425d3e9e0c', d12: '/_blob/622d7505fdf3329d914bc1e17faec5c2' };
+    const Z = { green: ['zg', 'GREEN', 'var(--g)'], yellow: ['zy', 'YELLOW', 'var(--y)'], red: ['zr', 'RED', 'var(--r)'], out: ['zo', 'OUT', 'var(--muted)'] };
+    const track = ['green', 'green', 'green', 'yellow', 'yellow', 'yellow', 'red', 'red'];
+    const names = { green: 'Green', yellow: 'Yellow', red: 'Red' };
+    const boxes = track.map((z, i) => {
+      const n = track.slice(0, i + 1).filter((x) => x === z).length;
+      return { cls: z[0] + (i < s.pos ? ' past' : '') + (i === s.pos ? ' now' : '') + (isGm ? ' edit' : ''), label: names[z] + ' ' + n + (i === s.pos ? ', current' : ''), current: i === s.pos ? 'step' : 'false', isNow: i === s.pos, disabled: !isGm, set: () => { if (isGm) this.setState({ pos: i }); } };
+    });
+    const sz = track[s.pos];
+    const heroesRaw = [
+      { name: 'Maya Reyes', player: 'Alex', zone: 'yellow', hp: 18, max: 30, die: 'd8', mods: ['+2 Tailwind'], reaction: false },
+      { name: 'Paradigm', player: 'Sam', zone: 'green', hp: 32, max: 32, die: 'd6', mods: [], reaction: false },
+      { name: 'Duality', player: 'Jo', zone: 'red', hp: 6, max: 28, die: 'd10', mods: ['−1 Shaken'], reaction: false },
+      { name: 'Swarmwright', player: 'Priya', zone: 'green', hp: 30, max: 30, die: 'd6', mods: ['Drone d8'], reaction: false, offline: true }
+    ];
+    const heroes = heroesRaw.map((h, i) => ({
+      ...h, hid: 'hero-' + i, zc: Z[h.zone][0], zl: Z[h.zone][1], barColor: Z[h.zone][2], pct: Math.round(h.hp / h.max * 100) + '%',
+      dieSrc: D[h.die], dieAlt: 'Status die ' + h.die, gmMenu: isGm, moreLabel: 'GM actions for ' + h.name, offline: !!h.offline,
+      cls: s.current === h.name ? 'sel' : '', reaction: !!s.reactions[h.name],
+      menuOpen: isGm && s.heroMenu === h.name, toggleMenu: () => this.setState({ heroMenu: s.heroMenu === h.name ? null : h.name }),
+      reactionAction: s.reactions[h.name] ? 'Mark reaction unused' : 'Mark reaction used',
+      toggleReaction: () => this.setState({ reactions: { ...s.reactions, [h.name]: !s.reactions[h.name] }, heroMenu: null })
+    }));
+    const smaller = { d12: 'd10', d10: 'd8', d8: 'd6', d6: 'd4', d4: null };
+    const visLabels = { none: 'Name only', status: 'Status', hp: 'Status and Health' };
+    const oppRaw = [
+      { id: 'grav', kind: 'Villain', name: 'Gravelord', zone: 'green', hp: 52, max: 60, die: 'd8', mods: ['−2 Pinned'], villain: true },
+      { id: 'choir', kind: 'Lieutenants', name: 'Static Choir', die: 'd10', minion: true },
+      { id: 'drones', kind: 'Minions', name: 'Scrap drones', die: 'd6', minion: true },
+      { id: 'hound', kind: 'Villain', name: 'Rust Hound', zone: 'green', hp: 40, max: 40, die: 'd6', villain: true },
+      { id: 'crucible', kind: 'Challenge', name: 'Shut down the crucible', challenge: true }
+    ];
+    const opp = oppRaw.filter((o) => isGm || s.revealed[o.id]).map((o) => {
+      const revealed = s.revealed[o.id];
+      const vis = o.villain ? (isGm ? 'hp' : s.vis[o.id]) : 'hp';
+      const showBody = isGm || revealed;
+      return {
+        ...o, oid: 'opp-' + o.id, cls: (!revealed ? 'hidden ' : '') + (isGm && s.sel === o.id ? 'sel' : ''),
+        isHidden: isGm && !revealed, reveal: () => this.setState({ revealed: { ...s.revealed, [o.id]: true } }),
+        hide: () => this.setState({ revealed: { ...s.revealed, [o.id]: false }, eye: null }),
+        gmEye: isGm && revealed && !!o.villain, eyeLabel: 'What players see of ' + o.name, eyeOpen: s.eye === o.id,
+        toggleEye: () => this.setState({ eye: s.eye === o.id ? null : o.id }),
+        visOpts: ['none', 'status', 'hp'].map((k) => ({ label: visLabels[k], on: s.vis[o.id] === k, cls: s.vis[o.id] === k ? 'on' : '', pick: () => this.setState({ vis: { ...s.vis, [o.id]: k }, eye: null }) })),
+        gmRun: isGm && (o.villain || o.minion), runLabel: s.sel === o.id ? 'Running' : 'Run', select: () => this.setState({ sel: o.id }),
+        showStatus: showBody && !!o.villain && vis !== 'none', showHp: vis === 'hp', zc: o.zone ? Z[o.zone][0] : '', zl: o.zone ? Z[o.zone][1] : '',
+        hasDie: !!o.villain && isGm, dieSrc: D[o.die], dieAlt: (o.minion ? 'Minion die ' : 'Status die ') + o.die,
+        isMinion: !!o.minion,
+        summary: o.minion ? ['d12', 'd10', 'd8', 'd6', 'd4'].map((d) => ({ d, count: s.members[o.id].filter((m) => m.die === d).length })).filter((g) => g.count).map((g) => ({ src: D[g.d], alt: g.d, count: g.count })) : [],
+        expanded: !!s.expanded[o.id], expandLabel: s.expanded[o.id] ? 'Hide each' : 'Show each',
+        toggleExpand: () => this.setState({ expanded: { ...s.expanded, [o.id]: !s.expanded[o.id] } }),
+        members: o.minion ? s.members[o.id].map((m, i) => ({
+          src: D[m.die], alt: m.die, label: (o.kind === 'Lieutenants' ? 'Lieutenant ' : 'Minion ') + (i + 1), mods: m.mods, gm: isGm,
+          modLabel: 'Add a bonus or penalty to ' + o.name + ' ' + (i + 1),
+          shrinkText: smaller[m.die] ? 'Shrink' : 'Remove', shrinkLabel: (smaller[m.die] ? 'Shrink ' : 'Remove ') + o.name + ' ' + (i + 1),
+          shrink: () => { const list = s.members[o.id].slice(); const next = smaller[m.die]; if (next) list[i] = { ...m, die: next }; else list.splice(i, 1); this.setState({ members: { ...s.members, [o.id]: list } }); }
+        })) : [],
+        isChallenge: !!o.challenge, steps: s.steps.map((on, i) => ({ on, cls: on ? 'on' : '', label: 'Step ' + (i + 1) + (on ? ', done' : ''), disabled: !isGm, toggle: () => { if (isGm) { const st = s.steps.slice(); st[i] = !st[i]; this.setState({ steps: st }); } } })),
+        stepsText: s.steps.filter(Boolean).length + ' of ' + s.steps.length + ' done',
+        nameOnly: !!o.villain && vis === 'none' && !isGm, nameOnlyText: 'The GM is keeping its condition secret.',
+        hasMods: !!(o.mods && o.mods.length) && (isGm || vis !== 'none')
+      };
+    });
+    const remaining = s.order.filter((n) => !s.acted.includes(n) && n !== s.current);
+    const actors = s.order.map((n) => {
+      const done = s.acted.includes(n), now = s.current === n;
+      return { name: n, done, cls: done ? 'done' : (now ? 'now' : ''), state: done ? 'acted' : (now ? 'acting now' : '') };
+    });
+    // A turn starting clears that character's reaction; the environment's turn advances the scene tracker.
+    const pass = (n) => this.setState({
+      acted: [...s.acted, s.current], current: n, handOpen: false,
+      reactions: { ...s.reactions, [n]: false },
+      pos: n === 'Collapsing Foundry' ? Math.min(s.pos + 1, track.length - 1) : s.pos
+    });
+    const canHand = isGm || (isPlayer && s.current === 'Maya Reyes');
+    return {
+      themeClass: 'theme-' + (this.props.theme || 'dark'),
+      isGm, isPlayer, isObserver: isObs, gmOn: isGm ? 'on' : '', playerOn: isPlayer ? 'on' : '', obsOn: isObs ? 'on' : '',
+      asGm: () => this.setState({ role: 'gm' }), asPlayer: () => this.setState({ role: 'player' }), asObs: () => this.setState({ role: 'observer' }),
+      boxes, sceneZc: Z[sz][0], sceneZl: Z[sz][1], advance: () => this.setState({ pos: Math.min(s.pos + 1, track.length - 1) }),
+      round: s.round, nextRound: s.round + 1, actors, canHand, handOpen: s.handOpen,
+      handLabel: isGm && s.current !== 'Maya Reyes' ? 'Hand off for ' + s.current : (isGm ? 'Hand off for ' + s.current : 'Hand off to…'),
+      toggleHand: () => this.setState({ handOpen: !s.handOpen }),
+      handTargets: remaining.map((n) => ({ name: n, pick: () => pass(n) })), roundDone: remaining.length === 0,
+      newRound: () => this.setState({ round: s.round + 1, acted: [], handOpen: false }),
+      showYourTurn: isPlayer && s.current === 'Maya Reyes',
+      heroes, opp,
+      hasSel: isGm && !!s.sel, selName: s.sel === 'grav' ? 'Gravelord' : (oppRaw.find((o) => o.id === s.sel) || {}).name, deselect: () => this.setState({ sel: null }),
+      libTab: s.tab === 'lib', notesTab: s.tab === 'notes', libOn: s.tab === 'lib' ? 'on' : '', notesOn: s.tab === 'notes' ? 'on' : '',
+      showLib: () => this.setState({ tab: 'lib' }), showNotes: () => this.setState({ tab: 'notes' }),
+      quickOpen: s.quick, openQuick: () => this.setState({ quick: true }), closeQuick: () => this.setState({ quick: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

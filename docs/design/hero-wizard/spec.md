@@ -72,7 +72,7 @@ A new hero is a draft until the user clicks Finish. Add a `status` of `draft` or
 2. **The first real choice** (any pick, roll or typed value) saves the draft. From then on every change autosaves. The header shows "Draft · saved just now", updated as saves land.
 3. **Leaving with no choice made** discards the in-memory draft silently. No "Unnamed hero" appears in the list.
 4. **Finish hero** (in the header, and on the last step's next button) sets `status` to `complete` and opens the hero's page. With open rule issues, it first shows a dialog listing them, with "Go to issue" per item and "Finish anyway", because some tables play with house rules.
-5. **Main menu:** drafts appear in an "In progress" group above Your heroes, hidden when empty. Each row shows the name (or "Unnamed hero"), "Step N of 8" for the furthest step reached, and when it was last edited, with Continue and Discard buttons. Discard asks for confirmation.
+5. **Main menu:** superseded by `../library/spec.md`. Drafts are library rows with a DRAFT badge, "Step N of 8 · <step>" in Details, and Continue; discarding is the row's Delete.
 6. **Drafts can't be played** and don't appear in any game's hero picker. They can be exported, and importing a draft keeps it a draft.
 
 A complete hero edited into a state with rule issues stays complete. Its page shows a banner naming the count, with a link to the edit summary.
@@ -82,6 +82,8 @@ A complete hero edited into a state with rule issues stays complete. Its page sh
 The wizard is a header, a step rail, the current step and a sheet preview. Keep the existing routes (`#/hero/:id/edit/:step`) and add an optional part for archetype sub-steps: `#/hero/:id/edit/archetype/:part`.
 
 **Header:** breadcrumb (Your heroes / New hero, or the hero's name when editing), the hero's name in large type, the draft chip, a Show/Hide preview button, and Finish hero (drafts only).
+
+**Renaming from the header.** The name is a button with a pencil icon after it ("Unnamed hero" in muted italics until named). Clicking it, or pressing Enter or Space on it, swaps it for a text field of the same size with the name selected. Enter or leaving the field saves; Escape cancels. An empty name reverts to the previous one. Saving goes through the same autosave as every other change, updates the Details step's name field, and counts as a change for Revert. The button's accessible name is "Rename hero: Maya Reyes". Works in create and edit, and the same pattern renames villains in their wizard.
 
 **Step rail:** Start, then the eight numbered steps. Each item shows one state:
 
@@ -96,7 +98,7 @@ When the archetype adds parts (section Special archetypes), they appear indented
 
 **Step footer:** previous and next buttons named for their steps ("Power source", "Personality"), with next as the primary button. Next never blocks on issues.
 
-**Sheet preview:** the View hero sheet components in a compact size, updating as choices change. Unfilled parts show in muted italics with where they come from ("Step 4"). Game colors appear here on the ability bands. Build the preview from the same components View hero will use, not a separate copy. Remember Show/Hide per device in `localStorage`, wrapped in try/catch.
+**Sheet preview:** the View hero sheet components in a compact size, updating as choices change. It shows everything the Sheet's Mechanics section does: powers and qualities, the three status dice as game-colored tiles with their die icons (both personalities' sets for Divided), Health max with the three game-colored ranges, and every ability band including Out. Unfilled parts show in muted italics with where they come from ("Step 4"). Game colors appear here on the ability bands. Build the preview from the same components View hero will use, not a separate copy. Remember Show/Hide per device in `localStorage`, wrapped in try/catch.
 
 **Breakpoints:**
 
@@ -117,7 +119,11 @@ Every step uses the same sections in the same order, leaving out any it doesn't 
 3. **Assign:** one row per die: the die icon, then a select of what it can go on. A count under the rows reads "2 of 3 dice assigned". Swapping a die onto something the hero already has ("upgrade my Agility") is an option in that row's select, not a separate control.
 4. **Abilities:** each option is a card with a checkbox, its name, type and text (with action icons). Checking it expands its slot pickers (`[power]` and so on), the optional custom name, and the filled-in text. Long lists get a "Only ones I can take" filter (on by default) and collapsible category groups showing "chosen of allowed" counts.
 5. **Dice out:** a dashed box reading "Power source rolls" (or whichever step is next) followed by the dice icons.
-6. **Issues:** pinned at the end of the step. With issues: a `--ui-danger` bordered box titled "N things to look at", each item a link that scrolls to and focuses the field it's about. Without: a quiet "No rule issues in this step." The rail's count matches this list.
+6. **Issues:** shown where they happen, and summed up at the end of the step.
+   - **At the field.** Every issue that belongs to a field (a select, an assign slot, a checkbox group, a mode's die row) shows right under that field: a small circle-alert icon and the issue text in `--ui-danger`, linked to the field with `aria-describedby`. The field itself gets a 2 px `--ui-danger` border (on a checkbox group or ability list, the group's box), and `aria-invalid="true"`. An issue that belongs to a whole part rather than one field ("Choose 1 of the Accident Green abilities") shows at the top of that part's card or section, under its heading.
+   - **Parts carry their own.** A collapsed archetype part with issues opens automatically on entering the step (as already specified), so its inline issues are visible without hunting.
+   - **Summary at the end.** The `--ui-danger` box titled "N things to look at" stays at the end of the step, each item a link that scrolls to and focuses the field it's about. Without issues: a quiet "No rule issues in this step." The rail's count matches this list.
+   - **Mapping issues to fields.** Each rule issue needs to say which field or part it belongs to. Extend the existing issue-target lookup (`editor/issue-targets.ts`) so every issue the rule checks produce has one; an issue without a target only appears in the summary box, which a test should fail on.
 
 **Guided and Constructed.** Constructed lists every option. Guided lists only the options the roll allows, each tagged with how it was reached ("Rolled 7", "Sum, 7 + 3"), and a line above reads "Showing the 3 backgrounds your roll allows." Switching method later never changes or flags existing choices.
 
@@ -159,8 +165,25 @@ Four archetypes split the Archetype step into parts. Each part is a collapsible 
 | --- | --- | --- |
 | Divided | Second archetype · Transition · Divided ability · Form split · Principle | Second archetype is a full archetype build (any except Divided and Modular) shown with the normal anatomy. Form split appears only with Split Form: each power and quality is set to Both, Civilian or Heroic, with a live tally "Both forms, powers: 2 of 2". The roleplaying quality is always Both. Principle is Responsibility. |
 | Form Changer | Base build · Green form 1 · Green form 2 · Yellow form · Principle | Base build holds the dice, Change Forms with its slot, the chosen Green ability and Emergency Change. Each form: optional name, its powers, one form ability; the Yellow form also raises two dice. Principle is Esoteric. |
-| Modular | Base archetype · Switch abilities · Green mode · Yellow mode 1 · Yellow mode 2 · Red mode · Powerless mode (optional) · Principle | Base archetype assigns powers and qualities but no abilities, then filler d6 powers up to four. Each mode shows its recipe ("keeps 1, lowers 1, raises 2") above its die rows and a tally against it. |
+| Modular | Base archetype · Switch abilities · Green mode · Yellow mode 1 · Yellow mode 2 · Red mode · Powerless mode (optional) · Principle | Base archetype assigns powers and qualities but no abilities, then filler d6 powers up to four. Each mode is built from its recipe, not from the powers: see Modular mode recipes below. |
 | Minion Maker | Base build · Minion forms · Principle | Minion forms: pick the quality that sets the count first; until then, show no count. Then a checklist of forms with a tally "4 of 6 chosen". Principle is Expertise. |
+
+**Modular mode recipes.** Picking a die size for each power and checking it against "keeps 1, lowers 1, raises 2" is hard to get right by eye. Instead, each mode lists its recipe's changes, and the player picks which power each change applies to:
+
+| Change | Power |
+| --- | --- |
+| Raise 1 size | [Cosmic [d6] → [d8] ▾] |
+| Raise 1 size | [Speed [d8] → [d10] ▾] |
+| Lower 1 size | [Agility [d8] → [d6] ▾] |
+| Same size | [Fire [d10] ▾] |
+
+- One row per change in the recipe, in the recipe's own words and order: Raise N sizes, Lower N sizes, Same size, Set to [die]. A recipe that raises two powers has two Raise rows.
+- Each row's select lists the default mode's powers. Each option shows the power with its current die, an arrow, and the die it would have in this mode, as icons in the closed control and as text ("Cosmic d6 → d8") in the option list, where images can't go.
+- A power already used by another row is disabled in the other rows. A power the change would push past the mode's allowed die range (the rule's minimum and maximum) stays pickable: the die stops at the end of the range, with the reason in the option text ("Cold d12 → d12 (already the largest)"). This is Ian's ruling, and it isn't flagged as an issue.
+- Under the rows: the powers no row uses, as "Not in this mode: Cold, Cosmic" in muted text.
+- Because the rows are the recipe, a mode with every row filled is balanced by construction; the only issues left are empty rows ("Choose a power to raise"), shown inline under that row.
+- The mode's ability and optional name stay where they are, below the rows.
+- Saved data doesn't change: the rows are a different way to edit the same power-to-die map. A mode saved under the old editor that doesn't match its recipe opens with the closest rows filled and an inline issue on the rows that don't fit.
 
 Card behavior:
 
@@ -195,7 +218,7 @@ The work is done when each of these holds in both themes, at 1440, 1024 and 390 
 - [ ] No hex colors outside the token file; no `--game-*` token used for anything but green, yellow or red game items.
 - [ ] No die written as text anywhere an image can go; every die and listed ability shows its icons with the right `alt`.
 - [ ] New hero, then leaving without a choice, leaves no hero behind.
-- [ ] A draft autosaves, shows in In progress with its step, continues where it left off, and can't be played.
+- [ ] A draft autosaves, shows in the library with its step, continues where it left off, and can't be played.
 - [ ] Finish with open issues shows the dialog; Finish anyway makes the hero complete.
 - [ ] Guided Background with a roll of 7 and 3 lists exactly Struggling, Academic and Military, each tagged with how it was reached.
 - [ ] One re-roll per phase; a re-roll that rules out the current choice flags it rather than clearing it.
@@ -206,3 +229,7 @@ The work is done when each of these holds in both themes, at 1440, 1024 and 390 
 - [ ] Advancement is reachable from the hero's page and is gone from the wizard.
 - [ ] The preview is docked at 1280 px and up, a drawer from 760 to 1279 px, and a bottom sheet below 760 px.
 - [ ] Keyboard only: every control is reachable, focus is visible, and the bottom sheets and drawer trap and return focus.
+- [ ] The sheet preview shows the status dice, the three Health ranges and the Out ability once those steps are done.
+- [ ] Clicking the header name (or its pencil) renames the hero in place; Enter saves, Escape cancels, and Revert undoes it.
+- [ ] Every rule issue appears under its field (or at the top of its part) with the field outlined, as well as in the step's summary box.
+- [ ] Modular modes are edited as recipe rows (Raise, Lower, Same, Set to) with a power select per row; used powers and out-of-range changes are disabled.

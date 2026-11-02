@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Player play-state flows</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.p{min-height:100%;background:#12141C;color:#E8EAF2;font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5;padding:28px;box-sizing:border-box;--muted:#A3A9BF;--surface:#1B1E2A;--surface2:#232736;--border:#2C3042;--accent:#9599FF;--on-accent:#12141C;--accent-soft:#262A4A;--danger:#D07BE0;--danger-soft:#2E2236;--g:#1D6E31;--y:#E3B600;--y-ink:#12141C}
+.p h2,.p h3{font-family:'Barlow Condensed',sans-serif;font-weight:700;margin:0;line-height:1.15}
+.p button{font:inherit;color:inherit}
+.cols{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;align-items:start}
+.col{display:flex;flex-direction:column;gap:20px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.cap{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sub{color:var(--muted);font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 12px;min-height:40px;cursor:pointer;font-weight:500;color:#E8EAF2;box-sizing:border-box;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.btn.quiet{border-color:transparent;background:transparent}
+.btn.sm{min-height:32px;padding:3px 10px;font-size:14px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.note{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:10px;font-size:14px}
+.warn{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);background:var(--surface2);border-radius:10px;font-size:14px}
+.err{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--danger);background:var(--danger-soft);border-radius:10px;font-size:14px}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;padding:1px 10px;font-size:13px;color:var(--muted)}
+.zy{background:var(--y);color:var(--y-ink);border-radius:5px;padding:1px 7px;font-size:11px;font-weight:700;letter-spacing:.08em}
+.big{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:40px;line-height:1;text-align:center}
+.ctl{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;align-items:center}
+.ctl button{height:44px;border:1px solid var(--border);background:var(--surface);border-radius:8px;font-size:20px}
+.ctl button[disabled]{opacity:.4}
+.chg{display:flex;flex-direction:column;gap:2px;font-size:14px}
+.chg div{display:flex;gap:8px}
+.chg .k{color:var(--muted);width:80px;flex:none}
+.menu{background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.3);padding:6px;display:flex;flex-direction:column}
+.menu span{padding:8px 10px;border-radius:6px}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--muted);border-top-color:transparent;display:inline-block}
+</style>
+</helmet>
+<div class="p">
+  <div class="cols">
+    <div class="col">
+      <section class="panel" aria-labelledby="s1">
+        <div class="cap">Standalone Play (solo game)</div>
+        <div class="row"><h2 id="s1" style="font-size:28px" class="grow">Maya Reyes</h2><span class="chip">Solo play</span></div>
+        <div class="row"><span class="btn sm">Sheet</span><span class="btn sm primary">Play</span><span class="grow"></span><span class="btn sm" aria-label="More">⋯</span></div>
+        <div class="menu" aria-label="Play menu open"><span>Start over…</span><span>Export play log</span></div>
+        <div class="warn"><span>Maya Reyes is also in <a href="#" style="color:var(--accent)">Thursday game</a>. What happens here doesn't affect that game.</span></div>
+        <div class="sub">Start over asks first, then puts Health back to max and clears mods, twists, hero points, minions, form and the play log. The sheet isn't touched.</div>
+      </section>
+      <section class="panel" aria-labelledby="s2">
+        <div class="cap">Join as a player: hero picker</div>
+        <h2 id="s2" style="font-size:22px">Bring a hero</h2>
+        <div class="row" style="border:2px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:8px 10px"><span class="grow"><strong>Maya Reyes</strong><div class="sub">Speedster · in this game since Oct 30</div></span></div>
+        <div class="row" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px"><span class="grow"><strong>Paradigm</strong><div class="sub">Modular Blaster</div></span></div>
+        <button type="button" class="btn primary">Rejoin with Maya Reyes</button>
+        <div class="sub">A hero already in this game rejoins as the game's copy. A new one is copied in.</div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel" aria-labelledby="s3">
+        <div class="cap">First time in, player panel</div>
+        <div class="note" role="status"><span><strong>Maya Reyes is in Thursday game.</strong> The game keeps her Health, mods and everything else in play. Your library sheet doesn't change. <button type="button" class="btn quiet sm" style="padding:0;min-height:0;color:var(--accent)">Got it</button></span></div>
+        <div class="row"><div class="grow"><div class="cap">My hero · game's copy</div><h2 id="mh" style="font-size:24px">Maya Reyes</h2></div><span class="btn sm">⋯</span></div>
+        <div class="ctl"><button type="button" aria-label="Lose 1 Health">−</button><div><div class="big">30</div><div class="sub" style="text-align:center">of 30 Health</div></div><button type="button" aria-label="Gain 1 Health">+</button></div>
+        <div class="menu"><span>Update from my sheet…</span><span>Open my library sheet</span><span>Leave game</span></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel" aria-labelledby="s4" style="box-shadow:0 20px 48px rgba(0,0,0,.4)">
+        <div class="cap">Rejoin: sheet changed (dialog)</div>
+        <h2 id="s4" style="font-size:24px">Your sheet for Maya Reyes has changed</h2>
+        <div class="sub">Since she joined Thursday game:</div>
+        <div class="chg">
+          <div><span class="k">Powers</span><span>Speed d10 → d12</span></div>
+          <div><span class="k">Abilities</span><span>New: Blinding Strike (Yellow)</span></div>
+          <div><span class="k">Health</span><span>Max 30 → 32</span></div>
+        </div>
+        <div class="sub">If the GM approves, the game's copy gets your new sheet and keeps what's happened in play: Health stays at 18.</div>
+        <div class="row"><button type="button" class="btn primary grow">Ask the GM to update</button><button type="button" class="btn">Keep the game's copy</button></div>
+      </section>
+      <section class="panel">
+        <div class="cap">Waiting for the GM</div>
+        <div class="note" role="status"><span class="spin" aria-hidden="true" style="margin-top:3px"></span><span class="grow">Waiting for the GM to approve your sheet update. You can keep playing meanwhile. <button type="button" class="btn quiet sm" style="padding:0;min-height:0;color:var(--accent)">Cancel request</button></span></div>
+      </section>
+      <section class="panel">
+        <div class="cap">GM's answer (toast)</div>
+        <div class="note"><span><strong>Updated.</strong> The GM approved: Maya Reyes now matches your sheet. Health stays 18 of 32.</span></div>
+        <div class="warn"><span><strong>Not updated.</strong> The GM kept the game's copy. You can ask again from My hero ⋯.</span></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel" aria-labelledby="s5">
+        <div class="cap">Opening the game offline (cached)</div>
+        <div class="warn" role="status"><span class="grow"><strong>The GM isn't connected.</strong> This is Thursday game as of today, 9:42 PM. Read-only until the GM is back.</span></div>
+        <div class="row"><button type="button" class="btn sm">Try to reconnect</button><span class="sub">Tries every 30 seconds</span></div>
+        <div class="ctl"><button type="button" disabled aria-label="Lose 1 Health">−</button><div><div class="big">18</div><div class="sub" style="text-align:center">of 30 · <span class="zy">YELLOW</span></div></div><button type="button" disabled aria-label="Gain 1 Health">+</button></div>
+        <div class="row"><button type="button" class="btn primary grow" disabled>Roll</button><button type="button" class="btn" disabled>Use</button></div>
+        <div class="sub">Controls that change the game are off, labeled "Needs the GM". Reading the table, the sheet and the log still works.</div>
+      </section>
+      <section class="panel" aria-labelledby="s6">
+        <div class="cap">GM briefly unreachable</div>
+        <div class="warn" role="status"><span class="spin" aria-hidden="true" style="margin-top:3px"></span><span>Reconnecting to the GM… Actions are paused.</span></div>
+        <div class="cap" style="margin-top:4px">Sent, waiting for the GM</div>
+        <div class="row"><span class="big" style="font-size:30px;opacity:.6">18</span><span class="sub">→ 15</span><span class="spin" aria-hidden="true"></span><span class="sub">Sending…</span></div>
+        <div class="cap" style="margin-top:4px">Not applied (toast)</div>
+        <div class="err"><span><strong>Not applied:</strong> it isn't your turn, so you can't hand off.</span></div>
+        <div class="err"><span><strong>Not applied:</strong> your Health had already changed to 14. Check it and try again.</span></div>
+        <div class="err"><span><strong>Didn't reach the GM.</strong> Nothing changed. <button type="button" class="btn quiet sm" style="padding:0;min-height:0;color:var(--accent)">Try again</button></span></div>
+      </section>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
