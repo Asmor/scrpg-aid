@@ -441,22 +441,22 @@ See `table-phone.dc.html`.
 
 ## 18. Acceptance checklist
 
-- [ ] Hero and villain documents hold no play state. Old play state is dropped on load.
-- [ ] A hero's or villain's standalone Play page uses its solo game. Start over resets it. Sheet changes re-copy with `reconcile`. Solo games aren't on the Games page.
+- [x] Hero and villain documents hold no play state. Old play state is dropped on load.
+- [x] A hero's or villain's standalone Play page uses its solo game. Start over resets it. Sheet changes re-copy with `reconcile`. Solo games aren't on the Games page.
 - [ ] The Games page lists games you run and joined games as cards, with the contents in section 3. Run works with no hosting.
-- [ ] Bringing in a villain copies it. The same villain in two games keeps separate state.
-- [ ] Update from library shows the diff and the adjustments, and changes only that game's copy.
-- [ ] The tracker drives the scene zone. The environment's turn starts advance it one box and log it.
+- [x] Bringing in a villain copies it. The same villain in two games keeps separate state.
+- [x] Update from library shows the diff and the adjustments, and changes only that game's copy.
+- [x] The tracker drives the scene zone. The environment's turn starts advance it one box and log it.
 - [ ] Every opposition item starts hidden. Hidden items show dashed with Reveal for the GM and are absent for everyone else.
 - [ ] What players see changes what players receive, not just what they're shown.
-- [ ] Groups show a per-die summary and each member's die and mods. Shrink steps down, Remove on d4, and the group leaves the turn order when empty.
-- [ ] Each hero, villain, GM group and the environment gets one turn-order entry once revealed. Player-made minions don't.
-- [ ] Hand off lists only actors that haven't acted. Round end offers the next round and picks who starts.
-- [ ] A turn starting clears only that actor's reaction.
+- [x] Groups show a per-die summary and each member's die and mods. Shrink steps down, Remove on d4, and the group leaves the turn order when empty.
+- [x] Each hero, villain, GM group and the environment gets one turn-order entry once revealed. Player-made minions don't.
+- [x] Hand off lists only actors that haven't acted. Round end offers the next round and picks who starts.
+- [x] A turn starting clears only that actor's reaction.
 - [ ] Joining copies the hero in with fresh play state. The first-join note shows once. The panel works on the game's copy.
 - [ ] On rejoin, `sheetDiff` (build only) triggers the prompt. Ask, wait and cancel work. The GM sees the request in Requests and on the hero card.
 - [ ] Approve applies the new sheet with `reconcile`'s adjustments, shown before approval, in the toast and in the log. Decline changes nothing.
-- [ ] `reconcile` follows the table in section 8, and is tested for each row.
+- [x] `reconcile` follows the table in section 8, and is tested for each row.
 - [ ] Every player control sends one action. The GM validates it and replies.
 - [ ] A rejected action shows its reason. No reply in 5 seconds shows "Didn't reach the GM".
 - [ ] While disconnected, actions are blocked with the reconnecting banner, then the offline view after 30 seconds.

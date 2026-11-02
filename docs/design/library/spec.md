@@ -205,21 +205,21 @@ See `library-phone.dc.html`.
 
 ## 10. Acceptance checklist
 
-- [ ] The home route shows the library. The old hero list, villain list and In progress group are gone.
-- [ ] Heroes and villains (and drafts of both) are rows. Drafts show the DRAFT badge, their step and Continue.
-- [ ] Old documents load with no tags. Tags save with the item, appear in backups and exports, and come back on import.
-- [ ] Tags are trimmed, capped at 40 characters, unique per item ignoring case, and displayed as typed. Picking an existing tag reuses its spelling.
-- [ ] The search, type chips and tag filter combine with AND. Several tags require all of them.
-- [ ] Clicking a tag name in a row adds it to the filter. The X on a tag (always visible) removes it from that item.
-- [ ] The + popover suggests existing tags, offers Create, handles Enter and Escape, and returns focus.
-- [ ] Bulk Add tag and Remove tag work on the selection. Remove lists only the selection's tags with "x of n" counts. Export and Delete work on the selection.
-- [ ] The table doesn't re-filter on tag or item edits. It re-filters only on the events listed under Stability. The footer shows "N items no longer match" with Refresh.
-- [ ] Save search names the current filters, rejects duplicate names, and appears in the rail with a live count. Rename and Delete work. A backup includes saved searches.
-- [ ] Sorting by Name, Type and Changed works, with `aria-sort`.
-- [ ] Rows show no play state. In games lists the games holding a copy, linked. Games aren't rows; the header tabs switch between Library and Games.
-- [ ] Play together shows the right contents for no game, hosting and joined, and the button shows "In game · code" while in one.
-- [ ] Data holds backup, import and the example hero. The reminder dot follows the 14-day rule. `lastBackupAt` updates on backup.
-- [ ] The view is in the URL. Back and reload restore it.
-- [ ] Phone: view sheet, Filters sheet with a "Show N" count, rows with tag X's, press-and-hold selection with the bottom bar.
-- [ ] The empty library and no-matches states match the spec.
-- [ ] Filtering is a pure, tested module.
+- [x] The home route shows the library. The old hero list, villain list and In progress group are gone.
+- [x] Heroes and villains (and drafts of both) are rows. Drafts show the DRAFT badge, their step and Continue.
+- [x] Old documents load with no tags. Tags save with the item, appear in backups and exports, and come back on import.
+- [x] Tags are trimmed, capped at 40 characters, unique per item ignoring case, and displayed as typed. Picking an existing tag reuses its spelling.
+- [x] The search, type chips and tag filter combine with AND. Several tags require all of them.
+- [x] Clicking a tag name in a row adds it to the filter. The X on a tag (always visible) removes it from that item.
+- [x] The + popover suggests existing tags, offers Create, handles Enter and Escape, and returns focus.
+- [x] Bulk Add tag and Remove tag work on the selection. Remove lists only the selection's tags with "x of n" counts. Export and Delete work on the selection.
+- [x] The table doesn't re-filter on tag or item edits. It re-filters only on the events listed under Stability. The footer shows "N items no longer match" with Refresh.
+- [x] Save search names the current filters, rejects duplicate names, and appears in the rail with a live count. Rename and Delete work. A backup includes saved searches.
+- [x] Sorting by Name, Type and Changed works, with `aria-sort`.
+- [x] Rows show no play state. In games lists the games holding a copy, linked. Games aren't rows; the header tabs switch between Library and Games.
+- [x] Play together shows the right contents for no game, hosting and joined, and the button shows "In game · code" while in one.
+- [x] Data holds backup, import and the example hero. The reminder dot follows the 14-day rule. `lastBackupAt` updates on backup.
+- [x] The view is in the URL. Back and reload restore it.
+- [x] Phone: view sheet, Filters sheet with a "Show N" count, rows with tag X's, press-and-hold selection with the bottom bar.
+- [x] The empty library and no-matches states match the spec.
+- [x] Filtering is a pure, tested module.
