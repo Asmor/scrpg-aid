@@ -1,33 +1,37 @@
 /**
- * The game table for the GM (docs/design/game-table/spec.md; Phase 1: no network). The game
- * document is saved as it changes, and so are the heroes and villains on the table, which the
- * table works on directly. The rules are in ./table.ts and ./hero-changes.ts; this page wires
- * them to the shared center (./TableCenter.tsx) and the GM screen (./GmScreen.tsx).
+ * The game table for the GM (docs/design/game-table/spec.md; Phase 1: no network). The game is
+ * the single source of truth: heroes and villains on the table are copies inside it, so every
+ * change, the GM's edits to heroes included, changes the game and is saved with it. The rules
+ * are in ./table.ts and ./hero-changes.ts; this page wires them to the shared center
+ * (./TableCenter.tsx) and the GM screen (./GmScreen.tsx).
  */
-import { useCallback, useEffect, useState } from 'react'
-import { useGameStore } from '../app/game-store-context'
-import { listPath, playPath } from '../app/route'
+import { useCallback, useState } from 'react'
+import { listPath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
 import { RenameHeading } from '../components/RenameHeading'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { buildSheet } from '../creation/sheet'
-import { useDocumentEditor, type Lookup } from '../editor/useDocumentEditor'
+import type { Lookup } from '../editor/useDocumentEditor'
 import { heroDisplayName, isDraft, newId, type Hero } from '../hero/model'
 import { PopoverGroup, type MenuItem } from '../library/Popover'
 import type { LibraryItem } from '../library/registry'
+import { formatAgoInline } from '../library/when'
 import { formDice } from '../play/forms'
-import { currentHealth, effectiveZone, emptyPlay, setReactionUsed, setSceneZone, statusDieFor, type Clock } from '../play/state'
+import { currentHealth, effectiveZone, statusDieFor, type Clock } from '../play/state'
 import { useTick } from '../play/useTick'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
-import { emptyVillainPlay, villainSummary } from '../villain/play'
+import { villainHealth, villainSummary } from '../villain/play'
 import { buildVillainSheet } from '../villain/sheet'
-import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, SceneSetupDialog, TwistDialog } from './dialogs'
+import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, SceneSetupDialog, TwistDialog, UpdateDialog } from './dialogs'
 import { GmScreen, type GroupActions, type QuickAddKind } from './GmScreen'
 import { applyHeroChange, type HeroChange } from './hero-changes'
-import { gameDisplayName, sceneDisplayName, type ActorRef, type Game } from './model'
+import { gameDisplayName, sceneDisplayName, type ActorRef, type Game, type HeroInGame, type VillainInGame } from './model'
+import { healthLine, reconcile, reconcileVillain } from './reconcile'
+import { sheetDiff } from './sheet-diff'
 import { TableCenter, TableLog, ZoneChip, type GmControls, type HeroView, type VillainView } from './TableCenter'
 import { useDocMap } from './useDocMap'
+import { useGameEditor } from './useGameEditor'
 import * as T from './table'
 
 type Dialog =
@@ -38,72 +42,46 @@ type Dialog =
   | { kind: 'removeItem'; ref: T.ItemRef; name: string }
   | { kind: 'memberMod'; groupId: string; memberId: string; name: string }
   | { kind: 'fix'; part: 'current' | 'acted' | 'round' }
+  | { kind: 'update'; ref: { kind: 'hero' | 'villain'; id: string }; sheet: Hero | Villain }
 
 const defaultClock = (): Clock => ({ now: new Date(), newId: () => newId() })
+const noSave = async () => {}
 
-/** Replaces the draft's contents with the next game (the reducers return a new object). */
-function replaceInto(draft: Game, next: Game) {
-  if (next === draft) return
-  for (const key of Object.keys(draft)) delete (draft as unknown as Record<string, unknown>)[key]
-  Object.assign(draft, next)
+/** What the update dialog shows for a copy and a newer library sheet: the changes, the adjustments, and the line on Health. */
+function updatePreview(copy: HeroInGame | VillainInGame, sheet: Hero | Villain) {
+  if ('method' in sheet) {
+    const hero = copy as HeroInGame
+    const { adjustments } = reconcile(hero.play, sheet, hero.sheet)
+    return { name: heroDisplayName(hero.sheet), changes: sheetDiff(hero.sheet, sheet), adjustments, healthLine: healthLine(hero.play, buildSheet(hero.sheet).maxHealth, adjustments) }
+  }
+  const villain = copy as VillainInGame
+  const { adjustments } = reconcileVillain(villain.play, sheet, villain.sheet)
+  return { name: villainDisplayName(villain.sheet), changes: sheetDiff(villain.sheet, sheet), adjustments, healthLine: healthLine(villain.play, villainHealth(villain.sheet, villain.play).maxHealth, adjustments) }
 }
 
 export function GamePage({ id, clock = defaultClock, random }: { id: string; clock?: () => Clock; random?: () => number }) {
-  const gameStore = useGameStore()
   const heroStore = useStore()
   const villainStore = useVillainStore()
-  const loadGame = useCallback(async (gameId: string): Promise<Lookup<Game>> => {
-    const r = await gameStore.get(gameId)
-    return r.status === 'found' ? { status: 'found', doc: r.game } : r
-  }, [gameStore])
-  const saveGame = useCallback((g: Game) => gameStore.save(g), [gameStore])
+  // The library documents the copies came from, read only: to offer Update from library when they've changed.
   const loadHero = useCallback(async (heroId: string): Promise<Lookup<Hero>> => {
     const r = await heroStore.get(heroId)
     return r.status === 'found' ? { status: 'found', doc: r.hero } : r
   }, [heroStore])
-  const saveHero = useCallback((h: Hero) => heroStore.save(h), [heroStore])
   const loadVillain = useCallback(async (villainId: string): Promise<Lookup<Villain>> => {
     const r = await villainStore.get(villainId)
     return r.status === 'found' ? { status: 'found', doc: r.villain } : r
   }, [villainStore])
-  const saveVillain = useCallback((v: Villain) => villainStore.save(v), [villainStore])
 
-  const editor = useDocumentEditor(id, loadGame, saveGame)
+  const editor = useGameEditor(id)
   const game = editor.state.status === 'ready' ? editor.state.doc : undefined
-  const heroDocs = useDocMap(game?.heroes.flatMap((h) => (h.source.kind === 'local' ? [h.source.heroId] : [])) ?? [], loadHero, saveHero)
-  const villainDocs = useDocMap(game?.villains.map((v) => v.villainId) ?? [], loadVillain, saveVillain)
+  const libraryHeroes = useDocMap(game?.heroes.filter((h) => !h.player).map((h) => h.sourceId) ?? [], loadHero, noSave)
+  const libraryVillains = useDocMap(game?.villains.map((v) => v.sourceId) ?? [], loadVillain, noSave)
   const phone = useMediaQuery('(max-width: 759px)', false)
   const now = useTick()
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [running, setRunning] = useState<T.ItemRef | null>(null)
   const [tab, setTab] = useState<'table' | 'gm' | 'log'>('table')
   const [announce, setAnnounce] = useState('')
-
-  const localHeroId = (g: Game, tableId: string) => {
-    const h = g.heroes.find((x) => x.id === tableId)
-    return h?.source.kind === 'local' ? h.source.heroId : undefined
-  }
-  const names: T.Names = (ref) => {
-    if (ref.kind === 'hero') {
-      const heroId = game && localHeroId(game, ref.id)
-      const doc = heroId ? heroDocs.get(heroId) : undefined
-      return doc ? heroDisplayName(doc) : 'A hero'
-    }
-    const doc = villainDocs.get(ref.id)
-    return doc ? villainDisplayName(doc) : 'A villain'
-  }
-
-  // A hero on the table has the table's scene zone (it raises their zone, p. 14; heroes only, ruling 64).
-  const zone = game ? T.sceneZone(game) : 'green'
-  useEffect(() => {
-    if (!game) return
-    for (const h of game.heroes) {
-      if (h.source.kind !== 'local') continue
-      const doc = heroDocs.entries.get(h.source.heroId)
-      if (doc?.status !== 'ready' || isDraft(doc.doc) || (doc.doc.play?.sceneZone ?? 'green') === zone) continue
-      heroDocs.update(h.source.heroId, (hero) => ({ ...hero, play: setSceneZone(hero.play ?? emptyPlay(), zone, clock(), true) }))
-    }
-  }, [game, zone, heroDocs, clock])
 
   if (!game) {
     return (
@@ -119,74 +97,49 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     )
   }
 
-  const apply = (fn: (g: Game) => Game) => editor.update((draft) => replaceInto(draft, fn(draft)))
+  const { apply } = editor
+  const zone = T.sceneZone(game)
 
-  /** A GM change to a hero from the library, recorded in its history; `share` puts it in the log too. */
-  const changeHero = (tableId: string, change: HeroChange, share = true) => {
-    const heroId = localHeroId(game, tableId)
-    if (!heroId) return
-    const result = heroDocs.update(heroId, (hero) => {
-      if (isDraft(hero)) return hero
-      const play = hero.play ?? emptyPlay()
-      const next = applyHeroChange(play, buildSheet(hero), change, clock())
-      return next === play ? hero : { ...hero, play: next }
-    })
-    if (!result || !share) return
-    const entries = (result.after.play?.history ?? []).slice(result.before.play?.history.length ?? 0).map((e) => ({ ...e, text: e.text.replace(/^GM: /, '') }))
-    apply((g) => T.shareHistory(g, heroDisplayName(result.after), entries, clock()))
-  }
+  /** A GM change to a hero's copy in this game, in its history and the log. */
+  const changeHero = (heroId: string, change: HeroChange) => apply((g) => T.changeHeroPlay(g, heroId, (p, sheet) => applyHeroChange(p, buildSheet(sheet), change, clock()), clock()))
 
   /** A change to a villain's play state, its history shared to the log (only the GM's while it's hidden). */
-  const changeVillain = (villainId: string, fn: (play: VillainPlayState, c: Clock) => VillainPlayState, share = true) => {
-    const result = villainDocs.update(villainId, (v) => {
-      const play = v.play ?? emptyVillainPlay()
-      const next = fn(play, clock())
-      return next === play ? v : { ...v, play: next }
-    })
-    if (!result || !share) return
-    const entries = (result.after.play?.history ?? []).slice(result.before.play?.history.length ?? 0)
-    apply((g) => T.shareHistory(g, villainDisplayName(result.after), entries, clock(), T.isHidden(g, { kind: 'villain', id: villainId })))
-  }
+  const changeVillain = (villainId: string, fn: (play: VillainPlayState, c: Clock) => VillainPlayState) => apply((g) => T.changeVillainPlay(g, villainId, (p) => fn(p, clock()), clock()))
 
-  /** A turn change: a turn starting clears that character's reaction (and only theirs). */
-  const turn = (fn: (g: Game) => T.TurnResult) => {
-    let started: ActorRef | undefined
+  /** A turn change; its log lines are announced. */
+  const turn = (fn: (g: Game) => Game) => {
     let lines: string[] = []
     apply((g) => {
-      const result = fn(g)
-      started = result.started
+      const next = fn(g)
       const known = new Set(g.feed.map((e) => e.id))
-      lines = result.game.feed.filter((e) => !known.has(e.id)).map((e) => e.text)
-      return result.game
+      lines = next.feed.filter((e) => !known.has(e.id)).map((e) => e.text)
+      return next
     })
     if (lines.length) setAnnounce(lines.join(' '))
-    const who = started as ActorRef | undefined
-    if (who?.kind === 'hero') changeHero(who.id, { kind: 'clearReaction' }, false)
-    if (who?.kind === 'villain') changeVillain(who.id, (p, c) => setReactionUsed(p, false, c), false)
   }
 
-  const nameOf = (ref: T.ItemRef | ActorRef) => T.itemName(game, ref, names)
+  const nameOf = (ref: T.ItemRef | ActorRef) => T.itemName(game, ref)
   const strip = (ref: ActorRef) => (T.isHidden(game, ref) && ref.kind !== 'hero' ? `${nameOf(ref)} (hidden)` : nameOf(ref))
+
+  /** The library's newer sheet for a copy, when it differs from the game's (build only). */
+  const libraryChange = (kind: 'hero' | 'villain', copy: HeroInGame | VillainInGame): Hero | Villain | undefined => {
+    const doc = kind === 'hero' ? libraryHeroes.get(copy.sourceId) : libraryVillains.get(copy.sourceId)
+    if (!doc || (kind === 'hero' && isDraft(doc as Hero))) return undefined
+    return sheetDiff(copy.sheet, doc).length ? doc : undefined
+  }
 
   // ---- What the cards show ----
 
   const heroes: HeroView[] = game.heroes.map((h) => {
-    const ref = { kind: 'hero' as const, id: h.id }
-    const base = { ref, mods: [], minions: [], reactionUsed: false }
-    if (h.source.kind !== 'local') return { ...base, name: 'A player’s hero', sub: 'Joins when the game is hosted', missing: 'Not connected.' }
-    const entry = heroDocs.entries.get(h.source.heroId)
-    if (!entry || entry.status === 'loading') return { ...base, name: 'Loading…', sub: 'From your library', missing: 'Loading…' }
-    if (entry.status !== 'ready' || isDraft(entry.doc)) return { ...base, name: 'A hero', sub: 'From your library', missing: entry.status === 'missing' ? 'This hero was deleted from your library.' : "This hero can't be read." }
-    const hero = entry.doc
-    const sheet = buildSheet(hero)
-    const play = hero.play ?? emptyPlay()
+    const sheet = buildSheet(h.sheet)
+    const play = T.heroPlayInScene(game, h.play)
     const heroZone = effectiveZone(sheet, play)
-    const statusDie = statusDieFor(formDice(hero, sheet, play), heroZone)
+    const statusDie = statusDieFor(formDice(h.sheet, sheet, play), heroZone)
     const health = currentHealth(sheet, play)
     return {
-      ...base,
-      name: heroDisplayName(hero),
-      sub: 'From your library',
+      ref: { kind: 'hero' as const, id: h.id },
+      name: heroDisplayName(h.sheet),
+      sub: h.player ? h.player.name || 'A player' : 'Your hero',
       ...(heroZone ? { zone: heroZone } : {}),
       ...(health !== undefined ? { health } : {}),
       ...(sheet.maxHealth !== undefined ? { maxHealth: sheet.maxHealth } : {}),
@@ -198,14 +151,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   })
 
   const villains: VillainView[] = game.villains.map((v) => {
-    const ref = { kind: 'villain' as const, id: v.villainId }
-    const base = { ref, hidden: v.hidden, playersSee: v.playersSee, mods: [] }
-    const entry = villainDocs.entries.get(v.villainId)
-    if (!entry || entry.status === 'loading') return { ...base, name: 'Loading…', kind: 'Villain', missing: 'Loading…' }
-    if (entry.status !== 'ready') return { ...base, name: 'A villain', kind: 'Villain', missing: entry.status === 'missing' ? 'This villain was deleted from your library.' : "This villain can't be read." }
-    const summary = villainSummary(entry.doc)
-    const { id: _, twists: _t, ...shown } = summary
-    return { ...base, ...shown, kind: buildVillainSheet(entry.doc).major ? 'Major villain' : 'Minor villain' }
+    const { id: _, twists: _t, name, ...shown } = villainSummary(v.sheet, v.play)
+    return { ref: { kind: 'villain' as const, id: v.id }, name, hidden: v.hidden, playersSee: v.playersSee, ...shown, kind: buildVillainSheet(v.sheet).major ? 'Major villain' : 'Minor villain' }
   })
 
   // ---- The GM's controls ----
@@ -215,8 +162,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     setRunning(same ? null : ref)
     if (!same && phone) setTab('gm')
   }
-  const reveal = (ref: T.ItemRef) => apply((g) => T.setHidden(g, ref, false, names, clock()))
-  const hide = (ref: T.ItemRef) => apply((g) => T.setHidden(g, ref, true, names, clock()))
+  const reveal = (ref: T.ItemRef) => apply((g) => T.setHidden(g, ref, false, clock()))
+  const hide = (ref: T.ItemRef) => apply((g) => T.setHidden(g, ref, true, clock()))
   const env = game.environment
   const gm: GmControls = {
     setPosition: (i) => apply((g) => T.setTrackerPosition(g, i, clock())),
@@ -227,8 +174,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       ...(env ? [{ label: 'Remove the environment…', danger: true, onSelect: () => setDialog({ kind: 'removeItem', ref: { kind: 'environment', id: env.id }, name: env.name }) }] : []),
     ],
     revealEnvironment: () => env && reveal({ kind: 'environment', id: env.id }),
-    startRound: (first) => turn((g) => T.startRound(g, first, names, clock())),
-    handOff: (to) => turn((g) => T.handOff(g, to, names, clock())),
+    startRound: (first) => turn((g) => T.startRound(g, first, clock())),
+    handOff: (to) => turn((g) => T.handOff(g, to, clock())),
     turnMenu: [
       { label: "Set who's acting…", onSelect: () => setDialog({ kind: 'fix', part: 'current' }) },
       { label: 'Mark acted or not acted…', onSelect: () => setDialog({ kind: 'fix', part: 'acted' }) },
@@ -236,20 +183,26 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     ],
     heroMenu: (hero) => {
       const remove: MenuItem = { label: 'Remove from the game…', danger: true, onSelect: () => setDialog({ kind: 'heroRemove', hero }) }
-      if (hero.missing) return [remove]
-      const heroId = localHeroId(game, hero.ref.id)
+      const copy = T.findHero(game, hero.ref.id)
+      // The GM's own heroes follow the library like villains do (a player's asks to sync instead, from Phase 2).
+      const newer = copy && !copy.player ? libraryChange('hero', copy) : undefined
       return [
+        ...(newer ? [{ label: `Library sheet changed ${formatAgoInline(newer.updatedAt, now)}`, note: true as const, onSelect: () => {} }, { label: 'Update from library…', onSelect: () => setDialog({ kind: 'update', ref: { kind: 'hero', id: hero.ref.id }, sheet: newer }) }] : []),
         { label: 'Change Health…', onSelect: () => setDialog({ kind: 'heroHealth', hero }) },
         { label: 'Give a bonus or penalty…', onSelect: () => setDialog({ kind: 'heroMod', hero }) },
         { label: 'Add a twist…', onSelect: () => setDialog({ kind: 'heroTwist', hero }) },
         { label: hero.reactionUsed ? 'Mark reaction unused' : 'Mark reaction used', onSelect: () => changeHero(hero.ref.id, { kind: 'reaction', used: !hero.reactionUsed }) },
-        ...(heroId ? [{ label: 'Open Play page', href: playPath(heroId), onSelect: () => {} }] : []),
         remove,
       ]
     },
     reveal,
     hide,
     itemMenu: (ref, hidden) => [
+      ...(() => {
+        const copy = ref.kind === 'villain' ? T.findVillain(game, ref.id) : undefined
+        const newer = copy && libraryChange('villain', copy)
+        return newer ? [{ label: `Library sheet changed ${formatAgoInline(newer.updatedAt, now)}`, note: true as const, onSelect: () => {} }, { label: 'Update from library…', onSelect: () => setDialog({ kind: 'update', ref: { kind: 'villain', id: ref.id }, sheet: newer }) }] : []
+      })(),
       ...(hidden ? [{ label: 'Reveal', onSelect: () => reveal(ref) }] : ref.kind === 'villain' ? [] : [{ label: 'Hide from players', onSelect: () => hide(ref) }]),
       { label: 'Remove from the game…', danger: true, onSelect: () => setDialog({ kind: 'removeItem', ref, name: nameOf(ref) }) },
     ],
@@ -266,7 +219,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   }
 
   const runningGroup = running?.kind === 'group' ? game.groups.find((g) => g.id === running.id) : undefined
-  const runningVillain = running?.kind === 'villain' && game.villains.some((v) => v.villainId === running.id) ? villainDocs.get(running.id) : undefined
+  const runningVillain = running?.kind === 'villain' ? T.findVillain(game, running.id) : undefined
   const groupActions = (groupId: string): GroupActions => ({
     shrink: (memberId) => apply((g) => T.shrinkMember(g, groupId, memberId, clock())),
     remove: (memberId) => apply((g) => T.removeMember(g, groupId, memberId, clock())),
@@ -278,13 +231,21 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
 
   const bring = {
     placeOf: (item: LibraryItem) => {
-      if (item.type.key === 'hero') return game.heroes.some((h) => h.source.kind === 'local' && h.source.heroId === item.doc.id) ? ('shown' as const) : ('absent' as const)
-      const v = game.villains.find((x) => x.villainId === item.doc.id)
-      return v ? (v.hidden ? ('hidden' as const) : ('shown' as const)) : ('absent' as const)
+      const kind = item.type.key === 'hero' ? 'hero' : 'villain'
+      const copy = T.copyOf(game, kind, item.doc.id)
+      if (!copy) return 'absent' as const
+      if (!(copy as HeroInGame).player && sheetDiff(copy.sheet, item.doc as unknown as Hero | Villain).length) return 'changed' as const
+      return 'hidden' in copy && copy.hidden ? ('hidden' as const) : ('shown' as const)
     },
     bringIn: (item: LibraryItem) => {
-      if (item.type.key === 'hero') apply((g) => T.addLocalHero(g, item.doc.id, item.row.name, clock()))
-      else if (item.type.key === 'villain') apply((g) => T.addVillain(g, item.doc.id, item.row.name, clock()))
+      // Everything is copied into this game: damage never touches the library or other games.
+      if (item.type.key === 'hero') apply((g) => T.addHero(g, item.doc as unknown as Hero, clock()))
+      else if (item.type.key === 'villain') apply((g) => T.addVillain(g, item.doc as unknown as Villain, clock()))
+    },
+    update: (item: LibraryItem) => {
+      const kind = item.type.key === 'hero' ? 'hero' : 'villain'
+      const copy = T.copyOf(game, kind, item.doc.id)
+      if (copy) setDialog({ kind: 'update', ref: { kind, id: copy.id }, sheet: item.doc as unknown as Hero | Villain })
     },
   }
 
@@ -299,8 +260,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       random={random}
     />
   )
-  const center = <TableCenter game={game} heroes={heroes} villains={villains} names={names} now={now} gm={gm} hideLog={phone} />
-  const saveError = editor.saveError ?? heroDocs.saveError ?? villainDocs.saveError
+  const center = <TableCenter game={game} heroes={heroes} villains={villains} now={now} gm={gm} hideLog={phone} />
+  const saveError = editor.saveError
   const details = `${game.round > 0 ? `Round ${game.round}` : 'Not started'} · ${sceneDisplayName(game)}`
 
   return (
@@ -374,32 +335,40 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       {dialog?.kind === 'heroRemove' && (
         <ConfirmDialog
           title={`Remove ${dialog.hero.name} from the game?`}
-          text="They leave the table and the turn order. The hero stays in your library, with any damage and changes."
+          text="They leave the table and the turn order, and this game's copy of them goes. Your library sheet doesn't change."
           confirm="Remove"
-          onConfirm={() => apply((g) => T.removeFromTable(g, dialog.hero.ref, names, clock()))}
+          onConfirm={() => apply((g) => T.removeFromTable(g, dialog.hero.ref, clock()))}
           onClose={() => setDialog(null)}
         />
       )}
       {dialog?.kind === 'removeItem' && (
         <ConfirmDialog
           title={`Remove ${dialog.name} from the game?`}
-          text={dialog.ref.kind === 'villain' ? 'It leaves the table and the turn order. The villain stays in your library, with any damage and changes.' : 'It leaves the table and the turn order.'}
+          text={dialog.ref.kind === 'villain' ? "It leaves the table and the turn order, and this game's copy of it goes. Your library sheet doesn't change." : 'It leaves the table and the turn order.'}
           confirm="Remove"
           onConfirm={() => {
-            apply((g) => T.removeFromTable(g, dialog.ref, names, clock()))
+            apply((g) => T.removeFromTable(g, dialog.ref, clock()))
             if (running?.kind === dialog.ref.kind && running.id === dialog.ref.id) setRunning(null)
           }}
           onClose={() => setDialog(null)}
         />
       )}
       {dialog?.kind === 'memberMod' && <ModDialog title={`Give ${dialog.name} a bonus or penalty`} onAdd={(mod) => apply((g) => T.addMemberMod(g, dialog.groupId, dialog.memberId, mod, clock()))} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'update' &&
+        (() => {
+          const copy = dialog.ref.kind === 'hero' ? T.findHero(game, dialog.ref.id) : T.findVillain(game, dialog.ref.id)
+          if (!copy) return null
+          const preview = updatePreview(copy, dialog.sheet)
+          const ref = dialog.ref.kind === 'hero' ? { kind: 'hero' as const, id: copy.id, sheet: dialog.sheet as Hero } : { kind: 'villain' as const, id: copy.id, sheet: dialog.sheet as Villain }
+          return <UpdateDialog {...preview} onUpdate={() => apply((g) => T.updateSheet(g, ref, clock()))} onClose={() => setDialog(null)} />
+        })()}
       {dialog?.kind === 'fix' && (
         <FixTurnDialog
           part={dialog.part}
           game={game}
           name={strip}
-          onCurrent={(ref) => apply((g) => T.setCurrent(g, ref, names, clock()))}
-          onActed={(ref, acted) => apply((g) => T.setActed(g, ref, acted, names, clock()))}
+          onCurrent={(ref) => apply((g) => T.setCurrent(g, ref, clock()))}
+          onActed={(ref, acted) => apply((g) => T.setActed(g, ref, acted, clock()))}
           onRound={(round) => apply((g) => T.setRound(g, round, clock()))}
           onClose={() => setDialog(null)}
         />

@@ -12,6 +12,8 @@ import { useOnline } from './useOnline'
 import { useGmState, useSession } from './context'
 import { Feed, Party, Villains } from './TableViews'
 import { useOptionalVillainStore } from '../app/villain-store-context'
+import { useOptionalGameStore } from '../app/game-store-context'
+import { soloGameId, soloVillain } from '../game/solo'
 import { villainDisplayName, type Villain } from '../villain/model'
 import { villainSummary } from '../villain/play'
 import { villainTarget } from './types'
@@ -31,6 +33,7 @@ export function GmPage() {
   const [confirmEnd, setConfirmEnd] = useState(false)
   // The GM's saved villains, to add to the game (Phase 5).
   const villainStore = useOptionalVillainStore()
+  const gameStore = useOptionalGameStore()
   const [savedVillains, setSavedVillains] = useState<Villain[]>([])
   const [villainToAdd, setVillainToAdd] = useState('')
   useEffect(() => {
@@ -185,9 +188,17 @@ export function GmPage() {
                 onClick={() => {
                   const villain = savedVillains.find((v) => v.id === villainToAdd)
                   if (!villain) return
-                  const last = villain.play?.history.at(-1)?.id
-                  gm.addVillain({ ...villainSummary(villain), ...(last ? { sharedUpTo: last } : {}) })
                   setVillainToAdd('')
+                  // Its play state is in its solo game (run from its Play page), if it has one.
+                  const add = (copy: ReturnType<typeof soloVillain>) => {
+                    const last = copy?.play.history.at(-1)?.id
+                    gm.addVillain({ ...villainSummary(copy?.sheet ?? villain, copy?.play), ...(last ? { sharedUpTo: last } : {}) })
+                  }
+                  if (!gameStore) return add(undefined)
+                  gameStore.get(soloGameId('villain', villain.id)).then(
+                    (r) => add(r.status === 'found' ? soloVillain(r.game) : undefined),
+                    () => add(undefined),
+                  )
                 }}
               >
                 Add to the game

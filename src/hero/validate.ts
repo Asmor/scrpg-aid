@@ -103,7 +103,32 @@ const archetypeChoice: Check = (v, path) =>
     'modular?': modularChoice,
   })(v, path)
 
-const heroShape = object({
+/** A hero's play state, as a game holds it (../game/validate.ts). */
+export const playStateShape = object({
+  'health?': integer,
+  'sceneZone?': oneOf('yellow', 'red'),
+  'form?': nonEmptyString,
+  'dividedForm?': oneOf('heroic'),
+  heroPoints: integer,
+  reactionUsed: boolean,
+  mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
+  twists: arrayOf(object({ id: nonEmptyString, kind: oneOf('minor', 'major'), text: string })),
+  history: arrayOf(object({ id: nonEmptyString, at: nonEmptyString, text: string, 'details?': arrayOf(string), 'roll?': oneOf(true) })),
+  'minions?': arrayOf(
+    object({
+      id: nonEmptyString,
+      name: string,
+      die,
+      action: oneOf('attack', 'defend', 'boost', 'hinder', 'overcome', 'any'),
+      'form?': string,
+      'needsForm?': oneOf(true),
+      mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
+    }),
+  ),
+})
+
+/** A whole hero document (a game holds copies, ../game/validate.ts). */
+export const heroShape = object({
   id: nonEmptyString,
   createdAt: nonEmptyString,
   updatedAt: nonEmptyString,
@@ -128,32 +153,10 @@ const heroShape = object({
     collections: arrayOf(object({ name: string, 'notes?': string })),
     changes: arrayOf(advancementChange),
   }),
-  'currentHealth?': integer,
   'rollMode?': oneOf('app', 'manual'),
   'status?': oneOf('draft', 'complete'),
   'furthestStep?': integer,
   'notes?': string,
-  'play?': object({
-    'health?': integer,
-    'sceneZone?': oneOf('yellow', 'red'),
-    'form?': nonEmptyString,
-    'dividedForm?': oneOf('heroic'),
-    heroPoints: integer,
-    reactionUsed: boolean,
-    mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
-    twists: arrayOf(object({ id: nonEmptyString, kind: oneOf('minor', 'major'), text: string })),
-    history: arrayOf(object({ id: nonEmptyString, at: nonEmptyString, text: string, 'details?': arrayOf(string), 'roll?': oneOf(true) })),
-    'minions?': arrayOf(
-      object({
-        id: nonEmptyString,
-        name: string,
-        die,
-        action: oneOf('attack', 'defend', 'boost', 'hinder', 'overcome', 'any'),
-        'form?': string,
-        mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
-      }),
-    ),
-  }),
 })
 
 /** Returns a description of the first structural problem, or undefined if the hero is well formed. */

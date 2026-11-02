@@ -46,9 +46,6 @@ describe('a villain in play', () => {
     p = newScene(p, clock)
     expect(p).toMatchObject({ reactionUsed: false, statusCount: 4, weaknessTier: 1, challengeParts: 1 })
     expect(p).not.toHaveProperty('sceneAdvanced')
-    p = resetVillain({ ...p, health: 3 }, clock)
-    expect(p).toMatchObject({ reactionUsed: false, mods: [], twists: [] })
-    expect(p).not.toHaveProperty('health')
     expect(p.history.map((h) => h.text)).toEqual([
       '3 heroes in this scene.',
       'Back to the heroes it was built for.',
@@ -57,7 +54,8 @@ describe('a villain in play', () => {
       'Challenge parts complete: 1.',
       'Used its Overcome to advance the scene tracker (once per scene).',
       'New scene: its reaction and scene advance are ready again.',
-      'Started over: Health restored; mods, twists, and counts cleared.',
     ])
+    // Starting over clears everything, the history too.
+    expect(resetVillain()).toEqual({ reactionUsed: false, mods: [], twists: [], history: [] })
   })
 })

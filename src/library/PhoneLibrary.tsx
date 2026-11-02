@@ -5,7 +5,9 @@
  */
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { Modal } from '../components/Modal'
-import { ActiveTags, FooterLine, LibraryMessages, NameCell, NewMenu, NoMatches, RemoveTagPanel, RowMenu, SaveSearchField, SearchField, StatusCell, TagChecklist, TypeChips, EmptyLibrary, UnreadableList } from './DesktopLibrary'
+import { gamePath } from '../app/route'
+import { gameDisplayName, type Game } from '../game/model'
+import { ActiveTags, FooterLine, LibraryMessages, NameCell, NewMenu, NoMatches, RemoveTagPanel, RowMenu, SaveSearchField, SearchField, TagChecklist, TypeChips, EmptyLibrary, UnreadableList } from './DesktopLibrary'
 import type { LibraryModel } from './LibraryPage'
 import { usePopover } from './popover-state'
 import { filterCount } from './query'
@@ -156,7 +158,7 @@ function PhoneRow({ model, row, selecting }: { model: LibraryModel; row: Row; se
           </a>
         )}
         <div className="phone-row__line">
-          {!info.draft && info.status && <StatusCell status={info.status} />}
+          <InGamesLine games={model.inGames(row.item)} />
           <ItemTags tags={row.item.doc.tags} itemName={info.name} allTags={model.tags} isActive={(t) => hasTag(model.view.query.tags, t)} onAdd={(t) => model.addTag(row.key, t)} onRemove={(t) => model.removeTag(row.key, t)} />
         </div>
       </div>
@@ -167,6 +169,18 @@ function PhoneRow({ model, row, selecting }: { model: LibraryModel; row: Row; se
         <RowMenu model={model} row={row} onSelect={() => setSelected(new Set([...selected, row.key]))} />
       </div>
     </li>
+  )
+}
+
+/** "In Thursday game" (and "+2 more"), linking to the games; nothing when it's in none. */
+function InGamesLine({ games }: { games: readonly Game[] }) {
+  if (!games.length) return null
+  const first = games[0]!
+  return (
+    <span className="phone-row__games">
+      In <a href={gamePath(first.id)}>{gameDisplayName(first)}</a>
+      {games.length > 1 && ` +${games.length - 1} more`}
+    </span>
   )
 }
 

@@ -36,13 +36,12 @@ describe('saving villains', () => {
     ]
     v.mastery = { source: 'mastery', name: 'Master of Annihilation' }
     v.notes = 'Hates the heroes.'
-    v.play = { health: 20, heroCount: 3, reactionUsed: true, sceneAdvanced: true, mods: [{ id: 'm', label: 'x', value: -2 }], twists: [{ id: 't', kind: 'minor', text: 'Cornered' }], history: [], statusCount: 2, weaknessTier: 1, challengeParts: 1 }
     return v
   }
 
   it('round-trips through the versioned envelope and JSON', () => {
     const v = full()
-    expect(villainToSaved(v)).toEqual({ format: VILLAIN_FORMAT, version: 2, villain: v })
+    expect(villainToSaved(v)).toEqual({ format: VILLAIN_FORMAT, version: 3, villain: v })
     expect(parseSavedVillain(villainToSaved(v))).toEqual({ ok: true, villain: v })
     expect(parseSavedVillainJson(JSON.stringify(villainToSaved(v)))).toEqual({ ok: true, villain: v })
   })
@@ -62,8 +61,6 @@ describe('saving villains', () => {
     expect(bad((v) => (v.upgrades = [{ id: 'x' }]))).toEqual({ ok: false, error: 'villain.upgrades[0].abilities should be a list' })
     expect(bad((v) => ((v.approach as { traits: unknown[] }).traits = [{ trait: { kind: 'power', id: 'x' }, die: 'd7' }]))).toEqual({ ok: false, error: 'villain.approach.traits[0].die has an unknown value' })
     expect(bad((v) => (v.mastery = { name: 'x' }))).toEqual({ ok: false, error: 'villain.mastery.source is missing' })
-    expect(bad((v) => (v.play = { reactionUsed: false, mods: [], twists: [], history: [], heroCount: 0 }))).toEqual({ ok: false, error: 'villain.play.heroCount should be at least 1' })
-    expect(bad((v) => (v.play = { reactionUsed: false, mods: [], twists: [], history: [], sceneAdvanced: false }))).toEqual({ ok: false, error: 'villain.play.sceneAdvanced has an unknown value' })
     expect(bad((v) => (v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd7', abilities: [] } }]))).toEqual({ ok: false, error: 'villain.upgrades[0].vehicle.die has an unknown value' })
     expect(bad((v) => (v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd10' } }]))).toEqual({ ok: false, error: 'villain.upgrades[0].vehicle.abilities should be a list' })
   })
@@ -74,6 +71,13 @@ describe('saving villains', () => {
     const messy = { ...full(), tags: ['  scene   3 ', 'Scene 3', '', 'prep'] }
     expect(parseSavedVillain(villainToSaved(messy))).toEqual({ ok: true, villain: { ...messy, tags: ['scene 3', 'prep'] } })
     expect(parseSavedVillain(villainToSaved({ ...full(), tags: 'prep' as unknown as string[] }))).toEqual({ ok: false, error: 'villain.tags should be a list' })
+  })
+
+  it('drops play state on load: it lives in games now', () => {
+    const v = full()
+    const play = { health: 20, reactionUsed: true, mods: [], twists: [], history: [] }
+    expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 2, villain: { ...v, play } })).toEqual({ ok: true, villain: v, migratedFrom: 2 })
+    expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 3, villain: { ...v, play: 'junk' } })).toEqual({ ok: true, villain: v })
   })
 
   it('migrates an older version forward', () => {

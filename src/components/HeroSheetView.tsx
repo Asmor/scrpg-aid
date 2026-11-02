@@ -197,7 +197,8 @@ function Roleplaying({ hero, sheet, advancement, interactive }: { hero: Hero; sh
       </div>
       <p className="record-strip">
         <span>
-          Hero points <strong className="screen-only">{hero.play?.heroPoints ?? 0}</strong>
+          {/* Play state lives in games, not on the sheet: on screen, say where to find it. */}
+          Hero points <span className="screen-only muted">tracked in Play</span>
           {/* On paper, a line to keep count on. */}
           <span className="print-only write-in" aria-hidden="true" />
         </span>

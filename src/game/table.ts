@@ -1,23 +1,23 @@
 /**
- * The game table's rules (docs/design/game-table/spec.md, sections 3–5 and 7). Pure: each change
+ * The game table's rules (docs/design/game-table/spec.md, sections 3–9). Pure: each change
  * takes the game and returns the new one, with a line in the table log where the table should
  * know. A line about something hidden is marked `gmOnly`.
  *
- * Heroes and villains are separate documents, so their names come from the caller (`Names`),
- * and a turn starting returns who started so the caller can clear that character's reaction.
+ * Heroes and villains on the table are copies in the game (./model.ts), so everything about
+ * them, names included, comes from the game itself, and the game's state changes directly: a
+ * turn starting clears that character's reaction, and the GM's edits change the game's copy.
  */
 import { stepDie } from '../rules/dice'
 import type { Die, Zone } from '../rules/types'
-import type { PlayMod } from '../hero/model'
-import { describeMod, modName, type Clock } from '../play/state'
+import { heroDisplayName, type Hero, type PlayHistoryEntry, type PlayMod, type PlayState } from '../hero/model'
+import { describeMod, modName, setReactionUsed, type Clock } from '../play/state'
 import { minionEffect, type MinionRoll } from '../play/minions'
 import { FEED_LIMIT } from '../session/types'
-import { MAX_BOXES, MAX_GROUP_SIZE, MAX_STEPS, trackerFromCounts, type ActorRef, type Challenge, type Game, type GameFeedEntry, type NpcGroup, type PlayersSee, type TrackerCounts } from './model'
+import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
+import { heroCopy, MAX_BOXES, MAX_GROUP_SIZE, MAX_STEPS, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type Game, type GameFeedEntry, type HeroInGame, type NpcGroup, type PlayersSee, type TrackerCounts, type VillainInGame } from './model'
+import { reconcile, reconcileVillain } from './reconcile'
 
 export const GM = 'GM'
-
-/** The names of heroes and villains on the table, from their own documents. */
-export type Names = (ref: ActorRef) => string
 
 const ZONE_NAME: Record<Zone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red' }
 
@@ -104,7 +104,8 @@ export function setupScene(game: Game, setup: { name: string; counts: TrackerCou
 /** Something the GM can hide: an opposition item or the environment. */
 export type ItemRef = { kind: 'villain' | 'group' | 'challenge' | 'environment'; id: string }
 
-const findVillain = (game: Game, id: string) => game.villains.find((v) => v.villainId === id)
+export const findHero = (game: Pick<Game, 'heroes'>, id: string) => game.heroes.find((h) => h.id === id)
+export const findVillain = (game: Pick<Game, 'villains'>, id: string) => game.villains.find((v) => v.id === id)
 const findGroup = (game: Game, id: string) => game.groups.find((g) => g.id === id)
 
 /** Whether an item is hidden (missing counts as hidden, so nothing about it is shown). */
@@ -123,17 +124,23 @@ export function isHidden(game: Game, ref: ItemRef | ActorRef): boolean {
   }
 }
 
-/** An item's or actor's name: a group's or the environment's from the game, others from `names`. */
-export function itemName(game: Game, ref: ItemRef | ActorRef, names: Names): string {
+/** An item's or actor's name. */
+export function itemName(game: Game, ref: ItemRef | ActorRef): string {
   switch (ref.kind) {
+    case 'hero': {
+      const hero = findHero(game, ref.id)
+      return hero ? heroDisplayName(hero.sheet) : 'A hero'
+    }
+    case 'villain': {
+      const villain = findVillain(game, ref.id)
+      return villain ? villainDisplayName(villain.sheet) : 'A villain'
+    }
     case 'group':
       return findGroup(game, ref.id)?.name ?? 'A group'
     case 'environment':
       return game.environment?.name ?? 'The environment'
     case 'challenge':
       return game.challenges.find((c) => c.id === ref.id)?.name ?? 'A challenge'
-    default:
-      return names(ref as ActorRef)
   }
 }
 
@@ -144,7 +151,7 @@ export const actorKey = (ref: ActorRef) => `${ref.kind}:${ref.id}`
 function allActors(game: Game): ActorRef[] {
   return [
     ...game.heroes.map((h) => ({ kind: 'hero' as const, id: h.id })),
-    ...game.villains.map((v) => ({ kind: 'villain' as const, id: v.villainId })),
+    ...game.villains.map((v) => ({ kind: 'villain' as const, id: v.id })),
     ...game.groups.map((g) => ({ kind: 'group' as const, id: g.id })),
     ...(game.environment ? [{ kind: 'environment' as const, id: game.environment.id }] : []),
   ]
@@ -164,16 +171,23 @@ export function syncTurnOrder(game: Game): Game {
   return { ...game, turn: { order, acted, ...(current ? { current } : {}) } }
 }
 
-export function addLocalHero(game: Game, heroId: string, name: string, clock: Clock): Game {
-  if (game.heroes.some((h) => h.source.kind === 'local' && h.source.heroId === heroId)) return game
-  const added = { ...game, heroes: [...game.heroes, { id: clock.newId(), source: { kind: 'local' as const, heroId } }] }
-  return log(syncTurnOrder(added), clock, `${name} joined the table.`)
+/** The game's copy of a library document, if it has one (one copy per game). */
+export function copyOf(game: Pick<Game, 'heroes' | 'villains'>, kind: 'hero' | 'villain', sourceId: string): HeroInGame | VillainInGame | undefined {
+  return kind === 'hero' ? game.heroes.find((h) => h.sourceId === sourceId) : game.villains.find((v) => v.sourceId === sourceId)
 }
 
-/** Brings in a villain (hidden unless said otherwise). */
-export function addVillain(game: Game, villainId: string, name: string, clock: Clock, hidden = true): Game {
-  if (findVillain(game, villainId)) return game
-  const added = { ...game, villains: [...game.villains, { villainId, hidden, playersSee: 'status' as const }] }
+/** Copies a hero into the game with fresh play state: one of the GM's own, or (Phase 2) a joining player's. */
+export function addHero(game: Game, hero: Hero, clock: Clock, player?: HeroInGame['player']): Game {
+  if (copyOf(game, 'hero', hero.id)) return game
+  const added = { ...game, heroes: [...game.heroes, heroCopy(hero, clock.newId(), player)] }
+  return log(syncTurnOrder(added), clock, `${heroDisplayName(hero)} joined the table.`)
+}
+
+/** Copies a villain into the game with fresh play state (hidden unless said otherwise). */
+export function addVillain(game: Game, villain: Villain, clock: Clock, hidden = true): Game {
+  if (copyOf(game, 'villain', villain.id)) return game
+  const name = villainDisplayName(villain)
+  const added = { ...game, villains: [...game.villains, villainCopy(villain, clock.newId(), hidden)] }
   return log(syncTurnOrder(added), clock, hidden ? `The GM brought in ${name}, hidden from players.` : `${name} joined the table.`, { gmOnly: hidden })
 }
 
@@ -205,18 +219,18 @@ export function setEnvironment(game: Game, environment: { name: string; hidden: 
 }
 
 /** Removes an item or a hero from the table (and from the turn order). */
-export function removeFromTable(game: Game, ref: ItemRef | ActorRef, names: Names, clock: Clock): Game {
-  const name = itemName(game, ref, names)
+export function removeFromTable(game: Game, ref: ItemRef | ActorRef, clock: Clock): Game {
+  const name = itemName(game, ref)
   const gmOnly = ref.kind !== 'hero' && isHidden(game, ref)
   let next: Game
   switch (ref.kind) {
     case 'hero':
       if (!game.heroes.some((h) => h.id === ref.id)) return game
-      next = { ...game, heroes: game.heroes.filter((h) => h.id !== ref.id) }
+      next = { ...game, heroes: game.heroes.filter((h) => h.id !== ref.id), pendingSyncs: game.pendingSyncs.filter((r) => r.heroId !== ref.id) }
       break
     case 'villain':
       if (!findVillain(game, ref.id)) return game
-      next = { ...game, villains: game.villains.filter((v) => v.villainId !== ref.id) }
+      next = { ...game, villains: game.villains.filter((v) => v.id !== ref.id) }
       break
     case 'group':
       if (!findGroup(game, ref.id)) return game
@@ -237,13 +251,13 @@ export function removeFromTable(game: Game, ref: ItemRef | ActorRef, names: Name
 }
 
 /** Reveals an item to players, or hides it again. */
-export function setHidden(game: Game, ref: ItemRef, hidden: boolean, names: Names, clock: Clock): Game {
+export function setHidden(game: Game, ref: ItemRef, hidden: boolean, clock: Clock): Game {
   if (isHidden(game, ref) === hidden) return game
   let next: Game
   switch (ref.kind) {
     case 'villain':
       if (!findVillain(game, ref.id)) return game
-      next = { ...game, villains: game.villains.map((v) => (v.villainId === ref.id ? { ...v, hidden } : v)) }
+      next = { ...game, villains: game.villains.map((v) => (v.id === ref.id ? { ...v, hidden } : v)) }
       break
     case 'group':
       if (!findGroup(game, ref.id)) return game
@@ -258,7 +272,7 @@ export function setHidden(game: Game, ref: ItemRef, hidden: boolean, names: Name
       next = { ...game, environment: { ...game.environment, hidden } }
       break
   }
-  const name = itemName(game, ref, names)
+  const name = itemName(game, ref)
   return log(syncTurnOrder(next), clock, hidden ? `The GM hid ${name} from players.` : `The GM revealed ${name}.`, { gmOnly: hidden })
 }
 
@@ -266,7 +280,78 @@ export function setHidden(game: Game, ref: ItemRef, hidden: boolean, names: Name
 export function setPlayersSee(game: Game, villainId: string, playersSee: PlayersSee): Game {
   const villain = findVillain(game, villainId)
   if (!villain || villain.playersSee === playersSee) return game
-  return { ...game, villains: game.villains.map((v) => (v.villainId === villainId ? { ...v, playersSee } : v)) }
+  return { ...game, villains: game.villains.map((v) => (v.id === villainId ? { ...v, playersSee } : v)) }
+}
+
+// ---- Heroes and villains in play ----
+
+/** Shares a character's new history entries to the log under its name. */
+function shareNew(game: Game, by: string, before: readonly PlayHistoryEntry[], after: readonly PlayHistoryEntry[], clock: Clock, gmOnly: boolean, text: (e: PlayHistoryEntry) => string = (e) => e.text): Game {
+  const known = new Set(before.map((e) => e.id))
+  const fresh = after.filter((e) => !known.has(e.id)).map((e) => ({ ...e, text: text(e) }))
+  return shareHistory(game, by, fresh, clock, gmOnly)
+}
+
+/**
+ * Changes a hero's play state in this game (`fn` gets the play state and the game's copy of the
+ * sheet), and logs its new history entries. `share: false` keeps them out of the log, and
+ * entries starting "GM: " (the GM's edits, ./hero-changes.ts) are logged without it.
+ */
+export function changeHeroPlay(game: Game, heroId: string, fn: (play: PlayState, sheet: Hero) => PlayState, clock: Clock, share = true): Game {
+  const hero = findHero(game, heroId)
+  if (!hero) return game
+  const play = fn(hero.play, hero.sheet)
+  if (play === hero.play) return game
+  const next = { ...game, heroes: game.heroes.map((h) => (h.id === heroId ? { ...h, play } : h)) }
+  return share ? shareNew(next, heroDisplayName(hero.sheet), hero.play.history, play.history, clock, false, (e) => e.text.replace(/^GM: /, '')) : next
+}
+
+/** Changes a villain's play state in this game, and logs its new history entries (only the GM's while it's hidden). */
+export function changeVillainPlay(game: Game, villainId: string, fn: (play: VillainPlayState, sheet: Villain) => VillainPlayState, clock: Clock, share = true): Game {
+  const villain = findVillain(game, villainId)
+  if (!villain) return game
+  const play = fn(villain.play, villain.sheet)
+  if (play === villain.play) return game
+  const next = { ...game, villains: game.villains.map((v) => (v.id === villainId ? { ...v, play } : v)) }
+  return share ? shareNew(next, villainDisplayName(villain.sheet), villain.play.history, play.history, clock, villain.hidden) : next
+}
+
+/**
+ * Gives a hero's or villain's copy a newer sheet (Update from library, section 9; an approved
+ * sync request, section 8; a solo game re-copying, section 12). Play state stays, subject to
+ * `reconcile`'s adjustments, which go in the character's history and the log. Only this game's
+ * copy changes.
+ */
+export function updateSheet(game: Game, ref: { kind: 'hero'; id: string; sheet: Hero } | { kind: 'villain'; id: string; sheet: Villain }, clock: Clock, why = 'from the library'): Game {
+  const at = clock.now.toISOString()
+  if (ref.kind === 'hero') {
+    const hero = findHero(game, ref.id)
+    if (!hero) return game
+    const { play, adjustments } = reconcile(hero.play, ref.sheet, hero.sheet)
+    const text = `The sheet was updated ${why}.`
+    const entry: PlayHistoryEntry = { id: clock.newId(), at, text, ...(adjustments.length ? { details: adjustments } : {}) }
+    const updated = { ...hero, sheet: structuredClone(ref.sheet), play: { ...play, history: [...play.history, entry] } }
+    const next = { ...game, heroes: game.heroes.map((h) => (h.id === ref.id ? updated : h)), pendingSyncs: game.pendingSyncs.filter((r) => r.heroId !== ref.id) }
+    return log(next, clock, `${heroDisplayName(ref.sheet)}: ${text}`, { details: adjustments })
+  }
+  const villain = findVillain(game, ref.id)
+  if (!villain) return game
+  const { play, adjustments } = reconcileVillain(villain.play, ref.sheet, villain.sheet)
+  const text = `The sheet was updated ${why}.`
+  const entry: PlayHistoryEntry = { id: clock.newId(), at, text, ...(adjustments.length ? { details: adjustments } : {}) }
+  const updated = { ...villain, sheet: structuredClone(ref.sheet), play: { ...play, history: [...play.history, entry] } }
+  return log({ ...game, villains: game.villains.map((v) => (v.id === ref.id ? updated : v)) }, clock, `${villainDisplayName(ref.sheet)}: ${text}`, { details: adjustments, gmOnly: villain.hidden })
+}
+
+/**
+ * A hero's play state with this game's scene zone, which raises their zone (p. 14; heroes only,
+ * ruling 64). A solo game has no tracker: the Play page's own scene control sets it.
+ */
+export function heroPlayInScene(game: Pick<Game, 'scene' | 'solo'>, play: PlayState): PlayState {
+  if (game.solo) return play
+  const zone = sceneZone(game)
+  const { sceneZone: _, ...rest } = play
+  return zone === 'green' ? rest : { ...rest, sceneZone: zone }
 }
 
 // ---- Groups and their members ----
@@ -370,58 +455,64 @@ export function turnStrip(game: Game): { ref: ActorRef; state: TurnState }[] {
   return [...acted.map((ref) => ({ ref, state: 'acted' as const })), ...current, ...waiting(game).map((ref) => ({ ref, state: 'waiting' as const }))]
 }
 
-/** A turn change: the new game, and whose turn started (the caller clears that character's reaction). */
-export interface TurnResult {
-  game: Game
-  started?: ActorRef
-}
-
-/** A turn starting: when it's the environment's, the scene tracker advances. */
+/**
+ * A turn starting: the actor's reaction is cleared (that character's only, not at round start),
+ * and when it's the environment's turn, the scene tracker advances.
+ */
 function startTurn(game: Game, ref: ActorRef, clock: Clock): Game {
-  return ref.kind === 'environment' ? advanceTracker(game, clock) : game
+  switch (ref.kind) {
+    case 'environment':
+      return advanceTracker(game, clock)
+    case 'hero':
+      return changeHeroPlay(game, ref.id, (p) => setReactionUsed(p, false, clock), clock, false)
+    case 'villain':
+      return changeVillainPlay(game, ref.id, (p) => setReactionUsed(p, false, clock), clock, false)
+    default:
+      return game
+  }
 }
 
 /** Whether the round is over: it has started and nobody is left to hand off to. */
 export const roundOver = (game: Game) => game.round > 0 && waiting(game).length === 0
 
 /** Whoever is acting hands off to someone who hasn't acted this round. */
-export function handOff(game: Game, to: ActorRef, names: Names, clock: Clock): TurnResult {
-  if (game.round === 0 || !waiting(game).some((w) => sameActor(w, to))) return { game }
+export function handOff(game: Game, to: ActorRef, clock: Clock): Game {
+  if (game.round === 0 || !waiting(game).some((w) => sameActor(w, to))) return game
   const from = game.turn.current
   const acted = from ? [...game.turn.acted, from] : game.turn.acted
   const next = { ...game, turn: { ...game.turn, acted, current: to } }
-  const toName = itemName(game, to, names)
-  const text = from ? `${itemName(game, from, names)} handed off to ${toName}.` : `${toName} is up.`
+  const toName = itemName(game, to)
+  const text = from ? `${itemName(game, from)} handed off to ${toName}.` : `${toName} is up.`
   const gmOnly = isHidden(game, to) || Boolean(from && isHidden(game, from))
-  return { game: startTurn(log(next, clock, text, { gmOnly }), to, clock), started: to }
+  return startTurn(log(next, clock, text, { gmOnly }), to, clock)
 }
 
 /** Starts the next round (or the first) with `first` acting: allowed before round 1 and once a round is over. */
-export function startRound(game: Game, first: ActorRef, names: Names, clock: Clock): TurnResult {
-  if (!(game.round === 0 || roundOver(game)) || !game.turn.order.some((o) => sameActor(o, first))) return { game }
+export function startRound(game: Game, first: ActorRef, clock: Clock): Game {
+  if (!(game.round === 0 || roundOver(game)) || !game.turn.order.some((o) => sameActor(o, first))) return game
   const round = game.round + 1
   const next = { ...game, round, turn: { ...game.turn, acted: [], current: first } }
   const gmOnly = isHidden(game, first)
   const lines = gmOnly
-    ? [line(clock, `Round ${round} started.`), line(clock, `${itemName(game, first, names)} goes first.`, { gmOnly: true })]
-    : [line(clock, `Round ${round} started. ${itemName(game, first, names)} goes first.`)]
-  return { game: startTurn(withLog(next, lines), first, clock), started: first }
+    ? [line(clock, `Round ${round} started.`), line(clock, `${itemName(game, first)} goes first.`, { gmOnly: true })]
+    : [line(clock, `Round ${round} started. ${itemName(game, first)} goes first.`)]
+  return startTurn(withLog(next, lines), first, clock)
 }
 
 // The GM fixing mistakes: no turn-start effects.
 
 /** Sets who's acting (or nobody). */
-export function setCurrent(game: Game, ref: ActorRef | undefined, names: Names, clock: Clock): Game {
+export function setCurrent(game: Game, ref: ActorRef | undefined, clock: Clock): Game {
   if (sameActor(ref, game.turn.current) || (!ref && !game.turn.current)) return game
   if (ref && !game.turn.order.some((o) => sameActor(o, ref))) return game
   const acted = ref ? game.turn.acted.filter((a) => !sameActor(a, ref)) : game.turn.acted
   const { current: _, ...turn } = game.turn
   const next = { ...game, turn: { ...turn, acted, ...(ref ? { current: ref } : {}) } }
-  return log(next, clock, ref ? `The GM set ${itemName(game, ref, names)} as acting now.` : 'The GM set nobody as acting now.', { gmOnly: Boolean(ref && isHidden(game, ref)) })
+  return log(next, clock, ref ? `The GM set ${itemName(game, ref)} as acting now.` : 'The GM set nobody as acting now.', { gmOnly: Boolean(ref && isHidden(game, ref)) })
 }
 
 /** Marks an actor as having acted this round, or not. */
-export function setActed(game: Game, ref: ActorRef, acted: boolean, names: Names, clock: Clock): Game {
+export function setActed(game: Game, ref: ActorRef, acted: boolean, clock: Clock): Game {
   if (!game.turn.order.some((o) => sameActor(o, ref))) return game
   const has = game.turn.acted.some((a) => sameActor(a, ref))
   if (has === acted) return game
@@ -431,7 +522,7 @@ export function setActed(game: Game, ref: ActorRef, acted: boolean, names: Names
     ...game,
     turn: { ...turn, acted: acted ? [...game.turn.acted, ref] : game.turn.acted.filter((a) => !sameActor(a, ref)), ...(game.turn.current && !(acted && isCurrent) ? { current: game.turn.current } : {}) },
   }
-  return log(next, clock, `The GM marked ${itemName(game, ref, names)} as ${acted ? 'acted' : 'not acted'} this round.`, { gmOnly: isHidden(game, ref) })
+  return log(next, clock, `The GM marked ${itemName(game, ref)} as ${acted ? 'acted' : 'not acted'} this round.`, { gmOnly: isHidden(game, ref) })
 }
 
 export function setRound(game: Game, round: number, clock: Clock): Game {

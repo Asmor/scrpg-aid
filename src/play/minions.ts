@@ -104,6 +104,19 @@ export function removeMinionMod(play: PlayState, id: string, modId: string, cloc
   return { ...play, minions: minionsOf(play).map((x) => (x.id === id ? { ...x, mods: x.mods.filter((y) => y.id !== modId) } : x)), history: [...play.history, entry(clock, `${m.name}: removed ${describeMod(mod)}.`)] }
 }
 
+/**
+ * Picks a minion form for a minion whose form left the hero's sheet (`needsForm`, set by a sheet
+ * update: ../game/reconcile.ts). A form that lets it take any basic action makes it Autonomous;
+ * otherwise it keeps the action it was made with.
+ */
+export function setMinionForm(play: PlayState, id: string, form: string, clock: Clock): PlayState {
+  const m = minionsOf(play).find((x) => x.id === id)
+  if (!m || (m.form === form && !m.needsForm)) return play
+  const action = takesAnyAction(form) ? 'any' : m.action
+  const { needsForm: _, ...rest } = m
+  return { ...play, minions: minionsOf(play).map((x) => (x.id === id ? { ...rest, form, action } : x)), history: [...play.history, entry(clock, `${m.name} is now ${form}.`)] }
+}
+
 /** A minion's roll: its die's value plus its checked mods. */
 export interface MinionRoll {
   action: BasicAction
@@ -128,7 +141,8 @@ export function minionEffect(roll: MinionRoll): string {
 /** Records a minion's roll and uses up the non-persistent mods it used (p. 26). */
 export function recordMinionRoll(play: PlayState, id: string, roll: MinionRoll, clock: Clock): PlayState {
   const m = minionsOf(play).find((x) => x.id === id)
-  if (!m) return play
+  // One waiting for a new form can't act.
+  if (!m || m.needsForm) return play
   const usedUp = roll.mods.filter((x) => !x.persistent)
   const details = [`${roll.value} (${m.die})`, minionEffect(roll), ...roll.mods.map((x) => `Applied ${describeMod(x)}.`)]
   return {

@@ -175,6 +175,14 @@ export function removeTwist<P extends PlayCore>(play: P, id: string, clock: Cloc
 }
 
 /**
+ * Start over (standalone Play, docs/design/game-table/spec.md section 12): fresh play state, so
+ * Health at max with no mods, twists, hero points, minions, form or mode, and an empty history.
+ */
+export function startOver(): PlayState {
+  return emptyPlay()
+}
+
+/**
  * A fresh start for a new issue: full Health, no mods, twists, or hero points; the history
  * keeps a marker. The hero stays in the form or mode they're in.
  */

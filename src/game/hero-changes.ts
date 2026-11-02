@@ -1,9 +1,8 @@
 /**
- * The GM's changes to a hero at the table (docs/design/game-table/spec.md, section 4, "The GM's
- * ⋯ on a hero card"). The same changes go to a player's device as requests once games are hosted
- * (Phase 2); for a hero from the GM's own library the GM's device applies them directly. Each
- * change is recorded in the hero's history, marked as the GM's ("GM: Lost 4 HP (18 → 14).").
- * A turn starting clears the hero's reaction, which isn't marked: it's the table's doing.
+ * The GM's changes to a hero at the table (docs/design/game-table/spec.md, section 5, "The GM's
+ * ⋯ on a hero card"). They change the game's copy directly (./table.ts changeHeroPlay), and the
+ * player sees the result like any other change. Each one goes in the hero's history marked as
+ * the GM's ("GM: Lost 4 HP (18 → 14)."); a mod already says it's from the GM.
  */
 import type { HeroSheet } from '../creation/sheet'
 import type { PlayMod, PlayState, PlayTwist } from '../hero/model'
@@ -14,10 +13,8 @@ export type HeroChange =
   | { kind: 'mod'; mod: Omit<PlayMod, 'id'> }
   | { kind: 'twist'; twist: Omit<PlayTwist, 'id'> }
   | { kind: 'reaction'; used: boolean }
-  /** A turn starting. */
-  | { kind: 'clearReaction' }
 
-/** Applies the change, marking its new history entries as the GM's (except a turn start's). */
+/** Applies the change, marking its new history entries as the GM's. */
 export function applyHeroChange(play: PlayState, sheet: Pick<HeroSheet, 'healthRanges' | 'maxHealth'>, change: HeroChange, clock: Clock): PlayState {
   const next = (() => {
     switch (change.kind) {
@@ -29,11 +26,9 @@ export function applyHeroChange(play: PlayState, sheet: Pick<HeroSheet, 'healthR
         return addTwist(play, change.twist, clock)
       case 'reaction':
         return setReactionUsed(play, change.used, clock)
-      case 'clearReaction':
-        return setReactionUsed(play, false, clock)
     }
   })()
-  if (change.kind === 'clearReaction' || change.kind === 'mod') return next
+  if (change.kind === 'mod') return next
   const before = play.history.length
   return { ...next, history: next.history.map((e, i) => (i < before ? e : { ...e, text: `GM: ${e.text}` })) }
 }

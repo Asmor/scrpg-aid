@@ -11,13 +11,15 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { MemoryVillainStore } from '../villain/store'
 import { GamePage } from './GamePage'
-import { createGame, type Game } from './model'
+import type { Hero } from '../hero/model'
+import type { Villain } from '../villain/model'
+import { createGame, villainCopy, type Game } from './model'
 import { MemoryGameStore } from './store'
 
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
 
-async function setup(change: (g: Game) => void = () => {}) {
+async function setup(change: (g: Game, docs: { hero: Hero; villain: Villain }) => void = () => {}) {
   const games = new MemoryGameStore()
   const heroes = new MemoryHeroStore()
   const villains = new MemoryVillainStore()
@@ -25,15 +27,13 @@ async function setup(change: (g: Game) => void = () => {}) {
   const hero = completeHero()
   hero.details.name = 'Maya Reyes'
   hero.tags = ['scene-3']
-  hero.play = { heroPoints: 0, reactionUsed: true, mods: [], twists: [], history: [] }
   await heroes.save(hero)
   const villain = adaptiveBruiser()
   villain.tags = ['scene-3']
-  villain.play = { reactionUsed: true, mods: [], twists: [], history: [] }
   await villains.save(villain)
   await searches.save(createSavedSearch('Scene 3', { text: '', types: [], tags: ['scene-3'] }, { id: 's1' }))
   const game = createGame({ id: 'g1', name: 'Thursday game' })
-  change(game)
+  change(game, { hero, villain })
   await games.save(game)
   render(
     <StoreContext.Provider value={heroes}>
@@ -52,17 +52,20 @@ async function setup(change: (g: Game) => void = () => {}) {
     if (r.status !== 'found') throw new Error('no game')
     return r.game
   }
-  const savedHero = async () => {
-    const r = await heroes.get('h')
-    if (r.status !== 'found') throw new Error('no hero')
-    return r.hero
-  }
-  const savedVillain = async () => {
+  // The game's copies, where play state lives.
+  const savedHero = async () => (await saved()).heroes[0]!
+  const savedVillain = async () => (await saved()).villains[0]!
+  const libraryVillain = async () => {
     const r = await villains.get('v1')
     if (r.status !== 'found') throw new Error('no villain')
     return r.villain
   }
-  return { saved, savedHero, savedVillain }
+  const libraryHero = async () => {
+    const r = await heroes.get(hero.id)
+    if (r.status !== 'found') throw new Error('no hero')
+    return r.hero
+  }
+  return { saved, savedHero, savedVillain, libraryHero, libraryVillain }
 }
 
 const gmScreen = () => within(screen.getByRole('complementary', { name: 'GM screen' }))
@@ -133,18 +136,23 @@ describe('the game table', () => {
     await userEvent.click(within(villain).getByRole('button', { name: 'Reveal' }))
     expect(turns().getByRole('list', { name: 'Turn order this round' })).toHaveTextContent('Ironclad')
     expect(log()).toHaveTextContent('The GM revealed Ironclad.')
-    await waitFor(async () => expect((await saved()).villains).toEqual([{ villainId: 'v1', hidden: false, playersSee: 'status' }]))
+    // Both are copies in the game, at fresh play state.
+    await waitFor(async () => expect((await saved()).villains).toMatchObject([{ sourceId: 'v1', hidden: false, playersSee: 'status', play: { reactionUsed: false, mods: [], twists: [], history: [] } }]))
+    expect((await saved()).heroes).toMatchObject([{ sourceId: expect.any(String), sheet: { details: { name: 'Maya Reyes' } }, play: { heroPoints: 0, reactionUsed: false } }])
   })
 
-  it('shows a hero from the library with its Health and zone, and gives it the scene zone', async () => {
-    const { savedHero } = await setup((g) => {
+  it('shows a hero’s copy with its Health, and the scene zone raises its zone', async () => {
+    const { savedHero, libraryHero } = await setup((g) => {
       g.scene.position = 4
     })
     await bringIn('Maya Reyes')
     const card = screen.getByRole('article', { name: 'Maya Reyes' })
+    expect(card).toHaveTextContent('Your hero')
     await waitFor(() => expect(card).toHaveTextContent('Yellow'))
-    expect(card).toHaveTextContent('Reaction used')
-    await waitFor(async () => expect((await savedHero()).play?.sceneZone).toBe('yellow'))
+    expect(card).toHaveTextContent(/30 \/ 30/)
+    // The game's state isn't written into the hero: the library document is a sheet.
+    await waitFor(async () => expect((await savedHero()).play.health).toBeUndefined())
+    expect(await libraryHero()).not.toHaveProperty('play')
   })
 
   it('runs turns: hands off, clears only the new actor’s reaction, and the environment advances the tracker', async () => {
@@ -158,20 +166,25 @@ describe('the game table', () => {
     await userEvent.click(envDialog.getByLabelText('Hidden from players until revealed'))
     await userEvent.click(envDialog.getByRole('button', { name: 'Set environment' }))
     expect(screen.getByText('Environment: Collapsing Foundry')).toBeInTheDocument()
+    // Both have used their reactions.
+    await menuItem('GM actions for Maya Reyes', 'Mark reaction used')
+    await userEvent.click(screen.getByRole('button', { name: 'Run Ironclad' }))
+    await userEvent.click(within(screen.getByRole('region', { name: 'Ironclad' })).getByLabelText('Reaction used this round'))
+    await waitFor(async () => expect((await savedVillain()).play.reactionUsed).toBe(true))
 
     await menuItem('Start round 1', 'Ironclad')
     expect(turns().getByRole('heading')).toHaveTextContent('Round 1')
     expect(turns().getByRole('list')).toHaveTextContent('Ironcladacting now')
     // The villain's reaction is ready again; the hero's isn't (it's not their turn yet).
-    await waitFor(async () => expect((await savedVillain()).play?.reactionUsed).toBe(false))
-    expect((await savedHero()).play?.reactionUsed).toBe(true)
+    await waitFor(async () => expect((await savedVillain()).play.reactionUsed).toBe(false))
+    expect((await savedHero()).play.reactionUsed).toBe(true)
 
     await userEvent.click(turns().getByRole('button', { name: 'Hand off for Ironclad' }))
     expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Maya Reyes', 'Collapsing Foundry'])
     await userEvent.click(screen.getByRole('menuitem', { name: 'Maya Reyes' }))
     expect(log()).toHaveTextContent('Ironclad handed off to Maya Reyes.')
     expect(screen.getByRole('status')).toHaveTextContent('Ironclad handed off to Maya Reyes.')
-    await waitFor(async () => expect((await savedHero()).play?.reactionUsed).toBe(false))
+    await waitFor(async () => expect((await savedHero()).play.reactionUsed).toBe(false))
 
     await menuItem('Hand off for Maya Reyes', 'Collapsing Foundry')
     expect(screen.getByRole('button', { name: 'Green 2, current' })).toBeInTheDocument()
@@ -236,16 +249,18 @@ describe('the game table', () => {
     expect(card).toHaveTextContent('1 of 3 done')
   })
 
-  it('runs a villain: Health, and its history goes to the log', async () => {
-    const { savedVillain } = await setup()
+  it('runs a villain: Health on its copy, and its history goes to the log', async () => {
+    const { savedVillain, libraryVillain } = await setup()
     await bringIn('Ironclad')
     await userEvent.click(screen.getByRole('button', { name: 'Run Ironclad' }))
     const running = within(screen.getByRole('region', { name: 'Ironclad' }))
     await userEvent.click(running.getByRole('button', { name: 'Lose 1 Health' }))
     expect(screen.getByRole('article', { name: 'Ironclad' })).toHaveTextContent('54 / 55')
     expect(log()).toHaveTextContent('Ironclad: Lost 1 HP (55 → 54).')
-    await waitFor(async () => expect((await savedVillain()).play?.health).toBe(54))
-    expect(running.getByRole('link', { name: 'Open full villain page' })).toHaveAttribute('href', '#/villain/v1/play')
+    await waitFor(async () => expect((await savedVillain()).play.health).toBe(54))
+    // Damage stays in this game.
+    expect(await libraryVillain()).not.toHaveProperty('play')
+    expect(running.getByRole('link', { name: "Open this villain's sheet" })).toHaveAttribute('href', '#/villain/v1')
   })
 
   it('sets what players see of a revealed villain', async () => {
@@ -259,7 +274,7 @@ describe('the game table', () => {
     await waitFor(async () => expect((await saved()).villains[0]!.playersSee).toBe('name'))
   })
 
-  it('makes the GM’s hero changes on the hero, marked as the GM’s', async () => {
+  it('makes the GM’s hero changes on the game’s copy, marked as the GM’s', async () => {
     const { savedHero } = await setup()
     await bringIn('Maya Reyes')
     await menuItem('GM actions for Maya Reyes', 'Change Health…')
@@ -268,11 +283,51 @@ describe('the game table', () => {
     await userEvent.clear(field)
     await userEvent.type(field, '10')
     await userEvent.click(dialog.getByRole('button', { name: 'Change Health' }))
-    await waitFor(async () => expect((await savedHero()).play?.health).toBe(10))
-    expect((await savedHero()).play?.history.at(-1)?.text).toMatch(/^GM: Lost \d+ HP/)
+    await waitFor(async () => expect((await savedHero()).play.health).toBe(10))
+    expect((await savedHero()).play.history.at(-1)?.text).toMatch(/^GM: Lost \d+ HP/)
     expect(log()).toHaveTextContent('Maya Reyes: Lost')
-    await menuItem('GM actions for Maya Reyes', 'Mark reaction unused')
-    await waitFor(async () => expect((await savedHero()).play?.reactionUsed).toBe(false))
+    expect(screen.getByRole('article', { name: 'Maya Reyes' })).toHaveTextContent(/10 \/ 30/)
+    await menuItem('GM actions for Maya Reyes', 'Mark reaction used')
+    await waitFor(async () => expect((await savedHero()).play.reactionUsed).toBe(true))
+    expect(screen.getByRole('article', { name: 'Maya Reyes' })).toHaveTextContent('Reaction used')
+    await menuItem('GM actions for Maya Reyes', 'Give a bonus or penalty…')
+    expect(screen.getByRole('dialog', { name: 'Give Maya Reyes a bonus or penalty' })).toBeInTheDocument()
+  })
+
+  it('updates a villain from the library: the menu says it changed, the dialog shows the diff and adjustments, and only this copy changes', async () => {
+    const { savedVillain, libraryVillain } = await setup((g, { villain }) => {
+      // The game's copy is older: built for 5 heroes (60 Health), and down to 58.
+      const old = { ...structuredClone(villain), heroCount: 5 }
+      old.details.name = 'Ironclad'
+      g.villains = [{ ...villainCopy(old, 'cv', false), play: { reactionUsed: false, mods: [{ id: 'm', label: 'cornered', value: -1 }], twists: [], history: [], health: 58 } }]
+      g.turn.order = [{ kind: 'villain', id: 'cv' }]
+    })
+    const card = screen.getByRole('article', { name: 'Ironclad' })
+    await userEvent.click(within(card).getByRole('button', { name: 'More for Ironclad' }))
+    expect(await screen.findByText(/^Library sheet changed /)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Update from library…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Update Ironclad from your library?' }))
+    expect(dialog.getByText('Max Health 60 → 55')).toBeInTheDocument()
+    expect(dialog.getByText('Health lowered to 55, the new max.')).toBeInTheDocument()
+    expect(dialog.getByText("Only this game's Ironclad changes. Other games keep their own copy.")).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Update' }))
+    await waitFor(async () => expect((await savedVillain()).sheet.heroCount).toBe(4))
+    expect((await savedVillain()).play).toMatchObject({ health: 55, mods: [{ label: 'cornered' }] })
+    expect(log()).toHaveTextContent('Ironclad: The sheet was updated from the library.')
+    expect(await libraryVillain()).toMatchObject({ heroCount: 4 })
+    // Now it matches, so the menu no longer offers it.
+    await userEvent.click(within(card).getByRole('button', { name: 'More for Ironclad' }))
+    expect(screen.queryByRole('menuitem', { name: 'Update from library…' })).not.toBeInTheDocument()
+  })
+
+  it('offers Update in Bring in for a villain whose library sheet changed', async () => {
+    await setup((g, { villain }) => {
+      g.villains = [villainCopy({ ...structuredClone(villain), heroCount: 5 }, 'cv', true)]
+    })
+    const list = await gmScreen().findByRole('list', { name: 'Library' })
+    await waitFor(() => expect(list).toHaveTextContent('IroncladVillainscene-3Library changed'))
+    await userEvent.click(within(list).getByRole('button', { name: 'Update Ironclad from your library' }))
+    expect(screen.getByRole('dialog', { name: 'Update Ironclad from your library?' })).toBeInTheDocument()
   })
 
   it('removes a hero from the game after asking', async () => {

@@ -23,11 +23,4 @@ describe('the GM’s changes to a hero', () => {
     expect(play.mods).toMatchObject([{ label: 'Tailwind', value: 2 }])
     expect(play.history.at(-1)!.text).toBe("Gained '+2 Tailwind' bonus from the GM.")
   })
-
-  it('clears the reaction when a turn starts, unmarked', () => {
-    const play = applyHeroChange({ ...emptyPlay(), reactionUsed: true }, sheet, { kind: 'clearReaction' }, clock)
-    expect(play.reactionUsed).toBe(false)
-    expect(play.history.at(-1)!.text).toBe('Reaction ready again.')
-    expect(applyHeroChange(play, sheet, { kind: 'clearReaction' }, clock)).toBe(play)
-  })
 })

@@ -5,7 +5,10 @@ import App from '../App'
 import { exampleHero } from '../hero/example'
 import { createHero, type Hero } from '../hero/model'
 import { MemoryHeroStore } from '../hero/store'
-import { emptyPlay } from '../play/state'
+import { createGame, type Game } from '../game/model'
+import { createSoloGame } from '../game/solo'
+import { MemoryGameStore } from '../game/store'
+import { addHero, addVillain } from '../game/table'
 import { newSession } from '../session/gm'
 import { localSessionStore, memoryStorage } from '../session/storage'
 import { fakeNetwork } from '../session/transport'
@@ -36,33 +39,38 @@ interface Setup {
   backupAt?: string
   storage?: ReturnType<typeof memoryStorage>
   searches?: SavedSearch[]
+  games?: Game[]
 }
 
-async function setup({ heroes = [], villains = [], hash = '#/', backupAt, storage = memoryStorage(), searches = [] }: Setup = {}) {
+async function setup({ heroes = [], villains = [], hash = '#/', backupAt, storage = memoryStorage(), searches = [], games = [] }: Setup = {}) {
   const heroStore = new MemoryHeroStore()
   const villainStore = new MemoryVillainStore()
+  const gameStore = new MemoryGameStore()
   const searchStore = new MemorySavedSearchStore()
   for (const h of heroes) await heroStore.save(h)
   for (const v of villains) await villainStore.save(v)
+  for (const g of games) await gameStore.save(g)
   for (const search of searches) await searchStore.save(search)
   const backupStorage = memoryStorage()
   const backupTime = localBackupTime(backupStorage)
   if (backupAt) backupTime.save(backupAt)
   window.location.hash = hash
-  render(<App store={heroStore} villainStore={villainStore} searchStore={searchStore} backupTime={backupTime} connect={fakeNetwork().connect} sessionStore={localSessionStore(storage)} />)
-  return { heroStore, villainStore, searchStore, backupStorage }
+  render(<App store={heroStore} villainStore={villainStore} gameStore={gameStore} searchStore={searchStore} backupTime={backupTime} connect={fakeNetwork().connect} sessionStore={localSessionStore(storage)} />)
+  return { heroStore, villainStore, gameStore, searchStore, backupStorage }
 }
 
-/** The standard library: two heroes, a draft, and two villains, with tags. */
-async function standard(options: Omit<Setup, 'heroes' | 'villains'> = {}) {
+/** The standard library: two heroes, a draft, and two villains, with tags; Maya and Gravelord are in Thursday game (and Maya has a solo game). */
+async function standard(options: Omit<Setup, 'heroes' | 'villains' | 'games'> = {}) {
   const gravelord = { ...adaptiveBruiser(), id: 'g', tags: ['thursday-game', 'scene-3'], updatedAt: ago(0.1) }
   gravelord.details.name = 'Gravelord'
   const rust = { ...adaptiveBruiser(), id: 'r', tags: ['scene-3', 'prep'], updatedAt: ago(3) }
   rust.details.name = 'Rust Hound'
   const draft: Hero = { ...createHero('guided', { id: 'd' }), status: 'draft', furthestStep: 2, updatedAt: ago(2) }
   const maya = hero('maya', 'Maya Reyes', ['thursday-game'], 1)
-  maya.play = { ...emptyPlay(), health: 18 }
-  return setup({ ...options, heroes: [maya, hero('para', 'Paradigm', [], 10), draft], villains: [gravelord, rust] })
+  const clock = { now: new Date(), newId: () => Math.random().toString(36).slice(2) }
+  let thursday = { ...createGame({ id: 'thu' }), name: 'Thursday game' }
+  thursday = addVillain(addHero(thursday, maya, clock), gravelord, clock)
+  return setup({ ...options, heroes: [maya, hero('para', 'Paradigm', [], 10), draft], villains: [gravelord, rust], games: [thursday, createSoloGame('hero', maya, clock)] })
 }
 
 const table = () => screen.getByRole('table', { name: 'Library' })
@@ -91,8 +99,12 @@ describe('the library table', () => {
 
     const maya = row('Maya Reyes')
     expect(maya.getByText('Speedster · Accident')).toBeInTheDocument()
-    expect(maya.getByText(/^(Green|Yellow|Red)$/)).toHaveClass('zone-chip')
-    expect(maya.getByText(/^18 \/ \d+$/)).toBeInTheDocument()
+    // Rows show nothing from play: In games lists the games holding a copy, not solo games.
+    expect(maya.queryByText(/^(Green|Yellow|Red)$/)).not.toBeInTheDocument()
+    expect(maya.getByRole('link', { name: 'Thursday game' })).toHaveAttribute('href', '#/game/thu')
+    expect(row('Gravelord').getByRole('link', { name: 'Thursday game' })).toBeInTheDocument()
+    expect(row('Paradigm').getByText('—')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'In games' })).toBeInTheDocument()
     expect(maya.getByRole('link', { name: 'Play Maya Reyes' })).toHaveAttribute('href', '#/hero/maya/play')
     expect(maya.getByText('Yesterday')).toBeInTheDocument()
 
@@ -105,6 +117,15 @@ describe('the library table', () => {
 
     expect(row('Gravelord').getByText('Adaptive Bruiser · Minor')).toBeInTheDocument()
     expect(row('Gravelord').getByRole('link', { name: 'Gravelord' })).toHaveAttribute('href', '#/villain/g')
+  })
+
+  it('has Library | Games tabs, Games with its count of games (not solo games)', async () => {
+    await standard()
+    await loaded()
+    const tabs = within(screen.getByRole('navigation', { name: 'Sections' }))
+    expect(tabs.getByRole('link', { name: 'Library' })).toHaveAttribute('aria-current', 'page')
+    await waitFor(() => expect(tabs.getByRole('link', { name: /^Games/ })).toHaveTextContent('Games1'))
+    expect(tabs.getByRole('link', { name: /^Games/ })).toHaveAttribute('href', '#/games')
   })
 
   it('sorts by Name, Type and Changed, with aria-sort', async () => {
@@ -137,7 +158,6 @@ describe('the library table', () => {
     expect(await within(table()).findByRole('link', { name: 'Maya Reyes (copy)' })).toBeInTheDocument()
     const copy = (await heroStore.list()).heroes.find((h) => h.details.name === 'Maya Reyes (copy)')!
     expect(copy.tags).toEqual(['thursday-game'])
-    expect(copy.play).toBeUndefined()
 
     await userEvent.click(row('Maya Reyes').getByRole('button', { name: 'More actions for Maya Reyes' }))
     await userEvent.click(screen.getByRole('menuitem', { name: 'Export' }))
@@ -405,7 +425,8 @@ describe('the header', () => {
     await userEvent.click(menu.getByRole('menuitem', { name: 'Back up everything' }))
     const [name, text] = vi.mocked(downloadFile).mock.calls[0]!
     expect(name).toMatch(/^scrpg-aid-backup-/)
-    expect(readImport(text as string)).toMatchObject({ ok: true, heroes: [{}, {}, {}], villains: [{}, {}] })
+    // Games go in too, but not solo games, which belong to their characters' Play pages.
+    expect(readImport(text as string)).toMatchObject({ ok: true, heroes: [{}, {}, {}], villains: [{}, {}], games: [{ id: 'thu' }] })
     expect(backupStorage.getItem('scrpg.library.lastBackupAt')).not.toBeNull()
     expect(screen.getByRole('button', { name: 'Data' })).toBeInTheDocument()
   })
@@ -472,7 +493,7 @@ describe('the empty library', () => {
     await loaded()
     await userEvent.click(screen.getByRole('button', { name: 'New' }))
     const menu = within(screen.getByRole('menu', { name: 'New' }))
-    expect(menu.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Hero', 'Villain', 'Game'])
+    expect(menu.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Hero', 'Villain'])
     await userEvent.click(menu.getByRole('menuitem', { name: 'Hero' }))
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/hero\/[^/]+\/edit\/start$/))
   })

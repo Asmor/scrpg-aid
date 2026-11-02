@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { PlayState } from '../hero/model'
+import { PlayProviders } from '../test/play'
+import { playStores, savedHero, seedHero, type HeroWithPlay, type PlayStores } from '../test/play-stores'
 import { describe, expect, it, vi } from 'vitest'
-import { StoreContext } from '../app/store-context'
-import type { Hero } from '../hero/model'
-import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { completeHero, dividedHero } from '../test/heroes'
 import { readable } from '../test/readable'
 import { PlayPage } from '../components/HeroPage'
@@ -12,29 +12,25 @@ let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
 
 // completeHero, rolling the top of every die: Speed d12 12, Fitness d10 10, Green status d8 8.
-async function setup(change: (h: Hero) => void = () => {}) {
-  const store = new MemoryHeroStore()
+async function setup(change: (h: HeroWithPlay) => void = () => {}) {
+  const store = playStores()
   const hero = { ...completeHero(), id: 'h1' }
   change(hero)
-  await store.save(hero)
+  await seedHero(store, hero)
   render(
-    <StoreContext.Provider value={store}>
+    <PlayProviders stores={store}>
       <PlayPage id="h1" clock={clock} random={() => 0.999} />
-    </StoreContext.Provider>,
+    </PlayProviders>,
   )
   await screen.findByRole('region', { name: 'Actions' })
   return store
 }
 
-const saved = async (store: HeroStore) => {
-  const r = await store.get('h1')
-  if (r.status !== 'found') throw new Error('not saved')
-  return r.hero
-}
+const saved = (store: PlayStores) => savedHero(store, 'h1')
 const abilities = () => within(screen.getByRole('region', { name: 'Actions' }))
 /** An ability's row in its band. */
 const row = (name: string) => abilities().getByText(name, { selector: 'strong' }).closest('li')!
-const play = (h: Partial<NonNullable<Hero['play']>>) => (hero: Hero) => {
+const play = (h: Partial<PlayState>) => (hero: HeroWithPlay) => {
   hero.play = { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [], ...h }
 }
 

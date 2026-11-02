@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import { StoreContext } from '../app/store-context'
 import { VillainStoreContext } from '../app/villain-store-context'
+import { GameStoreContext } from '../app/game-store-context'
+import { MemoryGameStore } from '../game/store'
 import { HeroPage } from '../components/HeroPage'
 import { exampleHero } from '../hero/example'
 import { MemoryHeroStore } from '../hero/store'
@@ -17,15 +19,18 @@ afterEach(() => {
 async function stores() {
   const heroes = new MemoryHeroStore()
   const villains = new MemoryVillainStore()
+  const games = new MemoryGameStore()
   await heroes.save({ ...exampleHero({ id: 'maya' }), tags: ['thursday-game'] })
   await villains.save({ ...adaptiveBruiser(), tags: ['Scene-3'] })
-  return { heroes, villains }
+  return { heroes, villains, games }
 }
 
 const wrap = (s: Awaited<ReturnType<typeof stores>>, ui: React.ReactNode) =>
   render(
     <StoreContext.Provider value={s.heroes}>
-      <VillainStoreContext.Provider value={s.villains}>{ui}</VillainStoreContext.Provider>
+      <VillainStoreContext.Provider value={s.villains}>
+        <GameStoreContext.Provider value={s.games}>{ui}</GameStoreContext.Provider>
+      </VillainStoreContext.Provider>
     </StoreContext.Provider>,
   )
 
@@ -51,7 +56,7 @@ describe('tags on a hero’s sheet', () => {
     await waitFor(() => expect(window.location.hash).toBe('#/?tag=thursday-game'))
     unmount()
     wrap(s, <HeroPage id="maya" mode="play" />)
-    await screen.findByRole('button', { name: 'New issue…' })
+    await screen.findByText('Solo play')
     expect(screen.queryByRole('group', { name: 'Tags' })).not.toBeInTheDocument()
   })
 })

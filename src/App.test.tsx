@@ -37,7 +37,7 @@ describe('App', () => {
     // Sheet and Play are one page: switching doesn't load the hero again.
     const get = vi.spyOn(store, 'get')
     go('#/hero/maya/play')
-    expect(await screen.findByRole('button', { name: 'New issue…' })).toBeInTheDocument()
+    expect(await screen.findByText('Solo play')).toBeInTheDocument()
     go('#/hero/maya')
     expect(await screen.findByRole('heading', { name: 'Roleplaying' })).toBeInTheDocument()
     expect(get).not.toHaveBeenCalled()

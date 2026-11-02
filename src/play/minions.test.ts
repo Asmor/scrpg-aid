@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyPlay } from './state'
-import { addMinion, addMinionMod, minionAction, minionCreation, minionEffect, minionMath, minionSize, removeMinionMod, shrinkMinion, recordMinionRoll, takesAnyAction } from './minions'
+import { addMinion, addMinionMod, minionAction, minionCreation, minionEffect, minionMath, minionSize, removeMinionMod, setMinionForm, shrinkMinion, recordMinionRoll, takesAnyAction } from './minions'
 import { rollChange, undoRoll } from './roll'
 
 let n = 0
@@ -76,5 +76,19 @@ describe('minions in play', () => {
 
   it('never makes a negative effect (ruling 61)', () => {
     expect(minionEffect({ action: 'attack', value: 1, mods: [{ id: 'p', label: 'x', value: -3 }] })).toBe('Deal 0 (single die, with -3, rolled -2) damage.')
+  })
+
+  it('picks a new form for a minion whose form left the sheet; until then it can’t act', () => {
+    const waiting = { ...emptyPlay(), minions: [{ id: 'm', name: 'Drone', die: 'd8' as const, action: 'attack' as const, form: 'Explosive', mods: [], needsForm: true as const }] }
+    const roll = { action: 'attack' as const, value: 5, mods: [] }
+    expect(recordMinionRoll(waiting, 'm', roll, clock())).toBe(waiting)
+    const picked = setMinionForm(waiting, 'm', 'Reinforced', clock())
+    expect(picked.minions![0]).toEqual({ id: 'm', name: 'Drone', die: 'd8', action: 'attack', form: 'Reinforced', mods: [] })
+    expect(picked.history.at(-1)?.text).toBe('Drone is now Reinforced.')
+    expect(recordMinionRoll(picked, 'm', roll, clock())).not.toBe(picked)
+    // A form that takes any action makes it Autonomous.
+    expect(setMinionForm(waiting, 'm', 'Autonomous', clock()).minions![0]!.action).toBe('any')
+    expect(setMinionForm(picked, 'm', 'Reinforced', clock())).toBe(picked)
+    expect(setMinionForm(picked, 'nope', 'Reinforced', clock())).toBe(picked)
   })
 })

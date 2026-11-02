@@ -1,50 +1,45 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { PlayProviders } from '../test/play'
+import { playStores, savedHero, seedHero, type HeroWithPlay, type PlayStores } from '../test/play-stores'
 import { describe, expect, it } from 'vitest'
-import { StoreContext } from '../app/store-context'
 import { PlayPage } from '../components/HeroPage'
-import type { Hero } from '../hero/model'
-import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { completeHero, minionMakerHero, P } from '../test/heroes'
 
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
 
 /** The Minion-Maker test hero with Make Minion and Power Up, rolling the top of every die. */
-async function setup(change: (h: Hero) => void = () => {}) {
-  const store = new MemoryHeroStore()
+async function setup(change: (h: HeroWithPlay) => void = () => {}) {
+  const store = playStores()
   const hero = { ...minionMakerHero(), id: 'h1' }
   hero.archetype!.abilities = [
     { source: 'archetype.fixedGreen', name: 'Make Minion', uses: [P('fire')] },
     { source: 'archetype.fixedGreen', name: 'Power Up', uses: [P('fire')] },
   ]
   change(hero)
-  await store.save(hero)
+  await seedHero(store, hero)
   render(
-    <StoreContext.Provider value={store}>
+    <PlayProviders stores={store}>
       <PlayPage id="h1" clock={clock} random={() => 0.999} />
-    </StoreContext.Provider>,
+    </PlayProviders>,
   )
   await screen.findByRole('region', { name: 'Your minions' })
   return store
 }
 
-const saved = async (store: HeroStore) => {
-  const r = await store.get('h1')
-  if (r.status !== 'found') throw new Error('not saved')
-  return r.hero
-}
+const saved = (store: PlayStores) => savedHero(store, 'h1')
 const panel = () => within(screen.getByRole('region', { name: 'Your minions' }))
 const minion = (name: string) => within(panel().getByText(name, { selector: 'strong' }).closest('li')!)
 
 describe('Your minions', () => {
   it('shows only for a Minion-Maker', async () => {
-    const store = new MemoryHeroStore()
-    await store.save({ ...completeHero(), id: 'h2' })
+    const store = playStores()
+    await seedHero(store, { ...completeHero(), id: 'h2' })
     render(
-      <StoreContext.Provider value={store}>
+      <PlayProviders stores={store}>
         <PlayPage id="h2" clock={clock} />
-      </StoreContext.Provider>,
+      </PlayProviders>,
     )
     await screen.findByRole('region', { name: 'Actions' })
     expect(screen.queryByRole('region', { name: 'Your minions' })).not.toBeInTheDocument()
@@ -93,7 +88,10 @@ describe('Your minions', () => {
     await userEvent.click(minion('Bolt').getByRole('button', { name: 'Cancel' }))
     await userEvent.click(minion('Bolt').getByRole('button', { name: 'Shrink Bolt' }))
     await waitFor(async () => expect((await saved(store)).play?.minions).toEqual([]))
-    expect(screen.getByRole('region', { name: 'History' })).toHaveTextContent('Shrank away: Bolt (d4).')
+    // The entry is "Shrank away: Bolt (d4).", with the die shown as its icon.
+    const entry = within(screen.getByRole('region', { name: 'History' })).getByText(/^Shrank away: Bolt/).closest('li')!
+    expect(entry).toHaveTextContent('Shrank away: Bolt ().')
+    expect(within(entry).getByRole('img', { name: 'd4' })).toBeInTheDocument()
   })
 
   it('makes a minion with Make Minion, sized from the Mid die (ruling 62), and undoes it with the roll', async () => {

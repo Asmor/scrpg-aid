@@ -8,8 +8,11 @@ import { heroProblem } from './validate'
 import { cleanTags } from '../library/tags'
 
 export const HERO_FORMAT = 'scrpg-hero'
-/** Version 2 added `tags`. */
-export const CURRENT_VERSION = 2
+/**
+ * Version 2 added `tags`. Version 3 took play state off the hero (`play`, `currentHealth`):
+ * games hold it now (docs/design/game-table/spec.md, section 1), and old play state is dropped.
+ */
+export const CURRENT_VERSION = 3
 
 export interface SavedHero {
   format: typeof HERO_FORMAT
@@ -26,6 +29,13 @@ export type { Migration }
  */
 export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   1: (hero) => ({ ...hero, tags: [] }),
+  2: (hero) => withoutPlay(hero),
+}
+
+/** A hero document without play state, which belongs to games now. */
+export function withoutPlay<T extends Record<string, unknown>>(hero: T): Omit<T, 'play' | 'currentHealth'> {
+  const { play: _play, currentHealth: _health, ...rest } = hero
+  return rest
 }
 
 export type ParseResult = { ok: true; hero: Hero; migratedFrom?: number } | { ok: false; error: string }
@@ -45,8 +55,9 @@ export function parseSaved(
 ): ParseResult {
   const result = readEnvelope<Hero>(value, { format: HERO_FORMAT, key: 'hero', currentVersion, migrations, problem: heroProblem })
   if (!result.ok) return result
-  // Tags may come from anywhere (an import, an older app): keep them tidy.
-  const hero = { ...result.doc, tags: cleanTags(result.doc.tags) }
+  // Tags may come from anywhere (an import, an older app): keep them tidy. Play state an older
+  // app wrote back is dropped too.
+  const hero = { ...(withoutPlay(result.doc as unknown as Record<string, unknown>) as unknown as Hero), tags: cleanTags(result.doc.tags) }
   return result.migratedFrom === undefined ? { ok: true, hero } : { ok: true, hero, migratedFrom: result.migratedFrom }
 }
 

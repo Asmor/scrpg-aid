@@ -1,9 +1,8 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { PlayProviders } from '../test/play'
+import { playStores, savedHero, seedHero, type HeroWithPlay, type PlayStores } from '../test/play-stores'
 import { describe, expect, it } from 'vitest'
-import { StoreContext } from '../app/store-context'
-import type { Hero } from '../hero/model'
-import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { dividedHero, dividedSplitHero, formChangerHero, modularBlasterHero, modularHero } from '../test/heroes'
 import { PlayPage } from '../components/HeroPage'
 import { readable } from '../test/readable'
@@ -11,23 +10,19 @@ import { readable } from '../test/readable'
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
 
-async function setup(hero: Hero) {
-  const store = new MemoryHeroStore()
-  await store.save({ ...hero, id: 'h1' })
+async function setup(hero: HeroWithPlay) {
+  const store = playStores()
+  await seedHero(store, { ...hero, id: 'h1' })
   render(
-    <StoreContext.Provider value={store}>
+    <PlayProviders stores={store}>
       <PlayPage id="h1" clock={clock} random={() => 0.999} />
-    </StoreContext.Provider>,
+    </PlayProviders>,
   )
   await screen.findByRole('region', { name: 'Actions' })
   return store
 }
 
-const saved = async (store: HeroStore) => {
-  const r = await store.get('h1')
-  if (r.status !== 'found') throw new Error('not saved')
-  return r.hero
-}
+const saved = (store: PlayStores) => savedHero(store, 'h1')
 const abilities = () => within(screen.getByRole('region', { name: 'Actions' }))
 
 describe('forms in play', () => {
@@ -65,7 +60,7 @@ describe('forms in play', () => {
   })
 
   it('keeps a Yellow mode’s dice and ability after healing to Green, locking the other Yellow abilities', async () => {
-    const hero = modularBlasterHero()
+    const hero: HeroWithPlay = modularBlasterHero()
     hero.play = { health: 28, form: 'mode:2', heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [] }
     await setup(hero)
     const card = screen.getByRole('region', { name: 'Mode' })
@@ -91,7 +86,7 @@ describe('forms in play', () => {
   })
 
   it('says nothing about zones while Out', async () => {
-    const hero = formChangerHero()
+    const hero: HeroWithPlay = formChangerHero()
     hero.play = { health: 0, heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [] }
     await setup(hero)
     const card = within(screen.getByRole('region', { name: 'Form' }))

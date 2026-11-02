@@ -26,7 +26,7 @@ import { diceChanges, noChanges } from '../creation/dice-changes'
 import type { HeroTrait } from '../creation/traits'
 import { outerLayer, secondaryLayer } from '../creation/layers'
 import { MinionList } from './MinionList'
-import { addMinion, addMinionMod, minionCreation, removeMinion, removeMinionMod, shrinkMinion, recordMinionRoll } from './minions'
+import { addMinion, addMinionMod, minionCreation, removeMinion, removeMinionMod, setMinionForm, shrinkMinion, recordMinionRoll } from './minions'
 import { ModForm, type ModTarget } from './ModForm'
 import { confirmRoll, effectLineAction, rollChange, undoRoll, type RollChange } from './roll'
 import { RollDialog, type FormPicker, type RollSubject } from './RollDialog'
@@ -37,7 +37,6 @@ import {
   currentHealth,
   describeMod,
   effectiveZone,
-  emptyPlay,
   healthZone,
   MAX_HERO_POINTS,
   noteGivenMod,
@@ -267,7 +266,18 @@ function History({ history, now }: { history: readonly PlayHistoryEntry[]; now: 
   )
 }
 
-export function PlayView({ hero, update, clock, random }: { hero: Hero; update: (change: (draft: Hero) => void) => void; clock: () => Clock; random?: () => number }) {
+interface PlayViewProps {
+  /** The hero's sheet: the game's copy (in a solo game, kept up to date with the library). */
+  hero: Hero
+  /** The hero's play state in that game. */
+  play: PlayState
+  /** Changes the play state; the game saves it. */
+  changePlay: (fn: (play: PlayState) => PlayState) => void
+  clock: () => Clock
+  random?: () => number
+}
+
+export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProps) {
   const id = hero.id
   const formId = useId()
   const tick = useTick()
@@ -289,19 +299,15 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
   useEffect(() => {
     if (!player) return
     // The session's changes (the GM's scene, mods others gave) go into the hero's play state.
-    const next = player.sync(hero.play ?? emptyPlay())
-    if (next) update((h) => void (h.play = next))
+    const next = player.sync(play)
+    if (next) changePlay(() => next)
     // The table sees the hero, and their history as it happens.
-    player.updateHero(heroSummary(hero, buildSheet(hero), next ?? hero.play ?? emptyPlay()))
-    if (snapshot?.status === 'connected') player.share((next ?? hero.play)?.history ?? [])
-  }, [player, snapshot, hero, update])
+    player.updateHero(heroSummary(hero, buildSheet(hero), next ?? play))
+    if (snapshot?.status === 'connected') player.share((next ?? play).history)
+  }, [player, snapshot, hero, play, changePlay])
 
   const sheet = buildSheet(hero)
-  const play = hero.play ?? emptyPlay()
-  const change = (fn: (p: PlayState, c: Clock) => PlayState) =>
-    update((h) => {
-      h.play = fn(h.play ?? emptyPlay(), clock())
-    })
+  const change = (fn: (p: PlayState, c: Clock) => PlayState) => changePlay((p) => fn(p, clock()))
   // In a game, a mod can go to another hero (through the GM).
   const targets: ModTarget[] =
     snapshot?.status === 'connected' && player
@@ -634,6 +640,7 @@ export function PlayView({ hero, update, clock, random }: { hero: Hero; update: 
             onAddMod={(mid, mod) => change((p, c) => addMinionMod(p, mid, mod, c))}
             onRemoveMod={(mid, modId) => change((p, c) => removeMinionMod(p, mid, modId, c))}
             onUse={(mid, roll) => change((p, c) => recordMinionRoll(p, mid, roll, c))}
+            onPickForm={(mid, form) => change((p, c) => setMinionForm(p, mid, form, c))}
             random={random}
           />
         </Card>

@@ -1,8 +1,8 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
-import { StoreContext } from '../app/store-context'
-import { MemoryHeroStore } from '../hero/store'
+import { PlayProviders } from '../test/play'
+import { playStores, seedHero, type HeroWithPlay } from '../test/play-stores'
 import { PlayPage } from '../components/HeroPage'
 import { completeHero } from '../test/heroes'
 import { GmPage } from './GmPage'
@@ -22,16 +22,16 @@ function PlayerApp({ room, heroId }: { room?: string; heroId: string }) {
 }
 
 async function addPlayer(net: ReturnType<typeof fakeNetwork>, room: string, name: string, heroId: string) {
-  const heroes = new MemoryHeroStore()
+  const heroes = playStores()
   const hero = { ...completeHero(), id: heroId }
   hero.details.name = name
-  await heroes.save(hero)
+  await seedHero(heroes, hero)
   const view = render(
-    <StoreContext.Provider value={heroes}>
+    <PlayProviders stores={heroes}>
       <SessionProvider connect={net.connect} store={localSessionStore(memoryStorage())} clock={clock}>
         <PlayerApp room={room} heroId={heroId} />
       </SessionProvider>
-    </StoreContext.Provider>,
+    </PlayProviders>,
   )
   const player = within(view.container)
   await waitFor(() => expect(player.getByLabelText('Hero')).toHaveDisplayValue(name))
@@ -198,9 +198,9 @@ describe('mods between heroes', () => {
 describe('joining', () => {
   it('needs a valid room code and a hero', async () => {
     render(
-      <StoreContext.Provider value={new MemoryHeroStore()}>
+      <PlayProviders stores={playStores()}>
         <JoinPage />
-      </StoreContext.Provider>,
+      </PlayProviders>,
     )
     expect(await screen.findByText(/You have no finished heroes yet/)).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Room code'), 'abc')
@@ -209,13 +209,13 @@ describe('joining', () => {
   })
 
   it("doesn't offer drafts, which can't be played", async () => {
-    const store = new MemoryHeroStore()
-    await store.save({ ...completeHero(), id: 'h1' })
-    await store.save({ ...completeHero(), id: 'd1', status: 'draft', details: { ...completeHero().details, name: 'Half Done' } })
+    const store = playStores()
+    await seedHero(store, { ...completeHero(), id: 'h1' })
+    await seedHero(store, { ...completeHero(), id: 'd1', status: 'draft', details: { ...completeHero().details, name: 'Half Done' } })
     render(
-      <StoreContext.Provider value={store}>
+      <PlayProviders stores={store}>
         <JoinPage />
-      </StoreContext.Provider>,
+      </PlayProviders>,
     )
     const picker = await screen.findByRole('combobox', { name: /hero/i })
     await waitFor(() => expect(within(picker).getAllByRole('option')).toHaveLength(1))
@@ -231,11 +231,11 @@ describe('the remembered game', () => {
   }
   const renderJoin = (store: ReturnType<typeof localSessionStore>, room?: string) =>
     render(
-      <StoreContext.Provider value={new MemoryHeroStore()}>
+      <PlayProviders stores={playStores()}>
         <SessionProvider connect={fakeNetwork().connect} store={store} clock={clock}>
           <JoinPage room={room} />
         </SessionProvider>
-      </StoreContext.Provider>,
+      </PlayProviders>,
     )
 
   it('fills in the last game’s code and password', () => {
@@ -255,16 +255,16 @@ describe('joining the last game again from the Play page', () => {
   it('joins with this hero, without sharing history from before', async () => {
     const storage = memoryStorage()
     storage.setItem('scrpg.session.lastGame', JSON.stringify({ v: 1, room: 'ABCD-EFGH', password: 'pw' }))
-    const heroes = new MemoryHeroStore()
-    const hero = { ...completeHero(), id: 'h1' }
+    const heroes = playStores()
+    const hero: HeroWithPlay = { ...completeHero(), id: 'h1' }
     hero.play = { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [{ id: 'old1', at: '2026-10-27T10:00:00.000Z', text: 'Lost 4 HP (30 → 26).' }] }
-    await heroes.save(hero)
+    await seedHero(heroes, hero)
     render(
-      <StoreContext.Provider value={heroes}>
+      <PlayProviders stores={heroes}>
         <SessionProvider connect={fakeNetwork().connect} store={localSessionStore(storage)} clock={clock}>
           <PlayPage id="h1" clock={clock} />
         </SessionProvider>
-      </StoreContext.Provider>,
+      </PlayProviders>,
     )
     await userEvent.click(await screen.findByRole('button', { name: 'Join game ABCD-EFGH with this hero' }))
     expect(JSON.parse(storage.data.get('scrpg.session.player')!)).toMatchObject({ room: 'ABCD-EFGH', password: 'pw', heroId: 'h1', sharedUpTo: 'old1' })

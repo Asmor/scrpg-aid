@@ -1,6 +1,6 @@
 /**
  * The game table's small dialogs: quick add, the environment, scene setup, the GM's hero
- * changes, a member's mod, and fixing the turn order. Each is a Modal (focus in, and back out).
+ * changes, a member's mod, fixing the turn order, and Update from library. Each is a Modal (focus in, and back out).
  */
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Modal } from '../components/Modal'
@@ -10,6 +10,7 @@ import { DICE } from '../rules/dice'
 import type { Die } from '../rules/types'
 import { MAX_BOXES, MAX_GROUP_SIZE, MAX_STEPS, type ActorRef, type Game, type NpcGroup, type TrackerCounts } from './model'
 import { actorKey, sameActor, trackerCounts, validCounts } from './table'
+import type { DiffSection } from './sheet-diff'
 
 function Actions({ submit, onCancel, disabled = false }: { submit: string; onCancel: () => void; disabled?: boolean }) {
   return (
@@ -283,6 +284,56 @@ export function FixTurnDialog({
       <div className="button-row gt-dialog-actions">
         <button type="button" className="button button--primary" onClick={onClose}>
           Done
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+/**
+ * "Update Gravelord from your library?" (docs/design/game-table/spec.md, section 9): what changed
+ * on the sheet (`sheetDiff`), what happens in this game (`reconcile`'s adjustments, or the line on
+ * Health), and that only this game's copy changes.
+ */
+export function UpdateDialog({ name, changes, adjustments, healthLine, onUpdate, onClose }: { name: string; changes: readonly DiffSection[]; adjustments: readonly string[]; healthLine?: string; onUpdate: () => void; onClose: () => void }) {
+  const inGame = adjustments.length ? adjustments : healthLine ? [healthLine] : ['Nothing else changes: mods, twists and the rest stay.']
+  return (
+    <Modal title={`Update ${name} from your library?`} onClose={onClose}>
+      <h3 className="gt-label">What changed</h3>
+      {changes.length === 0 ? (
+        <p className="gt-sub">Nothing that plays differently: only details like the description changed.</p>
+      ) : (
+        <dl className="gt-diff">
+          {changes.map((c) => (
+            <div key={c.section}>
+              <dt>{c.section}</dt>
+              {c.changes.map((line) => (
+                <dd key={line}>{line}</dd>
+              ))}
+            </div>
+          ))}
+        </dl>
+      )}
+      <h3 className="gt-label">What happens in this game</h3>
+      <ul className="gt-diff__list">
+        {inGame.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      <p className="hint">Only this game's {name} changes. Other games keep their own copy.</p>
+      <div className="button-row gt-dialog-actions">
+        <button type="button" className="button" onClick={onClose}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="button button--primary"
+          onClick={() => {
+            onUpdate()
+            onClose()
+          }}
+        >
+          Update
         </button>
       </div>
     </Modal>

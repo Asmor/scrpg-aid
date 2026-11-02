@@ -3,24 +3,23 @@ import { NewHeroes } from '../app/new-heroes'
 import { exampleHero } from '../hero/example'
 import { createHero, duplicateHero } from '../hero/model'
 import { MemoryHeroStore } from '../hero/store'
-import { emptyPlay } from '../play/state'
 import { adaptiveBruiser } from '../test/villains'
 import { createVillain, duplicateVillain } from '../villain/model'
 import { MemoryGameStore } from '../game/store'
 import { MemoryVillainStore } from '../villain/store'
-import { createGame } from '../game/model'
-import { draftStepText, gameType, heroType, issuesText, itemFields, LIBRARY_TYPES, libraryType, toItem, villainType } from './registry'
+import { createSoloGame, soloGameId } from '../game/solo'
+import { draftStepText, heroType, issuesText, itemFields, LIBRARY_TYPES, libraryType, toItem, villainType } from './registry'
 
 const stores = () => ({ heroes: new MemoryHeroStore(), villains: new MemoryVillainStore(), games: new MemoryGameStore() })
 
 describe('library types', () => {
-  it('lists heroes, villains, then games, by key', () => {
-    expect(LIBRARY_TYPES.map((t) => [t.key, t.label, t.plural])).toEqual([
-      ['hero', 'Hero', 'Heroes'],
-      ['villain', 'Villain', 'Villains'],
-      ['game', 'Game', 'Games'],
+  it('lists heroes, then villains, by key; games have their own page', () => {
+    expect(LIBRARY_TYPES.map((t) => [t.key, t.label, t.plural, t.inGames])).toEqual([
+      ['hero', 'Hero', 'Heroes', 'hero'],
+      ['villain', 'Villain', 'Villains', 'villain'],
     ])
     expect(libraryType('villain')).toBe(villainType)
+    expect(libraryType('game')).toBeUndefined()
     expect(libraryType('minion')).toBeUndefined()
   })
 
@@ -33,17 +32,26 @@ describe('library types', () => {
     await heroType.remove(s, 'h')
     expect((await heroType.list(s)).docs).toEqual([])
   })
+
+  it('deletes a character’s solo game with it', async () => {
+    const s = stores()
+    const clock = { now: new Date(), newId: () => 'x' }
+    await heroType.save(s, exampleHero({ id: 'h' }))
+    await s.games.save(createSoloGame('hero', exampleHero({ id: 'h' }), clock))
+    await villainType.save(s, adaptiveBruiser())
+    await s.games.save(createSoloGame('villain', adaptiveBruiser(), clock))
+    await heroType.remove(s, 'h')
+    await villainType.remove(s, 'v1')
+    expect(await s.games.get(soloGameId('hero', 'h'))).toEqual({ status: 'missing' })
+    expect(await s.games.get(soloGameId('villain', 'v1'))).toEqual({ status: 'missing' })
+  })
 })
 
 describe('hero rows', () => {
-  it('shows archetype · power source, status from play, and Play', () => {
+  it('shows archetype · power source and Play, and nothing from play', () => {
     const hero = exampleHero({ id: 'h' })
-    hero.play = { ...emptyPlay(), health: 10 }
     const row = heroType.row(hero)
-    expect(row).toMatchObject({ name: 'Maya Reyes', named: true, draft: false, details: 'Speedster · Accident', openHref: '#/hero/h', primary: { label: 'Play', href: '#/hero/h/play' }, editHref: '#/hero/h/edit' })
-    expect(row.status).toMatchObject({ zone: 'red', health: 10 })
-    expect(row.status!.maxHealth).toBeGreaterThan(10)
-    expect(row.issues).toBeUndefined()
+    expect(row).toEqual({ name: 'Maya Reyes', named: true, draft: false, details: 'Speedster · Accident', openHref: '#/hero/h', primary: { label: 'Play', href: '#/hero/h/play' }, editHref: '#/hero/h/edit' })
   })
 
   it('counts rule issues, linking to the edit summary', () => {
@@ -56,10 +64,9 @@ describe('hero rows', () => {
     expect(issuesText(3)).toBe('3 rule issues')
   })
 
-  it('shows a draft’s step, no status, and Continue to its furthest step', () => {
+  it('shows a draft’s step and Continue to its furthest step', () => {
     const hero = { ...createHero('guided', { id: 'h' }), status: 'draft' as const, furthestStep: 3 }
     expect(heroType.row(hero)).toMatchObject({ name: 'Unnamed hero', named: false, draft: true, details: 'Step 3 of 8 · Archetype', primary: { label: 'Continue', href: '#/hero/h/edit/archetype' } })
-    expect(heroType.row(hero).status).toBeUndefined()
     expect(draftStepText(undefined)).toBe('At Start')
     expect(draftStepText(99)).toBe('Step 8 of 8 · Details')
   })
@@ -75,18 +82,12 @@ describe('hero rows', () => {
 })
 
 describe('villain rows', () => {
-  it('shows approach archetype · category, Health, and Play', () => {
+  it('shows approach archetype · category and Play, and nothing from play', () => {
     const row = villainType.row(adaptiveBruiser())
-    expect(row).toMatchObject({ name: 'Ironclad', named: true, draft: false, details: 'Adaptive Bruiser · Minor', openHref: '#/villain/v1', primary: { label: 'Play', href: '#/villain/v1/play' } })
-    expect(row.status).toMatchObject({ zone: 'green' })
-    expect(row.status!.health).toBe(row.status!.maxHealth)
+    expect(row).toEqual({ name: 'Ironclad', named: true, draft: false, details: 'Adaptive Bruiser · Minor', openHref: '#/villain/v1', primary: { label: 'Play', href: '#/villain/v1/play' }, editHref: '#/villain/v1/edit' })
   })
 
-  it('caps Health at its max and counts issues, linking to the first step with one', () => {
-    const v = adaptiveBruiser()
-    v.play = { reactionUsed: false, mods: [], twists: [], history: [], health: 999 }
-    const row = villainType.row(v)
-    expect(row.status!.health).toBe(row.status!.maxHealth)
+  it('counts issues, linking to the first step with one', () => {
     const blank = villainType.row(createVillain({ id: 'v2' }))
     expect(blank).toMatchObject({ name: 'Unnamed villain', named: false, details: '', issues: { href: '#/villain/v2/edit/approach' } })
   })
@@ -102,13 +103,11 @@ describe('villain rows', () => {
 describe('duplicate', () => {
   const now = new Date('2026-11-01T00:00:00Z')
 
-  it('copies a hero with a new id and name, the same tags, and no play state', () => {
-    const hero = { ...exampleHero({ id: 'h' }), tags: ['prep'], play: emptyPlay(), currentHealth: 3 }
+  it('copies a hero with a new id and name, and the same tags', () => {
+    const hero = { ...exampleHero({ id: 'h' }), tags: ['prep'] }
     const copy = duplicateHero(hero, { id: 'h2', now })
     expect(copy).toMatchObject({ id: 'h2', createdAt: now.toISOString(), updatedAt: now.toISOString(), tags: ['prep'] })
     expect(copy.details.name).toBe('Maya Reyes (copy)')
-    expect(copy.play).toBeUndefined()
-    expect(copy.currentHealth).toBeUndefined()
     expect(copy.background).toEqual(hero.background)
     // The original is untouched.
     expect(hero.details.name).toBe('Maya Reyes')
@@ -122,10 +121,9 @@ describe('duplicate', () => {
   })
 
   it('copies a villain the same way', () => {
-    const v = { ...adaptiveBruiser(), tags: ['scene-3'], play: { reactionUsed: false, mods: [], twists: [], history: [] } }
+    const v = { ...adaptiveBruiser(), tags: ['scene-3'] }
     const copy = duplicateVillain(v, { id: 'v2', now })
     expect(copy).toMatchObject({ id: 'v2', tags: ['scene-3'], details: { name: 'Ironclad (copy)' } })
-    expect(copy.play).toBeUndefined()
     const alias = createVillain()
     alias.details.alias = 'Doc'
     expect(duplicateVillain(alias).details.alias).toBe('Doc (copy)')
@@ -143,31 +141,5 @@ describe('items', () => {
   it('gives the query and sort what they look at', () => {
     const item = toItem(villainType as never, { ...adaptiveBruiser(), tags: ['a'] })
     expect(itemFields(item)).toEqual({ type: 'villain', typeLabel: 'Villain', name: 'Ironclad', tags: ['a'], updatedAt: '2026-10-27T12:00:00.000Z' })
-  })
-})
-
-describe('game rows', () => {
-  it('shows the round and scene, no status, and Run to the table', () => {
-    const game = { ...createGame({ id: 'g' }), name: 'Thursday game', round: 2, scene: { name: 'The Foundry', tracker: ['green' as const], position: 0 } }
-    const row = gameType.row(game)
-    expect(row).toMatchObject({ name: 'Thursday game', named: true, draft: false, details: 'Round 2 · The Foundry', openHref: '#/game/g', primary: { label: 'Run', href: '#/game/g' }, editHref: '#/game/g' })
-    expect(row.status).toBeUndefined()
-    expect(gameType.row(createGame({ id: 'x' }))).toMatchObject({ name: 'Unnamed game', named: false, details: 'Not started' })
-  })
-
-  it('creates a game and opens its table', async () => {
-    const s = stores()
-    const path = await gameType.create!({ stores: s, newHeroes: new NewHeroes() })
-    const { docs } = await gameType.list(s)
-    expect(docs).toHaveLength(1)
-    expect(path).toBe(`#/game/${docs[0]!.id}`)
-  })
-
-  it('duplicates with "(copy)" and exports in the saved envelope', () => {
-    const game = { ...createGame({ id: 'g' }), name: 'Thursday game', tags: ['campaign'] }
-    expect(gameType.duplicate(game)).toMatchObject({ name: 'Thursday game (copy)', tags: ['campaign'] })
-    const file = gameType.exportFile(game)
-    expect(file.name).toBe('thursday-game.json')
-    expect(JSON.parse(file.text)).toMatchObject({ format: 'scrpg-game', version: 1, game: { id: 'g' } })
   })
 })

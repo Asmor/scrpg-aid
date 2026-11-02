@@ -163,10 +163,37 @@ interface MinionListProps {
   onAddMod: (id: string, mod: Omit<PlayMod, 'id'>) => void
   onRemoveMod: (id: string, modId: string) => void
   onUse: (id: string, roll: MinionRoll) => void
+  /** Picks a current form for a minion whose form left the sheet. */
+  onPickForm?: (id: string, form: string) => void
   random?: () => number
 }
 
-export function MinionList({ minions, forms, onAdd, onRemove, onShrink, onAddMod, onRemoveMod, onUse, random }: MinionListProps) {
+/** For a minion whose form left the hero's sheet: "Pick a new form", which it needs before it can act. */
+function PickForm({ minion, forms, onPick }: { minion: PlayMinion; forms: readonly MinionForm[]; onPick?: (form: string) => void }) {
+  const id = useId()
+  return (
+    <div className="minion-row__pick">
+      <p className="play-row__why" id={`${id}-why`}>
+        Pick a new form: {minion.form} is no longer on your sheet. It can't act until it has one.
+      </p>
+      {onPick && forms.length > 0 && (
+        <label className="field" htmlFor={`${id}-form`}>
+          <span>New form for {minion.name}</span>
+          <select id={`${id}-form`} value="" onChange={(e) => e.target.value && onPick(e.target.value)}>
+            <option value="">Choose…</option>
+            {forms.map((f) => (
+              <option key={f.name} value={f.name}>
+                {f.name} (+{f.minBonus})
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+    </div>
+  )
+}
+
+export function MinionList({ minions, forms, onAdd, onRemove, onShrink, onAddMod, onRemoveMod, onUse, onPickForm, random }: MinionListProps) {
   const [usingId, setUsing] = useState<string | null>(null)
   const [moddingId, setModdingFor] = useState<string | null>(null)
   // A minion removed (or shrunk away) while its roll or mod form was open leaves nothing open.
@@ -184,7 +211,7 @@ export function MinionList({ minions, forms, onAdd, onRemove, onShrink, onAddMod
               <div className="minion-row__top">
                 <DieIcon die={m.die} />
                 <strong>{m.name}</strong>
-                {m.form && <span className="tag">{m.form}</span>}
+                {m.form && <span className="tag">{m.needsForm ? `${m.form} (gone)` : m.form}</span>}
                 <span className="minion-row__action">
                   {m.action !== 'any' && <ActionIcon action={m.action} decorative />}
                   {minionActionText(m.action)}
@@ -214,8 +241,9 @@ export function MinionList({ minions, forms, onAdd, onRemove, onShrink, onAddMod
                   }}
                 />
               )}
+              {m.needsForm && <PickForm minion={m} forms={forms} {...(onPickForm ? { onPick: (form: string) => onPickForm(m.id, form) } : {})} />}
               <div className="button-row">
-                <button type="button" className="button button--small" aria-label={`Use ${m.name}`} disabled={using !== null && using !== m.id} onClick={() => setUsing(m.id)}>
+                <button type="button" className="button button--small" aria-label={`Use ${m.name}`} disabled={Boolean(m.needsForm) || (using !== null && using !== m.id)} onClick={() => setUsing(m.id)}>
                   Use
                 </button>
                 {/* Not while its roll is open: the roll was made on the die it has now. */}

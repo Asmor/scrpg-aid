@@ -338,11 +338,7 @@ export interface Hero {
   pendingRolls?: Partial<Record<RollSlot, RollRecord>>
   /** Advancement after creation; creation choices are left as they were made. */
   advancement?: Advancement
-  /** Current Health on the sheet, tracked during play. */
-  currentHealth?: number
   notes?: string
-  /** The game aid's state (Phase 3), saved with the hero; sheet exports leave it out. */
-  play?: PlayState
 }
 
 /** A bonus (positive) or penalty (negative) on the hero (p. 26–27). */
@@ -372,7 +368,11 @@ export interface PlayHistoryEntry {
   roll?: true
 }
 
-/** What the game aid tracks for a hero during play. */
+/**
+ * What the game aid tracks for a hero during play. It lives in a game, next to the game's copy
+ * of the hero's sheet (../game/model.ts), never on the hero document: library documents are
+ * sheets only (docs/design/game-table/spec.md, section 1).
+ */
 export interface PlayState {
   /** Current Health; until set, the hero is at their max. */
   health?: number
@@ -404,6 +404,8 @@ export interface PlayMinion {
   action: BasicAction | 'any'
   form?: string
   mods: PlayMod[]
+  /** Its minion form left the hero's sheet in a sheet update: it can't act until the player picks a current one. */
+  needsForm?: true
 }
 
 export function emptyDetails(): HeroDetails {
@@ -455,12 +457,12 @@ export function traitName(hero: Hero, trait: TraitRef): string | undefined {
 
 /**
  * A copy of the hero to save as a new one (the library's Duplicate): a new id, "(copy)" after
- * its name, the same tags, and no play state or history. A draft stays a draft. `id` and `now`
+ * its name, and the same tags (a hero document holds no play state). A draft stays a draft. `id` and `now`
  * are injectable for tests.
  */
 export function duplicateHero(hero: Hero, options: { id?: string; now?: Date } = {}): Hero {
   const timestamp = (options.now ?? new Date()).toISOString()
-  const { play: _play, currentHealth: _health, ...rest } = structuredClone(hero)
+  const rest = structuredClone(hero)
   const details = { ...rest.details }
   if (details.name.trim()) details.name = `${details.name.trim()} (copy)`
   else if (details.alias.trim()) details.alias = `${details.alias.trim()} (copy)`

@@ -9,7 +9,7 @@ import { useNewHeroes } from '../app/new-heroes'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
 import { useGameStore } from '../app/game-store-context'
-import type { Game } from '../game/model'
+import { gamesHolding, useListedGames } from '../game/useGameEditor'
 import { ImportControl, type ImportHandle } from '../components/ImportControl'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
@@ -57,6 +57,9 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
   const stores: LibraryStores = useMemo(() => ({ heroes, villains, games }), [heroes, villains, games])
   const newHeroes = useNewHeroes()
   const data = useLibraryData(stores, searchStore)
+  // Games aren't library rows, but rows say which games hold a copy, and backups include them.
+  const listed = useListedGames()
+  const gameList = listed.games ?? []
   const ready = data.state.status === 'ready' ? data.state : undefined
   const view = useLibraryView(ready?.items, ready?.searches)
   const now = useTick()
@@ -110,7 +113,8 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
   /** Downloads one file in the backup format: everything (with saved searches), or some items. */
   const download = (list: readonly LibraryItem[], withSearches: boolean, fileName: string) => {
     const of = (key: LibraryType['backupKey']) => list.filter((i) => i.type.backupKey === key).map((i) => i.doc)
-    const contents = { heroes: of('heroes') as unknown as Hero[], villains: of('villains') as unknown as Villain[], games: of('games') as unknown as Game[], savedSearches: withSearches ? searches : [] }
+    // A backup of everything has the games (not solo games, which belong to their characters' Play pages).
+    const contents = { heroes: of('heroes') as unknown as Hero[], villains: of('villains') as unknown as Villain[], games: withSearches ? gameList : [], savedSearches: withSearches ? searches : [] }
     downloadFile(fileName, backupJson(contents), 'application/json')
   }
   const backUp = () => {
@@ -229,6 +233,7 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
         void data.reload().then((next) => {
           if (next.status === 'ready') view.refresh(next.items, next.searches)
         })
+        listed.reload()
       }}
     />
   )
@@ -255,6 +260,9 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     importControl,
     deleteDialog,
     countFor: (query: LibraryQuery) => items.filter((i) => matches(itemFields(i), query)).length,
+    /** The games holding a copy of an item (the In games column). */
+    inGames: (item: LibraryItem) => gamesHolding(gameList, item.type.inGames, item.doc.id),
+    gameCount: listed.games?.length,
     addTag,
     removeTag,
     bulkAddTag,
@@ -298,7 +306,7 @@ export function LibraryPage({ theme, setTheme, searchStore, backupTime }: Librar
   return (
     <PopoverGroup>
       <div className="library">
-        <LibraryHeader phone={phone} theme={theme} setTheme={setTheme} data={model.dataActions} heroName={model.heroName} now={model.now} />
+        <LibraryHeader phone={phone} theme={theme} setTheme={setTheme} data={model.dataActions} heroName={model.heroName} now={model.now} section="library" {...(model.gameCount !== undefined ? { gameCount: model.gameCount } : {})} />
         {phone ? <PhoneLibrary model={model} /> : <DesktopLibrary model={model} />}
         {model.deleteDialog}
       </div>

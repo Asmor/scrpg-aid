@@ -1,24 +1,27 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { PlayProviders } from '../test/play'
+import { playStores, savedHero, seedHero, type HeroWithPlay, type PlayStores } from '../test/play-stores'
 import { describe, expect, it } from 'vitest'
-import { StoreContext } from '../app/store-context'
-import type { Hero } from '../hero/model'
-import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { completeHero } from '../test/heroes'
 import { PlayPage } from '../components/HeroPage'
+import { buildSheet } from '../creation/sheet'
+import { createGame } from '../game/model'
+import { addHero } from '../game/table'
+import { emptyPlay } from './state'
 
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
 
-async function setup(change: (h: Hero) => void = () => {}) {
-  const store = new MemoryHeroStore()
+async function setup(change: (h: HeroWithPlay) => void = () => {}) {
+  const store = playStores()
   const hero = { ...completeHero(), id: 'h1' }
   change(hero)
-  await store.save(hero)
+  await seedHero(store, hero)
   render(
-    <StoreContext.Provider value={store}>
+    <PlayProviders stores={store}>
       <PlayPage id="h1" clock={clock} />
-    </StoreContext.Provider>,
+    </PlayProviders>,
   )
   await screen.findByRole('region', { name: 'Health' })
   return store
@@ -31,20 +34,16 @@ function healthIs(): string {
   return `${value} · ${health.querySelector('.zone-chip')?.textContent}`
 }
 
-const saved = async (store: HeroStore) => {
-  const r = await store.get('h1')
-  if (r.status !== 'found') throw new Error('not saved')
-  return r.hero
-}
+const saved = (store: PlayStores) => savedHero(store, 'h1')
 
 describe('PlayPage', () => {
   it("won't play a draft, pointing to where it left off", async () => {
-    const store = new MemoryHeroStore()
-    await store.save({ ...completeHero(), id: 'h1', status: 'draft', furthestStep: 7 })
+    const store = playStores()
+    await seedHero(store, { ...completeHero(), id: 'h1', status: 'draft', furthestStep: 7 })
     render(
-      <StoreContext.Provider value={store}>
+      <PlayProviders stores={store}>
         <PlayPage id="h1" clock={clock} />
-      </StoreContext.Provider>,
+      </PlayProviders>,
     )
     expect(await screen.findByRole('alert')).toHaveTextContent('is still a draft')
     expect(screen.getByRole('link', { name: 'Continue making this hero' })).toHaveAttribute('href', '#/hero/h1/edit/health')
@@ -136,14 +135,57 @@ describe('PlayPage', () => {
     expect(screen.getByRole('region', { name: 'History' })).toHaveTextContent("Gained '-3 tied up' penalty (persistent).")
   })
 
-  it('starts a new issue after asking', async () => {
+  it('starts over after asking, from the solo game’s ⋯', async () => {
     const store = await setup((h) => {
       h.play = { health: 5, heroPoints: 3, reactionUsed: true, mods: [{ id: 'm', label: 'x', value: 2 }], twists: [], history: [] }
     })
-    await userEvent.click(screen.getByRole('button', { name: 'New issue…' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Yes, new issue' }))
+    expect(screen.getByText('Solo play')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /^More for .*Play page$/ }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Start over…' }))
+    expect(screen.getByRole('dialog', { name: 'Start over?' })).toHaveTextContent('mods, twists, hero points, minions, form and the play log are cleared')
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, start over' }))
     expect(healthIs()).toBe('30 of 30 · Green')
-    await waitFor(async () => expect((await saved(store)).play).toMatchObject({ heroPoints: 0, reactionUsed: false, mods: [], twists: [] }))
+    await waitFor(async () => expect((await saved(store)).play).toEqual({ heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [] }))
+    // The sheet isn't touched.
+    expect((await saved(store)).health).toEqual(completeHero().health)
+  })
+
+  it('re-copies a changed library sheet into the solo game when Play opens, with reconcile’s adjustments', async () => {
+    const stores = playStores()
+    const hero = { ...completeHero(), id: 'h1' }
+    // The solo game has the older sheet, one below its max.
+    const oldMax = buildSheet(hero).maxHealth!
+    await seedHero(stores, { ...hero, play: { ...emptyPlay(), health: oldMax - 1 } })
+    const lower = structuredClone(hero)
+    lower.health = { ...lower.health!, mode: 'roll', rollResult: 1 }
+    expect(buildSheet(lower).maxHealth).toBeLessThan(oldMax - 1)
+    await stores.heroes.save(lower)
+    render(
+      <PlayProviders stores={stores}>
+        <PlayPage id="h1" clock={clock} />
+      </PlayProviders>,
+    )
+    const history = await screen.findByRole('region', { name: 'History' })
+    await waitFor(() => expect(history).toHaveTextContent('The sheet was updated from your sheet.'))
+    expect(history).toHaveTextContent(/Health lowered to \d+, the new max\./)
+    const max = buildSheet(lower).maxHealth!
+    await waitFor(async () => expect((await savedHero(stores, 'h1')).play?.health).toBe(max))
+  })
+
+  it('names the other games the hero is in', async () => {
+    const stores = playStores()
+    const hero = { ...completeHero(), id: 'h1' }
+    await seedHero(stores, hero)
+    const c = { now: new Date(), newId: () => `g${++n}` }
+    await stores.games.save(addHero({ ...createGame({ id: 'thu' }), name: 'Thursday game' }, hero, c))
+    render(
+      <PlayProviders stores={stores}>
+        <PlayPage id="h1" clock={clock} />
+      </PlayProviders>,
+    )
+    const line = await screen.findByText(/is also in/)
+    expect(line).toHaveTextContent("is also in Thursday game. What happens here doesn't affect that game.")
+    expect(within(line).getByRole('link', { name: 'Thursday game' })).toHaveAttribute('href', '#/game/thu')
   })
 
   it('waits for saves before leaving for the editor', async () => {
@@ -166,9 +208,9 @@ describe('PlayPage', () => {
 
   it('says when the hero is missing', async () => {
     render(
-      <StoreContext.Provider value={new MemoryHeroStore()}>
+      <PlayProviders stores={playStores()}>
         <PlayPage id="nobody" />
-      </StoreContext.Provider>,
+      </PlayProviders>,
     )
     expect(await screen.findByRole('alert')).toHaveTextContent("There's no saved hero with that link.")
   })

@@ -5,13 +5,19 @@
 import { useEffect, useId, useState } from 'react'
 import { listPath, navigate, playPath } from '../app/route'
 import { useStore } from '../app/store-context'
+import { useOptionalGameStore } from '../app/game-store-context'
+import { soloHero } from '../game/solo'
 import { heroDisplayName, isDraft, type Hero } from '../hero/model'
 import { normalizeRoomCode } from './code'
 import { useSession } from './context'
 
 export function JoinPage({ room: given }: { room?: string }) {
   const store = useStore()
+  const gameStore = useOptionalGameStore()
   const session = useSession()
+  // The last entry of each hero's solo play log: what's already been played, so joining doesn't
+  // send it to the table's feed.
+  const [lastPlayed, setLastPlayed] = useState<ReadonlyMap<string, string>>(new Map())
   const formId = useId()
   const [heroes, setHeroes] = useState<Hero[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -33,10 +39,23 @@ export function JoinPage({ room: given }: { room?: string }) {
       },
       (e: unknown) => live && setLoadError(e instanceof Error ? e.message : String(e)),
     )
+    gameStore?.list().then(
+      (list) => {
+        if (!live) return
+        const last = new Map<string, string>()
+        for (const game of list.games) {
+          const copy = soloHero(game)
+          const id = copy?.play.history.at(-1)?.id
+          if (copy && id) last.set(copy.sourceId, id)
+        }
+        setLastPlayed(last)
+      },
+      () => {},
+    )
     return () => {
       live = false
     }
-  }, [store])
+  }, [store, gameStore])
 
   const code = normalizeRoomCode(room)
   const hero = heroes?.find((h) => h.id === heroId)
@@ -63,7 +82,7 @@ export function JoinPage({ room: given }: { room?: string }) {
         onSubmit={(e) => {
           e.preventDefault()
           if (!code || !hero) return
-          session.join({ room: code, password: password.trim() || undefined, heroId: hero.id, sharedUpTo: hero.play?.history.at(-1)?.id })
+          session.join({ room: code, password: password.trim() || undefined, heroId: hero.id, sharedUpTo: lastPlayed.get(hero.id) })
           navigate(playPath(hero.id))
         }}
       >

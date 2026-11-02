@@ -2,7 +2,8 @@
  * A villain in the game aid (Phase 5), for the GM: Health for this scene's heroes, the status
  * die by the archetype's rule, mods, minor twists, the reaction, the once-per-scene scene
  * advance, its abilities (all usable, no zones), basic actions, and a timestamped history.
- * Saved with the villain as it changes (./play.ts has the rules).
+ * The villain document is the sheet only: play state lives in the villain's solo game
+ * (docs/design/game-table/spec.md, section 12), saved as it changes (./play.ts has the rules).
  */
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { listPath, villainPath } from '../app/route'
@@ -17,10 +18,14 @@ import { formatFull, formatWhen } from '../play/time'
 import { useTick } from '../play/useTick'
 import { villainDisplayName, type VillainPlayState } from './model'
 import { useGmState, useSession } from '../session/context'
-import { advanceScene, villainSummary, emptyVillainPlay, newScene, resetVillain, setChallengeParts, setSceneHeroes, setStatusCount, setWeaknessTier, villainHealth, villainStatusDie, villainZone } from './play'
+import { advanceScene, villainSummary, newScene, setChallengeParts, setSceneHeroes, setStatusCount, setWeaknessTier, villainHealth, villainStatusDie, villainZone } from './play'
 import { buildVillainSheet, villainTraits } from './sheet'
 import { statusSummary } from './status'
 import { useVillainEditor } from './useVillainEditor'
+import { AlsoIn, SoloPlayActions } from '../game/SoloPlay'
+import { soloVillain, startOverSolo } from '../game/solo'
+import { changeVillainPlay } from '../game/table'
+import { gamesHolding, useListedGames, useSoloGame } from '../game/useGameEditor'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -32,13 +37,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: () => newId() }), random }: { id: string; clock?: () => Clock; random?: () => number }) {
-  const { state, update, saveError } = useVillainEditor(id)
+  const { state } = useVillainEditor(id)
   const formId = useId()
   const tick = useTick()
   const [amount, setAmount] = useState('')
   const [twistText, setTwistText] = useState('')
   const [rolling, setRolling] = useState<RollSubject | null>(null)
-  const [confirmReset, setConfirmReset] = useState(false)
   // What's typed for the heroes in this scene, so the field can be cleared and retyped.
   const [heroesDraft, setHeroesDraft] = useState<string | null>(null)
   const [countDraft, setCountDraft] = useState<string | null>(null)
@@ -49,30 +53,35 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
   const gm = session.gm
   const gmState = useGmState(gm)
   const loaded = state.status === 'ready' ? state.doc : undefined
+  const solo = useSoloGame('villain', loaded, clock)
+  const listed = useListedGames()
+  const copy = solo.state.status === 'ready' ? soloVillain(solo.state.doc) : undefined
+  const change = (fn: (p: VillainPlayState, c: Clock) => VillainPlayState) => {
+    if (copy) solo.apply((g) => changeVillainPlay(g, copy.id, (p) => fn(p, clock()), clock(), false))
+  }
   const inGame = Boolean(gm && gmState?.villains?.some((v) => v.id === id))
   useEffect(() => {
-    if (!gm || !inGame || !loaded) return
+    if (!gm || !inGame || !copy) return
     const given = gm.takeVillainMods(id)
     if (given.length) {
-      update((v) => {
-        let p = v.play ?? emptyVillainPlay()
-        for (const item of given) p = addMod(p, item.mod, clock(), { id: item.id, from: item.from })
-        v.play = p
-      })
+      const c = clock()
+      solo.apply((g) => changeVillainPlay(g, copy.id, (p) => given.reduce((q, item) => addMod(q, item.mod, c, { id: item.id, from: item.from }), p), c, false))
       return
     }
-    gm.updateVillain(villainSummary(loaded))
-    gm.shareVillain(id, loaded.play?.history ?? [])
-    // `update` and `clock` are new each render, so this runs each render; with nothing new it changes nothing.
-  }, [gm, gmState, inGame, loaded, id, update, clock])
+    gm.updateVillain(villainSummary(copy.sheet, copy.play))
+    gm.shareVillain(id, copy.play.history)
+    // `solo.apply` and `clock` are new each render, so this runs each render; with nothing new it changes nothing.
+  }, [gm, gmState, inGame, copy, id, solo, clock])
 
-  if (state.status !== 'ready') {
+  if (state.status !== 'ready' || !copy) {
     return (
       <div className="hero-page">
         <p>
           <a href={listPath}>← Home</a>
         </p>
-        {state.status === 'loading' && <p>Loading…</p>}
+        {(state.status === 'loading' || (state.status === 'ready' && solo.state.status === 'loading')) && <p>Loading…</p>}
+        {solo.state.status === 'unreadable' && <p role="alert">This villain's play state couldn't be read: {solo.state.error}</p>}
+        {solo.state.status === 'error' && <p role="alert">Something went wrong loading this villain's play state: {solo.state.message}</p>}
         {state.status === 'missing' && <p role="alert">There's no saved villain with that link. It may have been deleted.</p>}
         {state.status === 'unreadable' && <p role="alert">This villain couldn't be read: {state.error}</p>}
         {state.status === 'error' && <p role="alert">Something went wrong loading this villain: {state.message}</p>}
@@ -80,13 +89,10 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
     )
   }
 
-  const villain = state.doc
+  // The game's copy of the sheet, kept up to date with the library's.
+  const villain = copy.sheet
   const sheet = buildVillainSheet(villain)
-  const play = villain.play ?? emptyVillainPlay()
-  const change = (fn: (p: VillainPlayState, c: Clock) => VillainPlayState) =>
-    update((v) => {
-      v.play = fn(v.play ?? emptyVillainPlay(), clock())
-    })
+  const play = copy.play
   const health = villainHealth(villain, play)
   const current = currentHealth(health, play)
   const zone = villainZone(health, play)
@@ -111,11 +117,15 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
       <div className="hero-editor__top">
         <a href={villainPath(id)}>← Sheet</a>
       </div>
-      <h2 className="hero-editor__name">{villainDisplayName(villain)}</h2>
+      <div className="gt-row">
+        <h2 className="hero-editor__name gt-grow">{villainDisplayName(villain)}</h2>
+        <SoloPlayActions name={villainDisplayName(villain)} clears="mods, twists, counts and the play log are cleared" onStartOver={() => solo.apply(startOverSolo)} />
+      </div>
+      <AlsoIn name={villainDisplayName(villain)} games={gamesHolding(listed.games ?? [], 'villain', id)} />
       {inGame && <p className="hint">In your game: the table sees it, and its rolls go to the feed.</p>}
-      {saveError && (
+      {solo.saveError && (
         <p role="alert" className="error">
-          Your last change couldn't be saved: {saveError}
+          Your last change couldn't be saved: {solo.saveError}
         </p>
       )}
 
@@ -393,31 +403,6 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
           random={random}
         />
       )}
-
-      <div className="button-row">
-        {confirmReset ? (
-          <span className="button-row" role="group" aria-label="Start over?">
-            <span>Start over? Health is restored, and mods, twists, and counts are cleared.</span>
-            <button
-              type="button"
-              className="button button--danger"
-              onClick={() => {
-                change((p, c) => resetVillain(p, c))
-                setConfirmReset(false)
-              }}
-            >
-              Yes, start over
-            </button>
-            <button type="button" className="button" onClick={() => setConfirmReset(false)}>
-              Cancel
-            </button>
-          </span>
-        ) : (
-          <button type="button" className="button" onClick={() => setConfirmReset(true)}>
-            Start over…
-          </button>
-        )}
-      </div>
     </div>
   )
 }

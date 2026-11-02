@@ -107,11 +107,11 @@ describe('heroMarkdown', () => {
 })
 
 describe('embedded JSON', () => {
-  it('leaves out the game aid’s play state', () => {
-    const hero = { ...createHero('guided', { id: 'h1' }), play: { health: 3, heroPoints: 1, reactionUsed: false, mods: [], twists: [], history: [] } }
-    expect(JSON.parse(embeddableJson(hero)).hero.play).toBeUndefined()
-    const { play: _, ...without } = hero
-    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [without], villains: [], games: [], savedSearches: [], skipped: [] })
+  it('carries the sheet only, and play state an older app embedded is dropped on import', () => {
+    const hero = createHero('guided', { id: 'h1' })
+    expect(JSON.parse(embeddableJson(hero)).hero).not.toHaveProperty('play')
+    const old = { ...hero, play: { health: 3, heroPoints: 1, reactionUsed: false, mods: [], twists: [], history: [] } }
+    expect(readImport(heroMarkdown(old))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], skipped: [] })
   })
 
   it('can’t close its comment or script tag, whatever the player typed', () => {

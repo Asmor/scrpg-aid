@@ -1,9 +1,10 @@
 /**
- * The library's header bar (docs/design/library/spec.md, "Page layout"): the app's name, Play
- * together (host, join, or the game you're in), Data (backup, import, the example hero), and
- * the color scheme switch. On phones, Data and the color scheme share one menu.
+ * The library's header bar (docs/design/library/spec.md, "Page layout"): the app's name, the
+ * Library | Games section tabs, Play together (host, join, or the game you're in), Data (backup,
+ * import, the example hero), and the color scheme switch. On phones, Data and the color scheme
+ * share one menu, and the section tabs sit under the bar. The Games page shares the header.
  */
-import { gmPath, joinPath, playPath } from '../app/route'
+import { gamesPath, gmPath, joinPath, listPath, playPath } from '../app/route'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { useGmState, useSession } from '../session/context'
 import type { ThemePreference } from '../theme/theme'
@@ -195,32 +196,59 @@ export function PhoneMenu({ data, theme, setTheme }: { data: DataActions; theme:
   )
 }
 
+/** The Library | Games tabs: links, the current one marked, Games with its count. */
+export function SectionTabs({ section, gameCount, className = '' }: { section: 'library' | 'games'; gameCount?: number; className?: string }) {
+  return (
+    <nav className={`section-tabs ${className}`} aria-label="Sections">
+      <a href={listPath} {...(section === 'library' ? { 'aria-current': 'page' as const } : {})}>
+        Library
+      </a>
+      <a href={gamesPath} {...(section === 'games' ? { 'aria-current': 'page' as const } : {})}>
+        Games
+        {gameCount !== undefined && (
+          <span className="section-tabs__n">
+            {gameCount}
+            <span className="visually-hidden"> {gameCount === 1 ? 'game' : 'games'}</span>
+          </span>
+        )}
+      </a>
+    </nav>
+  )
+}
+
 interface HeaderProps {
   phone: boolean
   theme: ThemePreference
   setTheme: (t: ThemePreference) => void
-  data: DataActions
+  /** The Data menu; the Games page has none (backups are made from the library). */
+  data?: DataActions
   heroName: (id: string) => string | undefined
   now: Date
+  section: 'library' | 'games'
+  gameCount?: number
 }
 
-export function LibraryHeader({ phone, theme, setTheme, data, heroName, now }: HeaderProps) {
+export function LibraryHeader({ phone, theme, setTheme, data, heroName, now, section, gameCount }: HeaderProps) {
   return (
-    <header className="app-header library-header">
-      <a className="library-header__name" href="#/">
-        SCRPG Aid
-      </a>
-      <span className="library-header__actions">
-        <PlayTogether heroName={heroName} now={now} compact={phone} />
-        {phone ? (
-          <PhoneMenu data={data} theme={theme} setTheme={setTheme} />
-        ) : (
-          <>
-            <DataMenu data={data} />
-            <ThemeToggle value={theme} onChange={setTheme} />
-          </>
-        )}
-      </span>
-    </header>
+    <>
+      <header className="app-header library-header">
+        <a className="library-header__name" href="#/">
+          SCRPG Aid
+        </a>
+        {!phone && <SectionTabs section={section} {...(gameCount !== undefined ? { gameCount } : {})} />}
+        <span className="library-header__actions">
+          <PlayTogether heroName={heroName} now={now} compact={phone} />
+          {phone && data ? (
+            <PhoneMenu data={data} theme={theme} setTheme={setTheme} />
+          ) : (
+            <>
+              {data && <DataMenu data={data} />}
+              <ThemeToggle value={theme} onChange={setTheme} />
+            </>
+          )}
+        </span>
+      </header>
+      {phone && <SectionTabs section={section} className="section-tabs--phone" {...(gameCount !== undefined ? { gameCount } : {})} />}
+    </>
   )
 }

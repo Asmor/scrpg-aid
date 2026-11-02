@@ -1,10 +1,10 @@
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { StoreContext } from '../app/store-context'
 import { PlayPage } from '../components/HeroPage'
-import { MemoryHeroStore } from '../hero/store'
 import { completeHero } from '../test/heroes'
+import { PlayProviders } from '../test/play'
+import { playStores, seedHero } from '../test/play-stores'
 
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
@@ -37,12 +37,12 @@ afterEach(() => vi.unstubAllGlobals())
 
 async function setup() {
   phone()
-  const store = new MemoryHeroStore()
-  await store.save({ ...completeHero(), id: 'h1', play: { health: 17, heroPoints: 2, reactionUsed: false, mods: [], twists: [], history: [] } })
+  const store = playStores()
+  await seedHero(store, { ...completeHero(), id: 'h1', play: { health: 17, heroPoints: 2, reactionUsed: false, mods: [], twists: [], history: [] } })
   render(
-    <StoreContext.Provider value={store}>
+    <PlayProviders stores={store}>
       <PlayPage id="h1" clock={clock} />
-    </StoreContext.Provider>,
+    </PlayProviders>,
   )
   return within(await screen.findByRole('region', { name: 'At a glance' }))
 }

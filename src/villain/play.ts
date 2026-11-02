@@ -88,14 +88,13 @@ export function newScene(play: VillainPlayState, clock: Clock): VillainPlayState
   return noted({ ...rest, reactionUsed: false }, clock, 'New scene: its reaction and scene advance are ready again.')
 }
 
-/** Starts over: full Health, no mods, twists, or counts; the history keeps a marker. */
-export function resetVillain(play: VillainPlayState, clock: Clock): VillainPlayState {
-  return noted({ ...emptyVillainPlay(), history: play.history }, clock, 'Started over: Health restored; mods, twists, and counts cleared.')
+/** Starts over (standalone Play): full Health, no mods, twists or counts, and an empty history. */
+export function resetVillain(): VillainPlayState {
+  return emptyVillainPlay()
 }
 
 /** What a game session's table sees of the villain (Phase 5): its Health, zone, status die, mods, and twists. */
-export function villainSummary(villain: Villain): Omit<SceneVillain, 'sharedUpTo'> {
-  const play = villain.play ?? emptyVillainPlay()
+export function villainSummary(villain: Villain, play: VillainPlayState = emptyVillainPlay()): Omit<SceneVillain, 'sharedUpTo'> {
   const health = villainHealth(villain, play)
   const current = currentHealth(health, play)
   const zone = villainZone(health, play)

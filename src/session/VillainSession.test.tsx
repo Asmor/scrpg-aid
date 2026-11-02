@@ -1,13 +1,11 @@
 import { act, render, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { StoreContext } from '../app/store-context'
-import { VillainStoreContext } from '../app/villain-store-context'
-import { MemoryHeroStore } from '../hero/store'
 import { PlayPage } from '../components/HeroPage'
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
-import { MemoryVillainStore } from '../villain/store'
+import { PlayProviders } from '../test/play'
+import { playStores, savedVillain, seedHero, seedVillain } from '../test/play-stores'
 import { VillainPlayPage } from '../villain/VillainPlayPage'
 import { useSession } from './context'
 import { GmPage } from './GmPage'
@@ -27,17 +25,17 @@ function PlayerApp({ room }: { room: string }) {
 describe('villains in a game', () => {
   it('shows the GM’s villain to the table, takes a player’s Hinder on it, and shares its rolls', async () => {
     const net = fakeNetwork()
-    const villains = new MemoryVillainStore()
-    // It has history from before the game, which stays out of the feed.
-    await villains.save({ ...adaptiveBruiser(), play: { reactionUsed: false, mods: [], twists: [], history: [{ id: 'old', at: '2026-10-01T00:00:00.000Z', text: 'An old fight.' }] } })
+    const villains = playStores()
+    // It has history from before the game (in its solo game), which stays out of the feed.
+    await seedVillain(villains, { ...adaptiveBruiser(), play: { reactionUsed: false, mods: [], twists: [], history: [{ id: 'old', at: '2026-10-01T00:00:00.000Z', text: 'An old fight.' }] } })
     // The GM's browser: the GM page and the villain's Play page, in one session.
     const gmView = render(
-      <VillainStoreContext.Provider value={villains}>
+      <PlayProviders stores={villains}>
         <SessionProvider connect={net.connect} store={localSessionStore(memoryStorage())} clock={clock}>
           <GmPage />
           <VillainPlayPage id="v1" clock={clock} />
         </SessionProvider>
-      </VillainStoreContext.Provider>,
+      </PlayProviders>,
     )
     const gm = within(gmView.container)
     await userEvent.click(gm.getByRole('button', { name: 'Start a game' }))
@@ -46,18 +44,18 @@ describe('villains in a game', () => {
     await waitFor(() => expect(villainsRegion.getByRole('option', { name: 'Ironclad' })).toBeInTheDocument())
     await userEvent.selectOptions(villainsRegion.getByLabelText('Villain to add'), 'Ironclad')
     await userEvent.click(villainsRegion.getByRole('button', { name: 'Add to the game' }))
-    expect(gm.getByRole('region', { name: 'Feed' })).toHaveTextContent('GM: Ironclad joined the scene.')
+    await waitFor(() => expect(gm.getByRole('region', { name: 'Feed' })).toHaveTextContent('GM: Ironclad joined the scene.'))
     expect(gm.getByRole('region', { name: 'Feed' })).not.toHaveTextContent('An old fight.')
 
     // A player joins and sees the villain.
-    const heroes = new MemoryHeroStore()
-    await heroes.save({ ...completeHero(), id: 'h1' })
+    const heroes = playStores()
+    await seedHero(heroes, { ...completeHero(), id: 'h1' })
     const playerView = render(
-      <StoreContext.Provider value={heroes}>
+      <PlayProviders stores={heroes}>
         <SessionProvider connect={net.connect} store={localSessionStore(memoryStorage())} clock={clock}>
           <PlayerApp room={room} />
         </SessionProvider>
-      </StoreContext.Provider>,
+      </PlayProviders>,
     )
     const player = within(playerView.container)
     await userEvent.click(await player.findByRole('button', { name: 'Join' }))
@@ -75,10 +73,7 @@ describe('villains in a game', () => {
     await act(() => net.settle())
     const villainMods = within(gm.getAllByRole('region', { name: 'Bonuses and penalties' }).at(-1)!)
     await waitFor(() => expect(villainMods.getByText("'-2 tangled' penalty")).toBeInTheDocument())
-    await waitFor(async () => {
-      const saved = await villains.get('v1')
-      expect(saved.status === 'found' && saved.villain.play?.mods).toHaveLength(1)
-    })
+    await waitFor(async () => expect((await savedVillain(villains, 'v1')).play?.mods).toHaveLength(1))
 
     // The villain loses Health: the table sees it, and the feed has it under its name.
     const health = within(gm.getAllByRole('region', { name: 'Health' }).at(-1)!)

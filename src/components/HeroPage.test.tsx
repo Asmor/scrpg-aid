@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { StoreContext } from '../app/store-context'
+import { GameStoreContext } from '../app/game-store-context'
+import { MemoryGameStore } from '../game/store'
 import type { GetResult, HeroStore } from '../hero/store'
 import { buildSheet } from '../creation/sheet'
 import { exampleHero } from '../hero/example'
@@ -27,7 +29,9 @@ const storeReturning = (get: () => Promise<GetResult>): HeroStore => ({
 const renderPage = (store: HeroStore) =>
   render(
     <StoreContext.Provider value={store}>
-      <HeroPage id="x" />
+      <GameStoreContext.Provider value={new MemoryGameStore()}>
+        <HeroPage id="x" />
+      </GameStoreContext.Provider>
     </StoreContext.Provider>,
   )
 
@@ -146,13 +150,16 @@ describe('HeroPage', () => {
     expect(downloadFile).toHaveBeenCalled()
   })
 
-  it('in Play mode, hides Roleplaying and swaps Advancement and Export for New issue', async () => {
+  it('in Play mode, hides Roleplaying and swaps Advancement and Export for Solo play and its ⋯', async () => {
     render(
       <StoreContext.Provider value={storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) }))}>
-        <HeroPage id="x" mode="play" />
+        <GameStoreContext.Provider value={new MemoryGameStore()}>
+          <HeroPage id="x" mode="play" />
+        </GameStoreContext.Provider>
       </StoreContext.Provider>,
     )
-    expect(await screen.findByRole('button', { name: 'New issue…' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: "More for Maya Reyes's Play page" })).toBeInTheDocument()
+    expect(screen.getByText('Solo play')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Roleplaying' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Advancement' })).not.toBeInTheDocument()

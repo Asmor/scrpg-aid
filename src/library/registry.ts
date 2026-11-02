@@ -1,24 +1,26 @@
 /**
  * The library's types (docs/design/library/spec.md, "Library types"): what the table needs from
  * each kind of document, so a new type plugs in by adding an entry here. The type chips, the New
- * menu, and the Details and Status columns all read from it.
+ * menu, and the Details column all read from it; the In games column comes from the games
+ * holding a copy of the item (../game/model.ts).
+ *
+ * Games aren't a library type: they have their own Games page (../game/GamesPage.tsx). Library
+ * documents are sheets only, so rows show nothing from play.
  *
  * Minions and lieutenants are left out for now: they have their own documents and store
  * (../minion/), but no page of their own to open them on yet, so there's nothing for a row to
  * link to. Add an entry once they do.
  */
-import { editPath, gamePath, playPath, heroPath, villainEditPath, villainPath, villainPlayPath } from '../app/route'
+import { editPath, playPath, heroPath, villainEditPath, villainPath, villainPlayPath } from '../app/route'
 import type { NewHeroes } from '../app/new-heroes'
 import { buildSheet } from '../creation/sheet'
 import { createHero, duplicateHero, heroDisplayName, isDraft, type Hero } from '../hero/model'
 import type { HeroStore } from '../hero/store'
 import { continueStep, NUMBERED_STEPS, WIZARD_STEPS, wizardStepIndex } from '../hero/wizard-steps'
-import { currentHealth, effectiveZone, type PlayZone } from '../play/state'
-import { gameFileName, gameJson, heroFileName, heroJson, villainFileName, villainJson } from '../transfer/files'
-import { createGame, duplicateGame, gameDisplayName, sceneDisplayName, type Game } from '../game/model'
+import { heroFileName, heroJson, villainFileName, villainJson } from '../transfer/files'
+import { soloGameId } from '../game/solo'
 import type { GameStore } from '../game/store'
 import { createVillain, duplicateVillain, villainDisplayName, type Villain } from '../villain/model'
-import { villainHealth, villainZone } from '../villain/play'
 import { buildVillainSheet } from '../villain/sheet'
 import type { VillainStore } from '../villain/store'
 
@@ -47,10 +49,8 @@ export interface RowInfo {
   details: string
   /** Rule issues, linking to where they can be fixed. */
   issues?: { count: number; href: string }
-  /** The Status column; absent shows "—". */
-  status?: { zone?: PlayZone; health?: number; maxHealth?: number }
   openHref: string
-  primary: { label: 'Play' | 'Continue' | 'Run'; href: string }
+  primary: { label: 'Play' | 'Continue'; href: string }
   editHref: string
 }
 
@@ -64,12 +64,14 @@ export interface LibraryType<D extends LibraryDoc = LibraryDoc> {
   save(stores: LibraryStores, doc: D): Promise<void>
   remove(stores: LibraryStores, id: string): Promise<void>
   row(doc: D): RowInfo
-  /** A copy with a new id, "(copy)" after the name, the same tags, and no play state. */
+  /** A copy with a new id, "(copy)" after the name, and the same tags. */
   duplicate(doc: D): D
   /** The single-item export: JSON in the same envelope as storage. */
   exportFile(doc: D): { name: string; text: string }
   /** Which list of a backup file it goes in. */
-  backupKey: 'heroes' | 'villains' | 'games'
+  backupKey: 'heroes' | 'villains'
+  /** Which kind of copy a game holds of it, for the In games column. */
+  inGames: 'hero' | 'villain'
   /** Starts a new one from the New menu, returning the page to open (unset if the type can't be created). */
   create?(context: { stores: LibraryStores; newHeroes: NewHeroes }): Promise<string>
 }
@@ -89,12 +91,17 @@ export const heroType: LibraryType<Hero> = {
   label: 'Hero',
   plural: 'Heroes',
   backupKey: 'heroes',
+  inGames: 'hero',
   list: async (stores) => {
     const { heroes, unreadable } = await stores.heroes.list()
     return { docs: heroes, unreadable }
   },
   save: (stores, hero) => stores.heroes.save(hero),
-  remove: (stores, id) => stores.heroes.remove(id),
+  // Deleting a character deletes its solo game (docs/design/game-table/spec.md, section 12).
+  remove: async (stores, id) => {
+    await stores.heroes.remove(id)
+    await stores.games.remove(soloGameId('hero', id))
+  },
   row(hero) {
     const name = heroDisplayName(hero)
     const named = Boolean(hero.details.name.trim() || hero.details.alias.trim())
@@ -104,15 +111,12 @@ export const heroType: LibraryType<Hero> = {
     }
     const sheet = buildSheet(hero)
     const { archetype, powerSource } = sheet.characteristics
-    const health = currentHealth(sheet, hero.play)
-    const zone = effectiveZone(sheet, hero.play)
     return {
       name,
       named,
       draft: false,
       details: [archetype, powerSource].filter(Boolean).join(' · '),
       ...(sheet.warnings.length ? { issues: { count: sheet.warnings.length, href: editPath(hero.id) } } : {}),
-      ...(zone || health !== undefined ? { status: { zone, health, maxHealth: sheet.maxHealth } } : {}),
       openHref: heroPath(hero.id),
       primary: { label: 'Play', href: playPath(hero.id) },
       editHref: editPath(hero.id),
@@ -133,18 +137,19 @@ export const villainType: LibraryType<Villain> = {
   label: 'Villain',
   plural: 'Villains',
   backupKey: 'villains',
+  inGames: 'villain',
   list: async (stores) => {
     const { villains, unreadable } = await stores.villains.list()
     return { docs: villains, unreadable }
   },
   save: (stores, villain) => stores.villains.save(villain),
-  remove: (stores, id) => stores.villains.remove(id),
+  remove: async (stores, id) => {
+    await stores.villains.remove(id)
+    await stores.games.remove(soloGameId('villain', id))
+  },
   row(villain) {
     const sheet = buildVillainSheet(villain)
     const kind = [sheet.approach, sheet.archetype].filter(Boolean).join(' ')
-    const health = villainHealth(villain, villain.play)
-    const zone = villainZone(health, villain.play ?? {})
-    const now = villain.play?.health ?? health.maxHealth
     const first = sheet.warnings[0]
     return {
       name: villainDisplayName(villain),
@@ -152,7 +157,6 @@ export const villainType: LibraryType<Villain> = {
       draft: false,
       details: kind ? `${kind} · ${sheet.major ? 'Major' : 'Minor'}` : '',
       ...(first ? { issues: { count: sheet.warnings.length, href: villainEditPath(villain.id, first.step) } } : {}),
-      ...(zone || now !== undefined ? { status: { zone, health: now === undefined || health.maxHealth === undefined ? now : Math.min(now, health.maxHealth), maxHealth: health.maxHealth } } : {}),
       openHref: villainPath(villain.id),
       primary: { label: 'Play', href: villainPlayPath(villain.id) },
       editHref: villainEditPath(villain.id),
@@ -167,38 +171,8 @@ export const villainType: LibraryType<Villain> = {
   },
 }
 
-/** "Round 2 · The Foundry", or "Not started · The Foundry" before the first round. */
-export function gameDetails(game: Game): string {
-  return [game.round > 0 ? `Round ${game.round}` : 'Not started', game.scene.name.trim() ? sceneDisplayName(game) : ''].filter(Boolean).join(' · ')
-}
-
-export const gameType: LibraryType<Game> = {
-  key: 'game',
-  label: 'Game',
-  plural: 'Games',
-  backupKey: 'games',
-  list: async (stores) => {
-    const { games, unreadable } = await stores.games.list()
-    return { docs: games, unreadable }
-  },
-  save: (stores, game) => stores.games.save(game),
-  remove: (stores, id) => stores.games.remove(id),
-  row(game) {
-    const href = gamePath(game.id)
-    // No Status column: a game has no Health.
-    return { name: gameDisplayName(game), named: Boolean(game.name.trim()), draft: false, details: gameDetails(game), openHref: href, primary: { label: 'Run', href }, editHref: href }
-  },
-  duplicate: (game) => duplicateGame(game),
-  exportFile: (game) => ({ name: gameFileName(game, 'json'), text: gameJson(game) }),
-  async create({ stores }) {
-    const game = createGame()
-    await stores.games.save(game)
-    return gamePath(game.id)
-  },
-}
-
 /** Every library type, in the order the type chips and New menu list them. */
-export const LIBRARY_TYPES: readonly LibraryType[] = [heroType as unknown as LibraryType, villainType as unknown as LibraryType, gameType as unknown as LibraryType]
+export const LIBRARY_TYPES: readonly LibraryType[] = [heroType as unknown as LibraryType, villainType as unknown as LibraryType]
 
 export function libraryType(key: string): LibraryType | undefined {
   return LIBRARY_TYPES.find((t) => t.key === key)

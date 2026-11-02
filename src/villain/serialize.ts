@@ -5,8 +5,8 @@ import { villainProblem } from './validate'
 import { cleanTags } from '../library/tags'
 
 export const VILLAIN_FORMAT = 'scrpg-villain'
-/** Version 2 added `tags`. */
-export const VILLAIN_VERSION = 2
+/** Version 2 added `tags`. Version 3 took play state (`play`) off the villain: games hold it now, and old play state is dropped. */
+export const VILLAIN_VERSION = 3
 
 export interface SavedVillain {
   format: typeof VILLAIN_FORMAT
@@ -17,6 +17,13 @@ export interface SavedVillain {
 /** Migrations keyed by the version they upgrade from. */
 export const VILLAIN_MIGRATIONS: Readonly<Record<number, Migration>> = {
   1: (villain) => ({ ...villain, tags: [] }),
+  2: (villain) => withoutVillainPlay(villain),
+}
+
+/** A villain document without play state, which belongs to games now. */
+export function withoutVillainPlay<T extends Record<string, unknown>>(villain: T): Omit<T, 'play'> {
+  const { play: _play, ...rest } = villain
+  return rest
 }
 
 export type VillainParseResult = { ok: true; villain: Villain; migratedFrom?: number } | { ok: false; error: string }
@@ -29,7 +36,7 @@ export function villainToSaved(villain: Villain): SavedVillain {
 export function parseSavedVillain(value: unknown, migrations = VILLAIN_MIGRATIONS, currentVersion = VILLAIN_VERSION): VillainParseResult {
   const result = readEnvelope<Villain>(value, { format: VILLAIN_FORMAT, key: 'villain', currentVersion, migrations, problem: villainProblem })
   if (!result.ok) return result
-  const villain = { ...result.doc, tags: cleanTags(result.doc.tags) }
+  const villain = { ...(withoutVillainPlay(result.doc as unknown as Record<string, unknown>) as unknown as Villain), tags: cleanTags(result.doc.tags) }
   return result.migratedFrom === undefined ? { ok: true, villain } : { ok: true, villain, migratedFrom: result.migratedFrom }
 }
 

@@ -4,7 +4,8 @@
  * are checked), the table, and the footer.
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { PLAY_ZONE_LABEL } from '../hero/labels'
+import { gamePath } from '../app/route'
+import { gameDisplayName, type Game } from '../game/model'
 import type { LibraryModel } from './LibraryPage'
 import { PopoverDialog, PopoverMenu } from './Popover'
 import { usePopover, type Popover } from './popover-state'
@@ -34,14 +35,18 @@ const SearchIcon = () => (
   </svg>
 )
 
-/** The zone chip and Health, never wrapping; "—" without status. */
-export function StatusCell({ status }: { status: RowInfo['status'] }) {
-  if (!status) return <span className="muted">—</span>
-  const { zone, health, maxHealth } = status
+/** The In games column: the games holding a copy, as links, one per line, up to two then "+N more"; "—" when none. */
+export function InGamesCell({ games }: { games: readonly Game[] }) {
+  if (!games.length) return <span className="muted">—</span>
+  const shown = games.slice(0, 2)
   return (
-    <span className="library-status">
-      {zone && <span className={`zone-chip zone-${zone}`}>{PLAY_ZONE_LABEL[zone]}</span>}
-      {health !== undefined && <span className="library-status__health">{maxHealth !== undefined ? `${health} / ${maxHealth}` : health}</span>}
+    <span className="library-games">
+      {shown.map((g) => (
+        <a key={g.id} href={gamePath(g.id)} title={gameDisplayName(g)}>
+          {gameDisplayName(g)}
+        </a>
+      ))}
+      {games.length > 2 && <span className="muted">+{games.length - 2} more</span>}
     </span>
   )
 }
@@ -390,7 +395,7 @@ function LibraryTable({ model }: { model: LibraryModel }) {
             <SortHeader model={model} label="Name" sortKey="name" />
             <SortHeader model={model} label="Type" sortKey="type" />
             <th scope="col">Details</th>
-            <th scope="col">Status</th>
+            <th scope="col">In games</th>
             <th scope="col">Tags</th>
             <SortHeader model={model} label="Changed" sortKey="changed" />
             <th scope="col">
@@ -421,8 +426,8 @@ function LibraryTable({ model }: { model: LibraryModel }) {
                     </a>
                   )}
                 </td>
-                <td className="library-table__status">
-                  <StatusCell status={info.draft ? undefined : info.status} />
+                <td className="library-table__games">
+                  <InGamesCell games={model.inGames(r.item)} />
                 </td>
                 <td>
                   <ItemTags

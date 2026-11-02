@@ -1,17 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import type { Clock } from '../play/state'
-import { createGame, duplicateGame, gameDisplayName, type ActorRef, type Game } from './model'
+import type { Hero } from '../hero/model'
+import { addMod, emptyPlay, setHealth, setReactionUsed, type Clock } from '../play/state'
+import { completeHero } from '../test/heroes'
+import { adaptiveBruiser } from '../test/villains'
+import type { Villain } from '../villain/model'
+import { createGame, duplicateGame, gameDisplayName, heroCopy, villainCopy, type Game } from './model'
 import {
   addChallenge,
   addGroup,
-  addLocalHero,
+  addHero,
   addMemberMod,
   addVillain,
   advanceTracker,
   boxLabel,
+  changeHeroPlay,
+  changeVillainPlay,
+  copyOf,
   groupSummary,
   handOff,
+  heroPlayInScene,
   isHidden,
+  itemName,
   recordMemberRoll,
   removeFromTable,
   removeMember,
@@ -30,8 +39,10 @@ import {
   shrinkMember,
   startRound,
   stepsText,
+  syncTurnOrder,
   trackerCounts,
   turnStrip,
+  updateSheet,
   waiting,
   withLog,
 } from './table'
@@ -41,15 +52,26 @@ function clock(): Clock {
   return { now: new Date('2026-11-01T12:00:00Z'), newId: () => `id${++n}` }
 }
 
-const names = (ref: ActorRef) => ({ h1: 'Maya Reyes', v1: 'Gravelord', v2: 'Rust Hound' })[ref.id] ?? `?${ref.id}`
+/** Library documents: a hero, and two villains. */
+function hero(): Hero {
+  const h = { ...completeHero(), id: 'hero-a' }
+  h.details = { ...h.details, name: 'Maya Reyes' }
+  return h
+}
+function villain(id: string, name: string): Villain {
+  const v = { ...adaptiveBruiser(), id }
+  v.details = { ...v.details, name }
+  return v
+}
+const gravelord = () => villain('lib-v1', 'Gravelord')
+const rustHound = () => villain('lib-v2', 'Rust Hound')
 const texts = (game: Game) => game.feed.map((e) => e.text)
 const last = (game: Game) => game.feed.at(-1)!
 
-/** A game with a hero (id h1), a revealed villain (v1), a revealed group and a revealed environment. */
+/** A game with a hero's copy (id h1), a revealed villain's copy (v1), a revealed group and a revealed environment. */
 function table(c = clock()) {
   let game = createGame({ id: 'g', now: c.now })
-  game = { ...game, heroes: [{ id: 'h1', source: { kind: 'local', heroId: 'hero-a' } }] }
-  game = addVillain(game, 'v1', 'Gravelord', c, false)
+  game = syncTurnOrder({ ...game, heroes: [heroCopy(hero(), 'h1')], villains: [villainCopy(gravelord(), 'v1', false)] })
   game = addGroup(game, { kind: 'minions', name: 'Scrap drones', die: 'd6', count: 3, hidden: false }, c)
   game = setEnvironment(game, { name: 'Collapsing Foundry', hidden: false }, c)
   const groupId = game.groups[0]!.id
@@ -66,14 +88,22 @@ describe('a new game', () => {
     expect(gameDisplayName(game)).toBe('Unnamed game')
   })
 
-  it('duplicates with no play state, keeping what is on the table', () => {
-    const { game } = table()
-    const started = startRound(game, { kind: 'hero', id: 'h1' }, names, clock()).game
+  it('duplicates as a fresh setup: no players, fresh play state, keeping what is on the table', () => {
+    const { game, c } = table()
+    let started = startRound(game, { kind: 'hero', id: 'h1' }, c)
+    started = changeVillainPlay(started, 'v1', (p) => setHealth(p, { maxHealth: 55 }, 20, c), c)
+    started = { ...started, heroes: [...started.heroes, { ...heroCopy({ ...hero(), id: 'hero-b' }, 'h2'), player: { clientId: 'p1', name: 'Alex' } }] }
+    started = syncTurnOrder(started)
     const copy = duplicateGame({ ...started, name: 'Thursday', tags: ['campaign'] }, { id: 'copy' })
-    expect(copy).toMatchObject({ id: 'copy', name: 'Thursday (copy)', tags: ['campaign'], round: 0, feed: [] })
+    expect(copy).toMatchObject({ id: 'copy', name: 'Thursday (copy)', tags: ['campaign'], round: 0, feed: [], pendingSyncs: [] })
     expect(copy.turn.acted).toEqual([])
     expect(copy.turn.current).toBeUndefined()
-    expect(copy.villains).toEqual(started.villains)
+    // The player's hero leaves; the GM's own stays.
+    expect(copy.heroes.map((h) => h.id)).toEqual(['h1'])
+    expect(copy.turn.order.some((o) => o.id === 'h2')).toBe(false)
+    expect(copy.villains.map((v) => v.id)).toEqual(['v1'])
+    expect(copy.villains[0]!.play).toEqual({ reactionUsed: false, mods: [], twists: [], history: [] })
+    expect(copy.villains[0]!.sheet).toEqual(started.villains[0]!.sheet)
   })
 })
 
@@ -133,22 +163,24 @@ describe('the scene tracker', () => {
 describe('hidden items', () => {
   it('start hidden, are logged for the GM only, and enter the turn order when revealed', () => {
     const c = clock()
-    let game = addVillain(createGame(), 'v2', 'Rust Hound', c)
-    expect(isHidden(game, { kind: 'villain', id: 'v2' })).toBe(true)
+    let game = addVillain(createGame(), rustHound(), c)
+    const v2 = game.villains[0]!.id
+    expect(isHidden(game, { kind: 'villain', id: v2 })).toBe(true)
     expect(last(game)).toMatchObject({ text: 'The GM brought in Rust Hound, hidden from players.', gmOnly: true })
     expect(game.turn.order).toEqual([])
-    game = setHidden(game, { kind: 'villain', id: 'v2' }, false, names, c)
+    game = setHidden(game, { kind: 'villain', id: v2 }, false, c)
     expect(last(game).text).toBe('The GM revealed Rust Hound.')
     expect(last(game).gmOnly).toBeUndefined()
-    expect(game.turn.order).toEqual([{ kind: 'villain', id: 'v2' }])
+    expect(game.turn.order).toEqual([{ kind: 'villain', id: v2 }])
   })
 
   it('keeps a hidden-again actor in the turn order', () => {
     const c = clock()
-    let game = addVillain(createGame(), 'v2', 'Rust Hound', c, false)
-    game = setHidden(game, { kind: 'villain', id: 'v2' }, true, names, c)
+    let game = addVillain(createGame(), rustHound(), c, false)
+    const v2 = game.villains[0]!.id
+    game = setHidden(game, { kind: 'villain', id: v2 }, true, c)
     expect(last(game)).toMatchObject({ text: 'The GM hid Rust Hound from players.', gmOnly: true })
-    expect(game.turn.order).toEqual([{ kind: 'villain', id: 'v2' }])
+    expect(game.turn.order).toEqual([{ kind: 'villain', id: v2 }])
   })
 
   it('hides and reveals groups, challenges and the environment', () => {
@@ -162,7 +194,7 @@ describe('hidden items', () => {
       { kind: 'environment' as const, id: game.environment!.id },
     ]
     expect(refs.every((r) => isHidden(game, r))).toBe(true)
-    for (const r of refs) game = setHidden(game, r, false, names, c)
+    for (const r of refs) game = setHidden(game, r, false, c)
     expect(refs.some((r) => isHidden(game, r))).toBe(false)
     // The challenge isn't an actor.
     expect(game.turn.order.map((o) => o.kind)).toEqual(['group', 'environment'])
@@ -182,43 +214,49 @@ describe('the turn order', () => {
     expect(game.turn.order.map((o) => o.kind)).toEqual(['hero', 'villain', 'group', 'environment'])
   })
 
-  it('a local hero joins it straight away, once', () => {
+  it('a GM’s own hero is copied in and joins it straight away, once', () => {
     const c = clock()
-    let game = addLocalHero(createGame(), 'hero-a', 'Maya Reyes', c)
-    expect(game.turn.order).toEqual([{ kind: 'hero', id: game.heroes[0]!.id }])
+    const maya = hero()
+    let game = addHero(createGame(), maya, c)
+    const copy = game.heroes[0]!
+    expect(copy).toMatchObject({ sourceId: 'hero-a', play: emptyPlay() })
+    expect(copy.player).toBeUndefined()
+    expect(copy.sheet).toEqual(maya)
+    expect(copy.sheet).not.toBe(maya)
+    expect(game.turn.order).toEqual([{ kind: 'hero', id: copy.id }])
     expect(last(game).text).toBe('Maya Reyes joined the table.')
-    expect(addLocalHero(game, 'hero-a', 'Maya Reyes', c)).toBe(game)
+    expect(addHero(game, hero(), c)).toBe(game)
+    expect(copyOf(game, 'hero', 'hero-a')).toBe(copy)
   })
 
   it('starts round 1 with whoever the GM picks', () => {
     const { game, c } = table()
-    expect(handOff(game, { kind: 'villain', id: 'v1' }, names, c).game).toBe(game)
-    const { game: started, started: who } = startRound(game, { kind: 'villain', id: 'v1' }, names, c)
+    expect(handOff(game, { kind: 'villain', id: 'v1' }, c)).toBe(game)
+    const started = startRound(game, { kind: 'villain', id: 'v1' }, c)
     expect(started.round).toBe(1)
-    expect(who).toEqual({ kind: 'villain', id: 'v1' })
+    expect(started.turn.current).toEqual({ kind: 'villain', id: 'v1' })
     expect(last(started).text).toBe('Round 1 started. Gravelord goes first.')
   })
 
   it('hands off only to actors who have not acted, then ends the round', () => {
     const { game, c, groupId, envId } = table()
-    let g = startRound(game, { kind: 'hero', id: 'h1' }, names, c).game
-    const result = handOff(g, { kind: 'villain', id: 'v1' }, names, c)
-    g = result.game
-    expect(result.started).toEqual({ kind: 'villain', id: 'v1' })
+    let g = startRound(game, { kind: 'hero', id: 'h1' }, c)
+    g = handOff(g, { kind: 'villain', id: 'v1' }, c)
+    expect(g.turn.current).toEqual({ kind: 'villain', id: 'v1' })
     expect(last(g).text).toBe('Maya Reyes handed off to Gravelord.')
     // Maya has acted; Gravelord is acting.
-    expect(handOff(g, { kind: 'hero', id: 'h1' }, names, c).game).toBe(g)
-    expect(handOff(g, { kind: 'villain', id: 'v1' }, names, c).game).toBe(g)
+    expect(handOff(g, { kind: 'hero', id: 'h1' }, c)).toBe(g)
+    expect(handOff(g, { kind: 'villain', id: 'v1' }, c)).toBe(g)
     expect(waiting(g)).toEqual([
       { kind: 'group', id: groupId },
       { kind: 'environment', id: envId },
     ])
-    g = handOff(g, { kind: 'group', id: groupId }, names, c).game
+    g = handOff(g, { kind: 'group', id: groupId }, c)
     expect(roundOver(g)).toBe(false)
-    g = handOff(g, { kind: 'environment', id: envId }, names, c).game
+    g = handOff(g, { kind: 'environment', id: envId }, c)
     expect(roundOver(g)).toBe(true)
     // A new round can start with anyone, the current actor included.
-    const next = startRound(g, { kind: 'environment', id: envId }, names, c).game
+    const next = startRound(g, { kind: 'environment', id: envId }, c)
     expect(next.round).toBe(2)
     expect(next.turn.acted).toEqual([])
     expect(next.turn.current).toEqual({ kind: 'environment', id: envId })
@@ -226,27 +264,27 @@ describe('the turn order', () => {
 
   it('refuses a new round while someone has yet to act', () => {
     const { game, c } = table()
-    const g = startRound(game, { kind: 'hero', id: 'h1' }, names, c).game
-    expect(startRound(g, { kind: 'villain', id: 'v1' }, names, c).game).toBe(g)
+    const g = startRound(game, { kind: 'hero', id: 'h1' }, c)
+    expect(startRound(g, { kind: 'villain', id: 'v1' }, c)).toBe(g)
   })
 
   it('advances the scene tracker when the environment’s turn starts', () => {
     const { game, c, envId } = table()
-    let g = startRound(game, { kind: 'hero', id: 'h1' }, names, c).game
+    let g = startRound(game, { kind: 'hero', id: 'h1' }, c)
     expect(g.scene.position).toBe(0)
-    g = handOff(g, { kind: 'environment', id: envId }, names, c).game
+    g = handOff(g, { kind: 'environment', id: envId }, c)
     expect(g.scene.position).toBe(1)
     expect(texts(g).slice(-2)).toEqual(['Maya Reyes handed off to Collapsing Foundry.', 'The scene tracker moved to Green 2.'])
     // Starting a round with the environment advances it too.
     const fresh = table()
-    const r = startRound(fresh.game, { kind: 'environment', id: fresh.envId }, names, fresh.c).game
+    const r = startRound(fresh.game, { kind: 'environment', id: fresh.envId }, fresh.c)
     expect(r.scene.position).toBe(1)
   })
 
   it('shows acted actors in the order they acted, then the current one, then the rest', () => {
     const { game, c, groupId, envId } = table()
-    let g = startRound(game, { kind: 'group', id: groupId }, names, c).game
-    g = handOff(g, { kind: 'villain', id: 'v1' }, names, c).game
+    let g = startRound(game, { kind: 'group', id: groupId }, c)
+    g = handOff(g, { kind: 'villain', id: 'v1' }, c)
     expect(turnStrip(g)).toEqual([
       { ref: { kind: 'group', id: groupId }, state: 'acted' },
       { ref: { kind: 'villain', id: 'v1' }, state: 'current' },
@@ -257,28 +295,44 @@ describe('the turn order', () => {
 
   it('logs a handoff to a hidden actor for the GM only', () => {
     const { game, c } = table()
-    let g = addVillain(game, 'v2', 'Rust Hound', c)
-    g = setHidden(g, { kind: 'villain', id: 'v2' }, false, names, c)
-    g = setHidden(g, { kind: 'villain', id: 'v2' }, true, names, c)
-    g = startRound(g, { kind: 'hero', id: 'h1' }, names, c).game
-    g = handOff(g, { kind: 'villain', id: 'v2' }, names, c).game
+    let g = addVillain(game, rustHound(), c)
+    const v2 = g.villains.at(-1)!.id
+    g = setHidden(g, { kind: 'villain', id: v2 }, false, c)
+    g = setHidden(g, { kind: 'villain', id: v2 }, true, c)
+    g = startRound(g, { kind: 'hero', id: 'h1' }, c)
+    g = handOff(g, { kind: 'villain', id: v2 }, c)
     expect(last(g)).toMatchObject({ text: 'Maya Reyes handed off to Rust Hound.', gmOnly: true })
   })
 
   it('removing an actor takes it out of the turn order, including when acting', () => {
     const { game, c } = table()
-    let g = startRound(game, { kind: 'villain', id: 'v1' }, names, c).game
-    g = removeFromTable(g, { kind: 'villain', id: 'v1' }, names, c)
+    let g = startRound(game, { kind: 'villain', id: 'v1' }, c)
+    g = removeFromTable(g, { kind: 'villain', id: 'v1' }, c)
     expect(g.turn.current).toBeUndefined()
     expect(g.turn.order.some((o) => o.kind === 'villain')).toBe(false)
     expect(last(g).text).toBe('Gravelord left the table.')
   })
 
+  it('clears only the starting actor’s reaction when its turn starts, in its play state', () => {
+    const { game, c } = table()
+    let g = changeHeroPlay(game, 'h1', (p) => setReactionUsed(p, true, c), c, false)
+    g = changeVillainPlay(g, 'v1', (p) => setReactionUsed(p, true, c), c, false)
+    g = startRound(g, { kind: 'villain', id: 'v1' }, c)
+    expect(g.villains[0]!.play.reactionUsed).toBe(false)
+    expect(g.villains[0]!.play.history.at(-1)!.text).toBe('Reaction ready again.')
+    // Round start isn't a turn start for anyone else.
+    expect(g.heroes[0]!.play.reactionUsed).toBe(true)
+    g = handOff(g, { kind: 'hero', id: 'h1' }, c)
+    expect(g.heroes[0]!.play.reactionUsed).toBe(false)
+    // Not logged to the table: it's the table's own doing.
+    expect(texts(g)).not.toContain('Reaction ready again.')
+  })
+
   describe('the GM fixing mistakes', () => {
     it('sets who is acting, with no turn-start effects', () => {
       const { game, c, envId } = table()
-      let g = startRound(game, { kind: 'hero', id: 'h1' }, names, c).game
-      g = setCurrent(g, { kind: 'environment', id: envId }, names, c)
+      let g = startRound(game, { kind: 'hero', id: 'h1' }, c)
+      g = setCurrent(g, { kind: 'environment', id: envId }, c)
       expect(g.turn.current).toEqual({ kind: 'environment', id: envId })
       expect(g.scene.position).toBe(0)
       expect(last(g).text).toBe('The GM set Collapsing Foundry as acting now.')
@@ -286,13 +340,13 @@ describe('the turn order', () => {
 
     it('marks an actor as acted or not', () => {
       const { game, c } = table()
-      let g = startRound(game, { kind: 'hero', id: 'h1' }, names, c).game
-      g = setActed(g, { kind: 'villain', id: 'v1' }, true, names, c)
+      let g = startRound(game, { kind: 'hero', id: 'h1' }, c)
+      g = setActed(g, { kind: 'villain', id: 'v1' }, true, c)
       expect(g.turn.acted).toEqual([{ kind: 'villain', id: 'v1' }])
-      g = setActed(g, { kind: 'villain', id: 'v1' }, false, names, c)
+      g = setActed(g, { kind: 'villain', id: 'v1' }, false, c)
       expect(g.turn.acted).toEqual([])
       // Marking the current actor as acted means nobody is acting.
-      g = setActed(g, { kind: 'hero', id: 'h1' }, true, names, c)
+      g = setActed(g, { kind: 'hero', id: 'h1' }, true, c)
       expect(g.turn.current).toBeUndefined()
     })
 
@@ -303,6 +357,87 @@ describe('the turn order', () => {
       expect(last(g).text).toBe('The GM set the round to 3.')
       expect(setRound(g, -1, c)).toBe(g)
     })
+  })
+})
+
+describe('heroes and villains in play', () => {
+  it('changes a hero’s copy and logs its new history under the hero’s name, without "GM: "', () => {
+    const { game, c } = table()
+    const g = changeHeroPlay(game, 'h1', (p) => ({ ...setHealth(p, { maxHealth: 30 }, 26, c), history: [...p.history, { id: 'x', at: c.now.toISOString(), text: 'GM: Lost 4 HP (30 → 26).' }] }), c)
+    expect(g.heroes[0]!.play.health).toBe(26)
+    expect(last(g)).toMatchObject({ by: 'Maya Reyes', text: 'Lost 4 HP (30 → 26).' })
+    expect(changeHeroPlay(game, 'nope', (p) => p, c)).toBe(game)
+    expect(changeHeroPlay(game, 'h1', (p) => p, c)).toBe(game)
+  })
+
+  it('keeps a hidden villain’s changes out of what players see in the log', () => {
+    const c = clock()
+    let g = addVillain(createGame(), rustHound(), c)
+    const id = g.villains[0]!.id
+    g = changeVillainPlay(g, id, (p) => addMod(p, { label: 'cornered', value: -1 }, c), c)
+    expect(last(g)).toMatchObject({ by: 'Rust Hound', gmOnly: true })
+    expect(g.villains[0]!.play.mods).toHaveLength(1)
+  })
+
+  it('gives the same villain separate state in two games', () => {
+    const c = clock()
+    let one = addVillain(createGame({ id: 'one' }), gravelord(), c, false)
+    const two = addVillain(createGame({ id: 'two' }), gravelord(), c, false)
+    one = changeVillainPlay(one, one.villains[0]!.id, (p) => setHealth(p, { maxHealth: 55 }, 10, c), c)
+    expect(one.villains[0]!.play.health).toBe(10)
+    expect(two.villains[0]!.play.health).toBeUndefined()
+  })
+
+  it('names actors from the game’s copies', () => {
+    const { game } = table()
+    expect(itemName(game, { kind: 'hero', id: 'h1' })).toBe('Maya Reyes')
+    expect(itemName(game, { kind: 'villain', id: 'v1' })).toBe('Gravelord')
+    expect(itemName(game, { kind: 'villain', id: 'gone' })).toBe('A villain')
+  })
+
+  it('gives heroes the tracker’s zone as their scene zone, except in a solo game', () => {
+    const c = clock()
+    const { game } = table()
+    const yellow = setTrackerPosition(game, 3, c)
+    expect(heroPlayInScene(yellow, emptyPlay()).sceneZone).toBe('yellow')
+    expect(heroPlayInScene(game, { ...emptyPlay(), sceneZone: 'red' }).sceneZone).toBeUndefined()
+    const solo = { ...yellow, solo: { kind: 'hero' as const, sourceId: 'hero-a' } }
+    expect(heroPlayInScene(solo, { ...emptyPlay(), sceneZone: 'red' }).sceneZone).toBe('red')
+  })
+
+  it('updates a villain’s copy from the library, keeping play state subject to the adjustments, and logs it', () => {
+    const { game, c } = table()
+    let g = changeVillainPlay(game, 'v1', (p) => addMod(setHealth(p, { maxHealth: 55 }, 50, c), { label: 'cornered', value: -1 }, c), c)
+    const newer = gravelord()
+    newer.archetype = { ...newer.archetype!, id: 'bruiser' }
+    newer.heroCount = 2 // 45 max Health now
+    g = updateSheet(g, { kind: 'villain', id: 'v1', sheet: newer }, c)
+    const copy = g.villains[0]!
+    expect(copy.sheet).toEqual(newer)
+    expect(copy.play.health).toBe(45)
+    expect(copy.play.mods).toHaveLength(1)
+    expect(copy.play.history.at(-1)).toMatchObject({ text: 'The sheet was updated from the library.', details: ['Health lowered to 45, the new max.'] })
+    expect(last(g)).toMatchObject({ text: 'Gravelord: The sheet was updated from the library.', details: ['Health lowered to 45, the new max.'] })
+    expect(updateSheet(g, { kind: 'villain', id: 'gone', sheet: newer }, c)).toBe(g)
+  })
+
+  it('updates a hero’s copy and clears its sync request', () => {
+    const { game, c } = table()
+    const newer = hero()
+    newer.details = { ...newer.details, name: 'Maya R.' }
+    let g: Game = { ...game, pendingSyncs: [{ heroId: 'h1', sheet: newer, at: c.now.toISOString() }] }
+    g = updateSheet(g, { kind: 'hero', id: 'h1', sheet: newer }, c, 'to match the player’s sheet')
+    expect(g.heroes[0]!.sheet.details.name).toBe('Maya R.')
+    expect(g.pendingSyncs).toEqual([])
+    expect(last(g).text).toBe('Maya R.: The sheet was updated to match the player’s sheet.')
+  })
+
+  it('removing a hero drops its sync request too', () => {
+    const { game, c } = table()
+    const g = removeFromTable({ ...game, pendingSyncs: [{ heroId: 'h1', sheet: hero(), at: c.now.toISOString() }] }, { kind: 'hero', id: 'h1' }, c)
+    expect(g.heroes).toEqual([])
+    expect(g.pendingSyncs).toEqual([])
+    expect(last(g).text).toBe('Maya Reyes left the table.')
   })
 })
 

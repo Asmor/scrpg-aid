@@ -1,35 +1,30 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { VillainStoreContext } from '../app/villain-store-context'
+import { PlayProviders } from '../test/play'
+import { playStores, savedVillain, seedVillain, type PlayStores, type VillainWithPlay } from '../test/play-stores'
 import { adaptiveBruiser } from '../test/villains'
 import { readable } from '../test/readable'
-import type { Villain } from './model'
-import { MemoryVillainStore } from './store'
 import { VillainPlayPage } from './VillainPlayPage'
 
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
 
-async function setup(change: (v: Villain) => void = () => {}) {
-  const store = new MemoryVillainStore()
-  const v = adaptiveBruiser()
+async function setup(change: (v: VillainWithPlay) => void = () => {}) {
+  const store = playStores()
+  const v: VillainWithPlay = adaptiveBruiser()
   change(v)
-  await store.save(v)
+  await seedVillain(store, v)
   render(
-    <VillainStoreContext.Provider value={store}>
+    <PlayProviders stores={store}>
       <VillainPlayPage id="v1" clock={clock} random={() => 0.999} />
-    </VillainStoreContext.Provider>,
+    </PlayProviders>,
   )
   await screen.findByRole('region', { name: 'Abilities' })
   return store
 }
 
-const saved = async (store: MemoryVillainStore) => {
-  const r = await store.get('v1')
-  if (r.status !== 'found') throw new Error('not saved')
-  return r.villain
-}
+const saved = (store: PlayStores) => savedVillain(store, 'v1')
 const region = (name: string) => within(screen.getByRole('region', { name }))
 
 describe('a villain in the game aid', () => {
@@ -142,13 +137,16 @@ describe('a villain in the game aid', () => {
     await userEvent.type(region('Bonuses and penalties').getByLabelText('What it is'), 'cornered')
     await userEvent.click(region('Bonuses and penalties').getByRole('button', { name: 'Add' }))
     expect(region('Bonuses and penalties').getByText("'-1 cornered' penalty")).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Start over…' }))
+    // Standalone Play is the villain's solo game: its ⋯ has Start over.
+    expect(screen.getByText('Solo play')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /^More for .*Play page$/ }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Start over…' }))
     await userEvent.click(screen.getByRole('button', { name: 'Yes, start over' }))
-    await waitFor(async () => expect((await saved(store)).play?.mods).toEqual([]))
+    await waitFor(async () => expect((await saved(store)).play).toMatchObject({ mods: [], history: [] }))
     render(
-      <VillainStoreContext.Provider value={store}>
+      <PlayProviders stores={store}>
         <VillainPlayPage id="nobody" />
-      </VillainStoreContext.Provider>,
+      </PlayProviders>,
     )
     expect(await screen.findByRole('alert')).toHaveTextContent("There's no saved villain with that link.")
   })

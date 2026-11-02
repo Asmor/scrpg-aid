@@ -100,6 +100,8 @@ export interface MenuItem {
   href?: string
   /** One of a set of radio choices (role menuitemradio), checked or not. */
   checked?: boolean
+  /** A line of information above the menu's items, not an action ("Library sheet changed 2 days ago"). */
+  note?: true
 }
 
 /** Arrow keys move between a menu's items; Home and End jump. */
@@ -127,8 +129,15 @@ export function PopoverMenu({ popover, label, items, className, header }: { popo
   return (
     <div ref={panel} className={`popover popover--menu ${className ?? ''}`}>
       {header}
+      {items
+        .filter((item) => item.note)
+        .map((item) => (
+          <p key={item.label} className="popover__line">
+            {item.label}
+          </p>
+        ))}
       <div role="menu" aria-label={label} onKeyDown={moveFocus}>
-        {items.map((item) =>
+        {items.filter((item) => !item.note).map((item) =>
           item.href ? (
             <a key={item.label} role="menuitem" tabIndex={-1} className={item.danger ? 'menu-item menu-item--danger' : 'menu-item'} href={item.href} onClick={() => popover.setOpen(false)}>
               {item.label}

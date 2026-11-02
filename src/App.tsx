@@ -16,6 +16,7 @@ import { VillainPlayPage } from './villain/VillainPlayPage'
 import { GameStoreContext } from './app/game-store-context'
 import { createDefaultGameStore, type GameStore } from './game/store'
 import { GamePage } from './game/GamePage'
+import { GamesPage } from './game/GamesPage'
 import { GmPage } from './session/GmPage'
 import { JoinPage } from './session/JoinPage'
 import { SessionProvider } from './session/SessionProvider'
@@ -49,10 +50,14 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
       <GameStoreContext.Provider value={gameStore}>
       <SavedSearchStoreContext.Provider value={searchStore}>
       <SessionProvider {...(connect ? { connect } : {})} {...(sessionStore ? { store: sessionStore } : {})}>
-      {/* The library (the home screen) and the game table have their own header bars and layouts. */}
+      {/* The library (the home screen), the Games page and the game table have their own header bars and layouts. */}
       {route.name === 'list' ? (
         <div className="app">
           <LibraryPage theme={theme} setTheme={setTheme} searchStore={searchStore} {...(backupTime ? { backupTime } : {})} />
+        </div>
+      ) : route.name === 'games' ? (
+        <div className="app">
+          <GamesPage theme={theme} setTheme={setTheme} />
         </div>
       ) : route.name === 'game' ? (
         <div className="app">

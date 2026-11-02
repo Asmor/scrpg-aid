@@ -81,11 +81,9 @@ export interface Villain {
   /** How many heroes the villain is built to face: 5 Health each (p. 239). */
   heroCount: number
   notes?: string
-  /** The game aid's state (stage 6), saved with the villain; sheet exports leave it out. */
-  play?: VillainPlayState
 }
 
-/** A villain in play: like a hero's play state, plus what its archetype's status rule needs. */
+/** A villain in play, kept in a game next to its copied sheet (../game/model.ts): like a hero's play state, plus what its archetype's status rule needs. */
 export interface VillainPlayState {
   /** Current Health; until set, the villain is at its max. */
   health?: number
@@ -141,7 +139,7 @@ export function villainTraitName(villain: Villain, trait: TraitRef): string | un
 /** A copy of the villain to save as a new one, like ../hero/model.ts duplicateHero. */
 export function duplicateVillain(villain: Villain, options: { id?: string; now?: Date } = {}): Villain {
   const timestamp = (options.now ?? new Date()).toISOString()
-  const { play: _play, ...rest } = structuredClone(villain)
+  const rest = structuredClone(villain)
   const details = { ...rest.details }
   if (details.name.trim()) details.name = `${details.name.trim()} (copy)`
   else if (details.alias.trim()) details.alias = `${details.alias.trim()} (copy)`

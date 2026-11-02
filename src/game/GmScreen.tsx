@@ -6,7 +6,7 @@ import { useEffect, useId, useState } from 'react'
 import { useStore } from '../app/store-context'
 import { useOptionalSavedSearchStore } from '../app/saved-search-context'
 import { useVillainStore } from '../app/villain-store-context'
-import { villainPlayPath } from '../app/route'
+import { villainPath } from '../app/route'
 import { ActionIcon, DieIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL } from '../hero/labels'
 import { isDraft, type PlayMod } from '../hero/model'
@@ -19,10 +19,10 @@ import { ModForm } from '../play/ModForm'
 import { confirmRoll } from '../play/roll'
 import { RollDialog, type RollSubject } from '../play/RollDialog'
 import { addMod, addTwist, currentHealth, describeMod, modName, removeMod, removeTwist, setHealth, setReactionUsed, type Clock } from '../play/state'
-import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
-import { emptyVillainPlay, villainHealth, villainStatusDie, villainZone } from '../villain/play'
+import { villainDisplayName, type VillainPlayState } from '../villain/model'
+import { villainHealth, villainStatusDie, villainZone } from '../villain/play'
 import { buildVillainSheet, villainTraits } from '../villain/sheet'
-import type { Game, NpcGroup } from './model'
+import type { Game, NpcGroup, VillainInGame } from './model'
 import { memberLabel, memberName } from './table'
 import { ZoneChip } from './TableCenter'
 
@@ -41,14 +41,15 @@ function LockIcon() {
 
 type VillainChange = (fn: (play: VillainPlayState, clock: Clock) => VillainPlayState) => void
 
-function RunningVillain({ villain, change, random }: { villain: Villain; change: VillainChange; random?: () => number }) {
+/** The villain's copy in this game: its sheet and its play state here. */
+function RunningVillain({ copy, change, random }: { copy: VillainInGame; change: VillainChange; random?: () => number }) {
+  const { sheet: villain, play } = copy
   const id = useId()
   const [amount, setAmount] = useState('')
   const [adding, setAdding] = useState<'mod' | 'twist' | null>(null)
   const [twist, setTwist] = useState('')
   const [rolling, setRolling] = useState<RollSubject | null>(null)
   const sheet = buildVillainSheet(villain)
-  const play = villain.play ?? emptyVillainPlay()
   const health = villainHealth(villain, play)
   const current = currentHealth(health, play)
   const zone = villainZone(health, play)
@@ -182,7 +183,7 @@ function RunningVillain({ villain, change, random }: { villain: Villain; change:
           )
         })}
       </ul>
-      <a href={villainPlayPath(villain.id)}>Open full villain page</a>
+      <a href={villainPath(copy.sourceId)}>Open this villain's sheet</a>
       {rolling && (
         <RollDialog
           subject={rolling}
@@ -276,9 +277,12 @@ function RunningGroup({ group, actions, random }: { group: NpcGroup; actions: Gr
 
 /** What Bring in needs to know about the table. */
 export interface BringIn {
+  /** Whether the item is on the table: absent, shown, hidden, or there with a library sheet that has changed since (its Update). */
   /** Where a library item is on the table: absent, on it, or hidden. */
-  placeOf: (item: LibraryItem) => 'absent' | 'shown' | 'hidden'
+  placeOf: (item: LibraryItem) => 'absent' | 'shown' | 'hidden' | 'changed'
   bringIn: (item: LibraryItem) => void
+  /** Opens Update from library for an item whose copy differs. */
+  update: (item: LibraryItem) => void
 }
 
 type Source = { kind: 'all' } | { kind: 'type'; key: string } | { kind: 'search'; search: SavedSearch }
@@ -367,6 +371,13 @@ function BringInTab({ bring }: { bring: BringIn }) {
                   <button type="button" className="button button--small" aria-label={`Bring in ${i.row.name}`} onClick={() => bring.bringIn(i)}>
                     Bring in
                   </button>
+                ) : place === 'changed' ? (
+                  <span className="gt-row">
+                    <span className="tag">Library changed</span>
+                    <button type="button" className="button button--small" aria-label={`Update ${i.row.name} from your library`} onClick={() => bring.update(i)}>
+                      Update
+                    </button>
+                  </span>
                 ) : (
                   <span className="gt-sub">{place === 'hidden' ? 'Hidden' : 'On the table'}</span>
                 )}
@@ -380,7 +391,7 @@ function BringInTab({ bring }: { bring: BringIn }) {
           Bring in the rest ({rest.length}), hidden
         </button>
       )}
-      <p className="hint">Heroes and villains come in as themselves: damage and changes stay with them after the game. Templates (minions, lieutenants, challenges and environments) start fresh each time they're brought in. Villains arrive hidden from players.</p>
+      <p className="hint">Everything is copied into this game, so damage never touches your library or other games. Templates (minions, lieutenants, challenges and environments) start fresh each time they're brought in. Villains arrive hidden from players.</p>
     </div>
   )
 }
@@ -392,7 +403,7 @@ export type QuickAddKind = 'minions' | 'lieutenants' | 'challenge'
 interface GmScreenProps {
   game: Game
   quickAdd: (kind: QuickAddKind) => void
-  running?: { kind: 'villain'; villain: Villain; change: VillainChange } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'missing' }
+  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'missing' }
   stopRunning: () => void
   bring: BringIn
   setNotes: (notes: string) => void
@@ -402,7 +413,7 @@ interface GmScreenProps {
 export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes, random }: GmScreenProps) {
   const id = useId()
   const [tab, setTab] = useState<'bring' | 'notes'>('bring')
-  const runningName = running?.kind === 'villain' ? villainDisplayName(running.villain) : running?.kind === 'group' ? running.group.name : ''
+  const runningName = running?.kind === 'villain' ? villainDisplayName(running.villain.sheet) : running?.kind === 'group' ? running.group.name : ''
   return (
     <aside className="gt-side" aria-label="GM screen">
       <section className="card gt-card">
@@ -437,7 +448,7 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
               ×
             </button>
           </div>
-          {running.kind === 'villain' ? <RunningVillain key={running.villain.id} villain={running.villain} change={running.change} random={random} /> : <RunningGroup key={running.group.id} group={running.group} actions={running.actions} random={random} />}
+          {running.kind === 'villain' ? <RunningVillain key={running.villain.id} copy={running.villain} change={running.change} random={random} /> : <RunningGroup key={running.group.id} group={running.group} actions={running.actions} random={random} />}
         </section>
       )}
 

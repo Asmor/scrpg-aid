@@ -65,40 +65,26 @@ describe('serialize', () => {
       [{ retcon: { id: 'x', kind: 'swapDice', traits: [{ kind: 'power' }] } }, 'hero.retcon.traits[0].id is missing'],
       [{ retcon: { id: 'x', kind: 'gainPowerOrQuality' } }, 'hero.retcon.gained should be an object'],
       [{ health: { mode: 'average' } }, 'hero.health.mode has an unknown value'],
-      [{ currentHealth: 'full' }, 'hero.currentHealth should be a whole number'],
       [{ background: { id: 'x', qualities: [], principle: { id: 'custom', custom: { category: 'nope' } } } }, 'hero.background.principle.custom.category has an unknown value'],
       [{ advancement: { backIssues: 0, collections: [], changes: [{ kind: 'levelUp' }] } }, 'hero.advancement.changes[0].kind has an unknown value'],
       [{ pendingRolls: [] }, 'hero.pendingRolls should be an object'],
       [{ pendingRolls: { archetype: { dice: ['d8'], results: [2] } } }, 'hero.pendingRolls.archetype.manual should be true or false'],
       [{ pendingRolls: { secondaryArchetype: { dice: ['d8'] } } }, 'hero.pendingRolls.secondaryArchetype.results should be a list'],
-      [{ play: { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [], sceneZone: 'green' } }, 'hero.play.sceneZone has an unknown value'],
-      [{ play: { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [], dividedForm: 'civilian' } }, 'hero.play.dividedForm has an unknown value'],
-      [{ play: { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [], form: '' } }, 'hero.play.form is missing'],
       [{ background: { id: 'x', qualities: [], principle: { id: 'custom', custom: { category: 'ideals', name: '', roleplaying: '', minorTwist: '', majorTwist: '', greenAbility: { name: '', text: '', effects: [{ actions: ['dance'], use: 'max' }] } } } } }, 'hero.background.principle.custom.greenAbility.effects[0].actions[0] has an unknown value'],
       [{ background: { id: 'x', qualities: [], principle: { id: 'custom', custom: { category: 'ideals', name: '', roleplaying: '', minorTwist: '', majorTwist: '', greenAbility: { name: '', text: '', effects: [{ actions: [], use: 'max' }] } } } } }, 'hero.background.principle.custom.greenAbility.effects[0].actions should name one action'],
       [{ background: { id: 'x', qualities: [], principle: { id: 'custom', custom: { category: 'ideals', name: '', roleplaying: '', minorTwist: '', majorTwist: '', greenAbility: { name: '', text: '', effects: [{ actions: ['boost'], use: 'single' }] } } } } }, 'hero.background.principle.custom.greenAbility.effects[0].use has an unknown value'],
-      [{ play: { heroPoints: 'x', reactionUsed: false, mods: [], twists: [], history: [] } }, 'hero.play.heroPoints should be a whole number'],
-      [{ play: { heroPoints: 0, reactionUsed: false, mods: [{ label: 'x', value: 1 }], twists: [], history: [] } }, 'hero.play.mods[0].id is missing'],
-      [{ play: { heroPoints: 0, reactionUsed: false, mods: [], twists: [{ id: 't', kind: 'tiny', text: 'x' }], history: [] } }, 'hero.play.twists[0].kind has an unknown value'],
-      [{ play: { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [{ id: 'h', text: 'x' }] } }, 'hero.play.history[0].at is missing'],
     ]
     for (const [patch, error] of cases) {
       expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: { ...hero(), ...patch } })).toEqual({ ok: false, error })
     }
   })
 
-  it('keeps a hero’s play state through a save', () => {
-    const play = {
-      health: 12,
-      sceneZone: 'red' as const,
-      heroPoints: 3,
-      reactionUsed: true,
-      mods: [{ id: 'm1', label: 'high ground', value: 2, persistent: true as const, exclusive: true as const }, { id: 'm2', label: 'tied up', value: -3 }],
-      twists: [{ id: 't1', kind: 'major' as const, text: 'Lost the gadget' }],
-      history: [{ id: 'h1', at: '2026-10-26T20:00:00.000Z', text: 'Used ability Inflict:', details: ['Mid: 6 (Fire d8)'] }],
-    }
-    const withPlay = { ...hero(), play }
-    expect(parseSavedJson(JSON.stringify(toSaved(withPlay)))).toEqual({ ok: true, hero: withPlay })
+  it('drops play state on load: it lives in games now', () => {
+    const play = { health: 12, heroPoints: 3, reactionUsed: true, mods: [], twists: [], history: [] }
+    // A version 2 hero with play state is migrated without it.
+    expect(parseSaved({ format: HERO_FORMAT, version: 2, hero: { ...hero(), play, currentHealth: 12 } })).toEqual({ ok: true, hero: hero(), migratedFrom: 2 })
+    // Play state an older app wrote back into a current hero is dropped too, even malformed.
+    expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: { ...hero(), play: { heroPoints: 'x' } } })).toEqual({ ok: true, hero: hero() })
   })
 
   it('keeps draft status, furthest step, and who rolls; rejects bad values', () => {
@@ -135,7 +121,6 @@ describe('serialize', () => {
         ],
       },
       pendingRolls: { personality: { dice: ['d10', 'd10'], results: [3, 7], manual: false }, secondaryArchetype: { dice: ['d12', 'd6'], results: [2, 5], manual: false } },
-      currentHealth: 20,
       notes: 'n',
     }
     expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: full })).toEqual({ ok: true, hero: full })
