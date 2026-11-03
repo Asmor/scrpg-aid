@@ -10,6 +10,8 @@ import { useStore } from '../app/store-context'
 import { heroDisplayName, isDraft, type Hero } from '../hero/model'
 import { normalizeRoomCode } from './code'
 import { usePlayingSnapshot, useSession } from './context'
+import { useOptionalJoinedStore } from '../app/joined-store-context'
+import type { JoinedGame } from '../game/joined-store'
 
 /** "Oct 30": the day a hero joined a game. */
 const sinceDate = (at: string) => new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
@@ -24,6 +26,19 @@ export function JoinPage({ room: given }: { room?: string }) {
   const [room, setRoom] = useState(given ?? session.lastGame?.room ?? '')
   const [name, setName] = useState(session.name)
   const [heroId, setHeroId] = useState('')
+  // Games this device has joined, to say which heroes are already in this one.
+  const joinedStore = useOptionalJoinedStore()
+  const [joined, setJoined] = useState<JoinedGame[]>([])
+  useEffect(() => {
+    let live = true
+    joinedStore?.list().then(
+      (list) => live && setJoined(list),
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [joinedStore])
 
   useEffect(() => {
     let live = true
@@ -47,8 +62,8 @@ export function JoinPage({ room: given }: { room?: string }) {
   /** When a hero joined this game, if this device knows it's in it. */
   const since = (h: Hero): string | undefined => {
     const client = session.playing
-    if (!client || client.info.room !== code || client.info.heroSourceId !== h.id) return undefined
-    return playing?.received?.you?.since ?? playing?.received?.at
+    if (client && client.info.room === code && client.info.heroSourceId === h.id) return playing?.received?.you?.since ?? playing?.received?.at
+    return joined.find((j) => j.room === code && j.heroSourceId === h.id)?.since
   }
   const heroSince = hero && since(hero)
 

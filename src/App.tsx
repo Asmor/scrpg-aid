@@ -17,6 +17,8 @@ import { GameStoreContext } from './app/game-store-context'
 import { createDefaultGameStore, type GameStore } from './game/store'
 import { GamePage } from './game/GamePage'
 import { GamesPage } from './game/GamesPage'
+import { createDefaultJoinedStore, type JoinedStore } from './game/joined-store'
+import { JoinedStoreContext } from './app/joined-store-context'
 import { PlayerTable } from './game/PlayerTable'
 import { JoinPage } from './session/JoinPage'
 import { SessionProvider } from './session/SessionProvider'
@@ -30,6 +32,7 @@ interface AppProps {
   store?: HeroStore
   villainStore?: VillainStore
   gameStore?: GameStore
+  joinedStore?: JoinedStore
   searchStore?: SavedSearchStore
   backupTime?: BackupTimeStore
   connect?: Connect
@@ -37,17 +40,19 @@ interface AppProps {
 }
 
 /** The stores, `connect`, `sessionStore`, and `backupTime` are injectable for tests. */
-export default function App({ store: given, villainStore: givenVillains, gameStore: givenGames, searchStore: givenSearches, backupTime, connect, sessionStore }: AppProps) {
+export default function App({ store: given, villainStore: givenVillains, gameStore: givenGames, joinedStore: givenJoined, searchStore: givenSearches, backupTime, connect, sessionStore }: AppProps) {
   const [theme, setTheme] = useTheme()
   const [store] = useState(() => given ?? createDefaultStore())
   const [villainStore] = useState(() => givenVillains ?? createDefaultVillainStore())
   const [gameStore] = useState(() => givenGames ?? createDefaultGameStore())
+  const [joinedStore] = useState(() => givenJoined ?? createDefaultJoinedStore())
   const [searchStore] = useState(() => givenSearches ?? createDefaultSavedSearchStore())
   const route = useRoute()
   return (
     <StoreContext.Provider value={store}>
       <VillainStoreContext.Provider value={villainStore}>
       <GameStoreContext.Provider value={gameStore}>
+      <JoinedStoreContext.Provider value={joinedStore}>
       <SavedSearchStoreContext.Provider value={searchStore}>
       <SessionProvider {...(connect ? { connect } : {})} {...(sessionStore ? { store: sessionStore } : {})}>
       {/* The library (the home screen), the Games page and the game table have their own header bars and layouts. */}
@@ -94,6 +99,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
       )}
       </SessionProvider>
       </SavedSearchStoreContext.Provider>
+      </JoinedStoreContext.Provider>
       </GameStoreContext.Provider>
       </VillainStoreContext.Provider>
     </StoreContext.Provider>

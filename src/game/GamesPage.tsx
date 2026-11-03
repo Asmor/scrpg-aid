@@ -5,13 +5,18 @@
  * belong to their characters' Play pages and aren't listed.
  */
 import { useEffect, useId, useMemo, useState } from 'react'
-import { gamePath, joinPath, navigate } from '../app/route'
+import { gamePath, joinPath, navigate, tablePath } from '../app/route'
 import { useGameStore } from '../app/game-store-context'
 import { useStore } from '../app/store-context'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { useVillainStore } from '../app/villain-store-context'
-import { useHostSnapshot, useSession } from '../session/context'
+import { useHostSnapshot, usePlayingSnapshot, useSession } from '../session/context'
+import { useOptionalJoinedStore } from '../app/joined-store-context'
+import type { JoinedGame } from './joined-store'
+import { JoinedCard } from './JoinedCard'
+import { InviteDialog, StartHostingDialog } from './hosting'
+import { ConfirmDialog } from './dialogs'
 import { heroDisplayName } from '../hero/model'
 import { localBackupTime, type BackupTimeStore } from '../library/backup-time'
 import type { LibraryStores } from '../library/registry'
@@ -36,7 +41,7 @@ import { MenuButton, Tracker } from './TableCenter'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-function GameCard({ game, now, actions }: { game: Game; now: Date; actions: CardActions }) {
+function GameCard({ game, now, actions, hosting }: { game: Game; now: Date; actions: CardActions; hosting?: { connected: number } }) {
   const id = useId()
   const name = gameDisplayName(game)
   const opposition = oppositionText(game)
@@ -47,7 +52,14 @@ function GameCard({ game, now, actions }: { game: Game; now: Date; actions: Card
         <h3 id={`${id}-name`} className="gt-grow games-card__name">
           {name}
         </h3>
-        <span className="gt-pill">{game.round === 0 ? 'Not started' : 'Not hosting'}</span>
+        {hosting ? (
+          <span className="gt-pill gt-pill--live">
+            <span className="gt-live-dot" aria-hidden="true" />
+            Hosting · {hosting.connected} connected
+          </span>
+        ) : (
+          <span className="gt-pill">{game.round === 0 ? 'Not started' : 'Not hosting'}</span>
+        )}
       </div>
       <div>
         <div className="gt-row">
@@ -95,6 +107,15 @@ function GameCard({ game, now, actions }: { game: Game; now: Date; actions: Card
         <a className="button button--primary button--small" href={gamePath(game.id)} aria-label={`Run ${name}`}>
           Run
         </a>
+        {hosting ? (
+          <button type="button" className="button button--small" onClick={() => actions.invite(game)}>
+            Invite
+          </button>
+        ) : (
+          <button type="button" className="button button--small" onClick={() => actions.host(game)}>
+            Start hosting
+          </button>
+        )}
         <MenuButton
           label={`More actions for ${name}`}
           sheets={false}
@@ -112,6 +133,8 @@ function GameCard({ game, now, actions }: { game: Game; now: Date; actions: Card
 }
 
 interface CardActions {
+  host: (game: Game) => void
+  invite: (game: Game) => void
   rename: (game: Game) => void
   tags: (game: Game) => void
   duplicate: (game: Game) => void
@@ -148,7 +171,10 @@ function RenameDialog({ game, onSave, onClose }: { game: Game; onSave: (name: st
   )
 }
 
-type Dialog = { kind: 'rename' | 'tags' | 'delete'; id: string }
+type Dialog = { kind: 'rename' | 'tags' | 'delete' | 'host' | 'invite' | 'leaveJoined'; id: string }
+
+/** Which games the page shows. */
+type Which = 'all' | 'run' | 'joined'
 
 export interface GamesPageProps {
   theme: ThemePreference
@@ -175,6 +201,20 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
   const [text, setText] = useState('')
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [busy, setBusy] = useState(false)
+  const [which, setWhich] = useState<Which>('all')
+  // Games joined as a player, cached on this device (section 11).
+  const joinedStore = useOptionalJoinedStore()
+  const [joined, setJoined] = useState<JoinedGame[]>([])
+  useEffect(() => {
+    let live = true
+    joinedStore?.list().then(
+      (list) => live && setJoined(list),
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [joinedStore, loads])
 
   useEffect(() => {
     let live = true
@@ -189,10 +229,21 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
 
   // The hosted game is live in the hosting session: its card shows that, not the list as loaded.
   const session = useSession()
-  const hostedGame = useHostSnapshot(session.hosting)?.game
+  const hostedSnap = useHostSnapshot(session.hosting)
+  const hostedGame = hostedSnap?.game
+  const playingSnap = usePlayingSnapshot(session.playing)
   const sorted = useMemo(() => (games ?? []).map((g) => (hostedGame?.id === g.id ? hostedGame : g)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [games, hostedGame])
   const needle = text.trim().toLocaleLowerCase()
   const shown = needle ? sorted.filter((g) => gameDisplayName(g).toLocaleLowerCase().includes(needle)) : sorted
+  const joinedShown = joined.filter((j) => !needle || gameDisplayName(j.table).toLocaleLowerCase().includes(needle))
+  const isLive = (j: JoinedGame) => session.playing?.info.room === j.room && playingSnap?.status === 'live'
+  const openJoined = (j: JoinedGame) => {
+    // Rejoin with the cached game, shown read-only until the GM answers.
+    if (session.playing?.info.room !== j.room || session.playing.info.heroSourceId !== j.heroSourceId) {
+      session.joinGame({ room: j.room, name: j.name, hero: j.sheet, cached: { room: j.room, version: j.version, table: j.table, gm: j.gm, you: { heroId: j.heroId, since: j.since }, at: j.updatedAt } })
+    }
+    navigate(tablePath(j.room))
+  }
   const tags = useMemo(() => allTags(games ?? []), [games])
   const find = (id: string) => sorted.find((g) => g.id === id)
 
@@ -227,6 +278,8 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
       navigate(gamePath(game.id))
     })
   const actions: CardActions = {
+    host: (g) => setDialog({ kind: 'host', id: g.id }),
+    invite: (g) => setDialog({ kind: 'invite', id: g.id }),
     rename: (g) => setDialog({ kind: 'rename', id: g.id }),
     tags: (g) => setDialog({ kind: 'tags', id: g.id }),
     duplicate: (g) => void save(duplicateGame(g)),
@@ -258,13 +311,13 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
   return (
     <PopoverGroup>
       <div className="library">
-        <LibraryHeader phone={phone} theme={theme} setTheme={setTheme} data={dataActions} heroName={(id) => ready?.items.get(itemKey('hero', id))?.row.name} now={now} section="games" {...(games ? { gameCount: games.length } : {})} />
+        <LibraryHeader phone={phone} theme={theme} setTheme={setTheme} data={dataActions} heroName={(id) => ready?.items.get(itemKey('hero', id))?.row.name} now={now} section="games" {...(games ? { gameCount: games.length + joined.length } : {})} />
         <main className="games-page">
           {importControl}
           <div className="games-page__title">
             <h1>Games</h1>
             <span className="gt-grow" />
-            {games !== null && games.length > 0 && (
+            {games !== null && games.length + joined.length > 0 && (
               <label className="library-search">
                 <SearchIcon />
                 <input type="search" aria-label="Search games" placeholder="Search games" value={text} onChange={(e) => setText(e.target.value)} />
@@ -280,7 +333,22 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
             </p>
           )}
           {games === null && !error && <p>Loading your games…</p>}
-          {games !== null && games.length === 0 && (
+          {games !== null && (games.length > 0 || joined.length > 0) && (
+            <div className="segmented" role="group" aria-label="Show">
+              {(
+                [
+                  ['all', 'All'],
+                  ['run', 'You run'],
+                  ['joined', 'Joined'],
+                ] as const
+              ).map(([value, label]) => (
+                <button key={value} type="button" aria-pressed={which === value} onClick={() => setWhich(value)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {games !== null && games.length === 0 && joined.length === 0 && (
             <div className="card library-empty">
               <h2>No games yet</h2>
               <p>A game holds one table: the scene, the turn order, and copies of the heroes and villains in it. Start one to set up a scene, or join someone else's.</p>
@@ -294,7 +362,7 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
               </div>
             </div>
           )}
-          {games !== null && games.length > 0 && (
+          {games !== null && games.length > 0 && which !== 'joined' && (
             <section aria-labelledby="games-run">
               <h2 id="games-run" className="games-page__section">
                 You run
@@ -302,12 +370,25 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
               {shown.length === 0 && <p className="sheet-empty">No games match your search.</p>}
               <div className="games-grid">
                 {shown.map((g) => (
-                  <GameCard key={g.id} game={g} now={now} actions={actions} />
+                  <GameCard key={g.id} game={g} now={now} actions={actions} {...(session.hosting?.gameId === g.id ? { hosting: { connected: hostedSnap?.connected.size ?? 0 } } : {})} />
                 ))}
                 <button type="button" className="games-new" disabled={busy} onClick={newGame}>
                   <strong>New game</strong>
                   <span className="gt-sub">Set up a scene and bring in villains.</span>
                 </button>
+              </div>
+            </section>
+          )}
+          {joined.length > 0 && which !== 'run' && (
+            <section aria-labelledby="games-joined">
+              <h2 id="games-joined" className="games-page__section">
+                Joined
+              </h2>
+              {joinedShown.length === 0 && <p className="sheet-empty">No games match your search.</p>}
+              <div className="games-grid">
+                {joinedShown.map((j) => (
+                  <JoinedCard key={j.id} joined={j} live={isLive(j)} onOpen={() => openJoined(j)} onRemove={() => setDialog({ kind: 'leaveJoined', id: j.id })} />
+                ))}
               </div>
             </section>
           )}
@@ -325,6 +406,38 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
           </div>
         </Modal>
       )}
+      {dialog?.kind === 'host' && open && <StartHostingDialog name={session.name} onStart={(name) => session.hostGame(open.id, name)} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'invite' && open && session.hosting?.gameId === open.id && (
+        <InviteDialog
+          room={session.hosting.room}
+          gameName={gameDisplayName(open)}
+          players={open.heroes.filter((h) => h.player)}
+          connected={hostedSnap?.connected ?? new Set()}
+          onRemove={(hero) => session.hosting?.removePlayer(hero.id)}
+          onStop={() => session.stopHosting()}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.kind === 'leaveJoined' &&
+        (() => {
+          const j = joined.find((x) => x.id === dialog.id)
+          if (!j) return null
+          return (
+            <ConfirmDialog
+              title={`Leave ${gameDisplayName(j.table)} and remove it from this device?`}
+              text="Your hero stays in the GM's game. This device forgets its copy; you can join again with the game's code."
+              confirm="Leave and remove"
+              onConfirm={() =>
+                void run('remove the game', async () => {
+                  if (session.playing?.info.room === j.room) session.leaveGame()
+                  await joinedStore?.remove(j.id)
+                  setJoined((list) => list.filter((x) => x.id !== j.id))
+                })
+              }
+              onClose={() => setDialog(null)}
+            />
+          )
+        })()}
       {dialog?.kind === 'delete' && open && (
         <DeleteDialog
           names={[gameDisplayName(open)]}

@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { newId } from '../hero/model'
 import type { Clock } from '../play/state'
 import { useOptionalGameStore } from '../app/game-store-context'
+import { useOptionalJoinedStore } from '../app/joined-store-context'
 import { SessionContext } from './context'
 import { SessionManager } from './manager'
 import { localSessionStore, type SessionStore } from './storage'
@@ -25,7 +26,8 @@ interface Props {
 export function SessionProvider({ children, connect = connectTrystero, store, clock = defaultClock }: Props) {
   // Hosting reads and saves games (the game table).
   const games = useOptionalGameStore()
-  const [manager] = useState(() => new SessionManager(connect, store ?? localSessionStore(), clock, games ?? undefined))
+  const joined = useOptionalJoinedStore()
+  const [manager] = useState(() => new SessionManager(connect, store ?? localSessionStore(), clock, games ?? undefined, joined ?? undefined))
   useEffect(() => {
     manager.resume()
     return () => manager.suspend()

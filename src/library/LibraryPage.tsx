@@ -4,12 +4,15 @@
  * are a snapshot of the view (./useLibraryView.ts), so editing an item never moves rows.
  */
 import { useEffect, useMemo, useState } from 'react'
-import { navigate } from '../app/route'
+import { gamePath, navigate, tablePath } from '../app/route'
 import { useNewHeroes } from '../app/new-heroes'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
 import { useGameStore } from '../app/game-store-context'
 import { gamesHolding, useListedGames } from '../game/useGameEditor'
+import { useOptionalJoinedStore } from '../app/joined-store-context'
+import type { JoinedGame } from '../game/joined-store'
+import { gameDisplayName } from '../game/model'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { useTick } from '../play/useTick'
@@ -43,6 +46,13 @@ export interface LibraryProps {
   backupTime?: BackupTimeStore
 }
 
+/** A game holding a copy of an item, as a link: a game run here, or one joined as a player. */
+export interface GameLink {
+  id: string
+  name: string
+  href: string
+}
+
 /** Everything the desktop and phone layouts share. */
 export type LibraryModel = ReturnType<typeof useLibraryModel>
 
@@ -56,6 +66,19 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
   // Games aren't library rows, but rows say which games hold a copy, and backups include them.
   const listed = useListedGames()
   const gameList = listed.games ?? []
+  // Games joined as a player count too: a player sees "Thursday game" on Maya Reyes.
+  const joinedStore = useOptionalJoinedStore()
+  const [joined, setJoined] = useState<JoinedGame[]>([])
+  useEffect(() => {
+    let live = true
+    joinedStore?.list().then(
+      (list) => live && setJoined(list),
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [joinedStore])
   const ready = data.state.status === 'ready' ? data.state : undefined
   const view = useLibraryView(ready?.items, ready?.searches)
   const now = useTick()
@@ -225,9 +248,12 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     importControl,
     deleteDialog,
     countFor: (query: LibraryQuery) => items.filter((i) => matches(itemFields(i), query)).length,
-    /** The games holding a copy of an item (the In games column). */
-    inGames: (item: LibraryItem) => gamesHolding(gameList, item.type.inGames, item.doc.id),
-    gameCount: listed.games?.length,
+    /** The games holding a copy of an item (the In games column): games run here, and games joined as a player (a hero only). */
+    inGames: (item: LibraryItem): GameLink[] => [
+      ...gamesHolding(gameList, item.type.inGames, item.doc.id).map((g) => ({ id: g.id, name: gameDisplayName(g), href: gamePath(g.id) })),
+      ...(item.type.inGames === 'hero' ? joined.filter((j) => j.heroSourceId === item.doc.id).map((j) => ({ id: j.id, name: gameDisplayName(j.table), href: tablePath(j.room) })) : []),
+    ],
+    gameCount: listed.games === null ? undefined : listed.games.length + joined.length,
     addTag,
     removeTag,
     bulkAddTag,

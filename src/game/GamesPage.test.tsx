@@ -13,6 +13,8 @@ import { downloadFile } from '../transfer/download'
 import { backupJson, readImport } from '../transfer/files'
 import { MemoryVillainStore } from '../villain/store'
 import { createGame, type Game } from './model'
+import { MemoryJoinedStore, type JoinedGame } from './joined-store'
+import { project } from './project'
 import { createSoloGame } from './solo'
 import { MemoryGameStore } from './store'
 import { addChallenge, addGroup, addHero, addVillain, setTrackerPosition, startRound } from './table'
@@ -22,15 +24,18 @@ vi.mock('../transfer/download', () => ({ downloadFile: vi.fn() }))
 let n = 0
 const clock = { now: new Date(), newId: () => `id${++n}` }
 
-async function setup(games: Game[], sessionStorage = memoryStorage()) {
+async function setup(games: Game[], sessionStorage = memoryStorage(), joined: JoinedGame[] = []) {
   const store = new MemoryGameStore()
   for (const g of games) await store.save(g)
+  const joinedStore = new MemoryJoinedStore()
+  for (const j of joined) await joinedStore.save(j)
   window.location.hash = '#/games'
   render(
     <App
       store={new MemoryHeroStore()}
       villainStore={new MemoryVillainStore()}
       gameStore={store}
+      joinedStore={joinedStore}
       searchStore={new MemorySavedSearchStore()}
       backupTime={localBackupTime(memoryStorage())}
       connect={fakeNetwork().connect}
@@ -38,7 +43,20 @@ async function setup(games: Game[], sessionStorage = memoryStorage()) {
     />,
   )
   await screen.findByRole('heading', { level: 1, name: 'Games' })
-  return store
+  return Object.assign(store, { joinedStore })
+}
+
+/** Friday game, joined on this device as Alex with Duality, cached as of Oct 28, 9:42 PM. */
+function friday(): JoinedGame {
+  const c = clock
+  const duality = { ...completeHero(), id: 'duality', details: { ...completeHero().details, name: 'Duality' } }
+  const jo = { ...completeHero(), id: 'jo', details: { ...completeHero().details, name: 'Jo' } }
+  let g: Game = { ...createGame({ id: 'fri' }), name: 'Friday game', scene: { name: 'The Docks', tracker: createGame().scene.tracker, position: 0 } }
+  g = addHero(g, duality, c, { clientId: 'me', name: 'Alex' })
+  g = addHero(g, jo, c, { clientId: 'other', name: 'Priya' })
+  g = addVillain(g, { ...adaptiveBruiser(), id: 'secret', details: { ...adaptiveBruiser().details, name: 'Secret Boss' } }, c, true)
+  g = startRound(g, { kind: 'hero', id: g.heroes[1]!.id }, c)
+  return { id: 'fri', room: 'WXYZ-2345', gm: 'Sam', heroId: g.heroes[0]!.id, heroSourceId: 'duality', sheet: duality, name: 'Alex', since: '2026-10-20T20:00:00.000Z', updatedAt: '2026-10-28T21:42:00.000Z', version: 7, table: project(g, 'player') }
 }
 
 /** Session storage saying this device hosts the game: the app picks hosting back up when it starts. */
@@ -210,5 +228,75 @@ describe('the Games page', () => {
     await waitFor(() => expect(screen.queryByRole('article', { name: 'Thursday game' })).not.toBeInTheDocument())
     await new Promise((r) => setTimeout(r, 20))
     expect(await store.get('thu')).toEqual({ status: 'missing' })
+  })
+
+  it('lists joined games from this device’s cache, read-only, with a switch between the sections', async () => {
+    await setup([thursday()], memoryStorage(), [friday()])
+    expect(screen.getByRole('region', { name: 'You run' })).toBeInTheDocument()
+    const card = within(screen.getByRole('region', { name: 'Joined' }).querySelector('article')!)
+    expect(card.getByText('Friday game')).toBeInTheDocument()
+    expect(card.getByText('GM: Sam · you play Duality')).toBeInTheDocument()
+    expect(card.getByText('GM offline')).toBeInTheDocument()
+    expect(card.getByText(/^As of /)).toBeInTheDocument()
+    expect(card.getByText('The Docks')).toBeInTheDocument()
+    expect(card.getByText('· Round 1 · Jo is acting')).toBeInTheDocument()
+    expect(card.getByText('Jo')).toBeInTheDocument()
+    // Hidden things never appear.
+    expect(screen.queryByText(/Secret Boss/)).not.toBeInTheDocument()
+    // Joined games count in the Games tab.
+    expect(within(screen.getByRole('navigation', { name: 'Sections' })).getByRole('link', { name: /^Games/ })).toHaveTextContent('Games2')
+
+    const show = within(screen.getByRole('group', { name: 'Show' }))
+    await userEvent.click(show.getByRole('button', { name: 'Joined' }))
+    expect(screen.queryByRole('region', { name: 'You run' })).not.toBeInTheDocument()
+    await userEvent.click(show.getByRole('button', { name: 'You run' }))
+    expect(screen.queryByRole('region', { name: 'Joined' })).not.toBeInTheDocument()
+    await userEvent.click(show.getByRole('button', { name: 'All' }))
+    expect(screen.getByRole('region', { name: 'Joined' })).toBeInTheDocument()
+  })
+
+  it('opens a joined game from the cache without the GM, read-only, as of when it was cached', async () => {
+    await setup([], memoryStorage(), [friday()])
+    await userEvent.click(screen.getByRole('button', { name: 'Open Friday game' }))
+    await waitFor(() => expect(window.location.hash).toBe('#/table/WXYZ-2345'))
+    expect(await screen.findByText(/The GM isn't connected\./)).toBeInTheDocument()
+    expect(screen.getByText(/This is Friday game as of Oct 28/)).toBeInTheDocument()
+    const panel = within(screen.getByRole('complementary', { name: 'My hero' }))
+    expect(panel.getByRole('button', { name: 'Gain a hero point' })).toBeDisabled()
+    expect(panel.getByRole('button', { name: 'Gain a hero point' })).toHaveAccessibleDescription('Needs the GM')
+    // Reading still works: the table and the log.
+    expect(screen.getByRole('article', { name: 'Jo' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try to reconnect' })).toBeInTheDocument()
+  })
+
+  it('leaves a joined game and removes it from this device, after asking', async () => {
+    const store = await setup([], memoryStorage(), [friday()])
+    await userEvent.click(screen.getByRole('button', { name: 'More actions for Friday game' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Leave and remove from this device…' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Leave Friday game and remove it from this device?' })).getByRole('button', { name: 'Leave and remove' }))
+    await waitFor(() => expect(screen.queryByText('Friday game')).not.toBeInTheDocument())
+    expect(await store.joinedStore.list()).toEqual([])
+  })
+
+  it('starts hosting a game from its card, then shows it hosting with Invite', async () => {
+    await setup([thursday()])
+    const card = within(screen.getByRole('article', { name: 'Thursday game' }))
+    await userEvent.click(card.getByRole('button', { name: 'Start hosting' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Start hosting' }))
+    await userEvent.type(dialog.getByLabelText('Your name (players see it)'), 'Sam')
+    await userEvent.click(dialog.getByRole('button', { name: 'Start hosting' }))
+    expect(await card.findByText('Hosting · 0 connected')).toBeInTheDocument()
+    await userEvent.click(card.getByRole('button', { name: 'Invite' }))
+    expect(screen.getByRole('dialog', { name: 'Invite to Thursday game' })).toBeInTheDocument()
+  })
+
+  it('shows a joined game from the cache after a reload, until the GM answers', async () => {
+    const j = friday()
+    const storage = memoryStorage()
+    storage.setItem('scrpg.session.playing', JSON.stringify({ v: 1, room: j.room, name: 'Alex', heroSourceId: 'duality', sheet: j.sheet }))
+    await setup([], storage, [j])
+    window.location.hash = `#/table/${j.room}`
+    expect(await screen.findByRole('complementary', { name: 'My hero' })).toBeInTheDocument()
+    expect(screen.getByText(/This is Friday game as of Oct 28/)).toBeInTheDocument()
   })
 })

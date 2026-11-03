@@ -2,6 +2,8 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { completeHero } from '../test/heroes'
+import { MemoryJoinedStore, type JoinedGame } from '../game/joined-store'
+import { project } from '../game/project'
 import App from '../App'
 import { exampleHero } from '../hero/example'
 import { createHero, type Hero } from '../hero/model'
@@ -40,9 +42,12 @@ interface Setup {
   storage?: ReturnType<typeof memoryStorage>
   searches?: SavedSearch[]
   games?: Game[]
+  joined?: JoinedGame[]
 }
 
-async function setup({ heroes = [], villains = [], hash = '#/', backupAt, storage = memoryStorage(), searches = [], games = [] }: Setup = {}) {
+async function setup({ heroes = [], villains = [], hash = '#/', backupAt, storage = memoryStorage(), searches = [], games = [], joined = [] }: Setup = {}) {
+  const joinedStore = new MemoryJoinedStore()
+  for (const j of joined) await joinedStore.save(j)
   const heroStore = new MemoryHeroStore()
   const villainStore = new MemoryVillainStore()
   const gameStore = new MemoryGameStore()
@@ -55,12 +60,12 @@ async function setup({ heroes = [], villains = [], hash = '#/', backupAt, storag
   const backupTime = localBackupTime(backupStorage)
   if (backupAt) backupTime.save(backupAt)
   window.location.hash = hash
-  render(<App store={heroStore} villainStore={villainStore} gameStore={gameStore} searchStore={searchStore} backupTime={backupTime} connect={fakeNetwork().connect} sessionStore={localSessionStore(storage)} />)
+  render(<App store={heroStore} villainStore={villainStore} gameStore={gameStore} joinedStore={joinedStore} searchStore={searchStore} backupTime={backupTime} connect={fakeNetwork().connect} sessionStore={localSessionStore(storage)} />)
   return { heroStore, villainStore, gameStore, searchStore, backupStorage }
 }
 
 /** The standard library: two heroes, a draft, and two villains, with tags; Maya and Gravelord are in Thursday game (and Maya has a solo game). */
-async function standard(options: Omit<Setup, 'heroes' | 'villains' | 'games'> = {}) {
+async function standard(options: Omit<Setup, 'heroes' | 'villains' | 'games' | 'joined'> = {}) {
   const gravelord = { ...adaptiveBruiser(), id: 'g', tags: ['thursday-game', 'scene-3'], updatedAt: ago(0.1) }
   gravelord.details.name = 'Gravelord'
   const rust = { ...adaptiveBruiser(), id: 'r', tags: ['scene-3', 'prep'], updatedAt: ago(3) }
@@ -70,7 +75,12 @@ async function standard(options: Omit<Setup, 'heroes' | 'villains' | 'games'> = 
   const clock = { now: new Date(), newId: () => Math.random().toString(36).slice(2) }
   let thursday = { ...createGame({ id: 'thu' }), name: 'Thursday game' }
   thursday = addVillain(addHero(thursday, maya, clock), gravelord, clock)
-  return setup({ ...options, heroes: [maya, hero('para', 'Paradigm', [], 10), draft], villains: [gravelord, rust], games: [thursday, createSoloGame('hero', maya, clock)] })
+  // Paradigm is in someone else's game, joined on this device.
+  const paradigm = hero('para', 'Paradigm', [], 10)
+  let saturday = { ...createGame({ id: 'sat' }), name: 'Saturday game' }
+  saturday = addHero(saturday, paradigm, clock, { clientId: 'me', name: 'Alex' })
+  const joined: JoinedGame = { id: 'sat', room: 'WXYZ-2345', gm: 'Sam', heroId: saturday.heroes[0]!.id, heroSourceId: 'para', sheet: paradigm, name: 'Alex', since: ago(5), updatedAt: ago(1), version: 1, table: project(saturday, 'player') }
+  return setup({ ...options, heroes: [maya, paradigm, draft], villains: [gravelord, rust], games: [thursday, createSoloGame('hero', maya, clock)], joined: [joined] })
 }
 
 const table = () => screen.getByRole('table', { name: 'Library' })
@@ -103,7 +113,9 @@ describe('the library table', () => {
     expect(maya.queryByText(/^(Green|Yellow|Red)$/)).not.toBeInTheDocument()
     expect(maya.getByRole('link', { name: 'Thursday game' })).toHaveAttribute('href', '#/game/thu')
     expect(row('Gravelord').getByRole('link', { name: 'Thursday game' })).toBeInTheDocument()
-    expect(row('Paradigm').getByText('—')).toBeInTheDocument()
+    // A game joined as a player opens its table.
+    expect(row('Paradigm').getByRole('link', { name: 'Saturday game' })).toHaveAttribute('href', '#/table/WXYZ-2345')
+    expect(row('Rust Hound').getByText('—')).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'In games' })).toBeInTheDocument()
     expect(maya.getByRole('link', { name: 'Play Maya Reyes' })).toHaveAttribute('href', '#/hero/maya/play')
     expect(maya.getByText('Yesterday')).toBeInTheDocument()
@@ -119,12 +131,12 @@ describe('the library table', () => {
     expect(row('Gravelord').getByRole('link', { name: 'Gravelord' })).toHaveAttribute('href', '#/villain/g')
   })
 
-  it('has Library | Games tabs, Games with its count of games (not solo games)', async () => {
+  it('has Library | Games tabs, Games with its count of games run and joined (not solo games)', async () => {
     await standard()
     await loaded()
     const tabs = within(screen.getByRole('navigation', { name: 'Sections' }))
     expect(tabs.getByRole('link', { name: 'Library' })).toHaveAttribute('aria-current', 'page')
-    await waitFor(() => expect(tabs.getByRole('link', { name: /^Games/ })).toHaveTextContent('Games1'))
+    await waitFor(() => expect(tabs.getByRole('link', { name: /^Games/ })).toHaveTextContent('Games2'))
     expect(tabs.getByRole('link', { name: /^Games/ })).toHaveAttribute('href', '#/games')
   })
 

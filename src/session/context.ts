@@ -1,7 +1,7 @@
 /** Gives pages the device's game session; ./SessionProvider.tsx provides it. */
 import { createContext, useContext, useSyncExternalStore } from 'react'
 import type { Hero } from '../hero/model'
-import type { ClientSnapshot, PlayerClient } from './client'
+import type { ClientSnapshot, PlayerClient, Received } from './client'
 import type { HostSession, HostSnapshot } from './host'
 import type { CurrentSession, SessionManager } from './manager'
 
@@ -16,7 +16,7 @@ export interface SessionApi extends CurrentSession {
   hostGame(gameId: string, gm: string): void
   stopHosting(): Promise<void>
   /** Joins a hosted game as a player with one hero. */
-  joinGame(options: { room: string; name: string; hero: Hero }): void
+  joinGame(options: { room: string; name: string; hero: Hero; cached?: Received }): void
   leaveGame(): void
   /** Notes shown once per key (the first-join note). */
   noteSeen(key: string): boolean

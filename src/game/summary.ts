@@ -1,5 +1,6 @@
 /** What the Games page's cards say about a game (docs/design/game-table/spec.md, section 3). Pure. */
 import type { Game } from './model'
+import { heroOnTableName, viewName, type TableView } from './project'
 import { itemName } from './table'
 
 /** "Round 2 · Maya Reyes is acting", or "Set up, no rounds yet". */
@@ -15,4 +16,11 @@ export function oppositionText(game: Game): { names: string; hidden?: string } |
   if (!items.length) return undefined
   const hidden = items.filter((i) => i.hidden).length
   return { names: items.map((i) => i.name).join(', '), ...(hidden ? { hidden: hidden === items.length ? 'all hidden' : `${hidden} hidden` } : {}) }
+}
+
+/** sceneLine for a game as a player sees it. */
+export function viewSceneLine(view: TableView): string {
+  if (view.round === 0) return 'Not started'
+  const current = view.turn.current
+  return [`Round ${view.round}`, current ? `${viewName(view, current, heroOnTableName)} is acting` : ''].filter(Boolean).join(' · ')
 }

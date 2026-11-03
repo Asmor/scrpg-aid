@@ -4,9 +4,7 @@
  * are checked), the table, and the footer.
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { gamePath } from '../app/route'
-import { gameDisplayName, type Game } from '../game/model'
-import type { LibraryModel } from './LibraryPage'
+import type { GameLink, LibraryModel } from './LibraryPage'
 import { PopoverDialog, PopoverMenu } from './Popover'
 import { usePopover, type Popover } from './popover-state'
 import { nextSort, noMatchText, withFilterTag, type LibraryQuery, type SortKey } from './query'
@@ -36,14 +34,14 @@ export const SearchIcon = () => (
 )
 
 /** The In games column: the games holding a copy, as links, one per line, up to two then "+N more"; "—" when none. */
-export function InGamesCell({ games }: { games: readonly Game[] }) {
+export function InGamesCell({ games }: { games: readonly GameLink[] }) {
   if (!games.length) return <span className="muted">—</span>
   const shown = games.slice(0, 2)
   return (
     <span className="library-games">
       {shown.map((g) => (
-        <a key={g.id} href={gamePath(g.id)} title={gameDisplayName(g)}>
-          {gameDisplayName(g)}
+        <a key={g.id} href={g.href} title={g.name}>
+          {g.name}
         </a>
       ))}
       {games.length > 2 && <span className="muted">+{games.length - 2} more</span>}

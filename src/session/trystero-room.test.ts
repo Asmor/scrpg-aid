@@ -19,9 +19,9 @@ const { APP_ID, trysteroConnect } = await import('./trystero-room')
 const connectTrystero = trysteroConnect()
 
 describe('the Trystero transport', () => {
-  it('joins the room with the app id and password, and passes messages and peers through', () => {
-    const t = connectTrystero('ABCD-EFGH', 'pw')
-    expect(joinRoom).toHaveBeenCalledWith({ appId: APP_ID, password: 'pw' }, 'ABCD-EFGH', expect.anything())
+  it('joins the room with the app id and the code as the password, and passes messages and peers through', () => {
+    const t = connectTrystero('ABCD-EFGH')
+    expect(joinRoom).toHaveBeenCalledWith({ appId: APP_ID, password: 'ABCD-EFGH' }, 'ABCD-EFGH', expect.anything())
     t.send({ hi: 1 })
     t.send({ hi: 2 }, 'peerA')
     expect(action.send).toHaveBeenNthCalledWith(1, { hi: 1 }, undefined)
@@ -42,11 +42,9 @@ describe('the Trystero transport', () => {
     expect(errors).toEqual(['could not connect to peer p1'])
     t.leave()
     expect(room.leave).toHaveBeenCalled()
-    connectTrystero('ABCD-EFGH')
-    expect(joinRoom).toHaveBeenLastCalledWith({ appId: APP_ID }, 'ABCD-EFGH', expect.anything())
     // With relay servers, Trystero gets them as its TURN config.
     const turn = [{ urls: 'turn:a.relay.example:80', username: 'u', credential: 'c' }]
     trysteroConnect(turn)('ABCD-EFGH')
-    expect(joinRoom).toHaveBeenLastCalledWith({ appId: APP_ID, turnConfig: turn }, 'ABCD-EFGH', expect.anything())
+    expect(joinRoom).toHaveBeenLastCalledWith({ appId: APP_ID, password: 'ABCD-EFGH', turnConfig: turn }, 'ABCD-EFGH', expect.anything())
   })
 })

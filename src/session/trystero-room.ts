@@ -14,9 +14,11 @@ export const APP_ID = 'scrpg-aid'
 /** Trystero, with TURN relay servers for peers who can't connect directly (./turn.ts). */
 export const trysteroConnect =
   (turn: readonly TurnServer[] = []): Connect =>
-  (room, password) => {
+  (room) => {
     let reportError: ((message: string) => void) | undefined
-    const joined = joinRoom({ appId: APP_ID, ...(password ? { password } : {}), ...(turn.length ? { turnConfig: [...turn] } : {}) }, room, {
+    // The game code is also the password that encrypts the connection setup on the public relays,
+    // so only someone with the code can read it.
+    const joined = joinRoom({ appId: APP_ID, password: room, ...(turn.length ? { turnConfig: [...turn] } : {}) }, room, {
       onJoinError: ({ error }) => reportError?.(error),
     })
     const action = joined.makeAction<JsonValue>('session')

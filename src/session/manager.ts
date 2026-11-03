@@ -6,12 +6,16 @@
 import type { GameStore } from '../game/store'
 import type { Hero } from '../hero/model'
 import type { Clock } from '../play/state'
-import { PlayerClient, type PlayingSaved } from './client'
+import { PlayerClient, type PlayingSaved, type Received } from './client'
+import type { JoinedGame, JoinedStore } from '../game/joined-store'
 import { newRoomCode } from './code'
 import { HostSession, type HostSaved } from './host'
 import type { SessionStore } from './storage'
 import type { Connect } from './transport'
 import { SAVED_VERSION, type LastGame } from './types'
+
+/** The least time between writes of a joined game's cache. */
+export const CACHE_EVERY = 1000
 
 export interface CurrentSession {
   /** The game this device is hosting. */
@@ -27,12 +31,14 @@ export class SessionManager {
   private store: SessionStore
   private clock: () => Clock
   private games: GameStore | undefined
+  private joined: JoinedStore | undefined
 
-  constructor(connect: Connect, store: SessionStore, clock: () => Clock, games?: GameStore) {
+  constructor(connect: Connect, store: SessionStore, clock: () => Clock, games?: GameStore, joined?: JoinedStore) {
     this.connect = connect
     this.store = store
     this.clock = clock
     this.games = games
+    this.joined = joined
   }
 
   subscribe = (listener: () => void): (() => void) => {
@@ -48,7 +54,7 @@ export class SessionManager {
   }
 
   /** The last game joined (kept after leaving), to join again without typing. */
-  lastGame(): Omit<LastGame, 'v' | 'password'> | undefined {
+  lastGame(): Omit<LastGame, 'v'> | undefined {
     const game = this.store.loadLastGame()
     return game && { room: game.room, ...(game.at ? { at: game.at } : {}) }
   }
@@ -75,8 +81,12 @@ export class SessionManager {
     })
   }
 
-  /** Joins a hosted game as a player with one hero, leaving any session first. */
-  joinGame({ room, name, hero }: { room: string; name: string; hero: Hero }): void {
+  /**
+   * Joins a hosted game as a player with one hero, leaving any session first. `cached` is the
+   * game as this device last saw it (a joined game opened from the Games page), shown until the
+   * GM answers.
+   */
+  joinGame({ room, name, hero, cached }: { room: string; name: string; hero: Hero; cached?: Received }): void {
     const current = this.current.playing
     if (current && current.info.room === room && current.info.heroSourceId === hero.id && current.getSnapshot().status !== 'refused') return
     this.disconnect()
@@ -85,13 +95,13 @@ export class SessionManager {
     this.store.saveLastGame({ v: SAVED_VERSION, room, at: this.clock().now.toISOString() })
     const saved: PlayingSaved = { v: 1, room, name: name.trim() || 'A player', heroSourceId: hero.id, sheet: hero }
     this.store.savePlaying(saved)
-    this.set({ playing: this.newPlaying(saved) })
+    this.set({ playing: this.newPlaying(saved, cached) })
   }
 
   /** Leaves the game being played: the hero stays at the table, shown as disconnected. */
   leaveGame(): void {
     if (!this.current.playing) return
-    this.current.playing.leave()
+    this.disconnect()
     this.store.savePlaying(undefined)
     this.set({})
   }
@@ -129,12 +139,19 @@ export class SessionManager {
     return new HostSession(this.connect, saved, this.games!, this.clock, (s) => this.store.saveHost(s))
   }
 
-  private newPlaying(saved: PlayingSaved): PlayerClient {
+  private newPlaying(saved: PlayingSaved, cached?: Received): PlayerClient {
     return new PlayerClient(
       this.connect,
       { room: saved.room, clientId: this.store.clientId(), name: saved.name, heroSourceId: saved.heroSourceId, sheet: saved.sheet },
       {
         ...(saved.syncWaiting ? { syncWaiting: true } : {}),
+        ...(cached ? { cached } : {}),
+        // Every state the GM sends is cached, to open the game later without the GM (section 11).
+        onReceive: (r) => {
+          if (!this.joined || !r.you) return
+          const record: JoinedGame = { id: r.table.id, room: r.room, gm: r.gm, heroId: r.you.heroId, heroSourceId: saved.heroSourceId, sheet: saved.sheet, name: saved.name, since: r.you.since, updatedAt: r.at, version: r.version, table: r.table }
+          this.cache(record)
+        },
         // A sync request waiting for the GM is remembered across reloads.
         onSyncWaiting: (waiting) => {
           const now = this.store.loadPlaying()
@@ -146,7 +163,36 @@ export class SessionManager {
     )
   }
 
+  /** The next cache write, and the timer that spaces writes at least CACHE_EVERY apart. */
+  private cachePending: JoinedGame | undefined
+  private cacheTimer: ReturnType<typeof setTimeout> | undefined
+
+  /**
+   * Caches a game a player is in. A busy game sends many states, so writes are spaced: the first
+   * goes at once, and later ones within CACHE_EVERY wait and write only the latest.
+   */
+  private cache(record: JoinedGame): void {
+    this.cachePending = record
+    if (this.cacheTimer) return
+    this.flushCache()
+    this.cacheTimer = setTimeout(() => {
+      this.cacheTimer = undefined
+      if (this.cachePending) this.cache(this.cachePending)
+    }, CACHE_EVERY)
+  }
+
+  private flushCache(): void {
+    const record = this.cachePending
+    this.cachePending = undefined
+    // A cache that can't be written just isn't there offline.
+    if (record) this.joined?.save(record).catch(() => {})
+  }
+
   private disconnect(): void {
+    // Whatever was waiting to be cached is written before leaving.
+    clearTimeout(this.cacheTimer)
+    this.cacheTimer = undefined
+    this.flushCache()
     this.current.hosting?.leave()
     this.current.playing?.leave()
   }

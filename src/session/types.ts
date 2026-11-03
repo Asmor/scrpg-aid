@@ -24,14 +24,12 @@ export const SAVED_VERSION = 1
 export interface LastGame {
   v: typeof SAVED_VERSION
   room: string
-  /** Older saves may have one; games no longer use passwords. */
-  password?: string
   /** When it was joined (ISO 8601), for "Last game: K7QX-2M, 3 days ago". Older saves have none. */
   at?: string
 }
 
 const text = (max: number): Check => (v, path) => string(v, path) ?? ((v as string).length > max ? `${path} is too long` : undefined)
-const lastGame = object({ v: oneOf(SAVED_VERSION), room: nonEmptyString, 'password?': text(200), 'at?': text(40) })
+const lastGame = object({ v: oneOf(SAVED_VERSION), room: nonEmptyString, 'at?': text(40) })
 
 /** A stored last game, or undefined if it's malformed or from another version. */
 export function readLastGame(value: unknown): LastGame | undefined {

@@ -167,6 +167,12 @@ export class PlayerClient extends Subscribable<ClientSnapshot> {
     this.publish({ ...this.snapshot, notices: this.snapshot.notices.filter((n) => n.id !== noticeId), pending: notice.retry ? this.snapshot.pending.filter((p) => p.id !== notice.retry) : this.snapshot.pending })
   }
 
+  /** Shows the game as cached on this device until the GM answers (nothing once a state has arrived). */
+  showCached(cached: Received): void {
+    if (this.snapshot.received || cached.room !== this.info.room) return
+    this.publish({ ...this.snapshot, received: cached })
+  }
+
   /** Connects again from scratch (Try to reconnect). */
   reconnect(): void {
     if (this.left) return

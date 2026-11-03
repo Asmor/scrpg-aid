@@ -14,8 +14,8 @@ export interface Transport {
   leave(): void
 }
 
-/** Joins a room. The password, when there is one, encrypts the connection setup. */
-export type Connect = (room: string, password?: string) => Transport
+/** Joins a room (a game's code). */
+export type Connect = (room: string) => Transport
 
 /**
  * A transport that goes quiet once left: no more messages, peer events, or sends. Trystero
@@ -46,7 +46,7 @@ export function quietAfterLeave(transport: Transport): Transport {
  * before it was cached), the session just stays unconnected.
  */
 export function lazyConnect(load: () => Promise<Connect>): Connect {
-  return (room, password) => {
+  return (room) => {
     let real: Transport | undefined
     let left = false
     const handlers: {
@@ -58,7 +58,7 @@ export function lazyConnect(load: () => Promise<Connect>): Connect {
     load().then(
       (connect) => {
         if (left) return
-        real = connect(room, password)
+        real = connect(room)
         if (handlers.message) real.onMessage(handlers.message)
         if (handlers.join) real.onPeerJoin(handlers.join)
         if (handlers.leave) real.onPeerLeave(handlers.leave)
@@ -95,14 +95,13 @@ export function lazyConnect(load: () => Promise<Connect>): Connect {
 interface FakePeer {
   id: string
   room: string
-  password?: string
   message?: (message: unknown, peerId: string) => void
   join?: (peerId: string) => void
   leave?: (peerId: string) => void
 }
 
 /**
- * An in-memory network for tests. Peers in the same room with the same password see each
+ * An in-memory network for tests. Peers in the same room see each
  * other. Delivery is asynchronous (like a real network); `settle()` waits for it, and
  * `disconnect(peerId)` drops a peer as if their connection died.
  */
@@ -113,7 +112,7 @@ export function fakeNetwork() {
   const later = (fn: () => void) => {
     pending = pending.then(() => fn())
   }
-  const sameRoom = (a: FakePeer, b: FakePeer) => a !== b && a.room === b.room && a.password === b.password && peers.includes(b)
+  const sameRoom = (a: FakePeer, b: FakePeer) => a !== b && a.room === b.room && peers.includes(b)
 
   const drop = (peer: FakePeer) => {
     const others = peers.filter((p) => sameRoom(peer, p))
@@ -121,8 +120,8 @@ export function fakeNetwork() {
     for (const other of others) later(() => other.leave?.(peer.id))
   }
 
-  const connect: Connect = (room, password) => {
-    const peer: FakePeer = { id: `peer${++next}`, room, ...(password ? { password } : {}) }
+  const connect: Connect = (room) => {
+    const peer: FakePeer = { id: `peer${++next}`, room }
     peers.push(peer)
     // Everyone already there and the newcomer hear about each other.
     for (const other of peers.filter((p) => sameRoom(peer, p))) {

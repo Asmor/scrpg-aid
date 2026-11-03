@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { gamesPath, heroPath, joinPath, navigate } from '../app/route'
 import { useStore } from '../app/store-context'
+import { useOptionalJoinedStore } from '../app/joined-store-context'
 import { HeroSheetView } from '../components/HeroSheetView'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
@@ -139,6 +140,24 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
       live = false
     }
   }, [heroStore, sourceId])
+
+  // After a reload, the game as cached on this device, until the GM answers.
+  const joinedStore = useOptionalJoinedStore()
+  const needsCache = Boolean(client && !snap?.received)
+  useEffect(() => {
+    if (!client || !needsCache || !joinedStore) return
+    let live = true
+    joinedStore.list().then(
+      (list) => {
+        const j = list.find((x) => x.room === room && x.heroSourceId === client.info.heroSourceId)
+        if (live && j) client.showCached({ room: j.room, version: j.version, table: j.table, gm: j.gm, you: { heroId: j.heroId, since: j.since }, at: j.updatedAt })
+      },
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [client, needsCache, joinedStore, room])
 
   const received = snap?.received
   const table: TableView | undefined = received?.table

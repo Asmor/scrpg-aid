@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import { SessionManager } from './manager'
+import { describe, expect, it, vi } from 'vitest'
+import { CACHE_EVERY, SessionManager } from './manager'
 import { localSessionStore, memoryStorage } from './storage'
 import { fakeNetwork } from './transport'
 import { createGame } from '../game/model'
 import { MemoryGameStore } from '../game/store'
+import { MemoryJoinedStore } from '../game/joined-store'
 import { completeHero } from '../test/heroes'
 
 let n = 0
@@ -111,5 +112,54 @@ describe('the device’s session', () => {
     }, localSessionStore(storage), clock, new MemoryGameStore())
     throwing.resume()
     expect(storage.data.has('scrpg.session.host')).toBe(false)
+  })
+
+  it("caches each state from the GM in the joined games store, to open later without the GM", async () => {
+    const net = fakeNetwork()
+    const games = new MemoryGameStore()
+    await games.save({ ...createGame({ id: 'g1' }), name: 'Thursday game' })
+    const gmDevice = new SessionManager(net.connect, localSessionStore(memoryStorage()), clock, games)
+    gmDevice.hostGame('g1', 'Sam')
+    const room = gmDevice.getSnapshot().hosting!.room
+    const joined = new MemoryJoinedStore()
+    const manager = new SessionManager(net.connect, localSessionStore(memoryStorage()), clock, undefined, joined)
+    manager.joinGame({ room, name: 'Alex', hero: { ...completeHero(), id: 'maya' } })
+    await net.settle()
+    await new Promise((r) => setTimeout(r, 0))
+    const [cached] = await joined.list()
+    expect(cached).toMatchObject({ id: 'g1', room, gm: 'Sam', heroSourceId: 'maya', name: 'Alex', table: { name: 'Thursday game' } })
+    expect(cached!.heroId).toBe(gmDevice.getSnapshot().hosting!.game!.heroes[0]!.id)
+  })
+
+  it('spaces cache writes in a busy game: the first at once, then the latest after a second', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const net = fakeNetwork()
+      const games = new MemoryGameStore()
+      await games.save(createGame({ id: 'g1' }))
+      const gmDevice = new SessionManager(net.connect, localSessionStore(memoryStorage()), clock, games)
+      gmDevice.hostGame('g1', 'Sam')
+      const host = gmDevice.getSnapshot().hosting!
+      const joined = new MemoryJoinedStore()
+      const save = vi.spyOn(joined, 'save')
+      const manager = new SessionManager(net.connect, localSessionStore(memoryStorage()), clock, undefined, joined)
+      manager.joinGame({ room: host.room, name: 'Alex', hero: { ...completeHero(), id: 'maya' } })
+      await net.settle()
+      expect(save).toHaveBeenCalledTimes(1)
+      host.apply((g) => ({ ...g, name: 'One' }))
+      host.apply((g) => ({ ...g, name: 'Two' }))
+      await net.settle()
+      expect(save).toHaveBeenCalledTimes(1)
+      vi.advanceTimersByTime(CACHE_EVERY)
+      expect(save).toHaveBeenCalledTimes(2)
+      expect(save.mock.calls.at(-1)![0].table.name).toBe('Two')
+      // Leaving writes anything still waiting.
+      host.apply((g) => ({ ...g, name: 'Three' }))
+      await net.settle()
+      manager.leaveGame()
+      expect(save.mock.calls.at(-1)![0].table.name).toBe('Three')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

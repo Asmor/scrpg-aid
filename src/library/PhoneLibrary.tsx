@@ -5,10 +5,8 @@
  */
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { Modal } from '../components/Modal'
-import { gamePath } from '../app/route'
-import { gameDisplayName, type Game } from '../game/model'
 import { ActiveTags, FooterLine, LibraryMessages, NameCell, NewMenu, NoMatches, RemoveTagPanel, RowMenu, SaveSearchField, SearchField, TagChecklist, TypeChips, EmptyLibrary, UnreadableList } from './DesktopLibrary'
-import type { LibraryModel } from './LibraryPage'
+import type { GameLink, LibraryModel } from './LibraryPage'
 import { usePopover } from './popover-state'
 import { filterCount } from './query'
 import { AddTagPanel, ItemTags } from './TagControls'
@@ -173,12 +171,12 @@ function PhoneRow({ model, row, selecting }: { model: LibraryModel; row: Row; se
 }
 
 /** "In Thursday game" (and "+2 more"), linking to the games; nothing when it's in none. */
-function InGamesLine({ games }: { games: readonly Game[] }) {
+function InGamesLine({ games }: { games: readonly GameLink[] }) {
   if (!games.length) return null
   const first = games[0]!
   return (
     <span className="phone-row__games">
-      In <a href={gamePath(first.id)}>{gameDisplayName(first)}</a>
+      In <a href={first.href}>{first.name}</a>
       {games.length > 1 && ` +${games.length - 1} more`}
     </span>
   )
