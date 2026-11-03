@@ -6,7 +6,8 @@
  * the hero, and logged to the history (./state.ts has the rules; ./forms.ts says which
  * abilities can be used).
  */
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useId, useRef, useState, type ReactNode } from 'react'
+import { Toasts } from '../components/Toasts'
 import { heroPath } from '../app/route'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { heroDisplayName } from '../hero/model'
@@ -171,37 +172,6 @@ function StatusDiceInline({ dice }: { dice: Record<Zone, Die> }) {
   )
 }
 
-/** How long a roll's Undo stays offered. */
-const UNDO_MS = 10_000
-
-/** "Roll recorded. Used up: …" with Undo, for about ten seconds. */
-function Toast({ text, undo, onClose }: { text: string; undo: () => void; onClose: () => void }) {
-  // The timer starts once per toast; re-renders (a new onClose) don't restart it.
-  const close = useRef(onClose)
-  useEffect(() => {
-    close.current = onClose
-  })
-  useEffect(() => {
-    const timer = setTimeout(() => close.current(), UNDO_MS)
-    return () => clearTimeout(timer)
-  }, [undo])
-  return (
-    <div className="toast" role="status">
-      <span>{text}</span>
-      <button
-        type="button"
-        className="button button--small"
-        onClick={() => {
-          undo()
-          onClose()
-        }}
-      >
-        Undo
-      </button>
-    </div>
-  )
-}
-
 /** The latest roll as a card, then everything else newest first. */
 function History({ history, now }: { history: readonly PlayHistoryEntry[]; now: Date }) {
   const latest = [...history].reverse().find((h) => h.roll)
@@ -281,7 +251,8 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
   const [twistKind, setTwistKind] = useState<'minor' | 'major'>('minor')
   const [twistText, setTwistText] = useState('')
   const [rolling, setRolling] = useState<RollSubject | null>(null)
-  const [toast, setToast] = useState<{ text: string; undo: () => void } | null>(null)
+  const [toast, setToast] = useState<{ id: number; text: string; undo: () => void } | null>(null)
+  const toastCount = useRef(0)
   // On a phone (docs/design/hero-sheet/spec.md, "Play on a phone"): a sticky top bar and three tabs.
   const phone = !useMediaQuery('(min-width: 760px)')
   const [tab, setTab] = useState<PhoneTab>('actions')
@@ -683,6 +654,7 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
             })
             const usedUp = record.results.flatMap((r) => r.mods).filter((m) => !m.persistent)
             setToast({
+              id: ++toastCount.current,
               text: [
                 'Roll recorded.',
                 usedUp.length ? `Used up: ${usedUp.map(modName).join(', ')}.` : '',
@@ -709,7 +681,8 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
           random={random}
         />
       )}
-      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {/* "Roll recorded" with Undo, for ten seconds (an action keeps a toast longer). */}
+      <Toasts toasts={toast ? [{ id: String(toast.id), text: toast.text, action: { label: 'Undo', onClick: toast.undo } }] : []} onDismiss={() => setToast(null)} />
     </>
   )
 

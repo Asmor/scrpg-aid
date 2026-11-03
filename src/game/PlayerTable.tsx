@@ -18,6 +18,7 @@ import { useOptionalJoinedStore } from '../app/joined-store-context'
 import { receivedFrom, type JoinedGame } from './joined-store'
 import { HeroSheetView } from '../components/HeroSheetView'
 import { Modal } from '../components/Modal'
+import { Toasts, type ToastData } from '../components/Toasts'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { buildSheet } from '../creation/sheet'
 import { heroDisplayName, isDraft, type Hero } from '../hero/model'
@@ -104,23 +105,12 @@ function NewCodeForm({ onReconnect }: { onReconnect: (code: string) => void }) {
   )
 }
 
-/** How long a toast stays: it's announced through the live region anyway. */
-export const TOAST_MS = 8000
-
-/** One toast, which closes itself after TOAST_MS (or sooner with ×). */
-function ToastItem({ notice: n, onDismiss, onRetry }: { notice: Notice; onDismiss: (id: string) => void; onRetry: (id: string) => void }) {
-  // The timer starts once per toast; a new onDismiss on re-render doesn't restart it.
-  const dismiss = useRef(onDismiss)
-  useEffect(() => {
-    dismiss.current = onDismiss
-  })
-  useEffect(() => {
-    const timer = setTimeout(() => dismiss.current(n.id), TOAST_MS)
-    return () => clearTimeout(timer)
-  }, [n.id])
-  return (
-    <div className={`toast${n.kind === 'rejected' || n.kind === 'unreachable' ? ' toast--warn' : ''}`}>
-      <span>
+/** A player's notices (rejected actions, the GM's answers, a new code) as toasts. */
+function noticeToast(n: Notice, retry: (id: string) => void): ToastData {
+  return {
+    id: n.id,
+    text: (
+      <>
         {n.text}
         {n.code && (
           <>
@@ -129,28 +119,11 @@ function ToastItem({ notice: n, onDismiss, onRetry }: { notice: Notice; onDismis
           </>
         )}
         {n.adjustments?.length ? ` ${n.adjustments.join(' ')}` : ''}
-      </span>
-      {n.retry && (
-        <button type="button" className="button button--small" onClick={() => onRetry(n.retry!)}>
-          Try again
-        </button>
-      )}
-      <button type="button" className="icon-button" aria-label="Dismiss" onClick={() => onDismiss(n.id)}>
-        ×
-      </button>
-    </div>
-  )
-}
-
-export function Toasts({ notices, onDismiss, onRetry }: { notices: readonly Notice[]; onDismiss: (id: string) => void; onRetry: (id: string) => void }) {
-  if (!notices.length) return null
-  return (
-    <div className="gt-toasts" role="status" aria-live="polite">
-      {notices.map((n) => (
-        <ToastItem key={n.id} notice={n} onDismiss={onDismiss} onRetry={onRetry} />
-      ))}
-    </div>
-  )
+      </>
+    ),
+    ...(n.kind === 'rejected' || n.kind === 'unreachable' ? { warn: true } : {}),
+    ...(n.retry ? { action: { label: 'Try again', onClick: () => retry(n.retry!) } } : {}),
+  }
 }
 
 /** The changes between the game's copy and the library sheet, and what an update would do in this game. */
@@ -499,7 +472,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
           </div>
         </Modal>
       )}
-      <Toasts notices={snap?.notices ?? []} onDismiss={(id) => client.dismiss(id)} onRetry={(id) => client.retry(id)} />
+      <Toasts toasts={(snap?.notices ?? []).map((n) => noticeToast(n, (id) => client.retry(id)))} onDismiss={(id) => client.dismiss(id)} />
     </PopoverGroup>
   )
 }
