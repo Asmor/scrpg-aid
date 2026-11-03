@@ -556,6 +556,7 @@ describe('HeroEditor', () => {
     })
   })
 
+  // Many steps through the wizard: about 3 s alone, slower when the whole suite runs at once.
   it('builds Form-Changer forms: powers, a name, the Yellow form’s raised dice, and one ability each', async () => {
     const store = await storeWith((h) => {
       Object.assign(h, { ...formChangerHero(), id: 'h1' })
@@ -581,7 +582,7 @@ describe('HeroEditor', () => {
         { zone: 'yellow', powers: [], upgrades: [Q('fitness')] },
       ]),
     )
-  })
+  }, 20_000)
 
   it('lets an extra form be removed', async () => {
     const store = await storeWith((h) => {
