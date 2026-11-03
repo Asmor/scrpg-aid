@@ -27,6 +27,7 @@ export function heroView(h: HeroInGame | HeroOnTable, game: Pick<Game, 'scene' |
     ...(sheet.maxHealth !== undefined ? { maxHealth: sheet.maxHealth } : {}),
     ...(statusDie ? { statusDie } : {}),
     mods: play.mods,
+    defenses: play.defenses ?? [],
     minions: (play.minions ?? []).map((m) => ({ id: m.id, name: m.name, die: m.die })),
     reactionUsed: play.reactionUsed,
     ...(extra.disconnected ? { disconnected: true } : {}),
@@ -47,5 +48,6 @@ export function villainView(v: VillainOnTable): VillainView {
     ...(v.maxHealth !== undefined ? { maxHealth: v.maxHealth } : {}),
     ...(v.statusDie ? { statusDie: v.statusDie } : {}),
     mods: v.mods ?? [],
+    defenses: v.defenses ?? [],
   }
 }

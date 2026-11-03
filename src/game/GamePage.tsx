@@ -25,7 +25,8 @@ import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, F
 import { GmScreen, type QuickAddKind } from './GmScreen'
 import type { GroupActions } from './RunningGroup'
 import { applyGroupRoll, applySaves } from './npc'
-import { applyAttack, villainAttackTargets } from './attacks'
+import { applyAttack, attackTargetName, villainAttackTargets } from './attacks'
+import { defend } from './hits'
 import { parseTarget } from './roll-targets'
 import { applyHeroChange, type HeroChange } from './hero-changes'
 import { gameDisplayName, sceneDisplayName, type ActorRef, type Game, type HeroInGame, type VillainInGame } from './model'
@@ -254,11 +255,16 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         villain: runningVillain,
         change: (fn: (p: VillainPlayState, c: Clock) => VillainPlayState) => changeVillain(runningVillain.id, fn),
         attackTargets: villainAttackTargets(game, runningVillain.id),
-        attack: (attacks: { to: string; amount: number }[]) =>
+        attack: (hits: { kind: 'attack' | 'defend'; to: string; amount: number }[]) =>
           apply((g) =>
-            attacks.reduce((x, a) => {
+            hits.reduce((x, a) => {
               const to = parseTarget(a.to)
-              return to ? applyAttack(x, villainDisplayName(runningVillain.sheet), to, a.amount, random ?? Math.random, clock(), runningVillain.hidden).game : x
+              const by = villainDisplayName(runningVillain.sheet)
+              if (!to) return x
+              if (a.kind === 'attack') return applyAttack(x, by, to, a.amount, random ?? Math.random, clock(), runningVillain.hidden).game
+              const name = attackTargetName(x, to)
+              const c = clock()
+              return name ? T.withLog(defend(x, to, a.amount, by, c), [{ id: c.newId(), at: c.now.toISOString(), by, text: `${by} protected ${name}: Defend ${a.amount}.`, ...(runningVillain.hidden ? { gmOnly: true as const } : {}) }]) : x
             }, g),
           ),
       }

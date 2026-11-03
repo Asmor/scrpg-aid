@@ -403,6 +403,19 @@ These came from questions the user put to the rules-expert agent about an action
 - **Decision:** Yes. A save succeeds when it's at least the damage, the same comparison as for lieutenants.
 - **Basis:** Interpretation (the user's ruling).
 
+## Defend (p. 19, 24–29)
+
+### 65. How Defends protect, stack and expire
+- **Pages:** Basic actions (p. 19, 24–29).
+- **Question:** The data says a Defend "reduces the next damage taken (by you or the target you protect) before your next turn" and that "multiple Defends don't stack". How does the app track and apply them?
+- **Decision:**
+  - Each Defend gives its target a single-use defense that blocks up to its value. A 5 turns 8 damage into 3, and 4 damage into none.
+  - A defense blocks only damage. It doesn't stop an attack's other effects, even when the damage drops to 0.
+  - A target can hold several defenses. Exactly one is used against each instance of damage, and using it isn't optional.
+  - The target's owner picks which defense to use. The default is the largest that doesn't exceed the damage, or the smallest if they all exceed it.
+  - Unused defenses are lost at the start of the defended character's next turn.
+- **Basis:** Interpretation (the user's ruling).
+
 ## Data corrections
 
 These fix the data rather than settling an ambiguity.

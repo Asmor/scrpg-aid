@@ -7,6 +7,7 @@
  *
  * While the GM isn't connected, controls that change the game are disabled and say "Needs the GM".
  */
+import { defenseText } from '../play/defense'
 import { useId, useState, type ReactNode } from 'react'
 import { DieIcon } from '../components/icons'
 import { buildSheet } from '../creation/sheet'
@@ -212,6 +213,19 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
             ))}
           </ul>
         )}
+        {(play.defenses?.length ?? 0) > 0 && (
+          <>
+            <div className="gt-label">Defenses</div>
+            <ul className="gt-chips" aria-label="Defenses">
+              {play.defenses!.map((d) => (
+                <li key={d.id} className="gt-mod gt-defense">
+                  {defenseText(d, heroDisplayName(hero.sheet))}
+                </li>
+              ))}
+            </ul>
+            <p className="gt-sub">Each hit uses one. They're gone when your next turn starts.</p>
+          </>
+        )}
         <div className="gt-row">
           {button('Roll', () => setRolling({ kind: 'basic' }), { primary: true, disabled: Boolean(basicActionBlocked('attack', ctx)) && Boolean(basicActionBlocked('overcome', ctx)) })}
           <button type="button" className="button button--small" aria-expanded={adding === 'mod'} aria-describedby={describedBy} disabled={off} onClick={() => setAdding(adding === 'mod' ? null : 'mod')}>
@@ -318,9 +332,9 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
           minionForms={sheet.minionForms}
           targets={[...tableTargets(view, hero.id), ...(play.minions ?? []).map((m) => ({ id: `${OWN_MINION}${m.id}`, name: `${m.name} (your minion)` }))]}
           attackTargets={tableTargets(view, hero.id)}
-          onConfirm={(record, followUps, formChoice, made = [], attacks = []) => {
+          onConfirm={(record, followUps, formChoice, made = [], choices = []) => {
             const subject = rolling.kind === 'ability' ? { kind: 'ability' as const, name: rolling.name } : { kind: 'basic' as const, ...(rolling.action ? { action: rolling.action } : {}) }
-            act({ kind: 'roll', roll: rollAction(subject, record, followUps, formChoice, made, attacks) })
+            act({ kind: 'roll', roll: rollAction(subject, record, followUps, formChoice, made, choices) })
           }}
           random={random}
         />

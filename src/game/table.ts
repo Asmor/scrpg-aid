@@ -12,6 +12,7 @@ import { stepDie } from '../rules/dice'
 import type { Die, Zone } from '../rules/types'
 import { heroDisplayName, type Hero, type PlayHistoryEntry, type PlayMod, type PlayState } from '../hero/model'
 import { describeMod, setReactionUsed, type Clock } from '../play/state'
+import { clearDefenses } from '../play/defense'
 import { FEED_LIMIT } from '../session/types'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
 import { heroCopy, MAX_BOXES, MAX_GROUP_SIZE, MAX_STEPS, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type Game, type GameFeedEntry, type HeroInGame, type NpcGroup, type PlayersSee, type TrackerCounts, type VillainInGame } from './model'
@@ -387,10 +388,10 @@ export const actedText = (group: Pick<NpcGroup, 'members'>) => `${group.members.
 /** The members ready to act (not acted yet). */
 export const readyMembers = (group: Pick<NpcGroup, 'members'>) => group.members.filter((m) => !m.acted)
 
-/** Every member of the matching groups is ready again (no log line: it's part of a turn starting). */
+/** Every member of the matching groups is ready again, and its defenses are gone (no log line: it's part of a turn starting). */
 function clearActed(game: Game, which: (g: NpcGroup) => boolean): Game {
-  if (!game.groups.some((g) => which(g) && g.members.some((m) => m.acted))) return game
-  return { ...game, groups: game.groups.map((g) => (which(g) ? { ...g, members: g.members.map((m) => (m.acted ? { ...m, acted: false } : m)) } : g)) }
+  if (!game.groups.some((g) => which(g) && g.members.some((m) => m.acted || m.defenses))) return game
+  return { ...game, groups: game.groups.map((g) => (which(g) ? { ...g, members: g.members.map((m) => (m.acted || m.defenses ? clearDefenses({ ...m, acted: false }) : m)) } : g)) }
 }
 
 /** The GM marks a member as acted, or not (its ⋯ menu). */
@@ -478,8 +479,8 @@ export function turnStrip(game: Pick<Game, 'turn'>): { ref: ActorRef; state: Tur
 }
 
 /**
- * A turn starting: the actor's reaction is cleared (that character's only, not at round start),
- * a group's members are ready again, and when it's the environment's turn, the scene tracker
+ * A turn starting: the actor's reaction and defenses are cleared (that character's only, not at
+ * round start; ruling 65), a group's members are ready again with no defenses, and when it's the environment's turn, the scene tracker
  * advances and the environment's groups are ready again.
  */
 function startTurn(game: Game, ref: ActorRef, clock: Clock): Game {
@@ -489,9 +490,9 @@ function startTurn(game: Game, ref: ActorRef, clock: Clock): Game {
     case 'group':
       return clearActed(game, (g) => g.id === ref.id)
     case 'hero':
-      return changeHeroPlay(game, ref.id, (p) => setReactionUsed(p, false, clock), clock, false)
+      return changeHeroPlay(game, ref.id, (p) => clearDefenses(setReactionUsed(p, false, clock)), clock, false)
     case 'villain':
-      return changeVillainPlay(game, ref.id, (p) => setReactionUsed(p, false, clock), clock, false)
+      return changeVillainPlay(game, ref.id, (p) => clearDefenses(setReactionUsed(p, false, clock)), clock, false)
     default:
       return game
   }

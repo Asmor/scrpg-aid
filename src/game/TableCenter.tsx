@@ -3,6 +3,7 @@
  * the turn order, the heroes, the opposition and the log. It's the same for everyone; `gm`
  * adds the GM's controls and never moves anything around. Without it, everything is read-only.
  */
+import { defenseText, type Defense } from '../play/defense'
 import { useState, type ReactNode } from 'react'
 import { DiceText, DieIcon } from '../components/icons'
 import { PLAY_ZONE_LABEL } from '../hero/labels'
@@ -29,6 +30,8 @@ export interface HeroView {
   maxHealth?: number
   statusDie?: Die
   mods: readonly PlayMod[]
+  /** Its Defends (ruling 65). */
+  defenses: readonly Defense[]
   minions: readonly { id: string; name: string; die: Die }[]
   reactionUsed: boolean
   disconnected?: boolean
@@ -49,6 +52,7 @@ export interface VillainView {
   maxHealth?: number
   statusDie?: Die
   mods: readonly PlayMod[]
+  defenses: readonly Defense[]
 }
 
 /** The GM's controls on the shared center. */
@@ -78,13 +82,18 @@ export function ZoneChip({ zone, label }: { zone: PlayZone; label?: string }) {
   return <span className={`zone-chip zone-${zone}`}>{label ?? PLAY_ZONE_LABEL[zone]}</span>
 }
 
-function ModChips({ mods, extra }: { mods: readonly PlayMod[]; extra?: ReactNode }) {
-  if (!mods.length && !extra) return null
+function ModChips({ mods, defenses = [], extra }: { mods: readonly PlayMod[]; defenses?: readonly Defense[]; extra?: ReactNode }) {
+  if (!mods.length && !defenses.length && !extra) return null
   return (
-    <ul className="gt-chips" aria-label="Bonuses and penalties">
+    <ul className="gt-chips" aria-label="Bonuses, penalties and defenses">
       {mods.map((m) => (
         <li key={m.id} className="gt-mod">
           {m.value > 0 ? `+${m.value}` : `−${-m.value}`} {modName(m)}
+        </li>
+      ))}
+      {defenses.map((d) => (
+        <li key={d.id} className="gt-mod gt-defense">
+          {defenseText(d)}
         </li>
       ))}
       {extra}
@@ -334,6 +343,7 @@ function HeroCard({ hero, acting, gm }: { hero: HeroView; acting: boolean; gm?: 
           <HealthBar health={hero.health} maxHealth={hero.maxHealth} zone={hero.zone} />
           <ModChips
             mods={hero.mods}
+            defenses={hero.defenses}
             extra={hero.minions.map((m) => (
               <li key={m.id} className="gt-mod">
                 {m.name} <DieIcon die={m.die} size="inline" />
@@ -422,7 +432,7 @@ function VillainCard({ villain, acting, gm }: { villain: VillainView; acting: bo
             )}
           </div>
           {gm && villain.playersSee !== 'health' && !villain.hidden && <p className="gt-sub">Players see {SEE_LABEL[villain.playersSee].toLowerCase()}.</p>}
-          <ModChips mods={villain.mods} />
+          <ModChips mods={villain.mods} defenses={villain.defenses} />
         </>
       )}
     </article>
@@ -465,7 +475,7 @@ function GroupCard({ group, acting, gm }: { group: NpcGroup; acting: boolean; gm
             <li key={m.id} className="gt-row">
               <DieIcon die={m.die} />
               <span>{memberLabel(group, m.n)}</span>
-              <ModChips mods={m.mods} />
+              <ModChips mods={m.mods} defenses={m.defenses ?? []} />
               <span className="gt-grow" />
               {gm && (
                 <>

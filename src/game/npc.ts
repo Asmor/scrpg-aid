@@ -9,16 +9,17 @@
  * - Saves: a minion or lieutenant that takes damage rolls its own die with its mods
  *   (../rules/saves.ts). A Minion-Maker hero's minions save as minions.
  */
-import { buildSheet } from '../creation/sheet'
 import { heroDisplayName, type PlayMinion, type PlayMod } from '../hero/model'
 import { removeMinion, shrinkMinion } from '../play/minions'
+import { blockWith, defensesOf, pickDefense, removeDefense, type Defense } from '../play/defense'
 import { effectAmount, modSize, overcomeOutcome } from '../play/roll'
-import { addMod, currentHealth, setHealth, type Clock } from '../play/state'
+import { addMod, type Clock } from '../play/state'
 import { rollDie } from '../rules/rolling'
 import { save, type SaveResult } from '../rules/saves'
 import type { BasicAction, Die } from '../rules/types'
 import { villainDisplayName } from '../villain/model'
 import type { Game, NpcGroup, NpcMember } from './model'
+import { defend, hitCharacter } from './hits'
 import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, memberName, removeMember, withLog } from './table'
 
 export type Random = () => number
@@ -156,7 +157,8 @@ export function saveText(name: string, kind: NpcGroup['kind'], die: Die, damage:
 }
 
 /** The results table's verdict (section 5): "Failed · KO'd", "Saved · Drops to d6", … */
-export function verdictText(kind: NpcGroup['kind'], die: Die, result: SaveResult, saved: boolean): string {
+export function verdictText(kind: NpcGroup['kind'], die: Die, result: SaveResult, saved: boolean, noDamage = false): string {
+  if (noDamage) return 'Blocked · No damage, so no save'
   if (result.noSave) return `KO'd outright · Damage was at least double its ${die}, so no save`
   const head = saved ? 'Saved' : 'Failed'
   if (result.outcome === 'ko') return `${head} · KO'd`
@@ -165,10 +167,10 @@ export function verdictText(kind: NpcGroup['kind'], die: Die, result: SaveResult
 }
 
 /** Rolls saves for these members against the same damage. */
-export function rollSaves(group: NpcGroup, memberIds: readonly string[], damage: number, random: Random): MemberSave[] {
+export function rollSaves(group: NpcGroup, memberIds: readonly string[], damage: number, random: Random, defenseIds: Readonly<Record<string, string>> = {}): MemberSave[] {
   return memberIds.flatMap((id) => {
     const m = group.members.find((x) => x.id === id)
-    return m ? [rollSave(group.kind, m, damage, random)] : []
+    return m ? [rollSave(group.kind, m, damage, random, defenseIds[id])] : []
   })
 }
 
@@ -177,20 +179,39 @@ export function applySaves(game: Game, groupId: string, saves: readonly MemberSa
   return saves.reduce((g, s) => applySave(g, groupId, s, clock), game)
 }
 
-/** A member's save against damage: its roll (none when KO'd outright) and the result. */
+/**
+ * A member's save against a hit: the damage that got through its defense (`damage`), the hit
+ * before it (`incoming`) and the defense used, its roll (none when KO'd outright, or when no
+ * damage got through: then there's no save at all), and the result.
+ */
 export interface MemberSave {
   memberId: string
   damage: number
+  incoming: number
+  defense?: Defense
   roll?: NpcRoll
   result: SaveResult
+  /** The defense blocked all of it: no damage, so no save. */
+  noDamage?: true
 }
 
-/** Rolls a member's save against damage. */
-export function rollSave(kind: NpcGroup['kind'], member: Pick<NpcMember, 'id' | 'die' | 'mods'>, damage: number, random: Random): MemberSave {
+/** Rolls a member's save against a hit, after one of its defenses (ruling 65): the one chosen, or the default. */
+export function rollSave(kind: NpcGroup['kind'], member: Pick<NpcMember, 'id' | 'die' | 'mods' | 'defenses'>, incoming: number, random: Random, defenseId?: string): MemberSave {
+  const defense = pickDefense(defensesOf(member), incoming, defenseId)
+  const damage = blockWith(incoming, defense).taken
+  const base = { memberId: member.id, damage, incoming, ...(defense ? { defense } : {}) }
+  if (damage === 0) return { ...base, result: { outcome: 'stay' }, noDamage: true }
   const outright = save(kind, member, damage, Number.POSITIVE_INFINITY)
-  if (outright.noSave) return { memberId: member.id, damage, result: outright }
+  if (outright.noSave) return { ...base, result: outright }
   const roll = rollWithMods(member.die, member.mods, random)
-  return { memberId: member.id, damage, roll, result: save(kind, member, damage, roll.total) }
+  return { ...base, roll, result: save(kind, member, damage, roll.total) }
+}
+
+/** The log line for a member's save, with its defense first: "Defend 2 blocked 2 of 7. Burglars 2 saved against 5 …". */
+export function memberSaveText(name: string, kind: NpcGroup['kind'], die: Die, s: MemberSave): string {
+  if (s.noDamage) return `${name} took no damage: ${s.defense ? `Defend ${s.defense.value}` : 'its defense'} blocked all ${s.incoming}.`
+  const block = s.defense ? `${name}'s Defend ${s.defense.value} blocked ${s.incoming - s.damage} of ${s.incoming}. ` : ''
+  return block + saveText(name, kind, die, s.damage, s.roll?.total, s.result)
 }
 
 const usedUp = (mods: readonly PlayMod[], used: readonly PlayMod[]) => mods.filter((m) => m.persistent || !used.some((u) => u.id === m.id))
@@ -201,12 +222,16 @@ export function applySave(game: Game, groupId: string, s: MemberSave, clock: Clo
   const member = group?.members.find((m) => m.id === s.memberId)
   if (!group || !member) return game
   const name = memberName(group, member.n)
-  const text = saveText(name, group.kind, member.die, s.damage, s.roll?.total, s.result)
+  const text = memberSaveText(name, group.kind, member.die, s)
   const line = { id: clock.newId(), at: clock.now.toISOString(), by: group.name, text, ...(group.hidden ? { gmOnly: true as const } : {}) }
   if (s.result.outcome === 'ko') return removeMember(withLog(game, [line]), groupId, member.id, clock, 'ko')
   const mods = s.roll ? usedUp(member.mods, s.roll.mods) : member.mods
   const die = s.result.newDie ?? member.die
-  const next = { ...game, groups: game.groups.map((g) => (g.id === groupId ? { ...g, members: g.members.map((m) => (m.id === member.id ? { ...m, die, mods } : m)) } : g)) }
+  const after = (m: NpcMember) => {
+    const changed = { ...m, die, mods }
+    return s.defense ? removeDefense(changed, s.defense.id) : changed
+  }
+  const next = { ...game, groups: game.groups.map((g) => (g.id === groupId ? { ...g, members: g.members.map((m) => (m.id === member.id ? after(m) : m)) } : g)) }
   return withLog(next, [line])
 }
 
@@ -294,17 +319,7 @@ export function applyGroupRoll(game: Game, groupId: string, action: BasicAction,
     switch (action) {
       case 'attack':
         if (target.kind === 'hero') {
-          say(`${name} attacked ${targetName}: ${amount} damage.`)
-          next = changeHeroPlay(
-            next,
-            target.id,
-            (p, sheet) => {
-              const built = buildSheet(sheet)
-              const now = currentHealth(built, p)
-              return now === undefined ? p : setHealth(p, built, now - amount, clock)
-            },
-            clock,
-          )
+          next = hitCharacter(next, name, target, amount, clock, gmOnly)
         } else if (target.kind === 'heroMinion') {
           const minion = findHero(next, target.heroId)?.play.minions?.find((m) => m.id === target.minionId)
           if (!minion) continue
@@ -328,6 +343,7 @@ export function applyGroupRoll(game: Game, groupId: string, action: BasicAction,
       }
       case 'defend':
         say(`${name} defended ${targetName}: Defend ${amount}.`)
+        if (target.kind === 'villain' || target.kind === 'member' || target.kind === 'hero') next = defend(next, target, amount, name, clock)
         break
     }
   }

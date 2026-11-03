@@ -13,6 +13,15 @@ function clock(): Clock {
 }
 
 const record = { title: 'Boost', rolled: [], results: [], manual: false }
+/** A roll with an Attack and two Defends. */
+const fighting = {
+  ...record,
+  results: [
+    { action: 'attack' as const, use: 'max' as const, base: 6, mods: [], total: 6 },
+    { action: 'defend' as const, use: 'mid' as const, base: 4, mods: [], total: 4 },
+    { action: 'defend' as const, use: 'min' as const, base: 2, mods: [], total: 2 },
+  ],
+}
 
 describe('roll targets', () => {
   it('round-trips target ids', () => {
@@ -39,26 +48,29 @@ describe('roll targets', () => {
   })
 
   it("sorts a roll's follow-ups into the hero's own, their minions', and others'", () => {
-    const action = rollAction({ kind: 'ability', name: 'Hinder Them' }, record, [
+    const action = rollAction({ kind: 'ability', name: 'Hinder Them' }, fighting, [
       { mod: { label: 'Self', value: 1 } },
       { mod: { label: 'Mine', value: 1 }, to: `${OWN_MINION}m1` },
       { mod: { label: 'Theirs', value: -2 }, to: 'villain:v1' },
       { mod: { label: 'Dropped', value: -1 }, to: 'nonsense' },
     ], 'form:1', [{ name: 'Drone', die: 'd6', action: 'attack' }], [
       { result: 0, to: 'member:g1:m2' },
-      { result: 1, to: 'nonsense' },
+      { result: 1, to: '' },
+      { result: 2, to: 'hero:h2' },
+      { result: 0, to: 'nonsense' },
     ])
     expect(action).toEqual({
       subject: { kind: 'ability', name: 'Hinder Them' },
-      record,
+      record: fighting,
       formChoice: 'form:1',
       selfMods: [{ label: 'Self', value: 1 }],
       minionMods: [{ minionId: 'm1', mod: { label: 'Mine', value: 1 } }],
       others: [{ to: { kind: 'villain', id: 'v1' }, mod: { label: 'Theirs', value: -2 } }],
       made: [{ name: 'Drone', die: 'd6', action: 'attack' }],
       attacks: [{ result: 0, to: { kind: 'member', groupId: 'g1', memberId: 'm2' } }],
+      defends: [{ result: 1 }, { result: 2, to: { kind: 'hero', id: 'h2' } }],
     })
-    expect(rollAction({ kind: 'basic' }, record, [])).toEqual({ subject: { kind: 'basic' }, record, selfMods: [], minionMods: [], others: [], made: [], attacks: [] })
+    expect(rollAction({ kind: 'basic' }, record, [])).toEqual({ subject: { kind: 'basic' }, record, selfMods: [], minionMods: [], others: [], made: [], attacks: [], defends: [] })
     expect(rollAction({ kind: 'basic', action: 'boost' }, record, []).subject).toEqual({ kind: 'basic', action: 'boost' })
   })
 })

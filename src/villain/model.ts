@@ -15,6 +15,7 @@
  * Versioning (./serialize.ts) follows the hero's rules. Until the first public release
  * there are no real saves, so v1 may still change freely.
  */
+import type { Defense } from '../play/defense'
 import { newId, type PlayHistoryEntry, type PlayMod, type PlayTwist, type TraitAssignment } from '../hero/model'
 import { traitKey, type TraitRef } from '../rules/catalog'
 import type { Die } from '../rules/types'
@@ -93,6 +94,8 @@ export interface VillainPlayState {
   /** It has used its once-per-scene Overcome to advance the scene tracker (p. 154). */
   sceneAdvanced?: true
   mods: PlayMod[]
+  /** Defends protecting the villain until its next turn starts (ruling 65). */
+  defenses?: Defense[]
   /** Minor twists only: villains never take major twists (p. 154–155). */
   twists: PlayTwist[]
   history: PlayHistoryEntry[]

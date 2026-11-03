@@ -7062,3 +7062,8 @@ span.gt-step--done {
     grid-column: 1 / -1;
   }
 }
+
+/* A Defend's defense (ruling 65): set apart from bonuses and penalties. */
+.gt-defense {
+  border-style: dashed;
+}

@@ -39,7 +39,7 @@ const hero = (g: Game, id: string) => g.heroes.find((h) => h.id === id)!
 const health = (g: Game, id: string) => currentHealth(buildSheet(hero(g, id).sheet), hero(g, id).play)
 
 const record = (title = 'Attack'): RollRecord => ({ title, rolled: [{ label: 'Speed', die: 'd8', value: 5 }], results: [], manual: false })
-const roll = (subject: RollAction['subject'], extra: Partial<RollAction> = {}): HeroAction => ({ kind: 'roll', roll: { subject, record: record(), selfMods: [], minionMods: [], others: [], made: [], attacks: [], ...extra } })
+const roll = (subject: RollAction['subject'], extra: Partial<RollAction> = {}): HeroAction => ({ kind: 'roll', roll: { subject, record: record(), selfMods: [], minionMods: [], others: [], made: [], attacks: [], defends: [], ...extra } })
 
 describe('applying a player action', () => {
   it('changes Health by an amount and logs it under the hero', () => {

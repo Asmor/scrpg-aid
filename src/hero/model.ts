@@ -21,6 +21,7 @@
  * misreading. Until the first public release there are no real saves, so v1 may still
  * change freely.
  */
+import type { Defense } from '../play/defense'
 import { traitKey, type TraitRef } from '../rules/catalog'
 import type { RollRecord } from '../rules/rolling'
 import type { AbilityEffect, BasicAction, Die, PrincipleCategoryId } from '../rules/types'
@@ -390,6 +391,8 @@ export interface PlayState {
   history: PlayHistoryEntry[]
   /** A Minion-Maker's minions in the current scene (p. 87). */
   minions?: PlayMinion[]
+  /** Defends protecting the hero until their next turn starts (ruling 65). */
+  defenses?: Defense[]
 }
 
 /**

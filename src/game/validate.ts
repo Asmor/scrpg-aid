@@ -35,7 +35,7 @@ const gameShape = object({
       hidden: boolean,
       owner: object({ kind: oneOf('gm', 'environment') }),
       actions: groupActions,
-      members: arrayOf(object({ id: nonEmptyString, n: integer, die, mods: arrayOf(mod), acted: boolean })),
+      members: arrayOf(object({ id: nonEmptyString, n: integer, die, mods: arrayOf(mod), acted: boolean, 'defenses?': arrayOf(object({ id: nonEmptyString, value: integer, from: string })) })),
     }),
   ),
   challenges: arrayOf(object({ id: nonEmptyString, name: string, hidden: boolean, steps: arrayOf(boolean) })),

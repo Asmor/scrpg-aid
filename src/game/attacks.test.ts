@@ -93,7 +93,7 @@ describe("a player's Attack with a target", () => {
     ],
     manual: false,
   }
-  const roll = (attacks: RollAction['attacks']): HeroAction => ({ kind: 'roll', roll: { subject: { kind: 'basic', action: 'attack' }, record, selfMods: [], minionMods: [], others: [], made: [], attacks } })
+  const roll = (attacks: RollAction['attacks']): HeroAction => ({ kind: 'roll', roll: { subject: { kind: 'basic', action: 'attack' }, record, selfMods: [], minionMods: [], others: [], made: [], attacks, defends: [] } })
 
   it('applies the damage on the GM’s device, with the save’s line for the player', () => {
     const { g, maya, group, drone, gravelord } = table()

@@ -16,6 +16,7 @@ const roll = {
   others: [{ to: { kind: 'member', groupId: 'g', memberId: 'm' }, mod: { label: 'Dazed', value: -1 } }],
   made: [],
   attacks: [{ result: 0, to: { kind: 'villain', id: 'v1' } }],
+  defends: [{ result: 1 }, { result: 2, to: { kind: 'hero', id: 'h2' } }],
 }
 
 describe('reading messages from players and observers', () => {
@@ -64,6 +65,8 @@ describe('reading messages from players and observers', () => {
       { kind: 'roll', roll: { ...roll, others: [{ to: { kind: 'member', groupId: 'g' }, mod: { label: 'x', value: -1 } }] } },
       { kind: 'roll', roll: { ...roll, attacks: [{ result: 12, to: { kind: 'villain', id: 'v1' } }] } },
       { kind: 'roll', roll: { ...roll, attacks: [{ result: 0, to: { kind: 'group', id: 'g' } }] } },
+      { kind: 'roll', roll: { ...roll, defends: [{ result: 0, to: { kind: 'environment' } }] } },
+      { kind: 'roll', roll: { ...roll, defends: undefined } },
       { kind: 'handOff', to: { kind: 'challenge', id: 'c' } },
     ]
     for (const a of bad) expect(readClientMessage(action(a)), JSON.stringify(a)).toBeUndefined()

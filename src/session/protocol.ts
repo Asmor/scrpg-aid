@@ -108,6 +108,7 @@ const rollAction = object({
   others: list(object({ to: target, mod: modInput }), 20),
   made: list(newMinion, 5),
   attacks: list(object({ result: range(0, 9), to: target }), 10),
+  defends: list(object({ result: range(0, 9), 'to?': target }), 10),
 })
 
 const ACTIONS: Record<HeroAction['kind'], Check> = {
@@ -199,6 +200,7 @@ const tableViewShape = object({
       'maxHealth?': integer,
       'statusDie?': die,
       'mods?': list(mod),
+      'defenses?': list(object({ id, value: integer, from: text(MAX_NAME) }), 20),
       'twists?': list(twist),
     }),
     50,
@@ -212,7 +214,7 @@ const tableViewShape = object({
       hidden: boolean,
       owner: object({ kind: oneOf('gm', 'environment') }),
       actions: groupActions,
-      members: list(object({ id, n: integer, die, mods: list(mod), acted: boolean }), 50),
+      members: list(object({ id, n: integer, die, mods: list(mod), acted: boolean, 'defenses?': list(object({ id, value: integer, from: text(MAX_NAME) }), 20) }), 50),
     }),
     50,
   ),

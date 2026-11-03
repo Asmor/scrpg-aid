@@ -15,6 +15,7 @@ import { filterItems, matches, type LibraryQuery } from '../library/query'
 import type { SavedSearch } from '../library/saved-searches'
 import { ModForm } from '../play/ModForm'
 import { confirmRoll, effectAmount } from '../play/roll'
+import { addDefense, defenseText, removeDefense } from '../play/defense'
 import { RollDialog, type RollSubject } from '../play/RollDialog'
 import { addMod, addTwist, currentHealth, describeMod, modName, removeMod, removeTwist, setHealth, setReactionUsed, type Clock } from '../play/state'
 import { villainDisplayName, type VillainPlayState } from '../villain/model'
@@ -39,8 +40,8 @@ function LockIcon() {
 
 type VillainChange = (fn: (play: VillainPlayState, clock: Clock) => VillainPlayState) => void
 
-/** A villain's Attack results with targets: who each hits (a target id from ./roll-targets.ts) and how hard. */
-export type VillainAttacks = (attacks: { to: string; amount: number }[]) => void
+/** A villain's Attacks and Defends for others: who each goes to (a target id from ./roll-targets.ts), and its amount. */
+export type VillainAttacks = (hits: { kind: 'attack' | 'defend'; to: string; amount: number }[]) => void
 
 /** The villain's copy in this game: its sheet and its play state here. */
 function RunningVillain({ copy, change, attackTargets, attack, random }: { copy: VillainInGame; change: VillainChange; attackTargets: readonly { id: string; name: string }[]; attack: VillainAttacks; random?: () => number }) {
@@ -111,8 +112,16 @@ function RunningVillain({ copy, change, attackTargets, attack, random }: { copy:
         <input type="checkbox" checked={play.reactionUsed} onChange={(e) => change((p, c) => setReactionUsed(p, e.target.checked, c))} />
         Reaction used this round
       </label>
-      {(play.mods.length > 0 || play.twists.length > 0) && (
+      {(play.mods.length > 0 || play.twists.length > 0 || (play.defenses?.length ?? 0) > 0) && (
         <ul className="gt-chips">
+          {(play.defenses ?? []).map((d) => (
+            <li key={d.id} className="gt-mod gt-defense">
+              {defenseText(d, villainDisplayName(villain))}
+              <button type="button" className="gt-chip-x" aria-label={`Remove ${defenseText(d)}`} onClick={() => change((p) => removeDefense(p, d.id))}>
+                ×
+              </button>
+            </li>
+          ))}
           {play.mods.map((m) => (
             <li key={m.id} className="gt-mod">
               {m.value > 0 ? `+${m.value}` : `−${-m.value}`} {modName(m)}
@@ -194,13 +203,18 @@ function RunningVillain({ copy, change, attackTargets, attack, random }: { copy:
           statusLabel="Status"
           onClose={() => setRolling(null)}
           attackTargets={attackTargets}
-          onConfirm={(record, followUps, _form, _made, attacks = []) => {
+          onConfirm={(record, followUps, _form, _made, choices = []) => {
             change((p, c) => {
               const after = confirmRoll(p, record, c)
               const withMods = followUps.reduce((q, f) => addMod(q, f.mod, c), after)
               return rolling.kind === 'ability' && rolling.reaction ? setReactionUsed(withMods, true, c) : withMods
             })
-            if (attacks.length) attack(attacks.map((a) => ({ to: a.to, amount: effectAmount(record.results[a.result]?.total ?? 0) })))
+            const amount = (i: number) => effectAmount(record.results[i]?.total ?? 0)
+            // A Defend for itself (ruling 65); the rest go to others.
+            const self = choices.filter((x) => record.results[x.result]?.action === 'defend' && !x.to)
+            if (self.length) change((p, c) => self.reduce((q, x) => addDefense(q, amount(x.result), villainDisplayName(villain), c), p))
+            const others = choices.filter((x) => x.to).map((x) => ({ kind: record.results[x.result]?.action === 'defend' ? ('defend' as const) : ('attack' as const), to: x.to, amount: amount(x.result) }))
+            if (others.length) attack(others)
           }}
           random={random}
         />

@@ -10,6 +10,7 @@
  * The GM's own table renders from the same shape (`project(game, 'gm')`), hidden items and all,
  * so one component draws the center for everyone.
  */
+import type { Defense } from '../play/defense'
 import { buildVillainSheet } from '../villain/sheet'
 import type { HeroInGame } from './model'
 import { villainSummary } from '../villain/play'
@@ -42,6 +43,8 @@ export interface VillainOnTable {
   /** The GM's only. */
   statusDie?: Die
   mods?: PlayMod[]
+  /** Its Defends (ruling 65), shown with its mods. */
+  defenses?: Defense[]
   twists?: PlayTwist[]
 }
 
@@ -63,12 +66,13 @@ export interface TableView {
 function villainFor(v: Game['villains'][number], audience: Audience): VillainOnTable {
   const { name, health, maxHealth, zone, statusDie, mods, twists } = villainSummary(v.sheet, v.play)
   const base = { id: v.id, name, major: buildVillainSheet(v.sheet).major, hidden: v.hidden, playersSee: v.playersSee }
+  const defenses = v.play.defenses?.length ? { defenses: v.play.defenses } : {}
   if (audience === 'gm') {
-    return { ...base, ...(zone ? { zone } : {}), ...(health !== undefined ? { health } : {}), ...(maxHealth !== undefined ? { maxHealth } : {}), ...(statusDie ? { statusDie } : {}), mods, twists }
+    return { ...base, ...(zone ? { zone } : {}), ...(health !== undefined ? { health } : {}), ...(maxHealth !== undefined ? { maxHealth } : {}), ...(statusDie ? { statusDie } : {}), mods, ...defenses, twists }
   }
-  // Name only: the name and kind. Status adds the zone and mods; Status and Health adds Health.
+  // Name only: the name and kind. Status adds the zone, mods and defenses; Status and Health adds Health.
   if (v.playersSee === 'name') return base
-  return { ...base, ...(zone ? { zone } : {}), mods, ...(v.playersSee === 'health' ? { ...(health !== undefined ? { health } : {}), ...(maxHealth !== undefined ? { maxHealth } : {}) } : {}) }
+  return { ...base, ...(zone ? { zone } : {}), mods, ...defenses, ...(v.playersSee === 'health' ? { ...(health !== undefined ? { health } : {}), ...(maxHealth !== undefined ? { maxHealth } : {}) } : {}) }
 }
 
 /** The game as `audience` sees it. */

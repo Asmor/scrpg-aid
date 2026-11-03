@@ -114,4 +114,21 @@ describe('running a group', () => {
     await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }))
     expect(actions.applySaves).not.toHaveBeenCalled()
   })
+
+  it("picks which defense a member uses against the damage, starting on the default", async () => {
+    const { actions } = setup((g) => {
+      const id = g.groups[0]!.members[0]!.id
+      return { ...g, groups: [{ ...g.groups[0]!, members: g.groups[0]!.members.map((m) => (m.id === id ? { ...m, defenses: [{ id: 'small', value: 2, from: 'x' }, { id: 'big', value: 6, from: 'x' }] } : m)) }] }
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Damage Burglars 1' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Damage to Burglars 1' }))
+    await userEvent.type(dialog.getByLabelText('Damage to each'), '5')
+    const pick = dialog.getByLabelText('Defense for Burglars 1')
+    expect(pick).toHaveDisplayValue('Defend 2 from x')
+    await userEvent.selectOptions(pick, 'Defend 6 from x')
+    await userEvent.click(dialog.getByRole('button', { name: 'Roll saves' }))
+    expect(dialog.getByRole('row', { name: /Burglars 1/ })).toHaveTextContent('Blocked · No damage, so no save')
+    await userEvent.click(dialog.getByRole('button', { name: 'Apply' }))
+    expect(vi.mocked(actions.applySaves).mock.calls[0]![0][0]).toMatchObject({ incoming: 5, damage: 0, defense: { id: 'big' }, noDamage: true })
+  })
 })

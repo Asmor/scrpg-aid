@@ -59,8 +59,13 @@ export function rollAction(subject: RolledSubject, record: RollRecord, followUps
     others,
     made: [...made],
     attacks: attackChoices.flatMap((a) => {
-      const to = parseTarget(a.to)
+      const to = record.results[a.result]?.action === 'attack' ? parseTarget(a.to) : undefined
       return to ? [{ result: a.result, to }] : []
+    }),
+    defends: attackChoices.flatMap((a) => {
+      if (record.results[a.result]?.action !== 'defend') return []
+      const to = a.to ? parseTarget(a.to) : undefined
+      return [{ result: a.result, ...(to ? { to } : {}) }]
     }),
   }
 }

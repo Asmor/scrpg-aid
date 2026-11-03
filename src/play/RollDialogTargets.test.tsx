@@ -7,12 +7,12 @@ import { formDice } from './forms'
 import { RollDialog } from './RollDialog'
 import { emptyPlay } from './state'
 
-function open(attackTargets?: { id: string; name: string }[]) {
+function open(attackTargets?: { id: string; name: string }[], action: 'attack' | 'defend' = 'attack') {
   const hero = completeHero()
   const onConfirm = vi.fn()
   render(
     <RollDialog
-      subject={{ kind: 'basic', action: 'attack' }}
+      subject={{ kind: 'basic', action }}
       dice={formDice(hero, buildSheet(hero), emptyPlay())}
       zone="green"
       mods={[]}
@@ -55,5 +55,14 @@ describe('an Attack at a table', () => {
     const { dialog } = open()
     await toResolve(dialog)
     expect(dialog.queryByLabelText('Target')).not.toBeInTheDocument()
+  })
+
+  it('protects the roller with a Defend, or someone they pick', async () => {
+    const first = open([{ id: 'hero:h2', name: 'Jo' }], 'defend')
+    await toResolve(first.dialog)
+    const protect = first.dialog.getByLabelText('Protect')
+    expect([...protect.querySelectorAll('option')].map((o) => o.textContent)).toEqual(['Me', 'Jo'])
+    await userEvent.click(first.dialog.getByRole('button', { name: 'Done' }))
+    expect(first.onConfirm.mock.calls[0]![4]).toEqual([{ result: 0, to: '' }])
   })
 })

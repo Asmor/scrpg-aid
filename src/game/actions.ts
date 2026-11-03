@@ -20,8 +20,9 @@ import { addMod, addTwist, currentHealth, effectiveZone, MAX_HERO_POINTS, noteGi
 import type { BasicAction } from '../rules/types'
 import { villainDisplayName } from '../villain/model'
 import { applyAttack } from './attacks'
+import { defend } from './hits'
 import type { ActorRef, Game, HeroInGame } from './model'
-import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, handOff, heroPlayInScene, isHidden, itemName, memberName, roundOver, sameActor, startRound, waiting } from './table'
+import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, handOff, heroPlayInScene, isHidden, itemName, memberName, roundOver, sameActor, startRound, waiting, withLog } from './table'
 
 export type ModInput = Omit<PlayMod, 'id'>
 /** A minion to make. */
@@ -45,6 +46,8 @@ export interface RollAction {
   made: NewMinion[]
   /** Attack results with a target: the result's index in the record, and who it hits (docs/design/npcs/spec.md, section 5). */
   attacks: { result: number; to: TableTarget }[]
+  /** Defend results: the result's index, and who it protects (none: the hero; ruling 65). */
+  defends: { result: number; to?: TableTarget }[]
 }
 
 export type HeroAction =
@@ -237,6 +240,10 @@ function applyRoll(game: Game, hero: HeroInGame, roll: RollAction, clock: Clock,
   const attacks = roll.attacks.map((a) => ({ ...a, name: targetName(game, a.to, hero.id), r: roll.record.results[a.result] }))
   if (attacks.some((a) => a.r?.action !== 'attack' || a.r.total === undefined)) return refuse("an Attack target is for a result that isn't an Attack")
   if (new Set(attacks.map((a) => a.result)).size < attacks.length) return refuse('each Attack result has one target')
+  const defends = roll.defends.map((d) => ({ ...d, name: d.to ? targetName(game, d.to, hero.id) : undefined, r: roll.record.results[d.result] }))
+  if (defends.some((d) => d.r?.action !== 'defend' || d.r.total === undefined)) return refuse("a Defend's target is for a result that isn't a Defend")
+  if (defends.some((d) => d.to && !d.name)) return refuse("someone you protected isn't at the table any more")
+  if (new Set([...attacks, ...defends].map((a) => a.result)).size < attacks.length + defends.length) return refuse('each result has one target')
   if (attacks.some((a) => !a.name)) return refuse("someone you attacked isn't at the table any more")
   const minions = hero.play.minions ?? []
   if (roll.minionMods.some((m) => !minions.some((x) => x.id === m.minionId))) return refuse('one of your minions is already gone')
@@ -270,6 +277,12 @@ function applyRoll(game: Game, hero: HeroInGame, roll: RollAction, clock: Clock,
     if (to.kind === 'hero') next = changeHeroPlay(next, to.id, (p) => addMod(p, o.mod, clock, { from: giver }), clock)
     else if (to.kind === 'villain') next = changeVillainPlay(next, to.id, (p) => addMod(p, o.mod, clock, { from: giver }), clock)
     else next = addMemberMod(next, to.groupId, to.memberId, o.mod, clock)
+  }
+  // Then whoever it protected (ruling 65).
+  for (const d of defends) {
+    const value = effectAmount(d.r!.total!)
+    next = d.to ? defend(next, d.to, value, giver, clock) : defend(next, { kind: 'hero', id: hero.id }, value, giver, clock)
+    if (d.to) next = withLog(next, [{ id: clock.newId(), at: clock.now.toISOString(), by: giver, text: `${giver} protected ${d.name}: Defend ${value}.` }])
   }
   // Then whoever it attacked: Health, or a minion's or lieutenant's save.
   const notes: string[] = []

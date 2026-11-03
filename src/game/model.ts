@@ -18,6 +18,7 @@
  * Versioning (./serialize.ts) follows the hero's rules. The copied sheets are hero and villain
  * documents, so a change to their format needs a new game version too.
  */
+import type { Defense } from '../play/defense'
 import { newId, type Hero, type PlayMod, type PlayState } from '../hero/model'
 import { emptyPlay } from '../play/state'
 import type { FeedEntry } from '../session/types'
@@ -79,6 +80,8 @@ export interface NpcMember {
   die: Die
   mods: PlayMod[]
   acted: boolean
+  /** Defends protecting it until its group's next turn starts (ruling 65). */
+  defenses?: Defense[]
 }
 
 /** Who runs a group: the GM (its own turn-order entry), or the environment (it acts on the environment's turn). */

@@ -13,6 +13,7 @@ import { usePopover } from '../library/popover-state'
 import type { PlayMod } from '../hero/model'
 import { ModForm } from '../play/ModForm'
 import { describeMod, modName } from '../play/state'
+import { defaultDefense, defenseText, defensesOf } from '../play/defense'
 import type { BasicAction } from '../rules/types'
 import type { Game, NpcGroup, NpcMember } from './model'
 import { ACTION_NAME, actionsText, groupActionList, npcTargets, parseNpcTarget, rollMath, rollMembers, rollSaves, verdictText, type GroupRollRow, type MemberSave, type Random } from './npc'
@@ -121,8 +122,13 @@ export function RunningGroup({ game, group, actions, random }: { game: Game; gro
                 </button>
                 <MemberMenu group={group} member={m} actions={actions} onMod={() => setModding(m.id)} />
               </div>
-              {m.mods.length > 0 && (
+              {(m.mods.length > 0 || (m.defenses?.length ?? 0) > 0) && (
                 <ul className="gt-chips" aria-label={`${name}'s mods`}>
+                  {(m.defenses ?? []).map((d) => (
+                    <li key={d.id} className="gt-mod gt-defense">
+                      {defenseText(d)}
+                    </li>
+                  ))}
                   {m.mods.map((x) => (
                     <li key={x.id} className="gt-mod">
                       {modText(x)}
@@ -289,6 +295,8 @@ export function DamageDialog({ group, start, random, onCancel, onApply }: { grou
   const phone = useMediaQuery('(max-width: 759px)', false)
   const [damage, setDamage] = useState('')
   const [who, setWho] = useState<string[]>([...start])
+  // The defense each member uses, when it has a choice (ruling 65); unset means the default.
+  const [chosen, setChosen] = useState<Record<string, string>>({})
   const [saves, setSaves] = useState<MemberSave[] | null>(null)
   const amount = Number(damage)
   const valid = damage.trim() !== '' && Number.isInteger(amount) && amount >= 0 && who.length > 0
@@ -297,7 +305,7 @@ export function DamageDialog({ group, start, random, onCancel, onApply }: { grou
   const title = single ? `Damage to ${memberName(group, single.n)}` : `Damage to ${group.name}`
   const summary = (s: MemberSave) => {
     const m = member(s.memberId)
-    return m ? `${memberName(group, m.n)}: ${verdictText(group.kind, m.die, s.result, Boolean(s.roll && s.roll.total >= s.damage))}.` : ''
+    return m ? `${memberName(group, m.n)}: ${verdictText(group.kind, m.die, s.result, Boolean(s.roll && s.roll.total >= s.damage), s.noDamage)}.` : ''
   }
   return (
     <Modal title={title} variant={phone ? 'sheet' : 'dialog'} onClose={onCancel}>
@@ -305,7 +313,7 @@ export function DamageDialog({ group, start, random, onCancel, onApply }: { grou
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            if (valid) setSaves(rollSaves(group, group.members.filter((m) => who.includes(m.id)).map((m) => m.id), amount, random))
+            if (valid) setSaves(rollSaves(group, group.members.filter((m) => who.includes(m.id)).map((m) => m.id), amount, random, chosen))
           }}
         >
           <label className="field" htmlFor={`${id}-damage`}>
@@ -329,6 +337,24 @@ export function DamageDialog({ group, start, random, onCancel, onApply }: { grou
               ))}
             </fieldset>
           )}
+          {group.members
+            .filter((m) => who.includes(m.id) && defensesOf(m).length > 1)
+            .map((m) => {
+              const fallback = defaultDefense(defensesOf(m), Number.isInteger(amount) ? amount : 0)
+              return (
+                <label key={m.id} className="field" htmlFor={`${id}-def-${m.id}`}>
+                  <span>Defense for {memberName(group, m.n)}</span>
+                  <select id={`${id}-def-${m.id}`} value={chosen[m.id] ?? fallback?.id ?? ''} onChange={(e) => setChosen((c) => ({ ...c, [m.id]: e.target.value }))}>
+                    {defensesOf(m).map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {defenseText(d)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )
+            })}
+          {who.some((w) => defensesOf(member(w) ?? {}).length > 0) && <p className="hint">Each member uses one of its defenses against the damage before it saves.</p>}
           <div className="button-row gt-dialog-actions">
             <button type="button" className="button" onClick={onCancel}>
               Cancel
@@ -376,8 +402,9 @@ export function DamageDialog({ group, start, random, onCancel, onApply }: { grou
                       ) : (
                         <span className="gt-sub">No save</span>
                       )}
+                      {s.defense && <span className="gt-sub"> · {defenseText(s.defense)} blocked {s.incoming - s.damage}</span>}
                     </td>
-                    <td data-label="Outcome">{verdictText(group.kind, m.die, s.result, saved)}</td>
+                    <td data-label="Outcome">{verdictText(group.kind, m.die, s.result, saved, s.noDamage)}</td>
                   </tr>
                 )
               })}

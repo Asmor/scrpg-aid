@@ -56,7 +56,7 @@ describe("a player's device", () => {
     await net.settle()
     const group = host.game!.groups[0]!
     const record = { title: 'Attack', rolled: [{ label: 'Speed', die: 'd8' as const, value: 5 }], results: [{ action: 'attack' as const, use: 'mid' as const, base: 5, mods: [], total: 5 }], manual: false }
-    client.act({ kind: 'roll', roll: { subject: { kind: 'basic', action: 'attack' }, record, selfMods: [], minionMods: [], others: [], made: [], attacks: [{ result: 0, to: { kind: 'member', groupId: group.id, memberId: group.members[0]!.id } }] } })
+    client.act({ kind: 'roll', roll: { subject: { kind: 'basic', action: 'attack' }, record, selfMods: [], minionMods: [], others: [], made: [], defends: [], attacks: [{ result: 0, to: { kind: 'member', groupId: group.id, memberId: group.members[0]!.id } }] } })
     await net.settle()
     expect(client.getSnapshot().notices).toMatchObject([{ kind: 'note', text: expect.stringMatching(/^Drones 1 (saved|failed its save) against 5 \(rolled \d\): /) }])
   })

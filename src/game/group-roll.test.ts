@@ -148,7 +148,7 @@ describe('member saves', () => {
   it('rolls with the member’s mods, or not at all when the damage KOs it outright', () => {
     const { guards } = table()
     const guard = { ...guards.members[0]!, mods: [mod('dazed', -1)] }
-    expect(rollSave('lieutenants', guard, 20, dice([9, 'd10']))).toEqual({ memberId: guard.id, damage: 20, result: { outcome: 'ko', noSave: true } })
+    expect(rollSave('lieutenants', guard, 20, dice([9, 'd10']))).toEqual({ memberId: guard.id, damage: 20, incoming: 20, result: { outcome: 'ko', noSave: true } })
     const s = rollSave('lieutenants', guard, 9, dice([9, 'd10']))
     expect(s.roll).toMatchObject({ value: 9, total: 8 })
     expect(s.result).toEqual({ outcome: 'shrink', newDie: 'd8' })
@@ -159,7 +159,7 @@ describe('member saves', () => {
     const id = guards.members[0]!.id
     let g = applySave(game, guards.id, rollSave('lieutenants', guards.members[0]!, 11, dice([10, 'd10'])), c)
     expect(g.groups[1]!.members[0]!.die).toBe('d8')
-    g = applySave(g, guards.id, { memberId: id, damage: 16, result: { outcome: 'ko', noSave: true } }, c)
+    g = applySave(g, guards.id, { memberId: id, damage: 16, incoming: 16, result: { outcome: 'ko', noSave: true } }, c)
     expect(g.groups.map((x) => x.name)).toEqual(['Burglars'])
     expect(g.turn.order.some((o) => o.id === guards.id)).toBe(false)
     expect(texts(g).slice(-2)).toEqual(["Guards 1 is KO'd outright: 16 damage is at least double its d8.", 'All of Guards are gone; the group left the table.'])
