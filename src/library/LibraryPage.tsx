@@ -31,6 +31,8 @@ import { useLibraryView } from './useLibraryView'
 import { DesktopLibrary } from './DesktopLibrary'
 import { PhoneLibrary } from './PhoneLibrary'
 import { exportFileName, nameList } from './names'
+import { SendDialog } from './SendDialog'
+import { useSession } from '../session/context'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -85,6 +87,9 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
+  // The items in the open Send dialog.
+  const [sending, setSending] = useState<LibraryItem[] | null>(null)
+  const canSend = useSession().send !== undefined
 
   const items = useMemo(() => [...(ready?.items.values() ?? [])], [ready])
   const tags = useMemo(() => allTags(items.map((i) => i.doc)), [items])
@@ -230,6 +235,8 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     <DeleteDialog names={pendingDelete.keys.flatMap((k) => item(k)?.row.name ?? [])} busy={busy} onConfirm={confirmDelete} onCancel={() => setPendingDelete(null)} />
   )
 
+  const sendDialog = sending && <SendDialog items={sending} onClose={() => setSending(null)} />
+
   return {
     state: data.state,
     ready,
@@ -247,6 +254,7 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     heroName,
     importControl,
     deleteDialog,
+    sendDialog,
     countFor: (query: LibraryQuery) => items.filter((i) => matches(itemFields(i), query)).length,
     /** The games holding a copy of an item (the In games column): games run here, and games joined as a player (a hero only). */
     inGames: (item: LibraryItem): GameLink[] => [
@@ -259,6 +267,8 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     bulkAddTag,
     bulkRemoveTag,
     exportItems,
+    /** Send… (section 15 of the game table spec); undefined where there's no session to send with. */
+    sendItems: canSend ? (keys: readonly string[]) => setSending(keys.flatMap((k) => item(k) ?? [])) : undefined,
     duplicate,
     askDelete: (keys: string[]) => setPendingDelete({ keys }),
     create,
@@ -300,6 +310,7 @@ export function LibraryPage({ theme, setTheme, searchStore, backupTime }: Librar
         <LibraryHeader phone={phone} theme={theme} setTheme={setTheme} data={model.dataActions} heroName={model.heroName} now={model.now} section="library" {...(model.gameCount !== undefined ? { gameCount: model.gameCount } : {})} />
         {phone ? <PhoneLibrary model={model} /> : <DesktopLibrary model={model} />}
         {model.deleteDialog}
+        {model.sendDialog}
       </div>
     </PopoverGroup>
   )

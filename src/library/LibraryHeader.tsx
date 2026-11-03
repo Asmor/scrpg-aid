@@ -4,7 +4,7 @@
  * import, the example hero), and the color scheme switch. On phones, Data and the color scheme
  * share one menu, and the section tabs sit under the bar. The Games page shares the header.
  */
-import { gamePath, gamesPath, joinPath, listPath, tablePath, watchPath } from '../app/route'
+import { gamePath, gamesPath, joinPath, listPath, receivePath, tablePath, watchPath } from '../app/route'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { useHostSnapshot, useSession } from '../session/context'
 import type { ThemePreference } from '../theme/theme'
@@ -83,6 +83,7 @@ export function PlayTogether({ heroName, now, compact = false }: { heroName: (id
                 Watch a game
               </a>
               <p className="popover__hint">Show the table on a TV or second screen. No hero needed.</p>
+              <ReceiveOption />
               {game.lastGame && (
                 <p className="popover__line">
                   Last game: {game.lastGame.room}
@@ -139,9 +140,27 @@ export function PlayTogether({ heroName, now, compact = false }: { heroName: (id
               </button>
             </div>
           )}
+          {game.kind !== 'none' && (
+            <div className="popover__stack">
+              <ReceiveOption />
+            </div>
+          )}
         </PopoverDialog>
       )}
     </span>
+  )
+}
+
+/** Receive (docs/design/game-table/spec.md, section 15), set apart from the game options. */
+function ReceiveOption() {
+  return (
+    <>
+      <hr className="popover__divider" />
+      <a className="button" href={receivePath()}>
+        Receive
+      </a>
+      <p className="popover__hint">Get heroes, villains or other items someone is sending you.</p>
+    </>
   )
 }
 

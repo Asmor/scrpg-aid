@@ -61,7 +61,7 @@ export function NameCell({ row }: { row: RowInfo }) {
   )
 }
 
-/** The row's ⋯ menu: Open, Edit, Duplicate, Export, Delete… (and Select on phones). */
+/** The row's ⋯ menu: Open, Edit, Duplicate, Export, Send…, Delete… (and Select on phones). */
 export function RowMenu({ model, row, onSelect }: { model: LibraryModel; row: Row; onSelect?: () => void }) {
   const [popover, bindPopover] = usePopover()
   const label = `More actions for ${row.item.row.name}`
@@ -82,6 +82,7 @@ export function RowMenu({ model, row, onSelect }: { model: LibraryModel; row: Ro
             { label: 'Edit', href: info.editHref, onSelect: () => {} },
             { label: 'Duplicate', onSelect: () => model.duplicate(row.key) },
             { label: 'Export', onSelect: () => model.exportItems([row.key]) },
+            ...(model.sendItems ? [{ label: 'Send…', onSelect: () => model.sendItems?.([row.key]) }] : []),
             { label: 'Delete…', danger: true, onSelect: () => model.askDelete([row.key]) },
           ]}
         />
@@ -341,6 +342,11 @@ function SelectionBar({ model }: { model: LibraryModel }) {
       <button type="button" className="button button--small" onClick={() => model.exportItems(keys)}>
         Export
       </button>
+      {model.sendItems && (
+        <button type="button" className="button button--small" onClick={() => model.sendItems?.(keys)}>
+          Send…
+        </button>
+      )}
       <button type="button" className="button button--small button--danger" onClick={() => model.askDelete(keys)}>
         Delete…
       </button>

@@ -6,7 +6,8 @@
  * a complex archetype's step), "#/hero/<id>/advancement" its advancement,
  * "#/hero/<id>/play" the game aid, "#/gm"
  * the GM's page for hosting a game, "#/join" (or "#/join/<room code>") joining one, "#/watch" (or
- * "#/watch/<room code>") watching one on a TV, and
+ * "#/watch/<room code>") watching one on a TV, "#/receive" (or "#/receive/<code>") receiving items
+ * someone is sending, and
  * "#/villain/<id>" a villain's sheet ("#/villain/<id>/edit/<step>" its editor), "#/games" the Games
  * page, "#/game/<id>" a game's table, and "#/game/<id>/display" its display view.
  */
@@ -25,6 +26,8 @@ export type Route =
   | { name: 'table'; room: string }
   /** Watching a hosted game on a TV or second screen; no code yet asks for one. */
   | { name: 'watch'; room?: string }
+  /** Receiving items someone is sending (section 15); no code yet asks for one. */
+  | { name: 'receive'; code?: string }
   | { name: 'join'; room?: string } | { name: 'hero'; id: string } | { name: 'edit'; id: string; step?: string; part?: string } | { name: 'play'; id: string } | { name: 'advancement'; id: string } | { name: 'notFound' }
 
 export function parseRoute(hash: string): Route {
@@ -67,6 +70,15 @@ export function parseRoute(hash: string): Route {
     if (!watch[1]) return { name: 'watch' }
     try {
       return { name: 'watch', room: decodeURIComponent(watch[1]) }
+    } catch {
+      return { name: 'notFound' }
+    }
+  }
+  const receive = /^\/receive(?:\/([^/]+))?$/.exec(path)
+  if (receive) {
+    if (!receive[1]) return { name: 'receive' }
+    try {
+      return { name: 'receive', code: decodeURIComponent(receive[1]) }
     } catch {
       return { name: 'notFound' }
     }
@@ -171,6 +183,11 @@ export function watchPath(room?: string): string {
 /** The full link a TV or second screen opens to watch a game. */
 export function watchUrl(room: string): string {
   return `${window.location.origin}${window.location.pathname}${watchPath(room)}`
+}
+
+/** Receiving items someone is sending (docs/design/game-table/spec.md, section 15). */
+export function receivePath(code?: string): string {
+  return code ? `#/receive/${encodeURIComponent(code)}` : '#/receive'
 }
 
 export function navigate(path: string): void {

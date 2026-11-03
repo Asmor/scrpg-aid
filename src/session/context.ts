@@ -6,6 +6,7 @@ import type { HostSession, HostSnapshot } from './host'
 import type { LinkSnapshot } from './link'
 import type { CurrentSession, SessionManager } from './manager'
 import type { ObserverClient } from './watch'
+import type { Receiver, ReceiverSnapshot, Sender, SenderSnapshot } from './send'
 
 export const SessionContext = createContext<SessionManager | null>(null)
 
@@ -30,6 +31,10 @@ export interface SessionApi extends CurrentSession {
   /** Watches a hosted game on this screen; the screen's name is remembered on this device. */
   watchGame(options: { room: string; screenName: string }): void
   stopWatching(): void
+  /** Opens a send code for these items (a backup file's text); undefined without a session (Send isn't offered). */
+  send?(backup: string): Sender
+  /** Enters a send code; undefined without a session. */
+  receive?(code: string): Receiver
   /** Notes shown once per key (the first-join note). */
   noteSeen(key: string): boolean
   markNoteSeen(key: string): void
@@ -58,6 +63,7 @@ export function useSession(): SessionApi {
     screenName: manager?.screenName() ?? '',
     watchGame: (options) => manager?.watchGame(options),
     stopWatching: () => manager?.stopWatching(),
+    ...(manager ? { send: (backup: string) => manager.send(backup), receive: (code: string) => manager.receive(code) } : {}),
     noteSeen: (key) => manager?.noteSeen(key) ?? true,
     markNoteSeen: (key) => manager?.markNoteSeen(key),
   }
@@ -76,4 +82,14 @@ export function usePlayingSnapshot(client: PlayerClient | undefined): ClientSnap
 /** The watching device's snapshot (status and the table); undefined without one. */
 export function useWatchingSnapshot(client: ObserverClient | undefined): LinkSnapshot | undefined {
   return useSyncExternalStore(client?.subscribe ?? noSubscribe, client?.getSnapshot ?? nothing)
+}
+
+/** A send's snapshot (waiting, opened, accepted); undefined without one. */
+export function useSenderSnapshot(sender: Sender | undefined): SenderSnapshot | undefined {
+  return useSyncExternalStore(sender?.subscribe ?? noSubscribe, sender?.getSnapshot ?? nothing)
+}
+
+/** A receive's snapshot (looking, offered, …); undefined without one. */
+export function useReceiverSnapshot(receiver: Receiver | undefined): ReceiverSnapshot | undefined {
+  return useSyncExternalStore(receiver?.subscribe ?? noSubscribe, receiver?.getSnapshot ?? nothing)
 }

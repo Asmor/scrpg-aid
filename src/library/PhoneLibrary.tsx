@@ -206,6 +206,11 @@ function BottomBar({ model }: { model: LibraryModel }) {
       <button type="button" className="button button--small" onClick={() => model.exportItems(keys)}>
         Export
       </button>
+      {model.sendItems && (
+        <button type="button" className="button button--small" onClick={() => model.sendItems?.(keys)}>
+          Send…
+        </button>
+      )}
       <button type="button" className="button button--small button--danger" onClick={() => model.askDelete(keys)}>
         Delete
       </button>

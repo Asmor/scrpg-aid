@@ -14,6 +14,7 @@ import { setGameCode } from '../game/table'
 import type { SessionStore } from './storage'
 import type { Connect } from './transport'
 import { ObserverClient, type WatchingSaved } from './watch'
+import { Receiver, Sender } from './send'
 import { SAVED_VERSION, type LastGame } from './types'
 
 /** The least time between writes of a joined game's cache. */
@@ -200,6 +201,16 @@ export class SessionManager {
     this.disconnect()
     this.store.saveWatching(undefined)
     this.set({})
+  }
+
+  /** Opens a code that offers these items (a backup file's text) to the device that enters it (section 15). Separate from any game. */
+  send(backup: string): Sender {
+    return new Sender(this.connect, backup)
+  }
+
+  /** Enters a send code, to get the items offered with it. */
+  receive(code: string): Receiver {
+    return new Receiver(this.connect, code)
   }
 
   noteSeen(key: string): boolean {

@@ -157,12 +157,12 @@ describe('the library table', () => {
     expect(rowNames().slice(0, 3)).toEqual(['Unnamed hero', 'Paradigm', 'Maya Reyes'])
   })
 
-  it('opens the ⋯ menu with Open, Edit, Duplicate, Export and Delete…', async () => {
+  it('opens the ⋯ menu with Open, Edit, Duplicate, Export, Send… and Delete…', async () => {
     const { heroStore } = await standard()
     await loaded()
     await userEvent.click(row('Maya Reyes').getByRole('button', { name: 'More actions for Maya Reyes' }))
     const menu = screen.getByRole('menu', { name: 'More actions for Maya Reyes' })
-    expect(within(menu).getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Open', 'Edit', 'Duplicate', 'Export', 'Delete…'])
+    expect(within(menu).getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Open', 'Edit', 'Duplicate', 'Export', 'Send…', 'Delete…'])
     expect(within(menu).getByRole('menuitem', { name: 'Edit' })).toHaveAttribute('href', '#/hero/maya/edit')
     expect(within(menu).getByRole('menuitem', { name: 'Open' })).toHaveFocus()
 
