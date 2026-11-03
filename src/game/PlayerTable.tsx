@@ -40,6 +40,7 @@ const TURN_LINE = /handed off to|is up\.$|^Round \d+ started/
 
 const REFUSED: Record<NonNullable<ClientSnapshot['refused']>, string> = {
   removed: 'The GM removed you from this game.',
+  wrongGame: 'That code now belongs to a different game. Check the code with your GM.',
   full: 'This game is full.',
   taken: "Your hero is being played in this game on another device. Leave the game there, or ask the GM, then try again.",
   version: "This game's GM is on a newer version of the app. Reload this page to update.",

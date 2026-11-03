@@ -546,6 +546,20 @@ export function renameGame(game: Game, name: string): Game {
   return { ...game, name: name.trim() }
 }
 
+/** "Alex, Sam and Jo". */
+const listNames = (names: readonly string[]) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`)
+
+/**
+ * A new code for the game (docs/design/game-table/game-table-spec-addendum-game-codes.md): the
+ * old one stops working. While hosting, `moved` says who came along to the new code and who was
+ * removed; the GM-only log line records it.
+ */
+export function setGameCode(game: Game, code: string, clock: Clock, moved?: { kept: readonly string[]; removed: readonly string[] }): Game {
+  if (game.code === code) return game
+  const parts = moved ? [moved.kept.length ? ` Kept: ${listNames(moved.kept)}.` : ' Kept: no one.', moved.removed.length ? ` Removed: ${listNames(moved.removed)}.` : ''] : []
+  return log({ ...game, code }, clock, `You changed the game code.${parts.join('')}`, { by: GM, gmOnly: true })
+}
+
 export function setNotes(game: Game, notes: string): Game {
   return notes === game.notes ? game : { ...game, notes }
 }

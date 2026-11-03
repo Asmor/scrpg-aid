@@ -9,7 +9,8 @@ import type { Clock } from '../play/state'
 import { PlayerClient, type PlayingSaved, type Received } from './client'
 import type { JoinedGame, JoinedStore } from '../game/joined-store'
 import { newRoomCode } from './code'
-import { HostSession, type HostSaved } from './host'
+import { HostSession, type CodeChange, type HostSaved } from './host'
+import { setGameCode } from '../game/table'
 import type { SessionStore } from './storage'
 import type { Connect } from './transport'
 import { ObserverClient, type WatchingSaved } from './watch'
@@ -130,7 +131,7 @@ export class SessionManager {
    * game as this device last saw it (a joined game opened from the Games page), shown until the
    * GM answers.
    */
-  joinGame({ room, name, hero, cached }: { room: string; name: string; hero: Hero; cached?: Received }): void {
+  joinGame({ room, name, hero, cached, gameId }: { room: string; name: string; hero: Hero; cached?: Received; gameId?: string }): void {
     const current = this.current.playing
     if (current && current.info.room === room && current.info.heroSourceId === hero.id && current.getSnapshot().status !== 'refused') return
     this.disconnect()
@@ -138,7 +139,8 @@ export class SessionManager {
     this.store.saveWatching(undefined)
     this.store.saveName(name)
     this.store.saveLastGame({ v: SAVED_VERSION, room, at: this.clock().now.toISOString() })
-    const saved: PlayingSaved = { v: 1, room, name: name.trim() || 'A player', heroSourceId: hero.id, sheet: hero }
+    const known = gameId ?? cached?.table.id
+    const saved: PlayingSaved = { v: 1, room, name: name.trim() || 'A player', heroSourceId: hero.id, sheet: hero, ...(known ? { gameId: known } : {}) }
     this.store.savePlaying(saved)
     this.set({ playing: this.newPlaying(saved, cached) })
   }
@@ -149,6 +151,33 @@ export class SessionManager {
     this.disconnect()
     this.store.savePlaying(undefined)
     this.set({})
+  }
+
+  /**
+   * Gives a game a new code (docs/design/game-table/game-table-spec-addendum-game-codes.md). While
+   * this device hosts it, connected peers in `keep` move to the new code and the rest are removed;
+   * otherwise the saved code is just replaced. Resolves with what happened, or why it couldn't.
+   */
+  async newCode(gameId: string, keep: ReadonlySet<string> = new Set()): Promise<{ ok: true; code: string; change?: CodeChange } | { ok: false; error: string }> {
+    const host = this.current.hosting
+    if (host?.gameId === gameId) {
+      let code = newRoomCode()
+      while (code === host.room) code = newRoomCode()
+      const change = host.changeCode(code, keep)
+      return change ? { ok: true, code, change } : { ok: false, error: "The game isn't loaded yet." }
+    }
+    const games = this.games
+    if (!games) return { ok: false, error: "Games can't be saved here." }
+    try {
+      const found = await games.get(gameId)
+      if (found.status !== 'found') return { ok: false, error: found.status === 'missing' ? 'The game was deleted.' : `The game couldn't be read: ${found.error}` }
+      let code = newRoomCode()
+      while (code === found.game.code) code = newRoomCode()
+      await games.save({ ...setGameCode(found.game, code, this.clock()), updatedAt: this.clock().now.toISOString() })
+      return { ok: true, code }
+    } catch (e) {
+      return { ok: false, error: `Couldn't change the code: ${e instanceof Error ? e.message : String(e)}` }
+    }
   }
 
   /** Watches a hosted game on this screen (section 13), leaving any session first. The screen's name is remembered. */
@@ -210,21 +239,38 @@ export class SessionManager {
   }
 
   private newWatching(saved: WatchingSaved): ObserverClient {
-    return new ObserverClient(this.connect, { room: saved.room, clientId: this.store.clientId(), screenName: saved.screenName }, () => this.clock().now)
+    return new ObserverClient(this.connect, { room: saved.room, clientId: this.store.clientId(), screenName: saved.screenName }, () => this.clock().now, (code) => {
+      // Followed the GM to a new code: watch that one after a reload.
+      const now = this.store.loadWatching()
+      if (now) this.store.saveWatching({ ...now, room: code })
+    })
   }
 
   private newPlaying(saved: PlayingSaved, cached?: Received): PlayerClient {
+    let knownGame = saved.gameId
     return new PlayerClient(
       this.connect,
-      { room: saved.room, clientId: this.store.clientId(), name: saved.name, heroSourceId: saved.heroSourceId, sheet: saved.sheet },
+      { room: saved.room, clientId: this.store.clientId(), name: saved.name, heroSourceId: saved.heroSourceId, sheet: saved.sheet, ...(saved.gameId ? { gameId: saved.gameId } : {}) },
       {
         ...(saved.syncWaiting ? { syncWaiting: true } : {}),
         ...(cached ? { cached } : {}),
         // Every state the GM sends is cached, to open the game later without the GM (section 11).
         onReceive: (r) => {
+          // The game, once known, is remembered for rejoining (see PlayingSaved.gameId).
+          if (knownGame !== r.table.id) {
+            knownGame = r.table.id
+            const now = this.store.loadPlaying()
+            if (now && now.room === r.room) this.store.savePlaying({ ...now, gameId: r.table.id })
+          }
           if (!this.joined || !r.you) return
           const record: JoinedGame = { id: r.table.id, room: r.room, gm: r.gm, heroId: r.you.heroId, heroSourceId: saved.heroSourceId, sheet: saved.sheet, name: saved.name, since: r.you.since, updatedAt: r.at, version: r.version, table: r.table }
           this.cache(record)
+        },
+        // Followed the GM to a new code: rejoin there after a reload, and offer it as the last game.
+        onCodeChanged: (code) => {
+          const now = this.store.loadPlaying()
+          if (now) this.store.savePlaying({ ...now, room: code })
+          this.store.saveLastGame({ v: SAVED_VERSION, room: code, at: this.clock().now.toISOString() })
         },
         // A sync request waiting for the GM is remembered across reloads.
         onSyncWaiting: (waiting) => {

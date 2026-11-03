@@ -13,7 +13,7 @@ import { applyHeroAction, trackChanges, type FieldVersions } from '../game/actio
 import type { Game, HeroInGame } from '../game/model'
 import { project, type Audience, type TableView } from '../game/project'
 import type { GameStore } from '../game/store'
-import { addHero, findHero, removeFromTable, updateSheet, withLog, GM } from '../game/table'
+import { addHero, findHero, removeFromTable, setGameCode, updateSheet, withLog, GM } from '../game/table'
 import { heroDisplayName, type Hero } from '../hero/model'
 import type { Clock } from '../play/state'
 import { Subscribable } from './subscribable'
@@ -23,6 +23,8 @@ import { arrayOf, nonEmptyString, object, oneOf, string } from '../shape'
 
 /** How many action results to remember, for answering an action sent again. */
 const RESULTS_KEPT = 500
+/** How long the old room stays open after a new code, so its last messages (the new code) get out. */
+export const CODE_HANDOFF_MS = 2000
 
 /** What the GM's device saves to pick hosting back up after a reload. */
 export interface HostSaved {
@@ -53,6 +55,17 @@ export interface HostSnapshot {
   connected: ReadonlySet<string>
   /** Observers connected now, by screen name. */
   observers: readonly Watcher[]
+  /** Players who were away when the code last changed, until they come back: they need the new code from the GM. */
+  needsNewCode: ReadonlySet<string>
+}
+
+/** What a new code did: the old code, and who came along, was removed, or needs the new code. Names as the GM knows them. */
+export interface CodeChange {
+  from: string
+  code: string
+  kept: string[]
+  removed: string[]
+  needsCode: string[]
 }
 
 /** An observer's screen. */
@@ -67,10 +80,13 @@ type Peer = { clientId: string; role: 'player'; heroId: string } | { clientId: s
 type Waiting = { raw: unknown; peer: string }
 
 export class HostSession extends Subscribable<HostSnapshot> {
-  readonly room: string
+  private code: string
   readonly gameId: string
   private gmName: string
-  private transport: Transport
+  private connect: Connect
+  private transport!: Transport
+  /** Rooms of earlier codes, open a moment longer (see CODE_HANDOFF_MS). */
+  private closing = new Set<Transport>()
   private store: GameStore
   private clock: () => Clock
   private save: (saved: HostSaved) => void
@@ -84,24 +100,16 @@ export class HostSession extends Subscribable<HostSnapshot> {
   private saving: Promise<void> = Promise.resolve()
 
   constructor(connect: Connect, saved: Omit<HostSaved, 'v'>, store: GameStore, clock: () => Clock, save: (saved: HostSaved) => void = () => {}) {
-    super({ version: 0, connected: new Set(), observers: [] })
-    this.room = saved.room
+    super({ version: 0, connected: new Set(), observers: [], needsNewCode: new Set() })
+    this.code = saved.room
+    this.connect = connect
     this.gameId = saved.gameId
     this.gmName = saved.gm
     this.removed = new Set(saved.removed)
     this.store = store
     this.clock = clock
     this.save = save
-    this.transport = quietAfterLeave(connect(saved.room))
-    this.transport.onPeerJoin((peer) => this.sendState(peer))
-    this.transport.onPeerLeave((peer) => {
-      this.peers.delete(peer)
-      this.publishConnected()
-    })
-    this.transport.onMessage((raw, peer) => {
-      if (this.waiting) this.waiting.push({ raw, peer })
-      else this.receive(raw, peer)
-    })
+    this.open()
     this.saveInfo()
     // A game that can't be loaded can't be hosted: messages are dropped from then on.
     const fail = (error: string) => {
@@ -118,6 +126,78 @@ export class HostSession extends Subscribable<HostSnapshot> {
       },
       (e: unknown) => fail(`The game couldn't be read: ${e instanceof Error ? e.message : String(e)}`),
     )
+  }
+
+  /** The game's code: the room players join. */
+  get room(): string {
+    return this.code
+  }
+
+  /** Joins the room for the current code. Events from an earlier room (a code since changed) are ignored. */
+  private open(): void {
+    const t = quietAfterLeave(this.connect(this.code))
+    this.transport = t
+    t.onPeerJoin((peer) => t === this.transport && this.sendState(peer))
+    t.onPeerLeave((peer) => {
+      if (t !== this.transport) return
+      this.peers.delete(peer)
+      this.publishConnected()
+    })
+    t.onMessage((raw, peer) => {
+      if (t !== this.transport) return
+      if (this.waiting) this.waiting.push({ raw, peer })
+      else this.receive(raw, peer)
+    })
+  }
+
+  /**
+   * Moves the game to a new code (docs/design/game-table/game-table-spec-addendum-game-codes.md).
+   * Connected players and observers whose client ids are in `keep` are told the new code and
+   * follow it; the others are removed, the same as Remove. Players who are away keep their place
+   * but need the new code from the GM. The old room closes, so the old code finds no game.
+   */
+  changeCode(code: string, keep: ReadonlySet<string>): CodeChange | undefined {
+    const game = this.snapshot.game
+    if (!game || code === this.code) return undefined
+    const from = this.code
+    const kept = new Map<string, string>()
+    const removed = new Map<string, string>()
+    const removedHeroes: string[] = []
+    for (const [peer, p] of this.peers) {
+      const name = p.role === 'observer' ? p.screenName : (findHero(game, p.heroId)?.player?.name ?? 'A player')
+      if (keep.has(p.clientId)) {
+        kept.set(p.clientId, name)
+        this.send({ v: PROTOCOL_VERSION, type: 'codeChanged', code }, peer)
+      } else {
+        removed.set(p.clientId, name)
+        this.removed.add(p.clientId)
+        this.send({ v: PROTOCOL_VERSION, type: 'removed' }, peer)
+        if (p.role === 'player') removedHeroes.push(p.heroId)
+      }
+    }
+    const connected = new Set([...this.peers.values()].map((p) => p.clientId))
+    const away = game.heroes.filter((h) => h.player && !connected.has(h.player.clientId) && !this.removed.has(h.player.clientId))
+    this.peers.clear()
+    // The old room stays open a moment so the messages above get out, then closes.
+    const old = this.transport
+    this.closing.add(old)
+    setTimeout(() => {
+      old.leave()
+      this.closing.delete(old)
+    }, CODE_HANDOFF_MS)
+    this.code = code
+    this.open()
+    this.saveInfo()
+    this.apply((g) =>
+      setGameCode(
+        removedHeroes.reduce((acc, heroId) => removeFromTable(acc, { kind: 'hero', id: heroId }, this.clock()), g),
+        code,
+        this.clock(),
+        { kept: [...kept.values()], removed: [...removed.values()] },
+      ),
+    )
+    this.publish({ ...this.snapshot, connected: new Set(), observers: [], needsNewCode: new Set(away.map((h) => h.player!.clientId)) })
+    return { from, code, kept: [...kept.values()], removed: [...removed.values()], needsCode: away.map((h) => h.player!.name || 'A player') }
   }
 
   /** Resolves once every change so far has been saved (or failed to). */
@@ -190,7 +270,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
       this.saveInfo()
       for (const [peer, p] of this.peers) {
         if (p.clientId !== clientId) continue
-        this.send({ v: PROTOCOL_VERSION, type: 'refused', reason: 'removed' }, peer)
+        this.send({ v: PROTOCOL_VERSION, type: 'removed' }, peer)
         this.peers.delete(peer)
       }
     }
@@ -204,7 +284,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
     this.saveInfo()
     for (const [peer, p] of this.peers) {
       if (p.clientId !== clientId) continue
-      this.refuse(peer, 'removed')
+      this.send({ v: PROTOCOL_VERSION, type: 'removed' }, peer)
       this.peers.delete(peer)
     }
     this.publishConnected()
@@ -213,6 +293,8 @@ export class HostSession extends Subscribable<HostSnapshot> {
   /** Stops hosting. The game stays as it is. */
   leave(): void {
     this.transport.leave()
+    for (const t of this.closing) t.leave()
+    this.closing.clear()
   }
 
   private receive(raw: unknown, peer: string): void {
@@ -241,6 +323,8 @@ export class HostSession extends Subscribable<HostSnapshot> {
   private hello(msg: Extract<ClientMessage, { type: 'hello' }>, peer: string): void {
     if (this.removed.has(msg.clientId)) return this.refuse(peer, 'removed')
     if (msg.role === 'observer') return this.watcherHello(msg, peer)
+    // A saved game reconnecting with a code that now belongs to another game.
+    if (msg.gameId !== undefined && msg.gameId !== this.gameId) return this.refuse(peer, 'wrongGame')
     const game = this.snapshot.game!
     const name = msg.name.trim() || 'A player'
     const existing = game.heroes.find((h) => h.sourceId === msg.heroSourceId)
@@ -261,6 +345,11 @@ export class HostSession extends Subscribable<HostSnapshot> {
       heroId = this.snapshot.game!.heroes.find((h) => h.sourceId === msg.heroSourceId)!.id
     }
     this.peers.set(peer, { clientId: msg.clientId, role: 'player', heroId })
+    if (this.snapshot.needsNewCode.has(msg.clientId)) {
+      const needsNewCode = new Set(this.snapshot.needsNewCode)
+      needsNewCode.delete(msg.clientId)
+      this.publish({ ...this.snapshot, needsNewCode })
+    }
     this.publishConnected()
     this.sendState(peer)
   }

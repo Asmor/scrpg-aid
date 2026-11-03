@@ -17,6 +17,7 @@ const REFUSED: Record<RefusedReason | 'oldHost', string> = {
   full: `This game already has ${OBSERVER_LIMIT} screens watching, the most it takes.`,
   taken: "The GM's device turned this screen away.",
   removed: 'The GM removed this screen from the game.',
+  wrongGame: 'That code now belongs to a different game. Check the code with your GM.',
 }
 
 /** "9:42 PM": when the table on screen was last updated. */

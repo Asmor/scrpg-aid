@@ -134,7 +134,7 @@ describe('hosting from the game table', () => {
     await userEvent.click(invite.getByRole('button', { name: 'Remove Living room TV' }))
     await net.settle()
     await waitFor(() => expect(invite.queryByText('Living room TV')).not.toBeInTheDocument())
-    expect(tv.got.at(-1)).toMatchObject({ type: 'refused', reason: 'removed' })
+    expect(tv.got.at(-1)).toMatchObject({ type: 'removed' })
     expect(screen.getByText('0 of 0 players connected')).toBeInTheDocument()
   })
 

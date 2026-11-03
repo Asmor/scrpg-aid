@@ -226,11 +226,12 @@ describe('hosting a game', () => {
     host.removePlayer(host.game!.heroes[0]!.id)
     await net.settle()
     expect(host.game!.heroes).toEqual([])
-    expect(alex.last('refused')).toMatchObject({ reason: 'removed' })
+    expect(alex.last('removed')).toBeDefined()
     expect(saves.at(-1)!.removed).toEqual(['c1'])
     alex.send(hello('c1'))
     await net.settle()
     expect(host.game!.heroes).toEqual([])
+    expect(alex.last('refused')).toMatchObject({ reason: 'removed' })
   })
 
   it('tells a peer on an older version to update, and ignores junk', async () => {

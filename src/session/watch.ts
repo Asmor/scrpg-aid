@@ -17,16 +17,28 @@ export interface ObserverInfo {
 }
 
 export class ObserverClient extends HostLink<LinkSnapshot> {
-  readonly info: ObserverInfo
+  private base: ObserverInfo
+  private changed: ((code: string) => void) | undefined
 
-  constructor(connect: Connect, info: ObserverInfo, now?: () => Date) {
+  /** `onCodeChanged` is told when the GM moved the game to a new code and this screen followed. */
+  constructor(connect: Connect, info: ObserverInfo, now?: () => Date, onCodeChanged?: (code: string) => void) {
     super(connect, info.room, { status: 'connecting' }, now)
-    this.info = info
+    this.base = info
+    this.changed = onCodeChanged
     this.start()
   }
 
+  /** The screen and its current code. */
+  get info(): ObserverInfo {
+    return { ...this.base, room: this.room }
+  }
+
+  protected override onCodeChanged(code: string): void {
+    this.changed?.(code)
+  }
+
   protected override hello(peer?: string): void {
-    const { clientId, screenName } = this.info
+    const { clientId, screenName } = this.base
     this.transport.send({ v: PROTOCOL_VERSION, type: 'hello', role: 'observer', clientId, screenName } satisfies ClientMessage, peer)
   }
 }

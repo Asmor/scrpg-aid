@@ -10,6 +10,7 @@
 import type { HeroAction } from '../game/actions'
 import { VIEW_HISTORY, type TableView } from '../game/project'
 import type { Hero } from '../hero/model'
+import { normalizeRoomCode } from './code'
 import { die, heroShape, playStateShape } from '../hero/validate'
 import { arrayOf, boolean, integer, isRecord, nonEmptyString, object, oneOf, type Check } from '../shape'
 
@@ -30,7 +31,8 @@ export const MAX_MESSAGE = 1_000_000
 export const VIEW_FEED = 200
 
 export type ClientMessage =
-  | { v: 2; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero }
+  /** `gameId` when reconnecting a saved game: the GM checks the code and the game match. */
+  | { v: 2; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero; gameId?: string }
   | { v: 2; type: 'hello'; role: 'observer'; clientId: string; screenName: string }
   | { v: 2; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
   | { v: 2; type: 'syncRequest'; heroId: string; sheet: Hero }
@@ -48,9 +50,16 @@ export type HostMessage =
   | { v: 2; type: 'result'; id: string; ok: false; reason: string }
   | { v: 2; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
   | { v: 2; type: 'refused'; reason: RefusedReason }
+  /** The GM got a new code for the game: kept peers move to it (docs/design/game-table/game-table-spec-addendum-game-codes.md). */
+  | { v: 2; type: 'codeChanged'; code: string }
+  /** The GM removed this peer from the game (Remove, or left behind by a new code). */
+  | { v: 2; type: 'removed'; reason?: string }
 
-/** Why the GM's device won't take a peer: another version of the app, a full game, the hero is being played on another device, or the GM removed them. */
-export type RefusedReason = 'version' | 'full' | 'taken' | 'removed'
+/**
+ * Why the GM's device won't take a peer: another version of the app, a full game, the hero is
+ * being played on another device, the GM removed them, or the code now belongs to another game.
+ */
+export type RefusedReason = 'version' | 'full' | 'taken' | 'removed' | 'wrongGame'
 
 // ---- Checks ----
 
@@ -130,7 +139,7 @@ const CLIENT: Record<string, Check> = {
   hello: (v, path) =>
     isRecord(v) && v.role === 'observer'
       ? object({ role: oneOf('observer'), clientId: id, screenName: text(MAX_NAME) })(v, path)
-      : object({ role: oneOf('player'), clientId: id, name: text(MAX_NAME), heroSourceId: id, sheet: heroShape })(v, path),
+      : object({ role: oneOf('player'), clientId: id, name: text(MAX_NAME), heroSourceId: id, sheet: heroShape, 'gameId?': id })(v, path),
   action: object({ id, heroId: id, action: heroAction, basedOn: integer }),
   syncRequest: object({ heroId: id, sheet: heroShape }),
   syncCancel: object({ heroId: id }),
@@ -205,11 +214,16 @@ export function tableViewProblem(value: unknown): string | undefined {
   return undefined
 }
 
+/** A game code as sent: the same format as ./code.ts makes. */
+const roomCode: Check = (v, path) => (typeof v === 'string' && normalizeRoomCode(v) === v ? undefined : `${path} isn't a game code`)
+
 const HOST: Record<string, Check> = {
   state: object({ room: id, version: integer, table: (v, path) => tableViewProblem(v) && `${path} is malformed`, gm: text(MAX_NAME), 'you?': object({ heroId: id, since: text(40) }) }),
   result: (v, path) => (isRecord(v) && v.ok === false ? object({ id, ok: oneOf(false), reason: text(MAX_TEXT) })(v, path) : object({ id, ok: oneOf(true) })(v, path)),
   syncResult: object({ heroId: id, approved: boolean, adjustments: list(text(), 50) }),
-  refused: object({ reason: oneOf('version', 'full', 'taken', 'removed') }),
+  refused: object({ reason: oneOf('version', 'full', 'taken', 'removed', 'wrongGame') }),
+  codeChanged: object({ code: roomCode }),
+  removed: object({ 'reason?': text(MAX_TEXT) }),
 }
 
 /** A message from the GM's device, or undefined if it's malformed or from another version. */

@@ -31,8 +31,10 @@ export interface PendingAction {
 /** Something to tell the player once (a toast): a rejected action, the GM's answer to a sync request. */
 export interface Notice {
   id: string
-  kind: 'rejected' | 'unreachable' | 'synced' | 'notSynced'
+  kind: 'rejected' | 'unreachable' | 'synced' | 'notSynced' | 'codeChanged'
   text: string
+  /** A game code to show after the text, kept on one line: the new code. */
+  code?: string
   /** The action to try again, for "Didn't reach the GM". */
   retry?: string
   adjustments?: string[]
@@ -52,6 +54,8 @@ export interface ClientInfo {
   heroSourceId: string
   /** The player's library sheet: copied in on first join. */
   sheet: Hero
+  /** The game, when reconnecting a saved one: the GM checks the code still belongs to it. */
+  gameId?: string
 }
 
 export interface ClientOptions {
@@ -62,21 +66,28 @@ export interface ClientOptions {
   onReceive?: (received: Received) => void
   /** Called when the sync request starts or stops waiting, to remember it. */
   onSyncWaiting?: (waiting: boolean) => void
+  /** Called when the GM moved the game to a new code and this device followed, to remember the new code. */
+  onCodeChanged?: (code: string) => void
   now?: () => Date
   newId?: () => string
 }
 
 export class PlayerClient extends HostLink<ClientSnapshot> {
-  readonly info: ClientInfo
+  private base: ClientInfo
   private timers = new Map<string, ReturnType<typeof setTimeout>>()
   private options: ClientOptions
   private n = 0
 
   constructor(connect: Connect, info: ClientInfo, options: ClientOptions = {}) {
     super(connect, info.room, { status: 'connecting', pending: [], notices: [], syncWaiting: options.syncWaiting ?? false, ...(options.cached ? { received: options.cached } : {}) }, options.now)
-    this.info = info
+    this.base = info
     this.options = options
     this.start()
+  }
+
+  /** Who this device is in the game, and its current code (which changes when the GM gets a new one). */
+  get info(): ClientInfo {
+    return { ...this.base, room: this.room }
   }
 
   /** The player's hero in the game, once the GM has said which. */
@@ -130,13 +141,20 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
 
   /** Shows the game as cached on this device until the GM answers (nothing once a state has arrived). */
   showCached(cached: Received): void {
-    if (this.snapshot.received || cached.room !== this.info.room) return
+    if (this.snapshot.received || cached.room !== this.room) return
     this.publish({ ...this.snapshot, received: cached })
   }
 
   protected override hello(peer?: string): void {
-    const { clientId, name, heroSourceId, sheet } = this.info
-    this.transport.send({ v: PROTOCOL_VERSION, type: 'hello', role: 'player', clientId, name, heroSourceId, sheet } satisfies ClientMessage, peer)
+    const { clientId, name, heroSourceId, sheet } = this.base
+    // A game seen before is named, so a code that now belongs to another game isn't taken for it.
+    const gameId = this.snapshot.received?.table.id ?? this.base.gameId
+    this.transport.send({ v: PROTOCOL_VERSION, type: 'hello', role: 'player', clientId, name, heroSourceId, sheet, ...(gameId ? { gameId } : {}) } satisfies ClientMessage, peer)
+  }
+
+  protected override onCodeChanged(code: string): void {
+    this.publish({ ...this.snapshot, notices: [...this.snapshot.notices, { id: this.newId(), kind: 'codeChanged', text: "The GM changed the game code. You're still in. New code:", code }] })
+    this.options.onCodeChanged?.(code)
   }
 
   protected override onState(received: Received): void {
@@ -210,7 +228,7 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
   }
 
   private newId(): string {
-    return this.options.newId?.() ?? `${this.info.clientId}-${Date.now().toString(36)}-${++this.n}`
+    return this.options.newId?.() ?? `${this.base.clientId}-${Date.now().toString(36)}-${++this.n}`
   }
 }
 
@@ -222,10 +240,12 @@ export interface PlayingSaved {
   heroSourceId: string
   /** The library sheet joined with (sent again on rejoin; the GM only uses it on a first join). */
   sheet: Hero
+  /** The game, once known: sent on rejoin so a code that now belongs to another game isn't taken for it. */
+  gameId?: string
   syncWaiting?: true
 }
 
-const playingSaved = object({ v: oneOf(1), room: nonEmptyString, name: string, heroSourceId: nonEmptyString, sheet: heroShape, 'syncWaiting?': oneOf(true) })
+const playingSaved = object({ v: oneOf(1), room: nonEmptyString, name: string, heroSourceId: nonEmptyString, sheet: heroShape, 'gameId?': nonEmptyString, 'syncWaiting?': oneOf(true) })
 
 /** A stored game this device is playing in, or undefined if it's malformed or from another version. */
 export function readPlayingSaved(value: unknown): PlayingSaved | undefined {

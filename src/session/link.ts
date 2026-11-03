@@ -40,10 +40,12 @@ export interface LinkSnapshot {
 }
 
 /** The GM's other messages, for a subclass to handle (results, sync answers). */
-export type OtherHostMessage = Exclude<HostMessage, { type: 'state' } | { type: 'refused' }>
+export type OtherHostMessage = Exclude<HostMessage, { type: 'state' } | { type: 'refused' } | { type: 'codeChanged' } | { type: 'removed' }>
 
 export abstract class HostLink<S extends LinkSnapshot> extends Subscribable<S> {
-  readonly room: string
+  private code: string
+  /** Codes this game had before the GM changed it, oldest first: pages on an old code's link follow the game. */
+  readonly formerRooms: string[] = []
   private connect: Connect
   protected transport!: Transport
   protected gmPeer: string | undefined
@@ -55,7 +57,7 @@ export abstract class HostLink<S extends LinkSnapshot> extends Subscribable<S> {
   constructor(connect: Connect, room: string, initial: S, now?: () => Date) {
     super(initial)
     this.connect = connect
-    this.room = room
+    this.code = room
     this.clockNow = now
   }
 
@@ -64,6 +66,11 @@ export abstract class HostLink<S extends LinkSnapshot> extends Subscribable<S> {
     this.open()
     // Not reached within 30 seconds: offline (still trying).
     this.offlineTimer = setTimeout(() => this.goOffline(), OFFLINE_AFTER)
+  }
+
+  /** The game's code: the room this device joins. */
+  get room(): string {
+    return this.code
   }
 
   /** Whether the GM is connected now. */
@@ -146,10 +153,35 @@ export abstract class HostLink<S extends LinkSnapshot> extends Subscribable<S> {
         this.gmPeer = peer
         this.refuse(msg.reason)
         return
+      case 'removed':
+        if (peer !== this.gmPeer) return
+        this.refuse('removed')
+        return
+      case 'codeChanged':
+        if (peer !== this.gmPeer) return
+        this.moveTo(msg.code)
+        return
       default:
         this.onOther(msg)
     }
   }
+
+  /** The GM moved the game to a new code: follow it there (the GM's device takes us back as before). */
+  private moveTo(code: string): void {
+    if (code === this.code) return
+    this.formerRooms.push(this.code)
+    this.code = code
+    delete this.gmPeer
+    this.publish({ ...this.snapshot, ...this.gmGoneChanges(), status: 'reconnecting' })
+    clearTimeout(this.offlineTimer)
+    this.offlineTimer = setTimeout(() => this.goOffline(), OFFLINE_AFTER)
+    this.transport.leave()
+    this.open()
+    this.onCodeChanged(code)
+  }
+
+  /** The game's code changed (after this device moved to it). */
+  protected onCodeChanged(_code: string): void {}
 
   /** The GM went away: the page shows reconnecting, and after a while goes offline. */
   private gmGone(): void {
