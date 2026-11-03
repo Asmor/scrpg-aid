@@ -350,7 +350,7 @@ See `display-1920.dc.html`.
 See `table-desktop.dc.html`. Its GM/Player/Observer switch exists only in the mockup.
 
 - **Header:**
-  - ← Library
+  - ← Games
   - the game name (click to rename, GM only)
   - a status pill: "Hosting · K7QX-2M", "Not hosting" with Start hosting, "Playing as Maya Reyes", or "Watching"
   - "4 players · 1 watching"
