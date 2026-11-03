@@ -22,7 +22,7 @@ const gameShape = object({
   'environment?': object({ id: nonEmptyString, name: string, hidden: boolean }),
   round: position,
   turn: object({ order: arrayOf(actor), acted: arrayOf(actor), 'current?': actor }),
-  heroes: arrayOf(object({ id: nonEmptyString, sourceId: nonEmptyString, sheet: heroShape, play: playStateShape, 'player?': object({ clientId: nonEmptyString, name: string }) })),
+  heroes: arrayOf(object({ id: nonEmptyString, sourceId: nonEmptyString, sheet: heroShape, play: playStateShape, 'player?': object({ clientId: nonEmptyString, name: string, 'since?': string }) })),
   villains: arrayOf(object({ id: nonEmptyString, sourceId: nonEmptyString, sheet: villainShape, play: villainPlayShape, hidden: boolean, playersSee: oneOf('name', 'status', 'health') })),
   groups: arrayOf(
     object({

@@ -1,0 +1,224 @@
+/**
+ * The game table's messages (docs/design/game-table/spec.md, section 10), version 2. The GM's
+ * device hosts a game; players and observers say hello with their role, players send each
+ * action as its own message and get a result, and the GM's device sends each peer its
+ * projection of the game (../game/project.ts) after every change.
+ *
+ * Messages come from other people's devices, so they're untrusted: every reader here checks the
+ * shape and the limits before anything acts on them, and returns undefined for anything else.
+ */
+import type { HeroAction } from '../game/actions'
+import { VIEW_HISTORY, type TableView } from '../game/project'
+import type { Hero } from '../hero/model'
+import { die, heroShape, playStateShape } from '../hero/validate'
+import { arrayOf, boolean, integer, isRecord, nonEmptyString, object, oneOf, type Check } from '../shape'
+
+export const PROTOCOL_VERSION = 2
+
+/** The most observers a game takes (section 10). */
+export const OBSERVER_LIMIT = 20
+/** The most players a game takes. */
+export const PLAYER_LIMIT = 20
+
+export const MAX_TEXT = 2000
+export const MAX_NAME = 200
+export const MAX_ID = 100
+export const MAX_LIST = 200
+/** The largest message read, as JSON: sheets inside hellos and sync requests have no limits of their own. */
+export const MAX_MESSAGE = 1_000_000
+/** The most log lines a projection carries. */
+export const VIEW_FEED = 200
+
+export type ClientMessage =
+  | { v: 2; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero }
+  | { v: 2; type: 'hello'; role: 'observer'; clientId: string; screenName: string }
+  | { v: 2; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
+  | { v: 2; type: 'syncRequest'; heroId: string; sheet: Hero }
+  | { v: 2; type: 'syncCancel'; heroId: string }
+
+/** Who a state message is for: a player's own hero in the game, and when it first joined. */
+export interface YouAre {
+  heroId: string
+  since: string
+}
+
+export type HostMessage =
+  | { v: 2; type: 'state'; room: string; version: number; table: TableView; gm: string; you?: YouAre }
+  | { v: 2; type: 'result'; id: string; ok: true }
+  | { v: 2; type: 'result'; id: string; ok: false; reason: string }
+  | { v: 2; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
+  | { v: 2; type: 'refused'; reason: RefusedReason }
+
+/** Why the GM's device won't take a peer: another version of the app, a full game, the hero is being played on another device, or the GM removed them. */
+export type RefusedReason = 'version' | 'full' | 'taken' | 'removed'
+
+// ---- Checks ----
+
+const text =
+  (max = MAX_TEXT): Check =>
+  (v, path) =>
+    typeof v !== 'string' ? `${path} should be text` : v.length > max ? `${path} is too long` : undefined
+const id: Check = (v, path) => nonEmptyString(v, path) ?? text(MAX_ID)(v, path)
+const list =
+  (item: Check, max = MAX_LIST): Check =>
+  (v, path) =>
+    arrayOf(item)(v, path) ?? ((v as unknown[]).length > max ? `${path} is too long` : undefined)
+const range =
+  (min: number, max: number): Check =>
+  (v, path) =>
+    integer(v, path) ?? ((v as number) < min || (v as number) > max ? `${path} is out of range` : undefined)
+const optionalNumber: Check = (v, path) => (v === undefined ? undefined : range(-1000, 1000)(v, path))
+
+const modValue: Check = (v, path) => range(-12, 12)(v, path) ?? (v === 0 ? `${path} can't be 0` : undefined)
+const modInput = object({ label: text(MAX_NAME), value: modValue, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })
+const mod = object({ id, label: text(MAX_NAME), value: modValue, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })
+const basicAction = oneOf('attack', 'defend', 'boost', 'hinder', 'overcome')
+const action = oneOf('attack', 'defend', 'boost', 'hinder', 'overcome', 'recover')
+const effectUse = oneOf('max', 'mid', 'min', 'max+mid', 'max+min', 'mid+min', 'max+mid+min', 'single', 'damage', 'other')
+const actor = object({ kind: oneOf('hero', 'villain', 'group', 'environment'), id })
+const newMinion = object({ name: text(MAX_NAME), die, action: oneOf('attack', 'defend', 'boost', 'hinder', 'overcome', 'any'), 'form?': text(MAX_NAME), 'needsForm?': oneOf(true) })
+const target: Check = (v, path) => {
+  if (!isRecord(v)) return `${path} should be an object`
+  return v.kind === 'member' ? object({ kind: oneOf('member'), groupId: id, memberId: id })(v, path) : object({ kind: oneOf('hero', 'villain'), id })(v, path)
+}
+const rollRecord = object({
+  title: text(MAX_NAME),
+  rolled: list(object({ label: text(MAX_NAME), die, value: range(1, 12) }), 10),
+  results: list(object({ action, use: effectUse, base: optionalNumber, mods: list(mod, 20), total: optionalNumber }), 10),
+  manual: boolean,
+  'made?': list(object({ label: text(MAX_NAME), base: range(0, 100), mods: list(mod, 20), total: range(-100, 100), die }), 5),
+})
+const rollAction = object({
+  subject: (v, path) => (isRecord(v) && v.kind === 'ability' ? object({ kind: oneOf('ability'), name: text(MAX_NAME) })(v, path) : object({ kind: oneOf('basic'), 'action?': basicAction })(v, path)),
+  record: rollRecord,
+  'formChoice?': text(MAX_ID),
+  selfMods: list(modInput, 20),
+  minionMods: list(object({ minionId: id, mod: modInput }), 20),
+  others: list(object({ to: target, mod: modInput }), 20),
+  made: list(newMinion, 5),
+})
+
+const ACTIONS: Record<HeroAction['kind'], Check> = {
+  health: object({ by: range(-1000, 1000) }),
+  setHealth: object({ value: range(0, 1000) }),
+  addMod: object({ mod: modInput }),
+  removeMod: object({ modId: id }),
+  addTwist: object({ twist: object({ kind: oneOf('minor', 'major'), text: text() }) }),
+  removeTwist: object({ twistId: id }),
+  heroPoints: object({ by: oneOf(1, -1) }),
+  reaction: object({ used: boolean }),
+  form: object({ key: text(MAX_ID) }),
+  dividedForm: object({ form: oneOf('civilian', 'heroic') }),
+  roll: object({ roll: rollAction }),
+  makeMinion: object({ minion: newMinion }),
+  removeMinion: object({ minionId: id }),
+  shrinkMinion: object({ minionId: id }),
+  minionMod: object({ minionId: id, mod: modInput }),
+  removeMinionMod: object({ minionId: id, modId: id }),
+  minionRoll: object({ minionId: id, roll: object({ action: basicAction, value: range(1, 12), mods: list(mod, 20) }) }),
+  minionForm: object({ minionId: id, form: text(MAX_NAME) }),
+  handOff: object({ to: actor }),
+  startRound: object({ first: actor }),
+}
+
+const heroAction: Check = (v, path) => {
+  if (!isRecord(v) || typeof v.kind !== 'string' || !Object.hasOwn(ACTIONS, v.kind)) return `${path} isn't an action`
+  return ACTIONS[v.kind as HeroAction['kind']](v, path)
+}
+
+const CLIENT: Record<string, Check> = {
+  hello: (v, path) =>
+    isRecord(v) && v.role === 'observer'
+      ? object({ role: oneOf('observer'), clientId: id, screenName: text(MAX_NAME) })(v, path)
+      : object({ role: oneOf('player'), clientId: id, name: text(MAX_NAME), heroSourceId: id, sheet: heroShape })(v, path),
+  action: object({ id, heroId: id, action: heroAction, basedOn: integer }),
+  syncRequest: object({ heroId: id, sheet: heroShape }),
+  syncCancel: object({ heroId: id }),
+}
+
+/** Whether a message is over MAX_MESSAGE as JSON (or can't be measured). */
+function tooBig(value: unknown): boolean {
+  try {
+    return JSON.stringify(value).length > MAX_MESSAGE
+  } catch {
+    return true
+  }
+}
+
+/** The message's version, if it has one: a peer on another version is told to update. */
+export function messageVersion(value: unknown): number | undefined {
+  return isRecord(value) && typeof value.v === 'number' ? value.v : undefined
+}
+
+function read<T>(value: unknown, checks: Record<string, Check>): T | undefined {
+  if (!isRecord(value) || value.v !== PROTOCOL_VERSION || typeof value.type !== 'string' || !Object.hasOwn(checks, value.type)) return undefined
+  if (tooBig(value)) return undefined
+  return checks[value.type]!(value, 'message') ? undefined : (value as T)
+}
+
+/** A message from a player or observer, or undefined if it's malformed or from another version. */
+export function readClientMessage(value: unknown): ClientMessage | undefined {
+  return read<ClientMessage>(value, CLIENT)
+}
+
+const zone = oneOf('green', 'yellow', 'red')
+const playZone = oneOf('green', 'yellow', 'red', 'out')
+const position: Check = (v, path) => range(0, 1000)(v, path)
+const twist = object({ id, kind: oneOf('minor', 'major'), text: text() })
+const feedEntry = object({ id, at: text(40), by: text(MAX_NAME), text: text(), 'details?': list(text(), 50), 'gmOnly?': oneOf(true) })
+
+const tableViewShape = object({
+  id,
+  name: text(MAX_NAME),
+  scene: object({ name: text(MAX_NAME), tracker: list(zone, 30), position }),
+  'environment?': object({ id, name: text(MAX_NAME), hidden: boolean }),
+  round: position,
+  turn: object({ order: list(actor, 100), acted: list(actor, 100), 'current?': actor }),
+  heroes: list(object({ id, sourceId: id, sheet: heroShape, play: (v, path) => playStateShape(v, path) ?? object({ history: list(() => undefined, VIEW_HISTORY) })(v, path), 'player?': object({ name: text(MAX_NAME), 'since?': text(40) }) }), 30),
+  villains: list(
+    object({
+      id,
+      name: text(MAX_NAME),
+      major: boolean,
+      hidden: boolean,
+      playersSee: oneOf('name', 'status', 'health'),
+      'zone?': playZone,
+      'health?': integer,
+      'maxHealth?': integer,
+      'statusDie?': die,
+      'mods?': list(mod),
+      'twists?': list(twist),
+    }),
+    50,
+  ),
+  groups: list(object({ id, kind: oneOf('minions', 'lieutenants'), name: text(MAX_NAME), hidden: boolean, members: list(object({ id, n: integer, die, mods: list(mod) }), 50) }), 50),
+  challenges: list(object({ id, name: text(MAX_NAME), hidden: boolean, steps: list(boolean, 20) }), 50),
+  feed: list(feedEntry, VIEW_FEED),
+})
+
+/** Returns a description of the first problem with a table view, or undefined when it's well formed. */
+export function tableViewProblem(value: unknown): string | undefined {
+  const problem = tableViewShape(value, 'table')
+  if (problem) return problem
+  const view = value as TableView
+  if (view.scene.tracker.length === 0 || view.scene.position >= view.scene.tracker.length) return 'table.scene.position is past the last box'
+  return undefined
+}
+
+const HOST: Record<string, Check> = {
+  state: object({ room: id, version: integer, table: (v, path) => tableViewProblem(v) && `${path} is malformed`, gm: text(MAX_NAME), 'you?': object({ heroId: id, since: text(40) }) }),
+  result: (v, path) => (isRecord(v) && v.ok === false ? object({ id, ok: oneOf(false), reason: text(MAX_TEXT) })(v, path) : object({ id, ok: oneOf(true) })(v, path)),
+  syncResult: object({ heroId: id, approved: boolean, adjustments: list(text(), 50) }),
+  refused: object({ reason: oneOf('version', 'full', 'taken', 'removed') }),
+}
+
+/** A message from the GM's device, or undefined if it's malformed or from another version. */
+export function readHostMessage(value: unknown): HostMessage | undefined {
+  return read<HostMessage>(value, HOST)
+}
+
+/** Keeps a projection within what players accept: the newest log lines only. */
+export function fitView(view: TableView): TableView {
+  return view.feed.length > VIEW_FEED ? { ...view, feed: view.feed.slice(-VIEW_FEED) } : view
+}
+

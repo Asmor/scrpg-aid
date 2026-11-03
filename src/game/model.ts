@@ -49,7 +49,8 @@ export interface CharacterInGame<S, P> {
 
 /** A hero at the table: a joined player's (from Phase 2), or, with no player, one of the GM's own. */
 export interface HeroInGame extends CharacterInGame<Hero, PlayState> {
-  player?: { clientId: string; name: string }
+  /** The player: their device's client id, their name, and when the hero first joined this game (ISO 8601). */
+  player?: { clientId: string; name: string; since?: string }
 }
 
 /** What players see of a villain: its name only, its status (zone and mods), or its status and Health. */
