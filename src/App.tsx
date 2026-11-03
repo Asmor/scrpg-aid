@@ -57,7 +57,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
         </div>
       ) : route.name === 'games' ? (
         <div className="app">
-          <GamesPage theme={theme} setTheme={setTheme} />
+          <GamesPage theme={theme} setTheme={setTheme} searchStore={searchStore} {...(backupTime ? { backupTime } : {})} />
         </div>
       ) : route.name === 'game' ? (
         <div className="app">

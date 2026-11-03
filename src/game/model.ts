@@ -218,7 +218,7 @@ export function duplicateGame(game: Game, options: { id?: string; now?: Date } =
     id: options.id ?? newId(),
     createdAt: timestamp,
     updatedAt: timestamp,
-    name: copy.name.trim() ? `${copy.name.trim()} (copy)` : '',
+    name: `${gameDisplayName(copy)} (copy)`,
     scene: { ...copy.scene, position: 0 },
     round: 0,
     turn: { order, acted: [] },

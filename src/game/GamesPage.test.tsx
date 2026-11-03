@@ -10,6 +10,7 @@ import { fakeNetwork } from '../session/transport'
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { downloadFile } from '../transfer/download'
+import { readImport } from '../transfer/files'
 import { MemoryVillainStore } from '../villain/store'
 import { createGame, type Game } from './model'
 import { createSoloGame } from './solo'
@@ -83,6 +84,7 @@ describe('the Games page', () => {
     expect(thu.getByText('· Round 1 · Maya Reyes is acting')).toBeInTheDocument()
     expect(thu.getByRole('img', { name: 'Scene tracker at Green 3 of 8' })).toBeInTheDocument()
     expect(thu.getByText('Maya Reyes')).toBeInTheDocument()
+    expect(thu.getByText("GM's hero")).toBeInTheDocument()
     expect(thu.getByText('Ironclad, Scrap drones, Crucible')).toBeInTheDocument()
     expect(thu.getByText('· 1 hidden')).toBeInTheDocument()
     expect(thu.getByRole('list', { name: 'Tags on Thursday game' })).toHaveTextContent('campaign')
@@ -130,6 +132,19 @@ describe('the Games page', () => {
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Delete Friday game?' })).getByRole('button', { name: 'Yes, delete' }))
     await waitFor(() => expect(screen.queryByRole('article', { name: 'Friday game' })).not.toBeInTheDocument())
     expect(await store.get('thu')).toEqual({ status: 'missing' })
+  })
+
+  it('shares the library header, with Data: backs up the games with everything else', async () => {
+    await setup([thursday(), createSoloGame('hero', completeHero(), clock)])
+    await userEvent.click(screen.getByRole('button', { name: /^Data/ }))
+    const menu = within(screen.getByRole('dialog', { name: 'Data' }))
+    expect(menu.getByRole('menuitem', { name: 'Import from a file…' })).toBeEnabled()
+    expect(menu.getByRole('menuitem', { name: 'Add an example hero' })).toBeEnabled()
+    await userEvent.click(menu.getByRole('menuitem', { name: 'Back up everything' }))
+    const [name, text] = vi.mocked(downloadFile).mock.calls.at(-1)!
+    expect(name).toMatch(/^scrpg-aid-backup-/)
+    // Not the solo game, which belongs to its character's Play page.
+    expect(readImport(text as string)).toMatchObject({ ok: true, games: [{ id: 'thu' }] })
   })
 
   it('starts a new game and opens its table, which works without hosting', async () => {

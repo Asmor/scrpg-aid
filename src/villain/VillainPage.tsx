@@ -54,7 +54,7 @@ export function VillainPage({ id }: { id: string }) {
     <div className="hero-page character-page">
       <header className="character-head">
         <p className="crumb">
-          <a href={listPath}>Your villains</a> / {sheet.name}
+          <a href={listPath}>Library</a> / {sheet.name}
         </p>
         <div className="character-head__row">
           <div className="character-head__name">

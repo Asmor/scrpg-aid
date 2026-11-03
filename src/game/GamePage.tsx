@@ -6,7 +6,7 @@
  * (./TableCenter.tsx) and the GM screen (./GmScreen.tsx).
  */
 import { useCallback, useState } from 'react'
-import { listPath } from '../app/route'
+import { gamesPath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
 import { RenameHeading } from '../components/RenameHeading'
@@ -87,7 +87,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     return (
       <div className="app-main">
         <p>
-          <a href={listPath}>← Library</a>
+          <a href={gamesPath}>← Games</a>
         </p>
         {editor.state.status === 'loading' && <p>Loading…</p>}
         {editor.state.status === 'missing' && <p role="alert">There's no saved game with that link. It may have been deleted.</p>}
@@ -139,7 +139,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     return {
       ref: { kind: 'hero' as const, id: h.id },
       name: heroDisplayName(h.sheet),
-      sub: h.player ? h.player.name || 'A player' : 'Your hero',
+      sub: h.player ? h.player.name || 'A player' : "GM's hero",
       ...(heroZone ? { zone: heroZone } : {}),
       ...(health !== undefined ? { health } : {}),
       ...(sheet.maxHealth !== undefined ? { maxHealth: sheet.maxHealth } : {}),
@@ -268,8 +268,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     <PopoverGroup>
       <div className={phone ? 'gt-page gt-page--phone' : 'gt-page'}>
         <header className="app-header gt-header">
-          <a className="button button--quiet button--small" href={listPath}>
-            ← Library
+          <a className="button button--quiet button--small" href={gamesPath}>
+            ← Games
           </a>
           <RenameHeading shown={gameDisplayName(game)} name={game.name} placeholder={!game.name.trim()} noun="game" onRename={(name) => apply((g) => T.renameGame(g, name))} />
           {phone ? (

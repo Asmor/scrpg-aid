@@ -363,7 +363,7 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
           <div>
             <p className="crumb">
               <a href={listPath} onClick={leave(listPath)}>
-                Your heroes
+                Library
               </a>{' '}
               /{' '}
               {draft ? (

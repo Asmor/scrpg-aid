@@ -147,7 +147,8 @@ describe('the game table', () => {
     })
     await bringIn('Maya Reyes')
     const card = screen.getByRole('article', { name: 'Maya Reyes' })
-    expect(card).toHaveTextContent('Your hero')
+    expect(card).toHaveTextContent("GM's hero")
+    expect(screen.getByRole('link', { name: '← Games' })).toHaveAttribute('href', '#/games')
     await waitFor(() => expect(card).toHaveTextContent('Yellow'))
     expect(card).toHaveTextContent(/30 \/ 30/)
     // The game's state isn't written into the hero: the library document is a sheet.
@@ -304,7 +305,8 @@ describe('the game table', () => {
     })
     const card = screen.getByRole('article', { name: 'Ironclad' })
     await userEvent.click(within(card).getByRole('button', { name: 'More for Ironclad' }))
-    expect(await screen.findByText(/^Library sheet changed /)).toBeInTheDocument()
+    // A muted line at the top of the menu, not an action.
+    expect(await screen.findByText(/^Library sheet changed /)).toHaveClass('popover__note')
     await userEvent.click(screen.getByRole('menuitem', { name: 'Update from library…' }))
     const dialog = within(screen.getByRole('dialog', { name: 'Update Ironclad from your library?' }))
     expect(dialog.getByText('Max Health 60 → 55')).toBeInTheDocument()

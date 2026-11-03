@@ -105,6 +105,10 @@ describe('a new game', () => {
     expect(copy.villains[0]!.play).toEqual({ reactionUsed: false, mods: [], twists: [], history: [] })
     expect(copy.villains[0]!.sheet).toEqual(started.villains[0]!.sheet)
   })
+
+  it('names the copy of an unnamed game "Unnamed game (copy)"', () => {
+    expect(duplicateGame(createGame(), { id: 'copy' }).name).toBe('Unnamed game (copy)')
+  })
 })
 
 describe('the scene tracker', () => {

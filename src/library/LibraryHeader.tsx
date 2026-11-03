@@ -220,7 +220,7 @@ interface HeaderProps {
   phone: boolean
   theme: ThemePreference
   setTheme: (t: ThemePreference) => void
-  /** The Data menu; the Games page has none (backups are made from the library). */
+  /** The Data menu (backup, import, the example hero); left out while there's nothing to show. */
   data?: DataActions
   heroName: (id: string) => string | undefined
   now: Date

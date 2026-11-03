@@ -89,7 +89,7 @@ export function HeroPage({ id, mode = 'sheet', clock = defaultClock, random }: {
       <header className="character-head">
         <p className="crumb">
           <a href={listPath} onClick={leave(listPath)}>
-            Your heroes
+            Library
           </a>{' '}
           / {heroDisplayName(hero)}
         </p>

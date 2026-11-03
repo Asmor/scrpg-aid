@@ -10,8 +10,15 @@ import { useGameStore } from '../app/game-store-context'
 import { useStore } from '../app/store-context'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
+import { useVillainStore } from '../app/villain-store-context'
 import { heroDisplayName } from '../hero/model'
+import { localBackupTime, type BackupTimeStore } from '../library/backup-time'
+import type { LibraryStores } from '../library/registry'
+import type { SavedSearchStore } from '../library/saved-searches'
+import { useDataMenu } from '../library/useDataMenu'
+import { itemKey, useLibraryData } from '../library/useLibraryData'
 import { DeleteDialog } from '../library/LibraryPage'
+import { SearchIcon } from '../library/DesktopLibrary'
 import { LibraryHeader } from '../library/LibraryHeader'
 import { PopoverGroup } from '../library/Popover'
 import { ItemTags } from '../library/TagControls'
@@ -56,7 +63,7 @@ function GameCard({ game, now, actions }: { game: Game; now: Date; actions: Card
           <ul className="games-card__who">
             {game.heroes.map((h) => (
               <li key={h.id} className="games-who">
-                {heroDisplayName(h.sheet)} <span className="gt-sub">{h.player?.name ?? 'GM'}</span>
+                {heroDisplayName(h.sheet)} <span className="gt-sub">{h.player?.name ?? "GM's hero"}</span>
               </li>
             ))}
           </ul>
@@ -142,13 +149,27 @@ function RenameDialog({ game, onSave, onClose }: { game: Game; onSave: (name: st
 
 type Dialog = { kind: 'rename' | 'tags' | 'delete'; id: string }
 
-export function GamesPage({ theme, setTheme }: { theme: ThemePreference; setTheme: (t: ThemePreference) => void }) {
+export interface GamesPageProps {
+  theme: ThemePreference
+  setTheme: (t: ThemePreference) => void
+  /** For the Data menu: a backup has the saved searches. */
+  searchStore: SavedSearchStore
+  backupTime?: BackupTimeStore
+}
+
+export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPageProps) {
   const store = useGameStore()
   const heroStore = useStore()
+  const villainStore = useVillainStore()
+  const stores: LibraryStores = useMemo(() => ({ heroes: heroStore, villains: villainStore, games: store }), [heroStore, villainStore, store])
+  // The library's items: the Data menu backs them up, and Play together names heroes.
+  const library = useLibraryData(stores, searchStore)
+  const ready = library.state.status === 'ready' ? library.state : undefined
+  const [fallbackTime] = useState(() => backupTime ?? localBackupTime())
+  const [loads, setLoads] = useState(0)
   const phone = useMediaQuery('(max-width: 759.98px)', false)
   const now = useTick()
   const [games, setGames] = useState<Game[] | null>(null)
-  const [heroNames, setHeroNames] = useState<ReadonlyMap<string, string>>(new Map())
   const [error, setError] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [dialog, setDialog] = useState<Dialog | null>(null)
@@ -160,15 +181,10 @@ export function GamesPage({ theme, setTheme }: { theme: ThemePreference; setThem
       (list) => live && setGames(list.games.filter(isListedGame)),
       (e: unknown) => live && setError(`Couldn't read your games: ${errorText(e)}`),
     )
-    // For Play together's "You're in … as Maya Reyes".
-    heroStore.list().then(
-      (list) => live && setHeroNames(new Map(list.heroes.map((h) => [h.id, heroDisplayName(h)]))),
-      () => {},
-    )
     return () => {
       live = false
     }
-  }, [store, heroStore])
+  }, [store, loads])
 
   const sorted = useMemo(() => [...(games ?? [])].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [games])
   const needle = text.trim().toLocaleLowerCase()
@@ -218,16 +234,36 @@ export function GamesPage({ theme, setTheme }: { theme: ThemePreference; setThem
     remove: (g) => setDialog({ kind: 'delete', id: g.id }),
   }
   const open = dialog ? find(dialog.id) : undefined
+  const { dataActions, importControl } = useDataMenu({
+    stores,
+    ready,
+    games: games ?? [],
+    backupTime: fallbackTime,
+    now,
+    busy,
+    run,
+    setError,
+    onImported: () => {
+      void library.reload()
+      setLoads((n) => n + 1)
+    },
+  })
 
   return (
     <PopoverGroup>
       <div className="library">
-        <LibraryHeader phone={phone} theme={theme} setTheme={setTheme} heroName={(id) => heroNames.get(id)} now={now} section="games" {...(games ? { gameCount: games.length } : {})} />
+        <LibraryHeader phone={phone} theme={theme} setTheme={setTheme} data={dataActions} heroName={(id) => ready?.items.get(itemKey('hero', id))?.row.name} now={now} section="games" {...(games ? { gameCount: games.length } : {})} />
         <main className="games-page">
+          {importControl}
           <div className="games-page__title">
             <h1>Games</h1>
             <span className="gt-grow" />
-            {games !== null && games.length > 0 && <input type="search" className="gt-search games-page__search" aria-label="Search games" placeholder="Search games" value={text} onChange={(e) => setText(e.target.value)} />}
+            {games !== null && games.length > 0 && (
+              <label className="library-search">
+                <SearchIcon />
+                <input type="search" aria-label="Search games" placeholder="Search games" value={text} onChange={(e) => setText(e.target.value)} />
+              </label>
+            )}
             <button type="button" className="button button--primary" disabled={busy} onClick={newGame}>
               New game
             </button>

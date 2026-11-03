@@ -3,31 +3,27 @@
  * has made, filtered by name, type and tags, with saved searches in the rail. The rows shown
  * are a snapshot of the view (./useLibraryView.ts), so editing an item never moves rows.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { heroPath, navigate } from '../app/route'
+import { useEffect, useMemo, useState } from 'react'
+import { navigate } from '../app/route'
 import { useNewHeroes } from '../app/new-heroes'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
 import { useGameStore } from '../app/game-store-context'
 import { gamesHolding, useListedGames } from '../game/useGameEditor'
-import { ImportControl, type ImportHandle } from '../components/ImportControl'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
-import { exampleHero } from '../hero/example'
 import { useTick } from '../play/useTick'
 import type { ThemePreference } from '../theme/theme'
 import { downloadFile } from '../transfer/download'
-import { backupFileName, backupJson } from '../transfer/files'
-import type { Hero } from '../hero/model'
-import type { Villain } from '../villain/model'
-import { backupStatus, localBackupTime, type BackupTimeStore } from './backup-time'
-import { LibraryHeader, type DataActions } from './LibraryHeader'
+import { localBackupTime, type BackupTimeStore } from './backup-time'
+import { LibraryHeader } from './LibraryHeader'
 import { PopoverGroup } from './Popover'
 import { defaultSearchName, isFiltered, matches, type LibraryQuery } from './query'
-import { heroType, itemFields, LIBRARY_TYPES, libraryType, type LibraryItem, type LibraryStores, type LibraryType } from './registry'
+import { itemFields, LIBRARY_TYPES, libraryType, type LibraryItem, type LibraryStores, type LibraryType } from './registry'
 import { checkSearchName, createSavedSearch, type SavedSearch, type SavedSearchStore } from './saved-searches'
 import { allTags, withoutTag, withTag } from './tags'
 import { itemKey, useLibraryData } from './useLibraryData'
+import { downloadItems, useDataMenu } from './useDataMenu'
 import { useLibraryView } from './useLibraryView'
 import { DesktopLibrary } from './DesktopLibrary'
 import { PhoneLibrary } from './PhoneLibrary'
@@ -65,16 +61,12 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
   const now = useTick()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [importing, setImporting] = useState(false)
-  const [lastBackupAt, setLastBackupAt] = useState(() => backupTime.load())
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
-  const importer = useRef<ImportHandle>(null)
 
   const items = useMemo(() => [...(ready?.items.values() ?? [])], [ready])
   const tags = useMemo(() => allTags(items.map((i) => i.doc)), [items])
   const searches = useMemo(() => [...(ready?.searches ?? [])].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true })), [ready])
   const typesInUse = useMemo(() => LIBRARY_TYPES.filter((t) => items.some((i) => i.type === t)), [items])
-  const status = backupStatus(items.map((i) => i.doc), lastBackupAt, now)
 
   const run = async (what: string, action: () => Promise<void>) => {
     setError(null)
@@ -110,24 +102,6 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
       for (const key of view.selected) await changeTags(key, (t) => withoutTag(t, tag))
     })
 
-  /** Downloads one file in the backup format: everything (with saved searches), or some items. */
-  const download = (list: readonly LibraryItem[], withSearches: boolean, fileName: string) => {
-    const of = (key: LibraryType['backupKey']) => list.filter((i) => i.type.backupKey === key).map((i) => i.doc)
-    // A backup of everything has the games (not solo games, which belong to their characters' Play pages).
-    const contents = { heroes: of('heroes') as unknown as Hero[], villains: of('villains') as unknown as Villain[], games: withSearches ? gameList : [], savedSearches: withSearches ? searches : [] }
-    downloadFile(fileName, backupJson(contents), 'application/json')
-  }
-  const backUp = () => {
-    setError(null)
-    try {
-      download(items, true, backupFileName())
-      const at = new Date().toISOString()
-      backupTime.save(at)
-      setLastBackupAt(at)
-    } catch (e) {
-      setError(`Couldn't make the backup: ${errorText(e)}`)
-    }
-  }
   const exportItems = (keys: readonly string[]) => {
     setError(null)
     try {
@@ -135,7 +109,7 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
       if (list.length === 1) {
         const file = list[0]!.type.exportFile(list[0]!.doc)
         downloadFile(file.name, file.text, 'application/json')
-      } else download(list, false, exportFileName())
+      } else downloadItems(list, exportFileName(), { games: [], savedSearches: [] })
     } catch (e) {
       setError(`Couldn't export: ${errorText(e)}`)
     }
@@ -166,13 +140,6 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
       const path = await type.create!({ stores, newHeroes })
       navigate(path)
     })
-  const addExample = () =>
-    void run('add the example hero', async () => {
-      const hero = exampleHero()
-      await heroType.save(stores, hero)
-      navigate(heroPath(hero.id))
-    })
-
   const saveSearch = async (name: string): Promise<string | undefined> => {
     const checked = checkSearchName(name, searches)
     if (!checked.ok) return checked.error
@@ -202,7 +169,23 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     })
   const removeUnreadable = (type: LibraryType, id: string) => void run('delete it', () => data.removeDoc(type, id))
 
-  const dataActions: DataActions = { status, busy: busy || importing || !ready, backUp, importFile: () => importer.current?.open(), addExample }
+  const { dataActions, importControl } = useDataMenu({
+    stores,
+    ready,
+    games: gameList,
+    backupTime,
+    now,
+    busy,
+    run,
+    setError,
+    onImported: () => {
+      // The new items appear (docs/design/library/spec.md, "Stability").
+      void data.reload().then((next) => {
+        if (next.status === 'ready') view.refresh(next.items, next.searches)
+      })
+      listed.reload()
+    },
+  })
 
   const heroName = (id: string) => item(itemKey('hero', id))?.row.name
 
@@ -219,24 +202,6 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [selected, setSelected])
-
-  const importControl = ready && (
-    <ImportControl
-      ref={importer}
-      hideButton
-      savedIds={new Set([...items.filter((i) => i.type.key === 'hero').map((i) => i.doc.id), ...ready.unreadable.filter((u) => u.type.key === 'hero').map((u) => u.id)])}
-      unreadableIds={new Set(ready.unreadable.filter((u) => u.type.key === 'hero').map((u) => u.id))}
-      disabled={busy}
-      onBusyChange={setImporting}
-      onImported={() => {
-        // The new items appear (docs/design/library/spec.md, "Stability").
-        void data.reload().then((next) => {
-          if (next.status === 'ready') view.refresh(next.items, next.searches)
-        })
-        listed.reload()
-      }}
-    />
-  )
 
   const deleteDialog = pendingDelete && (
     <DeleteDialog names={pendingDelete.keys.flatMap((k) => item(k)?.row.name ?? [])} busy={busy} onConfirm={confirmDelete} onCancel={() => setPendingDelete(null)} />
@@ -271,7 +236,7 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     duplicate,
     askDelete: (keys: string[]) => setPendingDelete({ keys }),
     create,
-    addExample,
+    addExample: dataActions.addExample,
     saveSearch,
     renameSearch,
     deleteSearch,

@@ -4610,6 +4610,7 @@ span.status-chips > span {
 }
 
 .popover__hint,
+.popover__note,
 .popover__line {
   margin: 0;
   padding: 0.125rem 0.5rem 0.375rem;
@@ -6193,11 +6194,6 @@ span.gt-step--done {
 .games-page__title h1 {
   margin: 0;
   font-size: 2rem;
-}
-
-.games-page__search {
-  width: 15rem;
-  max-width: 100%;
 }
 
 .games-page__section {

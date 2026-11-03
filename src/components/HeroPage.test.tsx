@@ -64,6 +64,8 @@ describe('HeroPage', () => {
 
   it('links a finished hero to Play, Edit and Advancement', async () => {
     renderPage(storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) })))
+    // The breadcrumb starts at the library.
+    expect(await screen.findByRole('link', { name: 'Library' })).toHaveAttribute('href', '#/')
     // In the header, and in the record strip.
     const advancement = await screen.findAllByRole('link', { name: 'Advancement' })
     expect(advancement).toHaveLength(2)

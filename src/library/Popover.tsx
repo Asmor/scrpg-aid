@@ -132,7 +132,7 @@ export function PopoverMenu({ popover, label, items, className, header }: { popo
       {items
         .filter((item) => item.note)
         .map((item) => (
-          <p key={item.label} className="popover__line">
+          <p key={item.label} className="popover__note">
             {item.label}
           </p>
         ))}
