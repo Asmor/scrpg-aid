@@ -142,9 +142,11 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
         villains++
       }
       for (const game of heroesToSave(p.games, p.gameIds, choicesFor(chosen, 'game'))) {
-        // The game being hosted is held by the hosting session: replace it there, or its next save would undo the import.
-        if (session.hosting?.gameId === game.id) session.hosting.apply(() => game)
-        else await gameStore!.save(game)
+        // A code belongs to the device that made it: an imported game gets its own when it's first hosted here.
+        const { code: _code, ...imported } = game
+        // The game being hosted is held by the hosting session: replace it there (keeping its code), or its next save would undo the import.
+        if (session.hosting?.gameId === game.id) session.hosting.apply((g) => ({ ...imported, ...(g.code ? { code: g.code } : {}) }))
+        else await gameStore!.save(imported)
         games++
       }
       // A backup's saved searches come back too (docs/design/library/spec.md, "Saved searches").

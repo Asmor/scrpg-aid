@@ -124,12 +124,22 @@ export function isHidden(game: Game, ref: ItemRef | ActorRef): boolean {
   }
 }
 
+/**
+ * A hero's name at the table. When two heroes share a name, each gets its player's name (or
+ * "GM's hero") after it, so menus, the turn strip and the log can tell them apart.
+ */
+export function heroLabel(heroes: readonly Pick<HeroInGame, 'id' | 'sheet' | 'player'>[], hero: Pick<HeroInGame, 'id' | 'sheet' | 'player'>): string {
+  const name = heroDisplayName(hero.sheet)
+  const clash = heroes.some((h) => h.id !== hero.id && heroDisplayName(h.sheet) === name)
+  return clash ? `${name} · ${hero.player ? hero.player.name || 'A player' : "GM's hero"}` : name
+}
+
 /** An item's or actor's name. */
 export function itemName(game: Game, ref: ItemRef | ActorRef): string {
   switch (ref.kind) {
     case 'hero': {
       const hero = findHero(game, ref.id)
-      return hero ? heroDisplayName(hero.sheet) : 'A hero'
+      return hero ? heroLabel(game.heroes, hero) : 'A hero'
     }
     case 'villain': {
       const villain = findVillain(game, ref.id)

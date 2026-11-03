@@ -106,7 +106,7 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
 
   return (
     <aside className="gt-side" aria-label="My hero">
-      <NeedsGm id={needs} />
+      {off && <NeedsGm id={needs} />}
       {note && (
         <section className="card gt-card gt-note" aria-label="About the game's copy">
           <p>

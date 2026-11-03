@@ -13,7 +13,10 @@ export interface SessionApi extends CurrentSession {
   /** The name this device's user goes by at the table. */
   name: string
   /** Hosts a game as `gm`; the name is remembered on this device. */
-  hostGame(gameId: string, gm: string): void
+  /** Resolves with why hosting couldn't start, or undefined once it has. */
+  hostGame(gameId: string, gm: string): Promise<string | undefined>
+  /** Changes the GM's name players see, and remembers it on this device. */
+  renameGm(gm: string): void
   stopHosting(): Promise<void>
   /** Joins a hosted game as a player with one hero. */
   joinGame(options: { room: string; name: string; hero: Hero; cached?: Received }): void
@@ -37,7 +40,8 @@ export function useSession(): SessionApi {
     ...current,
     ...(lastGame ? { lastGame } : {}),
     name: manager?.name() ?? '',
-    hostGame: (gameId, gm) => manager?.hostGame(gameId, gm),
+    hostGame: (gameId, gm) => manager?.hostGame(gameId, gm) ?? Promise.resolve("There's no game session here."),
+    renameGm: (gm) => manager?.renameGm(gm),
     stopHosting: () => manager?.stopHosting() ?? Promise.resolve(),
     joinGame: (options) => manager?.joinGame(options),
     leaveGame: () => manager?.leaveGame(),

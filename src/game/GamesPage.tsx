@@ -216,6 +216,8 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
     }
   }, [joinedStore, loads])
 
+  // Hosting starting or stopping changes games (a code, the play): read them again then.
+  const hostingId = useSession().hosting?.gameId
   useEffect(() => {
     let live = true
     store.list().then(
@@ -225,7 +227,7 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
     return () => {
       live = false
     }
-  }, [store, loads])
+  }, [store, loads, hostingId])
 
   // The hosted game is live in the hosting session: its card shows that, not the list as loaded.
   const session = useSession()
@@ -266,10 +268,13 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
   const change = (id: string, fn: (g: Game) => Game) => {
     // A game being hosted is held by the hosting session: change it there, so the next change at the table keeps this one.
     if (session.hosting?.gameId === id) return session.hosting.apply(fn)
-    const game = find(id)
-    if (!game) return
-    const next = fn(game)
-    if (next !== game) void save({ ...next, updatedAt: new Date().toISOString() })
+    // The game as saved now, not as this page loaded it: hosting may have changed it since.
+    void run('save the game', async () => {
+      const r = await store.get(id)
+      if (r.status !== 'found') return
+      const next = fn(r.game)
+      if (next !== r.game) await save({ ...next, updatedAt: new Date().toISOString() })
+    })
   }
   const newGame = () =>
     void run('start a new game', async () => {
@@ -277,8 +282,9 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
       await store.save(game)
       navigate(gamePath(game.id))
     })
+  const host = (id: string, name: string) => void session.hostGame(id, name).then((why) => why && setError(why))
   const actions: CardActions = {
-    host: (g) => setDialog({ kind: 'host', id: g.id }),
+    host: (g) => (session.name ? host(g.id, session.name) : setDialog({ kind: 'host', id: g.id })),
     invite: (g) => setDialog({ kind: 'invite', id: g.id }),
     rename: (g) => setDialog({ kind: 'rename', id: g.id }),
     tags: (g) => setDialog({ kind: 'tags', id: g.id }),
@@ -406,10 +412,12 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
           </div>
         </Modal>
       )}
-      {dialog?.kind === 'host' && open && <StartHostingDialog name={session.name} onStart={(name) => session.hostGame(open.id, name)} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'host' && open && <StartHostingDialog name={session.name} onStart={(name) => host(open.id, name)} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'invite' && open && session.hosting?.gameId === open.id && (
         <InviteDialog
           room={session.hosting.room}
+          gm={session.hosting.gm}
+          onRenameGm={(name) => session.renameGm(name)}
           gameName={gameDisplayName(open)}
           players={open.heroes.filter((h) => h.player)}
           connected={hostedSnap?.connected ?? new Set()}

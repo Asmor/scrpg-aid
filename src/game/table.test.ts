@@ -5,6 +5,7 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import type { Villain } from '../villain/model'
 import { createGame, duplicateGame, gameDisplayName, heroCopy, villainCopy, type Game } from './model'
+import { project, viewName } from './project'
 import {
   addChallenge,
   addGroup,
@@ -106,8 +107,22 @@ describe('a new game', () => {
     expect(copy.villains[0]!.sheet).toEqual(started.villains[0]!.sheet)
   })
 
-  it('names the copy of an unnamed game "Unnamed game (copy)"', () => {
+  it('names the copy of an unnamed game "Unnamed game (copy)", and gives it no code of its own yet', () => {
     expect(duplicateGame(createGame(), { id: 'copy' }).name).toBe('Unnamed game (copy)')
+    expect(duplicateGame({ ...createGame(), code: 'ABCD-EFGH' }, { id: 'copy' })).not.toHaveProperty('code')
+  })
+
+  it('tells two heroes with the same name apart by their players', () => {
+    const c = clock()
+    let g = addHero(createGame(), hero(), c)
+    g = addHero(g, { ...hero(), id: 'hero-b' }, c, { clientId: 'p1', name: 'Alex' })
+    expect(g.heroes.map((h) => itemName(g, { kind: 'hero', id: h.id }))).toEqual(["Maya Reyes · GM's hero", 'Maya Reyes · Alex'])
+    const view = project(g, 'player')
+    const name = (h: (typeof view.heroes)[number]) => h.sheet.details.name
+    expect(view.heroes.map((h) => viewName(view, { kind: 'hero', id: h.id }, name))).toEqual(["Maya Reyes · GM's hero", 'Maya Reyes · Alex'])
+    // Different names stay as they are.
+    const one = addHero(createGame(), hero(), c)
+    expect(itemName(one, { kind: 'hero', id: one.heroes[0]!.id })).toBe('Maya Reyes')
   })
 })
 

@@ -58,7 +58,8 @@ describe('ImportControl and saved searches', () => {
 
   it('imports games, asking about one already saved', async () => {
     const { games, upload } = setup()
-    const game = { ...createGame({ id: 'g', now }), name: 'Thursday game', tags: ['campaign'] }
+    // A code belongs to the device that hosted it: an imported game doesn't bring one.
+    const game = { ...createGame({ id: 'g', now }), name: 'Thursday game', tags: ['campaign'], code: 'ABCD-EFGH' }
     await games.save({ ...game, name: 'Mine' })
     await upload(backupJson({ heroes: [exampleHero({ id: 'h' })], games: [game] }, now))
     expect(await screen.findByText('You already have this game')).toBeInTheDocument()
@@ -67,6 +68,7 @@ describe('ImportControl and saved searches', () => {
     const saved = (await games.list()).games
     expect(saved.map((g) => g.name).sort()).toEqual(['Mine', 'Thursday game'])
     expect(saved.find((g) => g.name === 'Thursday game')!.tags).toEqual(['campaign'])
+    expect(saved.find((g) => g.name === 'Thursday game')).not.toHaveProperty('code')
   })
 
   it('imports a backup holding only saved searches', async () => {

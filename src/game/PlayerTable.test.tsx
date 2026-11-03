@@ -13,6 +13,7 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { MemoryVillainStore } from '../villain/store'
 import { createGame } from './model'
+import { TOAST_MS, Toasts } from './PlayerTable'
 import { MemoryGameStore } from './store'
 import { addVillain, changeHeroPlay, handOff, startRound } from './table'
 
@@ -86,6 +87,8 @@ describe('a player at the table', () => {
     expect(screen.getByLabelText('Game code')).toHaveValue(ROOM)
     await join(settle)
     expect(host.game!.heroes[0]).toMatchObject({ sourceId: 'maya', player: { name: 'Alex' } })
+    // Connected: nothing says "Needs the GM", not even to screen readers.
+    expect(screen.queryByText('Needs the GM')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1, name: 'Thursday game' })).toBeInTheDocument()
     expect(screen.getByText('Playing as Maya Reyes')).toBeInTheDocument()
     expect(screen.getByText('GM: Sam')).toBeInTheDocument()
@@ -237,6 +240,24 @@ describe('a player at the table', () => {
       expect(screen.queryByRole('heading', { name: 'Heroes' })).not.toBeInTheDocument()
     } finally {
       vi.unstubAllGlobals()
+    }
+  })
+
+  it('closes a toast by itself after 8 seconds, or sooner with ×', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const gone: string[] = []
+      const notices = [
+        { id: 'a', kind: 'synced' as const, text: 'Updated.' },
+        { id: 'b', kind: 'rejected' as const, text: 'Not applied: no.' },
+      ]
+      render(<Toasts notices={notices} onDismiss={(id) => gone.push(id)} onRetry={() => {}} />)
+      act(() => vi.advanceTimersByTime(TOAST_MS - 1))
+      expect(gone).toEqual([])
+      act(() => vi.advanceTimersByTime(1))
+      expect(gone).toEqual(['a', 'b'])
+    } finally {
+      vi.useRealTimers()
     }
   })
 })

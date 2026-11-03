@@ -307,4 +307,34 @@ describe('the Games page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Open Friday game' }))
     expect(await screen.findByText(/This is Friday game as of Oct 28/)).toBeInTheDocument()
   })
+
+  it('keeps what changed while hosting, and the code, when the game is edited here after hosting stops', async () => {
+    const store = await setup([thursday()], memoryStorage())
+    // Hosted from this page (the name is asked the first time).
+    const card = () => within(screen.getByRole('article', { name: /game$/ }))
+    await userEvent.click(card().getByRole('button', { name: 'Start hosting' }))
+    await userEvent.type(within(screen.getByRole('dialog', { name: 'Start hosting' })).getByLabelText('Your name (players see it)'), 'Sam')
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Start hosting' })).getByRole('button', { name: 'Start hosting' }))
+    await card().findByText('Hosting · 0 connected')
+    // A change while hosting (through the hosting session), then stop.
+    await userEvent.click(card().getByRole('button', { name: 'More actions for Thursday game' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Tags' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Tags on Thursday game' })).getByRole('button', { name: 'Remove campaign from Thursday game' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }))
+    await userEvent.click(card().getByRole('button', { name: 'Invite' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Stop hosting…' }))
+    await userEvent.click(within(screen.getByRole('group', { name: 'Stop hosting?' })).getByRole('button', { name: 'Stop hosting' }))
+    await card().findByText('Not hosting')
+    // Renamed here afterwards: the tag change and the code survive.
+    await userEvent.click(card().getByRole('button', { name: 'More actions for Thursday game' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    const rename = within(screen.getByRole('dialog'))
+    await userEvent.clear(rename.getByLabelText('Game name'))
+    await userEvent.type(rename.getByLabelText('Game name'), 'Friday game')
+    await userEvent.click(rename.getByRole('button', { name: 'Save' }))
+    await waitFor(async () => {
+      const r = await store.get('thu')
+      expect(r.status === 'found' && { name: r.game.name, tags: r.game.tags, code: Boolean(r.game.code) }).toEqual({ name: 'Friday game', tags: [], code: true })
+    })
+  })
 })

@@ -81,25 +81,44 @@ function SheetChanged({ name, changes, inGame, onAsk, onKeep }: { name: string; 
   )
 }
 
-function Toasts({ notices, onDismiss, onRetry }: { notices: readonly Notice[]; onDismiss: (id: string) => void; onRetry: (id: string) => void }) {
+/** How long a toast stays: it's announced through the live region anyway. */
+export const TOAST_MS = 8000
+
+/** One toast, which closes itself after TOAST_MS (or sooner with ×). */
+function ToastItem({ notice: n, onDismiss, onRetry }: { notice: Notice; onDismiss: (id: string) => void; onRetry: (id: string) => void }) {
+  // The timer starts once per toast; a new onDismiss on re-render doesn't restart it.
+  const dismiss = useRef(onDismiss)
+  useEffect(() => {
+    dismiss.current = onDismiss
+  })
+  useEffect(() => {
+    const timer = setTimeout(() => dismiss.current(n.id), TOAST_MS)
+    return () => clearTimeout(timer)
+  }, [n.id])
+  return (
+    <div className={`toast${n.kind === 'rejected' || n.kind === 'unreachable' ? ' toast--warn' : ''}`}>
+      <span>
+        {n.text}
+        {n.adjustments?.length ? ` ${n.adjustments.join(' ')}` : ''}
+      </span>
+      {n.retry && (
+        <button type="button" className="button button--small" onClick={() => onRetry(n.retry!)}>
+          Try again
+        </button>
+      )}
+      <button type="button" className="icon-button" aria-label="Dismiss" onClick={() => onDismiss(n.id)}>
+        ×
+      </button>
+    </div>
+  )
+}
+
+export function Toasts({ notices, onDismiss, onRetry }: { notices: readonly Notice[]; onDismiss: (id: string) => void; onRetry: (id: string) => void }) {
   if (!notices.length) return null
   return (
     <div className="gt-toasts" role="status" aria-live="polite">
       {notices.map((n) => (
-        <div key={n.id} className={`toast${n.kind === 'rejected' || n.kind === 'unreachable' ? ' toast--warn' : ''}`}>
-          <span>
-            {n.text}
-            {n.adjustments?.length ? ` ${n.adjustments.join(' ')}` : ''}
-          </span>
-          {n.retry && (
-            <button type="button" className="button button--small" onClick={() => onRetry(n.retry!)}>
-              Try again
-            </button>
-          )}
-          <button type="button" className="icon-button" aria-label="Dismiss" onClick={() => onDismiss(n.id)}>
-            ×
-          </button>
-        </div>
+        <ToastItem key={n.id} notice={n} onDismiss={onDismiss} onRetry={onRetry} />
       ))}
     </div>
   )

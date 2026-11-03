@@ -135,6 +135,8 @@ export interface Game {
   pendingSyncs: SyncRequest[]
   /** Private to the GM. */
   notes: string
+  /** The code players join with. It stays the same each time the game is hosted. */
+  code?: string
   /** The table log, oldest first, at most FEED_LIMIT entries. */
   feed: GameFeedEntry[]
 }
@@ -213,7 +215,8 @@ export function duplicateGame(game: Game, options: { id?: string; now?: Date } =
   const copy = structuredClone(game)
   const heroes = copy.heroes.filter((h) => !h.player).map((h) => ({ ...h, play: emptyPlay() }))
   const order = copy.turn.order.filter((ref) => ref.kind !== 'hero' || heroes.some((h) => h.id === ref.id))
-  const { solo: _solo, ...rest } = copy
+  // A copy is a new game: it gets its own code when it's first hosted.
+  const { solo: _solo, code: _code, ...rest } = copy
   return {
     ...rest,
     id: options.id ?? newId(),

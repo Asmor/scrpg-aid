@@ -92,6 +92,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const [running, setRunning] = useState<T.ItemRef | null>(null)
   const [tab, setTab] = useState<'table' | 'gm' | 'log'>('table')
   const [announce, setAnnounce] = useState('')
+  const [hostError, setHostError] = useState<string | null>(null)
 
   if (!game) {
     return (
@@ -119,6 +120,10 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   }
 
   const apply = host ? (fn: (g: Game) => Game) => host.apply(fn) : editor.apply
+  const startHosting = (name: string) => {
+    setHostError(null)
+    void session.hostGame(game.id, name).then((why) => why && setHostError(why))
+  }
   const connected = hosted?.connected ?? new Set<string>()
   const players = game.heroes.filter((h) => h.player)
   const zone = T.sceneZone(game)
@@ -296,7 +301,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
                 <span className="gt-live-dot" aria-hidden="true" />
                 Hosting · {host.room}
               </span>
-              <span className="gt-sub">{players.length === 1 ? '1 player' : `${players.length} players`}</span>
+              <span className="gt-sub">{`${players.filter((h) => connected.has(h.player!.clientId)).length} of ${players.length} ${players.length === 1 ? 'player' : 'players'} connected`}</span>
             </>
           ) : (
             <span className="gt-pill">Not hosting</span>
@@ -307,11 +312,16 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
               Invite
             </button>
           ) : (
-            <button type="button" className="button button--small" onClick={() => setDialog({ kind: 'startHosting' })}>
+            <button type="button" className="button button--small" onClick={() => (session.name ? startHosting(session.name) : setDialog({ kind: 'startHosting' }))}>
               Start hosting
             </button>
           )}
         </header>
+        {hostError && !host && (
+          <p role="alert" className="error gt-save-error">
+            {hostError}
+          </p>
+        )}
         {hosted?.error && (
           <p role="alert" className="error gt-save-error">
             {hosted.error}
@@ -422,10 +432,12 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
             />
           )
         })()}
-      {dialog?.kind === 'startHosting' && <StartHostingDialog name={session.name} onStart={(name) => session.hostGame(game.id, name)} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'startHosting' && <StartHostingDialog name={session.name} onStart={startHosting} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'invite' && host && (
         <InviteDialog
           room={host.room}
+          gm={host.gm}
+          onRenameGm={(name) => session.renameGm(name)}
           gameName={gameDisplayName(game)}
           players={players}
           connected={connected}

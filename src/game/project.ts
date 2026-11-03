@@ -105,7 +105,11 @@ export function viewName(view: Pick<TableView, 'heroes' | 'villains' | 'groups' 
   switch (ref.kind) {
     case 'hero': {
       const hero = view.heroes.find((h) => h.id === ref.id)
-      return hero ? heroName(hero) : 'A hero'
+      if (!hero) return 'A hero'
+      // Two heroes with one name are told apart by their players.
+      const name = heroName(hero)
+      const clash = view.heroes.some((h) => h.id !== hero.id && heroName(h) === name)
+      return clash ? `${name} · ${hero.player ? hero.player.name || 'A player' : "GM's hero"}` : name
     }
     case 'villain':
       return view.villains.find((v) => v.id === ref.id)?.name ?? 'A villain'

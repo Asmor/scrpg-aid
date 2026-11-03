@@ -81,6 +81,9 @@ function useCopy() {
 
 interface InviteProps {
   room: string
+  /** The GM's name, as players see it, and changing it. */
+  gm: string
+  onRenameGm: (name: string) => void
   gameName: string
   /** Players' heroes in the game, and which are connected now. */
   players: readonly HeroInGame[]
@@ -90,8 +93,10 @@ interface InviteProps {
   onClose: () => void
 }
 
-export function InviteDialog({ room, gameName, players, connected, onRemove, onStop, onClose }: InviteProps) {
+export function InviteDialog({ room, gm, onRenameGm, gameName, players, connected, onRemove, onStop, onClose }: InviteProps) {
+  const id = useId()
   const link = joinUrl(room)
+  const [name, setName] = useState(gm)
   const { copied, copy } = useCopy()
   const [removing, setRemoving] = useState<HeroInGame | null>(null)
   const [stopping, setStopping] = useState(false)
@@ -113,6 +118,21 @@ export function InviteDialog({ room, gameName, players, connected, onRemove, onS
           Couldn't copy it. Select the link and copy it yourself: <span className="gt-invite__link">{link}</span>
         </p>
       )}
+      <form
+        className="gt-row gt-invite__name"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (name.trim()) onRenameGm(name.trim())
+        }}
+      >
+        <label className="field gt-grow" htmlFor={`${id}-gm`}>
+          <span>Your name (players see it)</span>
+          <input id={`${id}-gm`} type="text" autoComplete="nickname" maxLength={200} value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name.trim() && name.trim() !== gm && onRenameGm(name.trim())} />
+        </label>
+        <button type="submit" className="button button--small" disabled={!name.trim() || name.trim() === gm}>
+          Save
+        </button>
+      </form>
       <h3 className="gt-label">Connected</h3>
       {players.length === 0 ? (
         <p className="gt-sub">No one has joined yet.</p>

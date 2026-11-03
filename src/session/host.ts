@@ -64,7 +64,7 @@ type Waiting = { raw: unknown; peer: string }
 export class HostSession extends Subscribable<HostSnapshot> {
   readonly room: string
   readonly gameId: string
-  readonly gm: string
+  private gmName: string
   private transport: Transport
   private store: GameStore
   private clock: () => Clock
@@ -82,7 +82,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
     super({ version: 0, connected: new Set() })
     this.room = saved.room
     this.gameId = saved.gameId
-    this.gm = saved.gm
+    this.gmName = saved.gm
     this.removed = new Set(saved.removed)
     this.store = store
     this.clock = clock
@@ -118,6 +118,19 @@ export class HostSession extends Subscribable<HostSnapshot> {
   /** Resolves once every change so far has been saved (or failed to). */
   get settled(): Promise<void> {
     return this.saving
+  }
+
+  /** The GM's name, as players see it. */
+  get gm(): string {
+    return this.gmName
+  }
+
+  renameGm(name: string): void {
+    if (!name || name === this.gmName) return
+    this.gmName = name
+    this.saveInfo()
+    this.publish({ ...this.snapshot })
+    this.broadcast()
   }
 
   get game(): Game | undefined {

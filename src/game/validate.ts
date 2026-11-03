@@ -36,6 +36,7 @@ const gameShape = object({
   challenges: arrayOf(object({ id: nonEmptyString, name: string, hidden: boolean, steps: arrayOf(boolean) })),
   pendingSyncs: arrayOf(object({ heroId: nonEmptyString, sheet: heroShape, at: string })),
   notes: string,
+  'code?': nonEmptyString,
   feed: arrayOf(object({ id: nonEmptyString, at: string, by: string, text: string, 'details?': arrayOf(string), 'gmOnly?': oneOf(true) })),
 })
 

@@ -59,14 +59,49 @@ export class SessionManager {
     return game && { room: game.room, ...(game.at ? { at: game.at } : {}) }
   }
 
-  /** Starts hosting a game as `gm`, leaving any session first. */
-  hostGame(gameId: string, gm: string): void {
-    if (!this.games) return
-    if (this.current.hosting?.gameId === gameId) return
+  /**
+   * Starts hosting a game as `gm`, leaving any session first. The game keeps its code from one
+   * hosting to the next (players' links and cached games keep working); it gets one the first time.
+   */
+  hostGame(gameId: string, gm: string): Promise<string | undefined> {
+    // A second click while the first is still starting waits for it (and can't make a second code).
+    const starting = this.starting.get(gameId)
+    if (starting) return starting
+    const start = this.startHosting(gameId, gm).finally(() => this.starting.delete(gameId))
+    this.starting.set(gameId, start)
+    return start
+  }
+
+  private starting = new Map<string, Promise<string | undefined>>()
+
+  /** Resolves with why hosting couldn't start, or undefined once it has. */
+  private async startHosting(gameId: string, gm: string): Promise<string | undefined> {
+    const games = this.games
+    if (!games) return "Games can't be saved here, so they can't be hosted."
+    if (this.current.hosting?.gameId === gameId) return undefined
+    let code: string
+    try {
+      const found = await games.get(gameId)
+      if (found.status !== 'found') return found.status === 'missing' ? 'The game was deleted.' : `The game couldn't be read: ${found.error}`
+      code = found.game.code ?? newRoomCode()
+      if (!found.game.code) await games.save({ ...found.game, code })
+    } catch (e) {
+      return `Couldn't start hosting: ${e instanceof Error ? e.message : String(e)}`
+    }
+    if (this.current.hosting?.gameId === gameId) return undefined
     this.disconnect()
     this.store.savePlaying(undefined)
     this.store.saveName(gm)
-    this.set({ hosting: this.newHost({ room: newRoomCode(), gameId, gm: gm.trim() || 'GM', removed: [] }) })
+    this.set({ hosting: this.newHost({ room: code, gameId, gm: gm.trim() || 'GM', removed: [] }) })
+    return undefined
+  }
+
+  /** Changes the name players see for the GM, and remembers it. */
+  renameGm(gm: string): void {
+    const name = gm.trim()
+    if (!name) return
+    this.store.saveName(name)
+    this.current.hosting?.renameGm(name)
   }
 
   /** Stops hosting; the game stays as it is. Resolves once its last change is saved. */

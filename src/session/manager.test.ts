@@ -19,7 +19,7 @@ describe('the device’s session', () => {
     const manager = new SessionManager(net.connect, localSessionStore(storage), clock, games)
     let changes = 0
     manager.subscribe(() => changes++)
-    manager.hostGame('g1', 'Sam')
+    await manager.hostGame('g1', 'Sam')
     const hero = { ...completeHero(), id: 'maya' }
     manager.joinGame({ room: 'ABCD-EFGH', name: ' Alex ', hero })
     // Joining stops hosting, and forgets it.
@@ -53,7 +53,7 @@ describe('the device’s session', () => {
     const games = new MemoryGameStore()
     await games.save(createGame({ id: 'g1' }))
     const gmDevice = new SessionManager(net.connect, localSessionStore(memoryStorage()), clock, games)
-    gmDevice.hostGame('g1', 'Sam')
+    await gmDevice.hostGame('g1', 'Sam')
     const room = gmDevice.getSnapshot().hosting!.room
     const storage = memoryStorage()
     const manager = new SessionManager(net.connect, localSessionStore(storage), clock)
@@ -79,7 +79,7 @@ describe('the device’s session', () => {
     await games.save(createGame({ id: 'g1' }))
     const manager = new SessionManager(net.connect, localSessionStore(storage), clock, games)
     manager.joinGame({ room: 'WXYZ-2345', name: 'Alex', hero: completeHero() })
-    manager.hostGame('g1', '  Sam ')
+    await manager.hostGame('g1', '  Sam ')
     const host = manager.getSnapshot().hosting!
     expect(host.gameId).toBe('g1')
     expect(host.gm).toBe('Sam')
@@ -88,7 +88,7 @@ describe('the device’s session', () => {
     expect(storage.data.has('scrpg.session.playing')).toBe(false)
     expect(manager.name()).toBe('Sam')
     // Hosting the same game again keeps the session.
-    manager.hostGame('g1', 'Sam')
+    await manager.hostGame('g1', 'Sam')
     expect(manager.getSnapshot().hosting).toBe(host)
 
     manager.suspend()
@@ -99,12 +99,26 @@ describe('the device’s session', () => {
     expect(manager.getSnapshot().hosting).toBeUndefined()
     expect(storage.data.has('scrpg.session.host')).toBe(false)
     await manager.stopHosting()
+
+    // Hosting again keeps the game's code, so players' links and cached games keep working.
+    const saved = await games.get('g1')
+    expect(saved.status === 'found' && saved.game.code).toBe(host.room)
+    await manager.hostGame('g1', 'Sam')
+    expect(manager.getSnapshot().hosting!.room).toBe(host.room)
+    // The GM's name can change while hosting; it's remembered.
+    manager.renameGm('  Samantha ')
+    expect(manager.getSnapshot().hosting!.gm).toBe('Samantha')
+    expect(manager.name()).toBe('Samantha')
+    manager.renameGm('  ')
+    expect(manager.getSnapshot().hosting!.gm).toBe('Samantha')
+    await manager.hostGame('nope', 'Sam')
+    expect(manager.getSnapshot().hosting!.gameId).toBe('g1')
   })
 
-  it("can't host without a game store, and forgets a broken saved host", () => {
+  it("can't host without a game store, and forgets a broken saved host", async () => {
     const storage = memoryStorage()
     const manager = new SessionManager(fakeNetwork().connect, localSessionStore(storage), clock)
-    manager.hostGame('g1', 'Sam')
+    await manager.hostGame('g1', 'Sam')
     expect(manager.getSnapshot().hosting).toBeUndefined()
     storage.setItem('scrpg.session.host', JSON.stringify({ v: 1, room: 'X', gameId: 'g', gm: 'S', removed: [] }))
     const throwing = new SessionManager(() => {
@@ -119,7 +133,7 @@ describe('the device’s session', () => {
     const games = new MemoryGameStore()
     await games.save({ ...createGame({ id: 'g1' }), name: 'Thursday game' })
     const gmDevice = new SessionManager(net.connect, localSessionStore(memoryStorage()), clock, games)
-    gmDevice.hostGame('g1', 'Sam')
+    await gmDevice.hostGame('g1', 'Sam')
     const room = gmDevice.getSnapshot().hosting!.room
     const joined = new MemoryJoinedStore()
     const manager = new SessionManager(net.connect, localSessionStore(memoryStorage()), clock, undefined, joined)
@@ -138,7 +152,7 @@ describe('the device’s session', () => {
       const games = new MemoryGameStore()
       await games.save(createGame({ id: 'g1' }))
       const gmDevice = new SessionManager(net.connect, localSessionStore(memoryStorage()), clock, games)
-      gmDevice.hostGame('g1', 'Sam')
+      await gmDevice.hostGame('g1', 'Sam')
       const host = gmDevice.getSnapshot().hosting!
       const joined = new MemoryJoinedStore()
       const save = vi.spyOn(joined, 'save')
@@ -161,5 +175,21 @@ describe('the device’s session', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('starts hosting once for two quick clicks, and says why hosting could not start', async () => {
+    const games = new MemoryGameStore()
+    await games.save(createGame({ id: 'g1' }))
+    const save = vi.spyOn(games, 'save')
+    const manager = new SessionManager(fakeNetwork().connect, localSessionStore(memoryStorage()), clock, games)
+    const [a, b] = await Promise.all([manager.hostGame('g1', 'Sam'), manager.hostGame('g1', 'Sam')])
+    expect([a, b]).toEqual([undefined, undefined])
+    expect(save).toHaveBeenCalledTimes(1)
+    const saved = await games.get('g1')
+    expect(saved.status === 'found' && saved.game.code).toBe(manager.getSnapshot().hosting!.room)
+    expect(await manager.hostGame('nope', 'Sam')).toBe('The game was deleted.')
+    vi.spyOn(games, 'get').mockRejectedValueOnce(new Error('disk full'))
+    expect(await manager.hostGame('g2', 'Sam')).toBe("Couldn't start hosting: disk full")
+    expect(await new SessionManager(fakeNetwork().connect, localSessionStore(memoryStorage()), clock).hostGame('g1', 'Sam')).toBe("Games can't be saved here, so they can't be hosted.")
   })
 })
