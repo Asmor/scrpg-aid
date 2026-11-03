@@ -6,7 +6,7 @@ import type { Die } from '../rules/types'
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { createGame, heroCopy, villainCopy, type Game } from './model'
-import { actionsText, applyGroupRoll, applySave, groupActionList, npcRollMods, npcTargetId, npcTargets, parseNpcTarget, rollMath, rollMembers, rollSave, saveText, type GroupRollRow } from './npc'
+import { actionsText, applyGroupRoll, applySave, applySaves, rollSaves, verdictText, groupActionList, npcRollMods, npcTargetId, npcTargets, parseNpcTarget, rollMath, rollMembers, rollSave, saveText, type GroupRollRow } from './npc'
 import { addGroup, addMemberMod, syncTurnOrder } from './table'
 
 function clock(): Clock {
@@ -163,5 +163,25 @@ describe('member saves', () => {
     expect(g.groups.map((x) => x.name)).toEqual(['Burglars'])
     expect(g.turn.order.some((o) => o.id === guards.id)).toBe(false)
     expect(texts(g).slice(-2)).toEqual(["Guards 1 is KO'd outright: 16 damage is at least double its d8.", 'All of Guards are gone; the group left the table.'])
+  })
+  it('gives each verdict in words', () => {
+    expect(verdictText('minions', 'd8', { outcome: 'ko' }, false)).toBe("Failed · KO'd")
+    expect(verdictText('minions', 'd8', { outcome: 'shrink', newDie: 'd6' }, true)).toBe('Saved · Drops to d6')
+    expect(verdictText('minions', 'd4', { outcome: 'stay' }, true)).toBe('Saved · Already d4, nothing happens')
+    expect(verdictText('lieutenants', 'd8', { outcome: 'stay' }, true)).toBe('Saved · Stays d8')
+    expect(verdictText('lieutenants', 'd8', { outcome: 'shrink', newDie: 'd6' }, false)).toBe('Failed · Drops to d6')
+    expect(verdictText('lieutenants', 'd8', { outcome: 'ko', noSave: true }, false)).toBe("KO'd outright · Damage was at least double its d8, so no save")
+  })
+
+  it('rolls and applies saves for several members against the same damage', () => {
+    const { game, c, burglars, ids } = table()
+    const saves = rollSaves(burglars, [ids[0]!, ids[2]!], 5, dice([5, 'd8'], [2, 'd8']))
+    expect(saves.map((s) => s.result.outcome)).toEqual(['shrink', 'ko'])
+    const g = applySaves(game, burglars.id, saves, c)
+    expect(g.groups[0]!.members.map((m) => [m.n, m.die])).toEqual([
+      [1, 'd6'],
+      [2, 'd8'],
+    ])
+    expect(texts(g)).toEqual(['Burglars 1 saved against 5 (rolled 5): drops to d6.', "Burglars 3 failed its save against 5 (rolled 2): KO'd."])
   })
 })

@@ -7056,7 +7056,9 @@ span.gt-step--done {
   }
 
   .gt-results td[data-label='Result'],
-  .gt-results td[data-label='Target'] {
+  .gt-results td[data-label='Save'],
+  .gt-results td[data-label='Target'],
+  .gt-results td[data-label='Outcome'] {
     grid-column: 1 / -1;
   }
 }

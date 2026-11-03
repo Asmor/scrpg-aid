@@ -15,7 +15,7 @@ import { ModForm } from '../play/ModForm'
 import { describeMod, modName } from '../play/state'
 import type { BasicAction } from '../rules/types'
 import type { Game, NpcGroup, NpcMember } from './model'
-import { ACTION_NAME, actionsText, groupActionList, npcTargets, parseNpcTarget, rollMath, rollMembers, type GroupRollRow, type Random } from './npc'
+import { ACTION_NAME, actionsText, groupActionList, npcTargets, parseNpcTarget, rollMath, rollMembers, rollSaves, verdictText, type GroupRollRow, type MemberSave, type Random } from './npc'
 import { actedText, memberLabel, memberName, readyMembers } from './table'
 
 export interface GroupActions {
@@ -26,6 +26,8 @@ export interface GroupActions {
   setActed: (memberId: string, acted: boolean) => void
   /** Applies a group roll: each row's result to its target, and the rolled members marked acted. */
   applyRoll: (action: BasicAction, rows: GroupRollRow[]) => void
+  /** Applies saves the Damage dialog rolled. */
+  applySaves: (saves: MemberSave[]) => void
 }
 
 /** The choice for a result that goes to nobody. */
@@ -68,6 +70,8 @@ export function RunningGroup({ game, group, actions, random }: { game: Game; gro
   const chosen = choices.includes(action) ? action : (choices[0] ?? 'attack')
   const [modding, setModding] = useState<string | null>(null)
   const [rolled, setRolled] = useState<GroupRollRow[] | null>(null)
+  // The Damage dialog: the members it starts with checked (one member's Damage, or everyone).
+  const [damaging, setDamaging] = useState<string[] | null>(null)
   const ready = readyMembers(group)
   const everyone = ready.length === 0 && group.members.length > 0
   const roll = (memberIds: string[]) => setRolled(rollMembers(group, memberIds, random ?? Math.random))
@@ -91,6 +95,9 @@ export function RunningGroup({ game, group, actions, random }: { game: Game; gro
             ))}
           </select>
         </label>
+        <button type="button" className="button button--small" onClick={() => setDamaging(group.members.map((m) => m.id))}>
+          Damage…
+        </button>
         <span className="gt-grow" />
         <button type="button" className="button button--primary button--small" disabled={ready.length === 0} onClick={() => roll(ready.map((m) => m.id))}>
           {ready.length === 0 ? 'All have acted' : `Roll all ready (${ready.length})`}
@@ -108,6 +115,9 @@ export function RunningGroup({ game, group, actions, random }: { game: Game; gro
                 <span className={m.acted ? 'gt-pill' : 'gt-pill gt-pill--live'}>{m.acted ? 'Acted' : 'Ready'}</span>
                 <button type="button" className="button button--small" aria-label={`Roll ${name}`} disabled={m.acted} onClick={() => roll([m.id])}>
                   Roll
+                </button>
+                <button type="button" className="button button--small" aria-label={`Damage ${name}`} onClick={() => setDamaging([m.id])}>
+                  Damage
                 </button>
                 <MemberMenu group={group} member={m} actions={actions} onMod={() => setModding(m.id)} />
               </div>
@@ -128,6 +138,18 @@ export function RunningGroup({ game, group, actions, random }: { game: Game; gro
           )
         })}
       </ul>
+      {damaging && (
+        <DamageDialog
+          group={group}
+          start={damaging}
+          random={random ?? Math.random}
+          onCancel={() => setDamaging(null)}
+          onApply={(saves) => {
+            actions.applySaves(saves)
+            setDamaging(null)
+          }}
+        />
+      )}
       {rolled && (
         <GroupRollDialog
           game={game}
@@ -253,6 +275,124 @@ export function GroupRollDialog({ game, group, action, rows, onCancel, onApply }
           </button>
         </div>
       </form>
+    </Modal>
+  )
+}
+
+/**
+ * Damage (section 5): how much each member takes and who takes it, then Roll saves; the results
+ * table shows each save against the damage and what it does. Apply changes the dice and removes
+ * anyone KO'd; Cancel discards the rolls.
+ */
+export function DamageDialog({ group, start, random, onCancel, onApply }: { group: NpcGroup; start: readonly string[]; random: Random; onCancel: () => void; onApply: (saves: MemberSave[]) => void }) {
+  const id = useId()
+  const phone = useMediaQuery('(max-width: 759px)', false)
+  const [damage, setDamage] = useState('')
+  const [who, setWho] = useState<string[]>([...start])
+  const [saves, setSaves] = useState<MemberSave[] | null>(null)
+  const amount = Number(damage)
+  const valid = damage.trim() !== '' && Number.isInteger(amount) && amount >= 0 && who.length > 0
+  const member = (memberId: string) => group.members.find((m) => m.id === memberId)
+  const single = start.length === 1 ? member(start[0]!) : undefined
+  const title = single ? `Damage to ${memberName(group, single.n)}` : `Damage to ${group.name}`
+  const summary = (s: MemberSave) => {
+    const m = member(s.memberId)
+    return m ? `${memberName(group, m.n)}: ${verdictText(group.kind, m.die, s.result, Boolean(s.roll && s.roll.total >= s.damage))}.` : ''
+  }
+  return (
+    <Modal title={title} variant={phone ? 'sheet' : 'dialog'} onClose={onCancel}>
+      {!saves ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (valid) setSaves(rollSaves(group, group.members.filter((m) => who.includes(m.id)).map((m) => m.id), amount, random))
+          }}
+        >
+          <label className="field" htmlFor={`${id}-damage`}>
+            <span>Damage to each</span>
+            <input id={`${id}-damage`} type="number" inputMode="numeric" min={0} value={damage} onChange={(e) => setDamage(e.target.value)} />
+          </label>
+          {!single && (
+            <fieldset className="gt-keep">
+              <legend className="gt-label">Who takes it</legend>
+              {group.members.map((m) => (
+                <label key={m.id} className="gt-row" htmlFor={`${id}-${m.id}`}>
+                  <input id={`${id}-${m.id}`} type="checkbox" checked={who.includes(m.id)} onChange={(e) => setWho((w) => (e.target.checked ? [...w, m.id] : w.filter((x) => x !== m.id)))} />
+                  <DieIcon die={m.die} />
+                  {memberName(group, m.n)}
+                  {m.mods.map((x) => (
+                    <span key={x.id} className="gt-mod">
+                      {modText(x)}
+                    </span>
+                  ))}
+                </label>
+              ))}
+            </fieldset>
+          )}
+          <div className="button-row gt-dialog-actions">
+            <button type="button" className="button" onClick={onCancel}>
+              Cancel
+            </button>
+            <button type="submit" className="button button--primary" disabled={!valid}>
+              Roll saves
+            </button>
+          </div>
+        </form>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            onApply(saves)
+          }}
+        >
+          <p role="status" className="visually-hidden">
+            {saves.map(summary).join(' ')}
+          </p>
+          <table className="gt-results">
+            <thead>
+              <tr>
+                <th scope="col">Who</th>
+                <th scope="col">Die</th>
+                <th scope="col">Save</th>
+                <th scope="col">Outcome</th>
+              </tr>
+            </thead>
+            <tbody>
+              {saves.map((s) => {
+                const m = member(s.memberId)
+                if (!m) return null
+                const saved = Boolean(s.roll && s.roll.total >= s.damage)
+                return (
+                  <tr key={s.memberId}>
+                    <th scope="row">{memberName(group, m.n)}</th>
+                    <td data-label="Die">
+                      <DieIcon die={m.die} />
+                    </td>
+                    <td data-label="Save">
+                      {s.roll ? (
+                        <>
+                          <span className="gt-total">{s.roll.total}</span> <span className="gt-sub">{rollMath(s.roll)} against {s.damage}</span>
+                        </>
+                      ) : (
+                        <span className="gt-sub">No save</span>
+                      )}
+                    </td>
+                    <td data-label="Outcome">{verdictText(group.kind, m.die, s.result, saved)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          <div className="button-row gt-dialog-actions">
+            <button type="button" className="button" onClick={onCancel}>
+              Cancel
+            </button>
+            <button type="submit" className="button button--primary">
+              Apply
+            </button>
+          </div>
+        </form>
+      )}
     </Modal>
   )
 }

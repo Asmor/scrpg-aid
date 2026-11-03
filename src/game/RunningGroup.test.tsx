@@ -20,7 +20,7 @@ function setup(change: (g: Game, c: Clock) => Game = (g) => g) {
   game = addGroup(game, { kind: 'minions', name: 'Burglars', die: 'd8', count: 3, hidden: false }, c)
   game = { ...game, groups: [{ ...game.groups[0]!, actions: ['attack', 'hinder'] }] }
   game = change(game, c)
-  const actions: GroupActions = { shrink: vi.fn(), remove: vi.fn(), addMod: vi.fn(), removeMod: vi.fn(), setActed: vi.fn(), applyRoll: vi.fn() }
+  const actions: GroupActions = { shrink: vi.fn(), remove: vi.fn(), addMod: vi.fn(), removeMod: vi.fn(), setActed: vi.fn(), applyRoll: vi.fn(), applySaves: vi.fn() }
   // 0.5 rolls the middle of each die: 5 on a d8.
   render(<RunningGroup game={game} group={game.groups[0]!} actions={actions} random={() => 0.5} />)
   return { game, actions, ids: game.groups[0]!.members.map((m) => m.id) }
@@ -81,5 +81,37 @@ describe('running a group', () => {
     expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['+ Mod', 'Shrink', 'Remove', 'Mark as acted'])
     await userEvent.click(screen.getByRole('menuitem', { name: 'Mark as acted' }))
     expect(actions.setActed).toHaveBeenCalledWith(ids[0], true)
+  })
+  it('rolls saves against damage for the checked members, shows the verdicts, and applies them', async () => {
+    const { actions, ids } = setup((g, c) => addMemberMod(g, g.groups[0]!.id, g.groups[0]!.members[1]!.id, { label: 'Dazed', value: -1 }, c))
+    await userEvent.click(screen.getByRole('button', { name: 'Damage…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Damage to Burglars' }))
+    expect(dialog.getAllByRole('checkbox').map((b) => (b as HTMLInputElement).checked)).toEqual([true, true, true])
+    expect(dialog.getByRole('button', { name: 'Roll saves' })).toBeDisabled()
+    await userEvent.type(dialog.getByLabelText('Damage to each'), '5')
+    await userEvent.click(dialog.getByRole('checkbox', { name: /Burglars 3/ }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Roll saves' }))
+    // Each rolls a 5 on its d8: Burglars 1 saves (5 against 5), Burglars 2 fails (4 with Dazed).
+    expect(dialog.getByRole('row', { name: /Burglars 1/ })).toHaveTextContent('5 against 5Saved · Drops to d6')
+    expect(dialog.getByRole('row', { name: /Burglars 2/ })).toHaveTextContent("4 5 − 1 Dazed against 5Failed · KO'd")
+    expect(dialog.queryByRole('row', { name: /Burglars 3/ })).not.toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Apply' }))
+    const [saves] = vi.mocked(actions.applySaves).mock.calls[0]!
+    expect(saves.map((s) => [s.memberId, s.result.outcome])).toEqual([
+      [ids[0], 'shrink'],
+      [ids[1], 'ko'],
+    ])
+  })
+
+  it("damages one member from its row, and Cancel discards the rolls", async () => {
+    const { actions } = setup()
+    await userEvent.click(screen.getByRole('button', { name: 'Damage Burglars 2' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Damage to Burglars 2' }))
+    expect(dialog.queryByRole('checkbox')).not.toBeInTheDocument()
+    await userEvent.type(dialog.getByLabelText('Damage to each'), '3')
+    await userEvent.click(dialog.getByRole('button', { name: 'Roll saves' }))
+    expect(dialog.getAllByRole('row')).toHaveLength(2)
+    await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }))
+    expect(actions.applySaves).not.toHaveBeenCalled()
   })
 })

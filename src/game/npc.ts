@@ -155,6 +155,28 @@ export function saveText(name: string, kind: NpcGroup['kind'], die: Die, damage:
   return kind === 'minions' ? `${head}: already d4, nothing happens.` : `${head}: stays ${die}.`
 }
 
+/** The results table's verdict (section 5): "Failed · KO'd", "Saved · Drops to d6", … */
+export function verdictText(kind: NpcGroup['kind'], die: Die, result: SaveResult, saved: boolean): string {
+  if (result.noSave) return `KO'd outright · Damage was at least double its ${die}, so no save`
+  const head = saved ? 'Saved' : 'Failed'
+  if (result.outcome === 'ko') return `${head} · KO'd`
+  if (result.outcome === 'shrink') return `${head} · Drops to ${result.newDie}`
+  return kind === 'minions' ? `${head} · Already d4, nothing happens` : `${head} · Stays ${die}`
+}
+
+/** Rolls saves for these members against the same damage. */
+export function rollSaves(group: NpcGroup, memberIds: readonly string[], damage: number, random: Random): MemberSave[] {
+  return memberIds.flatMap((id) => {
+    const m = group.members.find((x) => x.id === id)
+    return m ? [rollSave(group.kind, m, damage, random)] : []
+  })
+}
+
+/** Applies saves in turn (the Damage dialog's Apply). */
+export function applySaves(game: Game, groupId: string, saves: readonly MemberSave[], clock: Clock): Game {
+  return saves.reduce((g, s) => applySave(g, groupId, s, clock), game)
+}
+
 /** A member's save against damage: its roll (none when KO'd outright) and the result. */
 export interface MemberSave {
   memberId: string

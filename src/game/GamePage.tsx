@@ -24,7 +24,7 @@ import { villainHealth } from '../villain/play'
 import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, SceneSetupDialog, TwistDialog, UpdateDialog } from './dialogs'
 import { GmScreen, type QuickAddKind } from './GmScreen'
 import type { GroupActions } from './RunningGroup'
-import { applyGroupRoll } from './npc'
+import { applyGroupRoll, applySaves } from './npc'
 import { applyHeroChange, type HeroChange } from './hero-changes'
 import { gameDisplayName, sceneDisplayName, type ActorRef, type Game, type HeroInGame, type VillainInGame } from './model'
 import { healthLine, reconcile, reconcileVillain } from './reconcile'
@@ -244,6 +244,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     removeMod: (memberId, modId) => apply((g) => T.removeMemberMod(g, groupId, memberId, modId, clock())),
     setActed: (memberId, acted) => apply((g) => T.setMemberActed(g, groupId, memberId, acted, clock())),
     applyRoll: (action, rows) => apply((g) => applyGroupRoll(g, groupId, action, rows, random ?? Math.random, clock())),
+    applySaves: (saves) => apply((g) => applySaves(g, groupId, saves, clock())),
   })
   const runningPanel = runningVillain ? { kind: 'villain' as const, villain: runningVillain, change: (fn: (p: VillainPlayState, c: Clock) => VillainPlayState) => changeVillain(runningVillain.id, fn) } : runningGroup ? { kind: 'group' as const, group: runningGroup, actions: groupActions(runningGroup.id) } : undefined
 
