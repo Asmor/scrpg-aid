@@ -3,7 +3,9 @@ import { createContext, useContext, useSyncExternalStore } from 'react'
 import type { Hero } from '../hero/model'
 import type { ClientSnapshot, PlayerClient, Received } from './client'
 import type { HostSession, HostSnapshot } from './host'
+import type { LinkSnapshot } from './link'
 import type { CurrentSession, SessionManager } from './manager'
+import type { ObserverClient } from './watch'
 
 export const SessionContext = createContext<SessionManager | null>(null)
 
@@ -21,6 +23,11 @@ export interface SessionApi extends CurrentSession {
   /** Joins a hosted game as a player with one hero. */
   joinGame(options: { room: string; name: string; hero: Hero; cached?: Received }): void
   leaveGame(): void
+  /** The name this screen goes by when watching. */
+  screenName: string
+  /** Watches a hosted game on this screen; the screen's name is remembered on this device. */
+  watchGame(options: { room: string; screenName: string }): void
+  stopWatching(): void
   /** Notes shown once per key (the first-join note). */
   noteSeen(key: string): boolean
   markNoteSeen(key: string): void
@@ -45,6 +52,9 @@ export function useSession(): SessionApi {
     stopHosting: () => manager?.stopHosting() ?? Promise.resolve(),
     joinGame: (options) => manager?.joinGame(options),
     leaveGame: () => manager?.leaveGame(),
+    screenName: manager?.screenName() ?? '',
+    watchGame: (options) => manager?.watchGame(options),
+    stopWatching: () => manager?.stopWatching(),
     noteSeen: (key) => manager?.noteSeen(key) ?? true,
     markNoteSeen: (key) => manager?.markNoteSeen(key),
   }
@@ -57,5 +67,10 @@ export function useHostSnapshot(host: HostSession | undefined): HostSnapshot | u
 
 /** The player's game client's snapshot (status, the table, pending actions, notices); undefined without one. */
 export function usePlayingSnapshot(client: PlayerClient | undefined): ClientSnapshot | undefined {
+  return useSyncExternalStore(client?.subscribe ?? noSubscribe, client?.getSnapshot ?? nothing)
+}
+
+/** The watching device's snapshot (status and the table); undefined without one. */
+export function useWatchingSnapshot(client: ObserverClient | undefined): LinkSnapshot | undefined {
   return useSyncExternalStore(client?.subscribe ?? noSubscribe, client?.getSnapshot ?? nothing)
 }

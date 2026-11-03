@@ -6,42 +6,20 @@
  *
  * - An action with no result within 5 seconds didn't reach the GM ("Nothing changed").
  * - While the GM is unreachable, actions are blocked, not queued. After 30 seconds the page
- *   switches to the offline view, and the device keeps trying every 30 seconds.
+ *   switches to the offline view, and the device keeps trying every 30 seconds (./link.ts).
  */
 import type { HeroAction } from '../game/actions'
-import type { TableView } from '../game/project'
 import type { Hero } from '../hero/model'
-import { Subscribable } from './subscribable'
-import { messageVersion, PROTOCOL_VERSION, readHostMessage, type ClientMessage, type RefusedReason, type YouAre } from './protocol'
-import { quietAfterLeave, type Connect, type Transport } from './transport'
+import { HostLink, type LinkSnapshot, type OtherHostMessage, type Received } from './link'
+import { PROTOCOL_VERSION, type ClientMessage } from './protocol'
+import type { Connect } from './transport'
 import { heroShape } from '../hero/validate'
 import { nonEmptyString, object, oneOf, string } from '../shape'
 
+export { OFFLINE_AFTER, RETRY_EVERY, type ClientStatus, type Received } from './link'
+
 /** How long an action waits for its result. */
 export const RESULT_TIMEOUT = 5000
-/** How long the GM can be away before the offline view, and how often to try again after that. */
-export const OFFLINE_AFTER = 30_000
-export const RETRY_EVERY = 30_000
-
-/**
- * - connecting: not reached the GM yet (the page shows the cached game, if any, read-only)
- * - live: the GM is connected
- * - reconnecting: the GM went away moments ago; actions are paused
- * - offline: the GM has been away a while (or never answered); read-only, still retrying
- * - refused: the GM's device won't take this device (see `refused`)
- */
-export type ClientStatus = 'connecting' | 'live' | 'reconnecting' | 'offline' | 'refused'
-
-/** What the GM last sent: the table as this player sees it. */
-export interface Received {
-  room: string
-  version: number
-  table: TableView
-  gm: string
-  you?: YouAre
-  /** When it arrived (ISO 8601): "as of 9:42 PM". */
-  at: string
-}
 
 /** An action sent and not answered yet, or one that didn't reach the GM. */
 export interface PendingAction {
@@ -60,10 +38,7 @@ export interface Notice {
   adjustments?: string[]
 }
 
-export interface ClientSnapshot {
-  status: ClientStatus
-  refused?: RefusedReason | 'oldHost'
-  received?: Received
+export interface ClientSnapshot extends LinkSnapshot {
   pending: PendingAction[]
   notices: Notice[]
   /** A sheet update request is waiting for the GM. */
@@ -91,31 +66,17 @@ export interface ClientOptions {
   newId?: () => string
 }
 
-export class PlayerClient extends Subscribable<ClientSnapshot> {
+export class PlayerClient extends HostLink<ClientSnapshot> {
   readonly info: ClientInfo
-  private connect: Connect
-  private transport!: Transport
-  private gmPeer: string | undefined
   private timers = new Map<string, ReturnType<typeof setTimeout>>()
-  private offlineTimer: ReturnType<typeof setTimeout> | undefined
-  private retryTimer: ReturnType<typeof setInterval> | undefined
   private options: ClientOptions
-  private left = false
   private n = 0
 
   constructor(connect: Connect, info: ClientInfo, options: ClientOptions = {}) {
-    super({ status: 'connecting', pending: [], notices: [], syncWaiting: options.syncWaiting ?? false, ...(options.cached ? { received: options.cached } : {}) })
-    this.connect = connect
+    super(connect, info.room, { status: 'connecting', pending: [], notices: [], syncWaiting: options.syncWaiting ?? false, ...(options.cached ? { received: options.cached } : {}) }, options.now)
     this.info = info
     this.options = options
-    this.open()
-    // Not reached within 30 seconds: offline (still trying).
-    this.offlineTimer = setTimeout(() => this.goOffline(), OFFLINE_AFTER)
-  }
-
-  /** Whether actions can be sent now. */
-  get live(): boolean {
-    return this.snapshot.status === 'live'
+    this.start()
   }
 
   /** The player's hero in the game, once the GM has said which. */
@@ -147,7 +108,7 @@ export class PlayerClient extends Subscribable<ClientSnapshot> {
   requestSync(sheet: Hero): boolean {
     const heroId = this.heroId
     if (!this.live || !heroId) return false
-    this.toGm({ v: PROTOCOL_VERSION, type: 'syncRequest', heroId, sheet })
+    this.toGm({ v: PROTOCOL_VERSION, type: 'syncRequest', heroId, sheet } satisfies ClientMessage)
     this.setSyncWaiting(true)
     return true
   }
@@ -155,7 +116,7 @@ export class PlayerClient extends Subscribable<ClientSnapshot> {
   cancelSync(): boolean {
     const heroId = this.heroId
     if (!this.live || !heroId) return false
-    this.toGm({ v: PROTOCOL_VERSION, type: 'syncCancel', heroId })
+    this.toGm({ v: PROTOCOL_VERSION, type: 'syncCancel', heroId } satisfies ClientMessage)
     this.setSyncWaiting(false)
     return true
   }
@@ -173,57 +134,17 @@ export class PlayerClient extends Subscribable<ClientSnapshot> {
     this.publish({ ...this.snapshot, received: cached })
   }
 
-  /** Connects again from scratch (Try to reconnect). */
-  reconnect(): void {
-    if (this.left) return
-    this.transport.leave()
-    delete this.gmPeer
-    this.open()
+  protected override hello(peer?: string): void {
+    const { clientId, name, heroSourceId, sheet } = this.info
+    this.transport.send({ v: PROTOCOL_VERSION, type: 'hello', role: 'player', clientId, name, heroSourceId, sheet } satisfies ClientMessage, peer)
   }
 
-  leave(): void {
-    this.left = true
-    this.transport.leave()
-    for (const t of this.timers.values()) clearTimeout(t)
-    clearTimeout(this.offlineTimer)
-    clearInterval(this.retryTimer)
+  protected override onState(received: Received): void {
+    this.options.onReceive?.(received)
   }
 
-  private open(): void {
-    this.transport = quietAfterLeave(this.connect(this.info.room))
-    // Anyone could be the GM, so say hello to each peer; only the GM answers.
-    this.transport.onPeerJoin((peer) => this.hello(peer))
-    this.transport.onPeerLeave((peer) => {
-      if (peer !== this.gmPeer) return
-      delete this.gmPeer
-      this.gmGone()
-    })
-    this.transport.onMessage((raw, peer) => this.receive(raw, peer))
-  }
-
-  private receive(raw: unknown, peer: string): void {
-    const msg = readHostMessage(raw)
-    if (!msg) {
-      // A GM's device on the older version of the app sends version 1 states.
-      const v = messageVersion(raw)
-      if (v !== undefined && v < PROTOCOL_VERSION && (raw as { type?: unknown }).type === 'state') this.refuse('oldHost')
-      return
-    }
-    // The first peer to send this room's state is the GM; anyone else claiming to be is ignored.
-    if (this.gmPeer && peer !== this.gmPeer) return
+  protected override onOther(msg: OtherHostMessage): void {
     switch (msg.type) {
-      case 'state': {
-        if (msg.room !== this.info.room) return
-        this.gmPeer = peer
-        clearTimeout(this.offlineTimer)
-        clearInterval(this.retryTimer)
-        delete this.retryTimer
-        const received: Received = { room: msg.room, version: msg.version, table: msg.table, gm: msg.gm, ...(msg.you ? { you: msg.you } : {}), at: this.now().toISOString() }
-        const { refused: _, ...rest } = this.snapshot
-        this.publish({ ...rest, status: 'live', received })
-        this.options.onReceive?.(received)
-        return
-      }
       case 'result': {
         clearTimeout(this.timers.get(msg.id))
         this.timers.delete(msg.id)
@@ -242,11 +163,22 @@ export class PlayerClient extends Subscribable<ClientSnapshot> {
         this.publish({ ...this.snapshot, notices: [...this.snapshot.notices, notice] })
         return
       }
-      case 'refused':
-        this.gmPeer = peer
-        this.refuse(msg.reason)
-        return
     }
+  }
+
+  /** The GM went away or refused: unanswered actions won't be answered. */
+  protected override gmGoneChanges(): Partial<ClientSnapshot> {
+    this.clearTimers()
+    return { pending: [] }
+  }
+
+  protected override onLeave(): void {
+    this.clearTimers()
+  }
+
+  private clearTimers(): void {
+    for (const t of this.timers.values()) clearTimeout(t)
+    this.timers.clear()
   }
 
   private heroName(): string {
@@ -255,7 +187,7 @@ export class PlayerClient extends Subscribable<ClientSnapshot> {
   }
 
   private sendAction(id: string, heroId: string, action: HeroAction): void {
-    this.toGm({ v: PROTOCOL_VERSION, type: 'action', id, heroId, action, basedOn: this.snapshot.received?.version ?? 0 })
+    this.toGm({ v: PROTOCOL_VERSION, type: 'action', id, heroId, action, basedOn: this.snapshot.received?.version ?? 0 } satisfies ClientMessage)
     clearTimeout(this.timers.get(id))
     this.timers.set(
       id,
@@ -271,47 +203,10 @@ export class PlayerClient extends Subscribable<ClientSnapshot> {
     )
   }
 
-  private hello(peer?: string): void {
-    const { clientId, name, heroSourceId, sheet } = this.info
-    this.transport.send({ v: PROTOCOL_VERSION, type: 'hello', role: 'player', clientId, name, heroSourceId, sheet } satisfies ClientMessage, peer)
-  }
-
-  private toGm(msg: ClientMessage): void {
-    if (this.gmPeer) this.transport.send(msg, this.gmPeer)
-  }
-
-  /** The GM went away: actions pause, unanswered ones won't be answered, and after a while the page goes offline. */
-  private gmGone(): void {
-    if (this.snapshot.status === 'refused') return
-    for (const t of this.timers.values()) clearTimeout(t)
-    this.timers.clear()
-    this.publish({ ...this.snapshot, status: 'reconnecting', pending: [] })
-    clearTimeout(this.offlineTimer)
-    this.offlineTimer = setTimeout(() => this.goOffline(), OFFLINE_AFTER)
-    // A reloaded GM may have joined before the old connection was noticed gone: ask everyone again.
-    this.hello()
-  }
-
-  private goOffline(): void {
-    if (this.snapshot.status === 'live' || this.snapshot.status === 'refused' || this.left) return
-    this.publish({ ...this.snapshot, status: 'offline' })
-    if (!this.retryTimer) this.retryTimer = setInterval(() => this.reconnect(), RETRY_EVERY)
-  }
-
-  private refuse(reason: RefusedReason | 'oldHost'): void {
-    clearTimeout(this.offlineTimer)
-    clearInterval(this.retryTimer)
-    this.publish({ ...this.snapshot, status: 'refused', refused: reason, pending: [] })
-  }
-
   private setSyncWaiting(waiting: boolean): void {
     if (this.snapshot.syncWaiting === waiting) return
     this.publish({ ...this.snapshot, syncWaiting: waiting })
     this.options.onSyncWaiting?.(waiting)
-  }
-
-  private now(): Date {
-    return this.options.now?.() ?? new Date()
   }
 
   private newId(): string {

@@ -6,17 +6,18 @@
  *
  * A player is known by their device's client id, which stays the same across reloads; a peer id
  * changes whenever a browser reconnects. Joining copies the player's hero in with fresh play
- * state; joining again with the same hero picks the game's copy back up.
+ * state; joining again with the same hero picks the game's copy back up. Observers (watching on a
+ * TV, say) get the observer projection and can't send anything but hello.
  */
 import { applyHeroAction, trackChanges, type FieldVersions } from '../game/actions'
 import type { Game, HeroInGame } from '../game/model'
-import { project, type TableView } from '../game/project'
+import { project, type Audience, type TableView } from '../game/project'
 import type { GameStore } from '../game/store'
 import { addHero, findHero, removeFromTable, updateSheet, withLog, GM } from '../game/table'
 import { heroDisplayName, type Hero } from '../hero/model'
 import type { Clock } from '../play/state'
 import { Subscribable } from './subscribable'
-import { fitView, messageVersion, PLAYER_LIMIT, PROTOCOL_VERSION, readClientMessage, type ClientMessage, type HostMessage, type RefusedReason } from './protocol'
+import { fitView, messageVersion, OBSERVER_LIMIT, PLAYER_LIMIT, PROTOCOL_VERSION, readClientMessage, type ClientMessage, type HostMessage, type RefusedReason } from './protocol'
 import { quietAfterLeave, type Connect, type Transport } from './transport'
 import { arrayOf, nonEmptyString, object, oneOf, string } from '../shape'
 
@@ -30,7 +31,7 @@ export interface HostSaved {
   gameId: string
   /** The GM's name, as players see it. */
   gm: string
-  /** Client ids the GM removed: they can't come back. */
+  /** Client ids the GM removed (players and observers): they can't come back. */
   removed: string[]
 }
 
@@ -50,13 +51,17 @@ export interface HostSnapshot {
   version: number
   /** The client ids of players connected now. */
   connected: ReadonlySet<string>
+  /** Observers connected now, by screen name. */
+  observers: readonly Watcher[]
 }
 
-interface Peer {
+/** An observer's screen. */
+export interface Watcher {
   clientId: string
-  role: 'player'
-  heroId?: string
+  screenName: string
 }
+
+type Peer = { clientId: string; role: 'player'; heroId: string } | { clientId: string; role: 'observer'; screenName: string }
 
 /** A message from a peer before the game has loaded, handled once it has. */
 type Waiting = { raw: unknown; peer: string }
@@ -79,7 +84,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
   private saving: Promise<void> = Promise.resolve()
 
   constructor(connect: Connect, saved: Omit<HostSaved, 'v'>, store: GameStore, clock: () => Clock, save: (saved: HostSaved) => void = () => {}) {
-    super({ version: 0, connected: new Set() })
+    super({ version: 0, connected: new Set(), observers: [] })
     this.room = saved.room
     this.gameId = saved.gameId
     this.gmName = saved.gm
@@ -193,6 +198,18 @@ export class HostSession extends Subscribable<HostSnapshot> {
     this.publishConnected()
   }
 
+  /** Removes an observer's screen. It can't come back to this game. */
+  removeObserver(clientId: string): void {
+    this.removed.add(clientId)
+    this.saveInfo()
+    for (const [peer, p] of this.peers) {
+      if (p.clientId !== clientId) continue
+      this.refuse(peer, 'removed')
+      this.peers.delete(peer)
+    }
+    this.publishConnected()
+  }
+
   /** Stops hosting. The game stays as it is. */
   leave(): void {
     this.transport.leave()
@@ -209,7 +226,8 @@ export class HostSession extends Subscribable<HostSnapshot> {
     }
     if (msg.type === 'hello') return this.hello(msg, peer)
     const from = this.peers.get(peer)
-    if (!from || this.removed.has(from.clientId)) return
+    // Observers send only hello.
+    if (!from || from.role !== 'player' || this.removed.has(from.clientId)) return
     switch (msg.type) {
       case 'action':
         return this.action(msg, from, peer)
@@ -221,9 +239,8 @@ export class HostSession extends Subscribable<HostSnapshot> {
   }
 
   private hello(msg: Extract<ClientMessage, { type: 'hello' }>, peer: string): void {
-    // Observers come with the display view (Phase 3).
-    if (msg.role !== 'player') return
     if (this.removed.has(msg.clientId)) return this.refuse(peer, 'removed')
+    if (msg.role === 'observer') return this.watcherHello(msg, peer)
     const game = this.snapshot.game!
     const name = msg.name.trim() || 'A player'
     const existing = game.heroes.find((h) => h.sourceId === msg.heroSourceId)
@@ -248,7 +265,16 @@ export class HostSession extends Subscribable<HostSnapshot> {
     this.sendState(peer)
   }
 
-  private action(msg: Extract<ClientMessage, { type: 'action' }>, from: Peer, peer: string): void {
+  private watcherHello(msg: Extract<ClientMessage, { type: 'hello'; role: 'observer' }>, peer: string): void {
+    // The same screen coming back doesn't count against the limit.
+    const others = new Set([...this.peers].filter(([id, p]) => p.role === 'observer' && id !== peer && p.clientId !== msg.clientId).map(([, p]) => p.clientId))
+    if (others.size >= OBSERVER_LIMIT) return this.refuse(peer, 'full')
+    this.peers.set(peer, { clientId: msg.clientId, role: 'observer', screenName: msg.screenName.trim() || 'A screen' })
+    this.publishConnected()
+    this.sendState(peer)
+  }
+
+  private action(msg: Extract<ClientMessage, { type: 'action' }>, from: Peer & { role: 'player' }, peer: string): void {
     const game = this.snapshot.game!
     const reply = (result: { ok: true } | { ok: false; reason: string }) => this.send({ v: PROTOCOL_VERSION, type: 'result', id: msg.id, ...result } as HostMessage, peer)
     const key = `${from.clientId}:${msg.id}`
@@ -270,7 +296,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
     remember({ ok: true })
   }
 
-  private syncRequest(msg: Extract<ClientMessage, { type: 'syncRequest' }>, from: Peer): void {
+  private syncRequest(msg: Extract<ClientMessage, { type: 'syncRequest' }>, from: Peer & { role: 'player' }): void {
     if (!this.owns(from, msg.heroId)) return
     const hero = findHero(this.snapshot.game!, msg.heroId)!
     const at = this.clock().now.toISOString()
@@ -282,7 +308,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
     )
   }
 
-  private syncCancel(msg: Extract<ClientMessage, { type: 'syncCancel' }>, from: Peer): void {
+  private syncCancel(msg: Extract<ClientMessage, { type: 'syncCancel' }>, from: Peer & { role: 'player' }): void {
     if (!this.owns(from, msg.heroId) || !this.snapshot.game!.pendingSyncs.some((r) => r.heroId === msg.heroId)) return
     const name = this.heroName(msg.heroId)
     this.apply((g) => withLog({ ...g, pendingSyncs: g.pendingSyncs.filter((r) => r.heroId !== msg.heroId) }, [this.gmLine(`The request to update ${name} was cancelled.`)]))
@@ -305,14 +331,19 @@ export class HostSession extends Subscribable<HostSnapshot> {
   }
 
   private isConnected(clientId: string): boolean {
-    return [...this.peers.values()].some((p) => p.clientId === clientId)
+    return [...this.peers.values()].some((p) => p.role === 'player' && p.clientId === clientId)
   }
 
   private publishConnected(): void {
-    const connected = new Set([...this.peers.values()].map((p) => p.clientId))
-    const before = this.snapshot.connected
-    if (connected.size === before.size && [...connected].every((c) => before.has(c))) return
-    this.publish({ ...this.snapshot, connected })
+    const peers = [...this.peers.values()]
+    const connected = new Set(peers.filter((p) => p.role === 'player').map((p) => p.clientId))
+    // One entry per screen, even with two connections from it for a moment.
+    const observers = [...new Map(peers.flatMap((p) => (p.role === 'observer' ? [[p.clientId, { clientId: p.clientId, screenName: p.screenName }] as const] : []))).values()]
+    const before = this.snapshot
+    const sameConnected = connected.size === before.connected.size && [...connected].every((c) => before.connected.has(c))
+    const sameObservers = observers.length === before.observers.length && observers.every((o, i) => o.clientId === before.observers[i]!.clientId && o.screenName === before.observers[i]!.screenName)
+    if (sameConnected && sameObservers) return
+    this.publish({ ...this.snapshot, connected, observers })
   }
 
   private refuse(peer: string, reason: RefusedReason): void {
@@ -320,24 +351,29 @@ export class HostSession extends Subscribable<HostSnapshot> {
   }
 
   private sendToHero(heroId: string, msg: HostMessage): void {
-    for (const [peer, p] of this.peers) if (p.heroId === heroId) this.send(msg, peer)
+    for (const [peer, p] of this.peers) if (p.role === 'player' && p.heroId === heroId) this.send(msg, peer)
   }
 
-  /** Sends each player their projection (one projection serves them all; only "you" differs). */
+  /** Sends each peer their audience's projection (one per audience; only a player's "you" differs). */
   private broadcast(): void {
     const game = this.snapshot.game
     if (!game || !this.peers.size) return
-    const table = fitView(project(game, 'player'))
-    for (const peer of this.peers.keys()) this.sendState(peer, table)
+    const views = new Map<Audience, TableView>()
+    for (const [peer, p] of this.peers) {
+      const audience: Audience = p.role
+      let view = views.get(audience)
+      if (!view) views.set(audience, (view = fitView(project(game, audience))))
+      this.sendState(peer, view)
+    }
   }
 
   private sendState(peer: string, table?: TableView): void {
     const game = this.snapshot.game
     const p = this.peers.get(peer)
     if (!game || !p) return
-    const hero: HeroInGame | undefined = p.heroId ? findHero(game, p.heroId) : undefined
+    const hero: HeroInGame | undefined = p.role === 'player' ? findHero(game, p.heroId) : undefined
     const you = hero?.player ? { heroId: hero.id, since: hero.player.since ?? game.createdAt } : undefined
-    this.send({ v: PROTOCOL_VERSION, type: 'state', room: this.room, version: this.snapshot.version, table: table ?? fitView(project(game, 'player')), gm: this.gm, ...(you ? { you } : {}) }, peer)
+    this.send({ v: PROTOCOL_VERSION, type: 'state', room: this.room, version: this.snapshot.version, table: table ?? fitView(project(game, p.role)), gm: this.gm, ...(you ? { you } : {}) }, peer)
   }
 
   private send(msg: HostMessage, peer: string): void {

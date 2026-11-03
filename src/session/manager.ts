@@ -1,6 +1,6 @@
 /**
  * The device's game session (docs/design/game-table/spec.md, section 10): at most one at a time,
- * either hosting a game (./host.ts) or playing in one (./client.ts). It resumes after a reload
+ * hosting a game (./host.ts), playing in one (./client.ts) or watching one (./watch.ts). It resumes after a reload
  * from what ./storage.ts saved. Not tied to React: ./context.ts shares it with the pages.
  */
 import type { GameStore } from '../game/store'
@@ -12,6 +12,7 @@ import { newRoomCode } from './code'
 import { HostSession, type HostSaved } from './host'
 import type { SessionStore } from './storage'
 import type { Connect } from './transport'
+import { ObserverClient, type WatchingSaved } from './watch'
 import { SAVED_VERSION, type LastGame } from './types'
 
 /** The least time between writes of a joined game's cache. */
@@ -22,6 +23,8 @@ export interface CurrentSession {
   hosting?: HostSession
   /** The hosted game this device is playing in. */
   playing?: PlayerClient
+  /** The hosted game this device is watching. */
+  watching?: ObserverClient
 }
 
 export class SessionManager {
@@ -51,6 +54,11 @@ export class SessionManager {
   /** The name this device's user goes by at the table. */
   name(): string {
     return this.store.loadName()
+  }
+
+  /** The name this screen goes by when watching. */
+  screenName(): string {
+    return this.store.loadScreenName()
   }
 
   /** The last game joined (kept after leaving), to join again without typing. */
@@ -91,6 +99,7 @@ export class SessionManager {
     if (this.current.hosting?.gameId === gameId) return undefined
     this.disconnect()
     this.store.savePlaying(undefined)
+    this.store.saveWatching(undefined)
     this.store.saveName(gm)
     this.set({ hosting: this.newHost({ room: code, gameId, gm: gm.trim() || 'GM', removed: [] }) })
     return undefined
@@ -126,6 +135,7 @@ export class SessionManager {
     if (current && current.info.room === room && current.info.heroSourceId === hero.id && current.getSnapshot().status !== 'refused') return
     this.disconnect()
     this.store.saveHost(undefined)
+    this.store.saveWatching(undefined)
     this.store.saveName(name)
     this.store.saveLastGame({ v: SAVED_VERSION, room, at: this.clock().now.toISOString() })
     const saved: PlayingSaved = { v: 1, room, name: name.trim() || 'A player', heroSourceId: hero.id, sheet: hero }
@@ -141,6 +151,28 @@ export class SessionManager {
     this.set({})
   }
 
+  /** Watches a hosted game on this screen (section 13), leaving any session first. The screen's name is remembered. */
+  watchGame({ room, screenName }: { room: string; screenName: string }): void {
+    const name = screenName.trim()
+    const current = this.current.watching
+    if (current && current.room === room && current.info.screenName === name && current.getSnapshot().status !== 'refused') return
+    this.disconnect()
+    this.store.saveHost(undefined)
+    this.store.savePlaying(undefined)
+    this.store.saveScreenName(name)
+    const saved: WatchingSaved = { v: 1, room, screenName: name }
+    this.store.saveWatching(saved)
+    this.set({ watching: this.newWatching(saved) })
+  }
+
+  /** Stops watching. */
+  stopWatching(): void {
+    if (!this.current.watching) return
+    this.disconnect()
+    this.store.saveWatching(undefined)
+    this.set({})
+  }
+
   noteSeen(key: string): boolean {
     return this.store.noteSeen(key)
   }
@@ -151,16 +183,19 @@ export class SessionManager {
 
   /** Reconnects to the saved session, if there is one and nothing's connected. */
   resume(): void {
-    if (this.current.hosting || this.current.playing) return
+    if (this.current.hosting || this.current.playing || this.current.watching) return
     const host = this.games ? this.store.loadHost() : undefined
     const playing = this.store.loadPlaying()
+    const watching = this.store.loadWatching()
     try {
       if (host) this.set({ hosting: this.newHost(host) })
       else if (playing) this.set({ playing: this.newPlaying(playing) })
+      else if (watching) this.set({ watching: this.newWatching(watching) })
     } catch {
       // A saved session that can't even start would fail on every load: forget it.
       this.store.saveHost(undefined)
       this.store.savePlaying(undefined)
+      this.store.saveWatching(undefined)
     }
   }
 
@@ -172,6 +207,10 @@ export class SessionManager {
 
   private newHost(saved: Omit<HostSaved, 'v'>): HostSession {
     return new HostSession(this.connect, saved, this.games!, this.clock, (s) => this.store.saveHost(s))
+  }
+
+  private newWatching(saved: WatchingSaved): ObserverClient {
+    return new ObserverClient(this.connect, { room: saved.room, clientId: this.store.clientId(), screenName: saved.screenName }, () => this.clock().now)
   }
 
   private newPlaying(saved: PlayingSaved, cached?: Received): PlayerClient {
@@ -230,6 +269,7 @@ export class SessionManager {
     this.flushCache()
     this.current.hosting?.leave()
     this.current.playing?.leave()
+    this.current.watching?.leave()
   }
 
   private set(next: CurrentSession): void {
