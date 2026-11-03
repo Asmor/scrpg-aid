@@ -120,6 +120,10 @@ export interface Challenge extends Visible {
   name: string
   /** Each step, done or not. */
   steps: boolean[]
+  /** From a template: each step's label (empty for none), what it is, and what happens when it's done. */
+  labels?: string[]
+  description?: string
+  whenDone?: string
 }
 
 export interface EnvironmentOnTable extends Visible {

@@ -7180,3 +7180,27 @@ span.gt-step--done {
   flex: 1;
   min-width: 0;
 }
+
+/* A challenge's labeled steps, from a template (docs/design/npcs/spec.md, section 2). */
+.gt-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.25rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gt-step-label--done {
+  color: var(--ui-muted);
+  text-decoration: line-through;
+}
+
+.gt-done {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+}
+
+.gt-group-count {
+  width: 3.5rem;
+}

@@ -10,7 +10,10 @@ import { villainPath } from '../app/route'
 import { ActionIcon, DieIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL } from '../hero/labels'
 import { isDraft } from '../hero/model'
-import { heroType, villainType, toItem, type LibraryItem } from '../library/registry'
+import { heroType, villainType, toItem, type LibraryItem, type LibraryStores } from '../library/registry'
+import { TEMPLATE_TYPES } from '../library/template-types'
+import { useOptionalTemplateStores } from '../app/template-store-context'
+import { MAX_GROUP_SIZE, type MinionTemplate } from '../template/model'
 import { filterItems, matches, type LibraryQuery } from '../library/query'
 import type { SavedSearch } from '../library/saved-searches'
 import { ModForm } from '../play/ModForm'
@@ -230,7 +233,8 @@ export interface BringIn {
   /** Whether the item is on the table: absent, shown, hidden, or there with a library sheet that has changed since (its Update). */
   /** Where a library item is on the table: absent, on it, or hidden. */
   placeOf: (item: LibraryItem) => 'absent' | 'shown' | 'hidden' | 'changed'
-  bringIn: (item: LibraryItem) => void
+  /** Brings in a copy; a minion or lieutenant template with `count` members (its usual group size by default). */
+  bringIn: (item: LibraryItem, count?: number) => void
   /** Opens Update from library for an item whose copy differs. */
   update: (item: LibraryItem) => void
 }
@@ -242,18 +246,23 @@ function BringInTab({ bring }: { bring: BringIn }) {
   const heroes = useStore()
   const villains = useVillainStore()
   const searchStore = useOptionalSavedSearchStore()
+  const templates = useOptionalTemplateStores()
   const [items, setItems] = useState<LibraryItem[] | null>(null)
+  // How many members each minion or lieutenant template brings in, by item key.
+  const [counts, setCounts] = useState<Record<string, string>>({})
   const [searches, setSearches] = useState<SavedSearch[]>([])
   const [error, setError] = useState<string | null>(null)
   const [source, setSource] = useState('all')
   const [text, setText] = useState('')
   useEffect(() => {
     let current = true
-    Promise.all([heroes.list(), villains.list(), searchStore ? searchStore.list() : Promise.resolve({ searches: [] as SavedSearch[] })]).then(
-      ([h, v, s]) => {
+    // The template types only read their own stores.
+    const stores = { heroes, villains, ...(templates ? { templates } : {}) } as unknown as LibraryStores
+    Promise.all([heroes.list(), villains.list(), searchStore ? searchStore.list() : Promise.resolve({ searches: [] as SavedSearch[] }), Promise.all(TEMPLATE_TYPES.map(async (t) => ({ t, list: await t.list(stores) })))]).then(
+      ([h, v, s, lists]) => {
         if (!current) return
         // Drafts aren't ready to play.
-        setItems([...h.heroes.filter((x) => !isDraft(x)).map((x) => toItem(heroType as never, x)), ...v.villains.map((x) => toItem(villainType as never, x))])
+        setItems([...h.heroes.filter((x) => !isDraft(x)).map((x) => toItem(heroType as never, x)), ...v.villains.map((x) => toItem(villainType as never, x)), ...lists.flatMap(({ t, list }) => list.docs.map((d) => toItem(t, d)))])
         setSearches(s.searches)
       },
       (e: unknown) => current && setError(errorText(e)),
@@ -261,23 +270,32 @@ function BringInTab({ bring }: { bring: BringIn }) {
     return () => {
       current = false
     }
-  }, [heroes, villains, searchStore])
+  }, [heroes, villains, searchStore, templates])
   const sources: { value: string; label: string; source: Source }[] = [
     { value: 'all', label: 'All', source: { kind: 'all' } },
     ...searches.map((s) => ({ value: `search:${s.id}`, label: `${s.name} (saved search)`, source: { kind: 'search' as const, search: s } })),
     { value: 'type:hero', label: 'All heroes', source: { kind: 'type', key: 'hero' } },
     { value: 'type:villain', label: 'All villains', source: { kind: 'type', key: 'villain' } },
+    ...TEMPLATE_TYPES.map((t) => ({ value: `type:${t.key}`, label: `All ${t.plural.toLowerCase()}`, source: { kind: 'type' as const, key: t.key } })),
   ]
   const chosen = sources.find((s) => s.value === source)?.source ?? { kind: 'all' }
   const query: LibraryQuery = chosen.kind === 'search' ? chosen.search.query : { text: '', types: chosen.kind === 'type' ? [chosen.key] : [], tags: [] }
+  /** The count typed for a group template (undefined for anything else); null when it isn't 1–20. */
+  const countOf = (i: LibraryItem): number | undefined | null => {
+    if (i.type.key !== 'minion' && i.type.key !== 'lieutenant') return undefined
+    const typed = counts[`${i.type.key}:${i.doc.id}`]
+    if (typed === undefined) return undefined
+    const n = Number(typed)
+    return Number.isInteger(n) && n >= 1 && n <= MAX_GROUP_SIZE ? n : null
+  }
   const fields = (items ?? []).map((i) => ({ item: i, type: i.type.key, name: i.row.name, tags: i.doc.tags }))
   // The source's filter, then the name typed here.
   const shown = filterItems(
     fields.filter((f) => matches(f, query)),
     { text, types: [], tags: [] },
   ).map((f) => f.item)
-  // Only what can arrive hidden: heroes come in one at a time, as themselves.
-  const rest = shown.filter((i) => i.type.key !== 'hero' && bring.placeOf(i) === 'absent')
+  // Only villains: heroes come in one at a time, as themselves, and templates as many times as wanted.
+  const rest = shown.filter((i) => i.type.key === 'villain' && bring.placeOf(i) === 'absent')
   return (
     <div className="gt-tab">
       <label className="field" htmlFor={`${id}-source`}>
@@ -317,8 +335,26 @@ function BringInTab({ bring }: { bring: BringIn }) {
                     ))}
                   </span>
                 </span>
+                {(i.type.key === 'minion' || i.type.key === 'lieutenant') && (
+                  <input
+                    type="number"
+                    className="gt-group-count"
+                    inputMode="numeric"
+                    min={1}
+                    max={MAX_GROUP_SIZE}
+                    aria-label={`How many ${i.row.name}`}
+                    value={counts[`${i.type.key}:${i.doc.id}`] ?? String((i.doc as unknown as MinionTemplate).groupSize)}
+                    onChange={(e) => setCounts((c) => ({ ...c, [`${i.type.key}:${i.doc.id}`]: e.target.value }))}
+                  />
+                )}
                 {place === 'absent' ? (
-                  <button type="button" className="button button--small" aria-label={`Bring in ${i.row.name}`} onClick={() => bring.bringIn(i)}>
+                  <button
+                    type="button"
+                    className="button button--small"
+                    aria-label={`Bring in ${i.row.name}`}
+                    disabled={countOf(i) === null}
+                    onClick={() => bring.bringIn(i, countOf(i) ?? undefined)}
+                  >
                     Bring in
                   </button>
                 ) : place === 'changed' ? (

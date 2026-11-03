@@ -1,0 +1,29 @@
+/**
+ * Templates and the game table (docs/design/npcs/spec.md, sections 2 and 3): what a template
+ * brings in (a fresh copy each time), and the template quick add's "Save to library" makes.
+ * Pure.
+ */
+import type { NpcGroup } from '../game/model'
+import type { Die } from '../rules/types'
+import { createChallengeTemplate, createLieutenantTemplate, createMinionTemplate, type ChallengeTemplate, type LieutenantTemplate, type MinionTemplate } from './model'
+
+/** A group from a minion or lieutenant template: its name, die, kind and actions, with as many members as asked. */
+export function groupFromTemplate(t: MinionTemplate | LieutenantTemplate, kind: NpcGroup['kind'], count: number, hidden: boolean) {
+  return { kind, name: t.name, die: t.die, count, hidden, actions: t.actions, templateId: t.id }
+}
+
+/** A challenge from a template: its steps, their labels, what it is and what happens when it's done. */
+export function challengeFromTemplate(t: ChallengeTemplate, hidden: boolean) {
+  return { name: t.name, steps: t.steps.length, hidden, labels: t.steps.map((s) => s.label), description: t.description, whenDone: t.done, templateId: t.id }
+}
+
+/** Quick add's "Save to library": a minion or lieutenant template from the group added. */
+export function templateFromGroup(group: { kind: NpcGroup['kind']; name: string; die: Die; count: number }): MinionTemplate | LieutenantTemplate {
+  const base = group.kind === 'minions' ? createMinionTemplate() : createLieutenantTemplate()
+  return { ...base, name: group.name.trim() || (group.kind === 'minions' ? 'Minions' : 'Lieutenants'), die: group.die, groupSize: group.count }
+}
+
+/** Quick add's "Save to library": a challenge template with that many unlabeled steps. */
+export function templateFromChallenge(challenge: { name: string; steps: number }): ChallengeTemplate {
+  return { ...createChallengeTemplate(), name: challenge.name.trim() || 'Challenge', steps: Array.from({ length: challenge.steps }, () => ({ label: '' })) }
+}

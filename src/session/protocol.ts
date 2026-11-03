@@ -219,7 +219,7 @@ const tableViewShape = object({
     }),
     50,
   ),
-  challenges: list(object({ id, 'templateId?': id, name: text(MAX_NAME), hidden: boolean, steps: list(boolean, 20) }), 50),
+  challenges: list(object({ id, 'templateId?': id, name: text(MAX_NAME), hidden: boolean, steps: list(boolean, 20), 'labels?': list(text(MAX_NAME), 20), 'description?': text(MAX_TEXT), 'whenDone?': text(MAX_TEXT) }), 50),
   'pendingHits?': list(object({ id, heroId: id, by: text(MAX_NAME), amount: range(0, 1000), at: text(MAX_NAME), 'gmOnly?': oneOf(true) }), 50),
   feed: list(feedEntry, VIEW_FEED),
 })

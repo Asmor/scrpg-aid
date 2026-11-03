@@ -15,6 +15,7 @@ import { currentHealth, describeMod, setHealth, setReactionUsed, type Clock } fr
 import { blockWith, clearDefenses, defensesOf, defenseText, pickDefense, removeDefense, type Defense } from '../play/defense'
 import { buildSheet } from '../creation/sheet'
 import { FEED_LIMIT } from '../session/types'
+import { MAX_NAME, MAX_TEXT } from '../session/protocol'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
 import { heroCopy, MAX_BOXES, MAX_GROUP_SIZE, MAX_STEPS, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type Game, type GameFeedEntry, type HeroInGame, type NpcGroup, type PendingHit, type PlayersSee, type TrackerCounts, type VillainInGame } from './model'
 import { reconcile, reconcileVillain } from './reconcile'
@@ -206,21 +207,33 @@ export function addVillain(game: Game, villain: Villain, clock: Clock, hidden = 
 
 const GROUP_WORD = { minions: ['minion', 'minions'], lieutenants: ['lieutenant', 'lieutenants'] } as const
 
-/** Quick add: a group whose members all start with the same die. */
-export function addGroup(game: Game, group: { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean }, clock: Clock): Game {
+/** Quick add, or a template brought in (docs/design/npcs/spec.md, section 3): a group whose members all start with the same die. */
+export function addGroup(game: Game, group: { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean; actions?: NpcGroup['actions']; templateId?: string }, clock: Clock): Game {
   if (!Number.isInteger(group.count) || group.count < 1 || group.count > MAX_GROUP_SIZE) return game
-  const name = group.name.trim() || (group.kind === 'minions' ? 'Minions' : 'Lieutenants')
+  // Clamped to what the table view carries (../session/protocol.ts): a template's text has no limits of its own.
+  const name = group.name.trim().slice(0, MAX_NAME) || (group.kind === 'minions' ? 'Minions' : 'Lieutenants')
   const members = Array.from({ length: group.count }, (_, i) => ({ id: clock.newId(), n: i + 1, die: group.die, mods: [], acted: false }))
-  const added: NpcGroup = { id: clock.newId(), kind: group.kind, name, hidden: group.hidden, owner: { kind: 'gm' }, actions: 'any', members }
+  const actions = group.actions === undefined || group.actions === 'any' ? 'any' : [...group.actions]
+  const added: NpcGroup = { id: clock.newId(), ...(group.templateId ? { templateId: group.templateId } : {}), kind: group.kind, name, hidden: group.hidden, owner: { kind: 'gm' }, actions, members }
   const word = GROUP_WORD[group.kind][group.count === 1 ? 0 : 1]
   const text = `The GM added ${name} (${group.count} ${group.die} ${word})${group.hidden ? ', hidden from players' : ''}.`
   return log(syncTurnOrder({ ...game, groups: [...game.groups, added] }), clock, text, { gmOnly: group.hidden })
 }
 
-export function addChallenge(game: Game, challenge: { name: string; steps: number; hidden: boolean }, clock: Clock): Game {
+export function addChallenge(game: Game, challenge: { name: string; steps: number; hidden: boolean; labels?: readonly string[]; description?: string; whenDone?: string; templateId?: string }, clock: Clock): Game {
   if (!Number.isInteger(challenge.steps) || challenge.steps < 1 || challenge.steps > MAX_STEPS) return game
-  const name = challenge.name.trim() || 'Challenge'
-  const added: Challenge = { id: clock.newId(), name, hidden: challenge.hidden, steps: Array.from({ length: challenge.steps }, () => false) }
+  const name = challenge.name.trim().slice(0, MAX_NAME) || 'Challenge'
+  const labels = (challenge.labels ?? []).slice(0, challenge.steps).map((l) => l.trim().slice(0, MAX_NAME))
+  const added: Challenge = {
+    id: clock.newId(),
+    ...(challenge.templateId ? { templateId: challenge.templateId } : {}),
+    name,
+    hidden: challenge.hidden,
+    steps: Array.from({ length: challenge.steps }, () => false),
+    ...(labels.some(Boolean) ? { labels } : {}),
+    ...(challenge.description?.trim() ? { description: challenge.description.trim().slice(0, MAX_TEXT) } : {}),
+    ...(challenge.whenDone?.trim() ? { whenDone: challenge.whenDone.trim().slice(0, MAX_TEXT) } : {}),
+  }
   return log({ ...game, challenges: [...game.challenges, added] }, clock, `The GM added the challenge ${name}${challenge.hidden ? ', hidden from players' : ''}.`, { gmOnly: challenge.hidden })
 }
 

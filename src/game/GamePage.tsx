@@ -43,6 +43,12 @@ import { useHostSnapshot, useSession } from '../session/context'
 import { formatAgo } from '../library/when'
 import { newRoomCode } from '../session/code'
 import * as T from './table'
+import { useOptionalTemplateStores } from '../app/template-store-context'
+import type { DocStore } from '../store/doc-store'
+import type { ChallengeTemplate, MinionTemplate } from '../template/model'
+import { challengeFromTemplate, groupFromTemplate, templateFromChallenge, templateFromGroup } from '../template/to-table'
+
+const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 type Dialog =
   | { kind: 'quick'; which: QuickAddKind }
@@ -100,6 +106,9 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const [tab, setTab] = useState<'table' | 'gm' | 'log'>('table')
   const [announce, setAnnounce] = useState('')
   const [hostError, setHostError] = useState<string | null>(null)
+  // Quick add's "Save to library" failing (the item is still on the table).
+  const [saveTemplateError, setSaveTemplateError] = useState<string | null>(null)
+  const templates = useOptionalTemplateStores()
   // Display windows of this game on this device (Open display view) get what observers see.
   const observed = useMemo(() => (game ? project(game, 'observer') : undefined), [game])
   useDisplayBroadcast(id, observed, host?.room)
@@ -273,16 +282,23 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
 
   const bring = {
     placeOf: (item: LibraryItem) => {
+      // Templates can come in again and again.
+      if (item.type.key !== 'hero' && item.type.key !== 'villain') return 'absent' as const
       const kind = item.type.key === 'hero' ? 'hero' : 'villain'
       const copy = T.copyOf(game, kind, item.doc.id)
       if (!copy) return 'absent' as const
       if (!(copy as HeroInGame).player && sheetDiff(copy.sheet, item.doc as unknown as Hero | Villain).length) return 'changed' as const
       return 'hidden' in copy && copy.hidden ? ('hidden' as const) : ('shown' as const)
     },
-    bringIn: (item: LibraryItem) => {
+    bringIn: (item: LibraryItem, count?: number) => {
       // Everything is copied into this game: damage never touches the library or other games.
       if (item.type.key === 'hero') apply((g) => T.addHero(g, item.doc as unknown as Hero, clock()))
       else if (item.type.key === 'villain') apply((g) => T.addVillain(g, item.doc as unknown as Villain, clock()))
+      // A template brings in a fresh copy each time, hidden like everything else.
+      else if (item.type.key === 'minion' || item.type.key === 'lieutenant') {
+        const t = item.doc as unknown as MinionTemplate
+        apply((g) => T.addGroup(g, groupFromTemplate(t, item.type.key === 'minion' ? 'minions' : 'lieutenants', count ?? t.groupSize, true), clock()))
+      } else if (item.type.key === 'challenge') apply((g) => T.addChallenge(g, challengeFromTemplate(item.doc as unknown as ChallengeTemplate, true), clock()))
     },
     update: (item: LibraryItem) => {
       const kind = item.type.key === 'hero' ? 'hero' : 'villain'
@@ -367,6 +383,11 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
             {hostError}
           </p>
         )}
+        {saveTemplateError && (
+          <p role="alert" className="error gt-save-error">
+            Added to the table, but couldn't save it to your library: {saveTemplateError}
+          </p>
+        )}
         {hosted?.error && (
           <p role="alert" className="error gt-save-error">
             {hosted.error}
@@ -415,9 +436,31 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
 
       {dialog?.kind === 'quick' &&
         (dialog.which === 'challenge' ? (
-          <AddChallengeDialog onAdd={(c) => apply((g) => T.addChallenge(g, c, clock()))} onClose={() => setDialog(null)} />
+          <AddChallengeDialog
+            canSave={Boolean(templates)}
+            onAdd={(c, save) => {
+              setSaveTemplateError(null)
+              if (!save || !templates) return apply((g) => T.addChallenge(g, c, clock()))
+              const t = templateFromChallenge(c)
+              apply((g) => T.addChallenge(g, { ...c, templateId: t.id }, clock()))
+              templates.challenges.save(t).catch((e: unknown) => setSaveTemplateError(errorText(e)))
+            }}
+            onClose={() => setDialog(null)}
+          />
         ) : (
-          <AddGroupDialog kind={dialog.which} onAdd={(grp) => apply((g) => T.addGroup(g, grp, clock()))} onClose={() => setDialog(null)} />
+          <AddGroupDialog
+            kind={dialog.which}
+            canSave={Boolean(templates)}
+            onAdd={(grp, save) => {
+              setSaveTemplateError(null)
+              if (!save || !templates) return apply((g) => T.addGroup(g, grp, clock()))
+              const t = templateFromGroup(grp)
+              apply((g) => T.addGroup(g, { ...grp, templateId: t.id }, clock()))
+              const store = grp.kind === 'minions' ? templates.minions : templates.lieutenants
+              ;(store as DocStore<typeof t>).save(t).catch((e: unknown) => setSaveTemplateError(errorText(e)))
+            }}
+            onClose={() => setDialog(null)}
+          />
         ))}
       {dialog?.kind === 'environment' && <EnvironmentDialog {...(env ? { current: env.name } : {})} onSet={(e) => apply((g) => T.setEnvironment(g, e, clock()))} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'scene' && <SceneSetupDialog game={game} onSave={(setup) => apply((g) => T.setupScene(g, setup, clock()))} onClose={() => setDialog(null)} />}

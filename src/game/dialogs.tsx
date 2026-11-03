@@ -55,8 +55,19 @@ function HiddenBox({ value, onChange }: { value: boolean; onChange: (v: boolean)
   )
 }
 
+/** "Save to library" in a quick-add dialog: shown only where the templates can be saved. */
+function SaveBox({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="checkbox">
+      <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
+      Save to library
+    </label>
+  )
+}
+
 /** + Minion or + Lieutenant: one group whose members all have the same die. */
-export function AddGroupDialog({ kind, onAdd, onClose }: { kind: NpcGroup['kind']; onAdd: (group: { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean }) => void; onClose: () => void }) {
+export function AddGroupDialog({ kind, onAdd, onClose, canSave = false }: { kind: NpcGroup['kind']; onAdd: (group: { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean }, save: boolean) => void; onClose: () => void; canSave?: boolean }) {
+  const [save, setSave] = useState(false)
   const [name, setName] = useState('')
   const [die, setDie] = useState<Die>(kind === 'minions' ? 'd6' : 'd8')
   const [count, setCount] = useState('3')
@@ -64,7 +75,7 @@ export function AddGroupDialog({ kind, onAdd, onClose }: { kind: NpcGroup['kind'
   const n = whole(count, 1, MAX_GROUP_SIZE)
   return (
     <Modal title={kind === 'minions' ? 'Add minions' : 'Add lieutenants'} onClose={onClose}>
-      <form className="gt-form" onSubmit={submitWith(() => n !== undefined && (onAdd({ kind, name, die, count: n, hidden }), onClose()))}>
+      <form className="gt-form" onSubmit={submitWith(() => n !== undefined && (onAdd({ kind, name, die, count: n, hidden }, save), onClose()))}>
         <Field label="Name">{(id) => <input id={id} type="text" value={name} placeholder={kind === 'minions' ? 'Minions' : 'Lieutenants'} onChange={(e) => setName(e.target.value)} />}</Field>
         <div className="gt-form__pair">
           <Field label="Die">
@@ -82,24 +93,27 @@ export function AddGroupDialog({ kind, onAdd, onClose }: { kind: NpcGroup['kind'
         </div>
         {n === undefined && <p className="error">How many should be 1 to {MAX_GROUP_SIZE}.</p>}
         <HiddenBox value={hidden} onChange={setHidden} />
+        {canSave && <SaveBox value={save} onChange={setSave} />}
         <Actions submit="Add to table" onCancel={onClose} disabled={n === undefined} />
       </form>
     </Modal>
   )
 }
 
-export function AddChallengeDialog({ onAdd, onClose }: { onAdd: (challenge: { name: string; steps: number; hidden: boolean }) => void; onClose: () => void }) {
+export function AddChallengeDialog({ onAdd, onClose, canSave = false }: { onAdd: (challenge: { name: string; steps: number; hidden: boolean }, save: boolean) => void; onClose: () => void; canSave?: boolean }) {
+  const [save, setSave] = useState(false)
   const [name, setName] = useState('')
   const [steps, setSteps] = useState('3')
   const [hidden, setHidden] = useState(true)
   const n = whole(steps, 1, MAX_STEPS)
   return (
     <Modal title="Add a challenge" onClose={onClose}>
-      <form className="gt-form" onSubmit={submitWith(() => n !== undefined && (onAdd({ name, steps: n, hidden }), onClose()))}>
+      <form className="gt-form" onSubmit={submitWith(() => n !== undefined && (onAdd({ name, steps: n, hidden }, save), onClose()))}>
         <Field label="Name">{(id) => <input id={id} type="text" value={name} placeholder="Challenge" onChange={(e) => setName(e.target.value)} />}</Field>
         <Field label="Number of steps">{(id) => <input id={id} type="number" inputMode="numeric" min={1} max={MAX_STEPS} value={steps} onChange={(e) => setSteps(e.target.value)} />}</Field>
         {n === undefined && <p className="error">Steps should be 1 to {MAX_STEPS}.</p>}
         <HiddenBox value={hidden} onChange={setHidden} />
+        {canSave && <SaveBox value={save} onChange={setSave} />}
         <Actions submit="Add to table" onCancel={onClose} disabled={n === undefined} />
       </form>
     </Modal>

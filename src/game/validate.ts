@@ -38,7 +38,7 @@ const gameShape = object({
       members: arrayOf(object({ id: nonEmptyString, n: integer, die, mods: arrayOf(mod), acted: boolean, 'defenses?': arrayOf(object({ id: nonEmptyString, value: integer, from: string })) })),
     }),
   ),
-  challenges: arrayOf(object({ id: nonEmptyString, 'templateId?': nonEmptyString, name: string, hidden: boolean, steps: arrayOf(boolean) })),
+  challenges: arrayOf(object({ id: nonEmptyString, 'templateId?': nonEmptyString, name: string, hidden: boolean, steps: arrayOf(boolean), 'labels?': arrayOf(string), 'description?': string, 'whenDone?': string })),
   pendingSyncs: arrayOf(object({ heroId: nonEmptyString, sheet: heroShape, at: string })),
   'pendingHits?': arrayOf(object({ id: nonEmptyString, heroId: nonEmptyString, by: string, amount: integer, at: string, 'gmOnly?': oneOf(true) })),
   notes: string,

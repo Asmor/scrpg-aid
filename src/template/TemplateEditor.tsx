@@ -17,6 +17,7 @@ import type { BasicAction, Die } from '../rules/types'
 import type { DocStore } from '../store/doc-store'
 import { MAX_GROUP_SIZE, MAX_STEPS, templateName, type ChallengeTemplate, type LieutenantTemplate, type MinionTemplate, type TemplateAbility, type TemplateBase } from './model'
 import type { TemplateKind } from './serialize'
+import { MAX_NAME, MAX_TEXT } from '../session/protocol'
 
 const ACTIONS: readonly BasicAction[] = ['attack', 'defend', 'boost', 'hinder', 'overcome']
 const ALL_EFFECTS = [...ACTIONS, 'recover' as const]
@@ -201,13 +202,13 @@ function Abilities({ doc, update }: { doc: LieutenantTemplate; update: Update<Li
 function ChallengeFields({ doc, update }: { doc: ChallengeTemplate; update: Update<ChallengeTemplate> }) {
   return (
     <>
-      <Field label="What it is">{(id) => <textarea id={id} rows={2} value={doc.description} onChange={(e) => update((d) => void (d.description = e.target.value))} />}</Field>
+      <Field label="What it is">{(id) => <textarea id={id} rows={2} maxLength={MAX_TEXT} value={doc.description} onChange={(e) => update((d) => void (d.description = e.target.value))} />}</Field>
       <fieldset className="template-steps">
         <legend>Steps</legend>
         <ol>
           {doc.steps.map((s, i) => (
             <li key={i} className="gt-row">
-              <input type="text" aria-label={`Step ${i + 1} (optional label)`} value={s.label} placeholder="Optional label" onChange={(e) => update((d) => void (d.steps[i]!.label = e.target.value))} />
+              <input type="text" maxLength={MAX_NAME} aria-label={`Step ${i + 1} (optional label)`} value={s.label} placeholder="Optional label" onChange={(e) => update((d) => void (d.steps[i]!.label = e.target.value))} />
               <button type="button" className="button button--quiet button--small" aria-label={`Remove step ${i + 1}`} disabled={doc.steps.length <= 1} onClick={() => update((d) => void d.steps.splice(i, 1))}>
                 Remove
               </button>
@@ -218,7 +219,7 @@ function ChallengeFields({ doc, update }: { doc: ChallengeTemplate; update: Upda
           + Add step
         </button>
       </fieldset>
-      <Field label="When it's done">{(id) => <textarea id={id} rows={2} value={doc.done} onChange={(e) => update((d) => void (d.done = e.target.value))} />}</Field>
+      <Field label="When it's done">{(id) => <textarea id={id} rows={2} maxLength={MAX_TEXT} value={doc.done} onChange={(e) => update((d) => void (d.done = e.target.value))} />}</Field>
     </>
   )
 }

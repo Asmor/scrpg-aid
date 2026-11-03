@@ -523,19 +523,46 @@ function ChallengeCard({ challenge, gm }: { challenge: Challenge; gm?: GmControl
         {gm && <MenuButton label={`More for ${challenge.name}`} items={gm.itemMenu(ref, challenge.hidden)} sheets={gm.sheets} />}
       </div>
       {gm && challenge.hidden && <HiddenRow refTo={ref} gm={gm} />}
-      <div className="gt-row">
-        {challenge.steps.map((done, i) =>
-          gm ? (
-            <label key={i} className="gt-step">
-              <input type="checkbox" checked={done} onChange={(e) => gm.setStep(challenge, i, e.target.checked)} />
-              <span className="visually-hidden">Step {i + 1}</span>
-            </label>
-          ) : (
-            <span key={i} className={done ? 'gt-step gt-step--done' : 'gt-step'} role="img" aria-label={`Step ${i + 1}${done ? ', done' : ''}`} />
-          ),
-        )}
-        <span className="gt-sub">{stepsText(challenge)}</span>
-      </div>
+      {challenge.description && <p className="gt-sub">{challenge.description}</p>}
+      {challenge.labels ? (
+        // Labeled steps, from a template: a list with each step's label.
+        <ul className="gt-steps" aria-label="Steps">
+          {challenge.steps.map((done, i) => {
+            const label = challenge.labels![i] || `Step ${i + 1}`
+            return (
+              <li key={i} className="gt-row">
+                {gm ? (
+                  <label className="gt-row">
+                    <input type="checkbox" checked={done} onChange={(e) => gm.setStep(challenge, i, e.target.checked)} />
+                    {label}
+                  </label>
+                ) : (
+                  <span className={done ? 'gt-step-label gt-step-label--done' : 'gt-step-label'}>
+                    {label}
+                    {done && <span className="visually-hidden">, done</span>}
+                  </span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        <div className="gt-row">
+          {challenge.steps.map((done, i) =>
+            gm ? (
+              <label key={i} className="gt-step">
+                <input type="checkbox" checked={done} onChange={(e) => gm.setStep(challenge, i, e.target.checked)} />
+                <span className="visually-hidden">Step {i + 1}</span>
+              </label>
+            ) : (
+              <span key={i} className={done ? 'gt-step gt-step--done' : 'gt-step'} role="img" aria-label={`Step ${i + 1}${done ? ', done' : ''}`} />
+            ),
+          )}
+          <span className="gt-sub">{stepsText(challenge)}</span>
+        </div>
+      )}
+      {challenge.labels && <p className="gt-sub">{stepsText(challenge)}</p>}
+      {challenge.whenDone && challenge.steps.every(Boolean) && <p className="gt-done">{challenge.whenDone}</p>}
     </article>
   )
 }
