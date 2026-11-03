@@ -422,6 +422,8 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
           players={open.heroes.filter((h) => h.player)}
           connected={hostedSnap?.connected ?? new Set()}
           onRemove={(hero) => session.hosting?.removePlayer(hero.id)}
+          observers={hostedSnap?.observers ?? []}
+          onRemoveObserver={(clientId) => session.hosting?.removeObserver(clientId)}
           onStop={() => session.stopHosting()}
           onClose={() => setDialog(null)}
         />

@@ -4,7 +4,7 @@
  * import, the example hero), and the color scheme switch. On phones, Data and the color scheme
  * share one menu, and the section tabs sit under the bar. The Games page shares the header.
  */
-import { gamePath, gamesPath, joinPath, listPath, tablePath } from '../app/route'
+import { gamePath, gamesPath, joinPath, listPath, tablePath, watchPath } from '../app/route'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { useHostSnapshot, useSession } from '../session/context'
 import type { ThemePreference } from '../theme/theme'
@@ -28,7 +28,7 @@ const MenuIcon = () => (
   </svg>
 )
 
-/** What Play together shows: no game, hosting, or playing in one. */
+/** What Play together shows: no game, hosting, playing in one, or watching one. */
 function useGame(heroName: (id: string) => string | undefined) {
   const session = useSession()
   const hosted = useHostSnapshot(session.hosting)
@@ -39,6 +39,9 @@ function useGame(heroName: (id: string) => string | undefined) {
     const info = session.playing.info
     return { kind: 'playing' as const, room: info.room, heroName: heroName(info.heroSourceId) ?? 'your hero', leave: session.leaveGame }
   }
+  if (session.watching) {
+    return { kind: 'watching' as const, room: session.watching.room, stop: session.stopWatching }
+  }
   return { kind: 'none' as const, lastGame: session.lastGame }
 }
 
@@ -48,7 +51,7 @@ export function PlayTogether({ heroName, now, compact = false }: { heroName: (id
   const [popover, bindPopover] = usePopover()
   const game = useGame(heroName)
   const inGame = game.kind !== 'none'
-  const label = inGame ? `In game · ${game.room}` : 'Play together'
+  const label = game.kind === 'watching' ? `Watching · ${game.room}` : inGame ? `In game · ${game.room}` : 'Play together'
   return (
     <span className="popover-anchor">
       <button
@@ -76,6 +79,10 @@ export function PlayTogether({ heroName, now, compact = false }: { heroName: (id
                 Join as a player
               </a>
               <p className="popover__hint">Bring a hero into someone's game.</p>
+              <a className="button" href={watchPath()}>
+                Watch a game
+              </a>
+              <p className="popover__hint">Show the table on a TV or second screen. No hero needed.</p>
               {game.lastGame && (
                 <p className="popover__line">
                   Last game: {game.lastGame.room}
@@ -92,6 +99,24 @@ export function PlayTogether({ heroName, now, compact = false }: { heroName: (id
               <a className="button button--primary" href={gamePath(game.gameId)}>
                 Return to table
               </a>
+            </div>
+          )}
+          {game.kind === 'watching' && (
+            <div className="popover__stack">
+              <p className="popover__line">This screen is watching {game.room}</p>
+              <a className="button button--primary" href={watchPath(game.room)}>
+                Open the display
+              </a>
+              <button
+                type="button"
+                className="button"
+                onClick={() => {
+                  popover.close()
+                  game.stop()
+                }}
+              >
+                Stop watching
+              </button>
             </div>
           )}
           {game.kind === 'playing' && (

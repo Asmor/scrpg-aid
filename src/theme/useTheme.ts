@@ -6,11 +6,15 @@ import {
   systemScheme,
   writePreference,
   type SystemScheme,
+  type Theme,
   type ThemePreference,
 } from './theme'
 
-/** The player's theme preference, applied to the document and kept in step with the system setting. */
-export function useTheme(): [ThemePreference, (preference: ThemePreference) => void] {
+/**
+ * The player's theme preference, applied to the document and kept in step with the system setting.
+ * `systemDefault` overrides what System shows (the display view is dark unless the player chose light).
+ */
+export function useTheme(systemDefault?: Theme): [ThemePreference, (preference: ThemePreference) => void] {
   const [preference, setPreference] = useState<ThemePreference>(() => readPreference())
   const [system, setSystem] = useState<SystemScheme>(() => systemScheme())
 
@@ -23,8 +27,8 @@ export function useTheme(): [ThemePreference, (preference: ThemePreference) => v
   }, [])
 
   useEffect(() => {
-    applyTheme(resolveTheme(preference, system))
-  }, [preference, system])
+    applyTheme(preference === 'system' && systemDefault ? systemDefault : resolveTheme(preference, system))
+  }, [preference, system, systemDefault])
 
   const choose = (next: ThemePreference) => {
     writePreference(next)

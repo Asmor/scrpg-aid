@@ -5,7 +5,8 @@
  * "#/hero/<id>/edit/<step>" a step of its editor ("#/hero/<id>/edit/archetype/<part>" one part of
  * a complex archetype's step), "#/hero/<id>/advancement" its advancement,
  * "#/hero/<id>/play" the game aid, "#/gm"
- * the GM's page for hosting a game, "#/join" (or "#/join/<room code>") joining one, and
+ * the GM's page for hosting a game, "#/join" (or "#/join/<room code>") joining one, "#/watch" (or
+ * "#/watch/<room code>") watching one on a TV, and
  * "#/villain/<id>" a villain's sheet ("#/villain/<id>/edit/<step>" its editor), "#/games" the Games
  * page, and "#/game/<id>" a game's table.
  */
@@ -20,6 +21,8 @@ export type Route =
   | { name: 'game'; id: string }
   | { name: 'games' }
   | { name: 'table'; room: string }
+  /** Watching a hosted game on a TV or second screen; no code yet asks for one. */
+  | { name: 'watch'; room?: string }
   | { name: 'join'; room?: string } | { name: 'hero'; id: string } | { name: 'edit'; id: string; step?: string; part?: string } | { name: 'play'; id: string } | { name: 'advancement'; id: string } | { name: 'notFound' }
 
 export function parseRoute(hash: string): Route {
@@ -53,6 +56,15 @@ export function parseRoute(hash: string): Route {
   if (table) {
     try {
       return { name: 'table', room: decodeURIComponent(table[1]!) }
+    } catch {
+      return { name: 'notFound' }
+    }
+  }
+  const watch = /^\/watch(?:\/([^/]+))?$/.exec(path)
+  if (watch) {
+    if (!watch[1]) return { name: 'watch' }
+    try {
+      return { name: 'watch', room: decodeURIComponent(watch[1]) }
     } catch {
       return { name: 'notFound' }
     }
@@ -142,6 +154,16 @@ export function joinPath(room?: string): string {
 /** The full link players open to join a game, on this same copy of the app. */
 export function joinUrl(room: string): string {
   return `${window.location.origin}${window.location.pathname}${joinPath(room)}`
+}
+
+/** Watching a hosted game (docs/design/game-table/spec.md, section 10). */
+export function watchPath(room?: string): string {
+  return room ? `#/watch/${encodeURIComponent(room)}` : '#/watch'
+}
+
+/** The full link a TV or second screen opens to watch a game. */
+export function watchUrl(room: string): string {
+  return `${window.location.origin}${window.location.pathname}${watchPath(room)}`
 }
 
 export function navigate(path: string): void {

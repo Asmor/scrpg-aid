@@ -62,6 +62,21 @@ describe('useTheme (through the app header)', () => {
     expect(media.listeners.size).toBe(0)
   })
 
+  it('shows the display view dark when the choice is System, but keeps an explicit Light', () => {
+    vi.stubGlobal('matchMedia', fakeMedia('light').matchMedia)
+    window.location.hash = '#/watch'
+    try {
+      const { unmount } = render(<App />)
+      expect(theme()).toBe('dark')
+      unmount()
+      localStorage.setItem(STORAGE_KEY, 'light')
+      render(<App />)
+      expect(theme()).toBe('light')
+    } finally {
+      window.location.hash = ''
+    }
+  })
+
   it('works without matchMedia', () => {
     vi.stubGlobal('matchMedia', undefined)
     render(<App />)

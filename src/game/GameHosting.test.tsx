@@ -111,6 +111,25 @@ describe('hosting from the game table', () => {
     await waitFor(() => expect(screen.queryByRole('article', { name: 'Maya Reyes' })).not.toBeInTheDocument())
   })
 
+  it('lists a watching screen in Invite with the watch link, counts it in the header, and removes it', async () => {
+    const { net } = await setup()
+    const room = await startHosting()
+    const tv = player(net, room)
+    tv.send({ v: 2, type: 'hello', role: 'observer', clientId: 'tv1', screenName: 'Living room TV' })
+    await net.settle()
+    expect(await screen.findByText('0 of 0 players connected · 1 watching')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Invite' }))
+    const invite = within(screen.getByRole('dialog', { name: 'Invite to Thursday game' }))
+    expect(invite.getByRole('button', { name: 'Copy watch link' })).toBeInTheDocument()
+    expect(invite.getByText('Living room TV')).toBeInTheDocument()
+    expect(invite.getByText('watching')).toBeInTheDocument()
+    await userEvent.click(invite.getByRole('button', { name: 'Remove Living room TV' }))
+    await net.settle()
+    await waitFor(() => expect(invite.queryByText('Living room TV')).not.toBeInTheDocument())
+    expect(tv.got.at(-1)).toMatchObject({ type: 'refused', reason: 'removed' })
+    expect(screen.getByText('0 of 0 players connected')).toBeInTheDocument()
+  })
+
   it('applies a player’s action to the table', async () => {
     const { net } = await setup()
     const room = await startHosting()

@@ -1,11 +1,12 @@
 /**
  * Hosting a game from the table (docs/design/game-table/spec.md, section 10, "Invite, join and
  * watch"): starting to host, and the Invite dialog with the code, a QR code of the player link,
- * the link to copy, and who's connected.
+ * the player and watch links to copy, and who's connected (players, and observers' screens).
  */
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import qrcode from 'qrcode-generator'
-import { joinUrl } from '../app/route'
+import { joinUrl, watchUrl } from '../app/route'
+import type { Watcher } from '../session/host'
 import { Modal } from '../components/Modal'
 import { heroDisplayName } from '../hero/model'
 import type { HeroInGame } from './model'
@@ -89,13 +90,17 @@ interface InviteProps {
   players: readonly HeroInGame[]
   connected: ReadonlySet<string>
   onRemove: (hero: HeroInGame) => void
+  /** Screens watching now. */
+  observers: readonly Watcher[]
+  onRemoveObserver: (clientId: string) => void
   onStop: () => void
   onClose: () => void
 }
 
-export function InviteDialog({ room, gm, onRenameGm, gameName, players, connected, onRemove, onStop, onClose }: InviteProps) {
+export function InviteDialog({ room, gm, onRenameGm, gameName, players, connected, onRemove, observers, onRemoveObserver, onStop, onClose }: InviteProps) {
   const id = useId()
   const link = joinUrl(room)
+  const watchLink = watchUrl(room)
   const [name, setName] = useState(gm)
   const { copied, copy } = useCopy()
   const [removing, setRemoving] = useState<HeroInGame | null>(null)
@@ -112,10 +117,13 @@ export function InviteDialog({ room, gm, onRenameGm, gameName, players, connecte
         <button type="button" className="button button--primary" onClick={() => copy('player', link)}>
           {copied?.what === 'player' && copied.ok ? 'Copied' : 'Copy player link'}
         </button>
+        <button type="button" className="button" onClick={() => copy('watch', watchLink)}>
+          {copied?.what === 'watch' && copied.ok ? 'Copied' : 'Copy watch link'}
+        </button>
       </div>
       {copied && !copied.ok && (
         <p className="hint">
-          Couldn't copy it. Select the link and copy it yourself: <span className="gt-invite__link">{link}</span>
+          Couldn't copy it. Select the link and copy it yourself: <span className="gt-invite__link">{copied.what === 'watch' ? watchLink : link}</span>
         </p>
       )}
       <form
@@ -134,7 +142,7 @@ export function InviteDialog({ room, gm, onRenameGm, gameName, players, connecte
         </button>
       </form>
       <h3 className="gt-label">Connected</h3>
-      {players.length === 0 ? (
+      {players.length === 0 && observers.length === 0 ? (
         <p className="gt-sub">No one has joined yet.</p>
       ) : (
         <ul className="gt-invite__people">
@@ -152,6 +160,15 @@ export function InviteDialog({ room, gm, onRenameGm, gameName, players, connecte
               </li>
             )
           })}
+          {observers.map((o) => (
+            <li key={o.clientId} className="gt-row">
+              <span className="gt-grow">{o.screenName}</span>
+              <span className="gt-flag gt-flag--on">watching</span>
+              <button type="button" className="button button--small" aria-label={`Remove ${o.screenName}`} onClick={() => onRemoveObserver(o.clientId)}>
+                Remove
+              </button>
+            </li>
+          ))}
         </ul>
       )}
       {removing && (

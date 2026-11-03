@@ -301,7 +301,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
                 <span className="gt-live-dot" aria-hidden="true" />
                 Hosting · {host.room}
               </span>
-              <span className="gt-sub">{`${players.filter((h) => connected.has(h.player!.clientId)).length} of ${players.length} ${players.length === 1 ? 'player' : 'players'} connected`}</span>
+              <span className="gt-sub">{`${players.filter((h) => connected.has(h.player!.clientId)).length} of ${players.length} ${players.length === 1 ? 'player' : 'players'} connected${hosted?.observers.length ? ` · ${hosted.observers.length} watching` : ''}`}</span>
             </>
           ) : (
             <span className="gt-pill">Not hosting</span>
@@ -442,6 +442,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           players={players}
           connected={connected}
           onRemove={(hero) => host.removePlayer(hero.id)}
+          observers={hosted?.observers ?? []}
+          onRemoveObserver={(clientId) => host.removeObserver(clientId)}
           onStop={() => session.stopHosting()}
           onClose={() => setDialog(null)}
         />

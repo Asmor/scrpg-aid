@@ -460,6 +460,7 @@ describe('the header', () => {
     const pop = within(screen.getByRole('dialog', { name: 'Play together' }))
     expect(pop.getByRole('link', { name: 'Open your GM table' })).toHaveAttribute('href', '#/games')
     expect(pop.getByRole('link', { name: 'Join as a player' })).toHaveAttribute('href', '#/join')
+    expect(pop.getByRole('link', { name: 'Watch a game' })).toHaveAttribute('href', '#/watch')
     expect(pop.getByText(/Last game: K7QX-2MAB, 3 days ago/)).toBeInTheDocument()
     expect(pop.getByRole('link', { name: 'Rejoin' })).toHaveAttribute('href', '#/join/K7QX-2MAB')
   })
@@ -473,6 +474,20 @@ describe('the header', () => {
     const pop = within(screen.getByRole('dialog', { name: 'Play together' }))
     expect(pop.getByText("You're hosting K7QX-2MAB · 0 players connected")).toBeInTheDocument()
     expect(pop.getByRole('link', { name: 'Return to table' })).toHaveAttribute('href', '#/game/thu')
+  })
+
+  it('Play together: while watching', async () => {
+    const storage = memoryStorage()
+    localSessionStore(storage).saveWatching({ v: 1, room: 'K7QX-2MAB', screenName: 'TV' })
+    await standard({ storage })
+    await loaded()
+    await userEvent.click(await screen.findByRole('button', { name: 'Watching · K7QX-2MAB' }))
+    const pop = within(screen.getByRole('dialog', { name: 'Play together' }))
+    expect(pop.getByText('This screen is watching K7QX-2MAB')).toBeInTheDocument()
+    expect(pop.getByRole('link', { name: 'Open the display' })).toHaveAttribute('href', '#/watch/K7QX-2MAB')
+    await userEvent.click(pop.getByRole('button', { name: 'Stop watching' }))
+    expect(await screen.findByRole('button', { name: 'Play together' })).toBeInTheDocument()
+    expect(storage.data.has('scrpg.session.watching')).toBe(false)
   })
 
   it('Play together: while playing a hero', async () => {

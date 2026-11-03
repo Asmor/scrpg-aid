@@ -6609,3 +6609,268 @@ span.gt-step--done {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---- Display view (docs/design/game-table/spec.md, section 13): a 1920×1080 stage scaled to fit ---- */
+
+.dv-window {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.dv-stage {
+  position: absolute;
+  width: 1920px;
+  min-height: 1080px;
+  box-sizing: border-box;
+  padding: 40px 56px;
+  transform-origin: 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  font-size: 24px;
+  line-height: 1.4;
+}
+
+.dv-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.dv-top {
+  display: flex;
+  align-items: flex-end;
+  gap: 48px;
+}
+
+.dv-label {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ui-muted);
+}
+
+.dv-scene,
+.dv-name,
+.dv-hp,
+.dv-round {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.dv-scene {
+  font-size: 64px;
+}
+
+.dv-round {
+  font-size: 44px;
+}
+
+.dv-name {
+  font-size: 38px;
+  line-height: 1.05;
+}
+
+.dv-sub {
+  color: var(--ui-muted);
+  font-size: 22px;
+}
+
+.dv-stage .zone-chip {
+  font-size: 20px;
+  padding: 2px 12px;
+}
+
+.dv-tracker {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.dv-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+}
+
+.dv-box--past {
+  opacity: 0.35;
+}
+
+.dv-box--now {
+  outline: 4px solid var(--ui-text);
+  outline-offset: 3px;
+}
+
+.dv-turns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dv-actor {
+  border: 2px solid var(--ui-border);
+  border-radius: 999px;
+  padding: 8px 24px;
+  font-size: 26px;
+}
+
+.dv-actor--acted {
+  color: var(--ui-muted);
+  background: var(--ui-surface-2);
+}
+
+.dv-actor__state {
+  font-weight: 400;
+  color: var(--ui-muted);
+}
+
+.dv-die {
+  display: inline-flex;
+}
+
+.dv-actor--current {
+  border: 4px solid var(--ui-accent);
+  background: var(--ui-accent-soft);
+  font-weight: 700;
+}
+
+.dv-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.dv-card {
+  background: var(--ui-surface);
+  border: 2px solid var(--ui-border);
+  border-radius: 16px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dv-card--acting {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 0 2px var(--ui-accent);
+}
+
+.dv-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.dv-hp {
+  font-size: 44px;
+  line-height: 1;
+}
+
+.dv-hp small {
+  font-size: 26px;
+  color: var(--ui-muted);
+  font-weight: 600;
+}
+
+.dv-stage .die-icon {
+  height: 44px;
+  width: auto;
+}
+
+.dv-stage .die-icon--inline {
+  height: 26px;
+}
+
+.dv-bar {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--ui-surface-2);
+  overflow: hidden;
+}
+
+.dv-bar span {
+  display: block;
+  height: 100%;
+}
+
+.dv-mods,
+.dv-summary,
+.dv-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dv-summary li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dv-mod {
+  font-size: 20px;
+  border: 2px solid var(--ui-border);
+  background: var(--ui-surface-2);
+  border-radius: 8px;
+  padding: 0 10px;
+}
+
+.dv-members {
+  font-size: 20px;
+  color: var(--ui-muted);
+}
+
+.dv-step {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--ui-muted);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.dv-step--done {
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+}
+
+.dv-footer {
+  display: flex;
+  align-items: baseline;
+  gap: 32px;
+  border-top: 2px solid var(--ui-border);
+  padding-top: 16px;
+  color: var(--ui-muted);
+  font-size: 22px;
+}
+
+.dv-latest {
+  color: var(--ui-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dv-status {
+  color: var(--ui-text);
+  font-weight: 600;
+}
+
+/* The Watch a game form, before the display takes over. */
+.watch-page {
+  max-width: 32rem;
+  margin: 0 auto;
+}

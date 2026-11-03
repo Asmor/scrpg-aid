@@ -21,6 +21,7 @@ import { createDefaultJoinedStore, type JoinedStore } from './game/joined-store'
 import { JoinedStoreContext } from './app/joined-store-context'
 import { PlayerTable } from './game/PlayerTable'
 import { JoinPage } from './session/JoinPage'
+import { WatchPage } from './session/WatchPage'
 import { SessionProvider } from './session/SessionProvider'
 import type { Connect } from './session/transport'
 import type { SessionStore } from './session/storage'
@@ -41,13 +42,14 @@ interface AppProps {
 
 /** The stores, `connect`, `sessionStore`, and `backupTime` are injectable for tests. */
 export default function App({ store: given, villainStore: givenVillains, gameStore: givenGames, joinedStore: givenJoined, searchStore: givenSearches, backupTime, connect, sessionStore }: AppProps) {
-  const [theme, setTheme] = useTheme()
   const [store] = useState(() => given ?? createDefaultStore())
   const [villainStore] = useState(() => givenVillains ?? createDefaultVillainStore())
   const [gameStore] = useState(() => givenGames ?? createDefaultGameStore())
   const [joinedStore] = useState(() => givenJoined ?? createDefaultJoinedStore())
   const [searchStore] = useState(() => givenSearches ?? createDefaultSavedSearchStore())
   const route = useRoute()
+  // The display view is dark unless the player chose light (docs/design/game-table/spec.md, section 13).
+  const [theme, setTheme] = useTheme(route.name === 'watch' ? 'dark' : undefined)
   return (
     <StoreContext.Provider value={store}>
       <VillainStoreContext.Provider value={villainStore}>
@@ -67,6 +69,10 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
       ) : route.name === 'game' ? (
         <div className="app">
           <GamePage key={route.id} id={route.id} />
+        </div>
+      ) : route.name === 'watch' ? (
+        <div className="app">
+          <WatchPage key={route.room ?? ''} room={route.room} />
         </div>
       ) : route.name === 'table' ? (
         <div className="app">
