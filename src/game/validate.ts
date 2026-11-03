@@ -9,6 +9,8 @@ import { villainPlayShape, villainShape } from '../villain/validate'
 const zone = oneOf('green', 'yellow', 'red')
 const actor = object({ kind: oneOf('hero', 'villain', 'group', 'environment'), id: nonEmptyString })
 const mod = object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })
+/** 'any', or a list of basic actions. */
+export const groupActions: Check = (v, path) => (v === 'any' ? undefined : arrayOf(oneOf('attack', 'defend', 'boost', 'hinder', 'overcome'))(v, path))
 const position: Check = (v, path) => integer(v, path) ?? ((v as number) < 0 ? `${path} should be at least 0` : undefined)
 
 const gameShape = object({
@@ -27,10 +29,13 @@ const gameShape = object({
   groups: arrayOf(
     object({
       id: nonEmptyString,
+      'templateId?': nonEmptyString,
       kind: oneOf('minions', 'lieutenants'),
       name: string,
       hidden: boolean,
-      members: arrayOf(object({ id: nonEmptyString, n: integer, die, mods: arrayOf(mod) })),
+      owner: object({ kind: oneOf('gm', 'environment') }),
+      actions: groupActions,
+      members: arrayOf(object({ id: nonEmptyString, n: integer, die, mods: arrayOf(mod), acted: boolean })),
     }),
   ),
   challenges: arrayOf(object({ id: nonEmptyString, name: string, hidden: boolean, steps: arrayOf(boolean) })),

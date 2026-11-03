@@ -12,6 +12,7 @@ import { VIEW_HISTORY, type TableView } from '../game/project'
 import type { Hero } from '../hero/model'
 import { normalizeRoomCode } from './code'
 import { die, heroShape, playStateShape } from '../hero/validate'
+import { groupActions } from '../game/validate'
 import { arrayOf, boolean, integer, isRecord, nonEmptyString, object, oneOf, type Check } from '../shape'
 
 export const PROTOCOL_VERSION = 2
@@ -200,7 +201,19 @@ const tableViewShape = object({
     }),
     50,
   ),
-  groups: list(object({ id, kind: oneOf('minions', 'lieutenants'), name: text(MAX_NAME), hidden: boolean, members: list(object({ id, n: integer, die, mods: list(mod) }), 50) }), 50),
+  groups: list(
+    object({
+      id,
+      'templateId?': id,
+      kind: oneOf('minions', 'lieutenants'),
+      name: text(MAX_NAME),
+      hidden: boolean,
+      owner: object({ kind: oneOf('gm', 'environment') }),
+      actions: groupActions,
+      members: list(object({ id, n: integer, die, mods: list(mod), acted: boolean }), 50),
+    }),
+    50,
+  ),
   challenges: list(object({ id, name: text(MAX_NAME), hidden: boolean, steps: list(boolean, 20) }), 50),
   feed: list(feedEntry, VIEW_FEED),
 })

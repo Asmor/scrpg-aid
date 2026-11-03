@@ -163,7 +163,8 @@ function allActors(game: Game): ActorRef[] {
   return [
     ...game.heroes.map((h) => ({ kind: 'hero' as const, id: h.id })),
     ...game.villains.map((v) => ({ kind: 'villain' as const, id: v.id })),
-    ...game.groups.map((g) => ({ kind: 'group' as const, id: g.id })),
+    // The environment's groups act on its turn, with no entry of their own.
+    ...game.groups.filter((g) => g.owner.kind === 'gm').map((g) => ({ kind: 'group' as const, id: g.id })),
     ...(game.environment ? [{ kind: 'environment' as const, id: game.environment.id }] : []),
   ]
 }
@@ -208,8 +209,8 @@ const GROUP_WORD = { minions: ['minion', 'minions'], lieutenants: ['lieutenant',
 export function addGroup(game: Game, group: { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean }, clock: Clock): Game {
   if (!Number.isInteger(group.count) || group.count < 1 || group.count > MAX_GROUP_SIZE) return game
   const name = group.name.trim() || (group.kind === 'minions' ? 'Minions' : 'Lieutenants')
-  const members = Array.from({ length: group.count }, (_, i) => ({ id: clock.newId(), n: i + 1, die: group.die, mods: [] }))
-  const added: NpcGroup = { id: clock.newId(), kind: group.kind, name, hidden: group.hidden, members }
+  const members = Array.from({ length: group.count }, (_, i) => ({ id: clock.newId(), n: i + 1, die: group.die, mods: [], acted: false }))
+  const added: NpcGroup = { id: clock.newId(), kind: group.kind, name, hidden: group.hidden, owner: { kind: 'gm' }, actions: 'any', members }
   const word = GROUP_WORD[group.kind][group.count === 1 ? 0 : 1]
   const text = `The GM added ${name} (${group.count} ${group.die} ${word})${group.hidden ? ', hidden from players' : ''}.`
   return log(syncTurnOrder({ ...game, groups: [...game.groups, added] }), clock, text, { gmOnly: group.hidden })
@@ -381,6 +382,27 @@ function changeGroup(game: Game, groupId: string, change: (g: NpcGroup) => NpcGr
   return { ...game, groups: game.groups.map((g) => (g.id === groupId ? change(g) : g)) }
 }
 
+/** "1 of 4 acted". */
+export const actedText = (group: Pick<NpcGroup, 'members'>) => `${group.members.filter((m) => m.acted).length} of ${group.members.length} acted`
+
+/** The members ready to act (not acted yet). */
+export const readyMembers = (group: Pick<NpcGroup, 'members'>) => group.members.filter((m) => !m.acted)
+
+/** Every member of the matching groups is ready again (no log line: it's part of a turn starting). */
+function clearActed(game: Game, which: (g: NpcGroup) => boolean): Game {
+  if (!game.groups.some((g) => which(g) && g.members.some((m) => m.acted))) return game
+  return { ...game, groups: game.groups.map((g) => (which(g) ? { ...g, members: g.members.map((m) => (m.acted ? { ...m, acted: false } : m)) } : g)) }
+}
+
+/** The GM marks a member as acted, or not (its ⋯ menu). */
+export function setMemberActed(game: Game, groupId: string, memberId: string, acted: boolean, clock: Clock): Game {
+  const group = findGroup(game, groupId)
+  const member = group?.members.find((m) => m.id === memberId)
+  if (!group || !member || member.acted === acted) return game
+  const next = changeGroup(game, groupId, (g) => ({ ...g, members: g.members.map((m) => (m.id === memberId ? { ...m, acted } : m)) }))
+  return log(next, clock, `The GM marked ${memberName(group, member.n)} as ${acted ? 'acted' : 'not acted'}.`, { gmOnly: group.hidden })
+}
+
 /** Removes a member; the last one gone removes the group and its turn-order entry. */
 export function removeMember(game: Game, groupId: string, memberId: string, clock: Clock, why: 'removed' | 'shrank' = 'removed'): Game {
   const group = findGroup(game, groupId)
@@ -468,12 +490,15 @@ export function turnStrip(game: Pick<Game, 'turn'>): { ref: ActorRef; state: Tur
 
 /**
  * A turn starting: the actor's reaction is cleared (that character's only, not at round start),
- * and when it's the environment's turn, the scene tracker advances.
+ * a group's members are ready again, and when it's the environment's turn, the scene tracker
+ * advances and the environment's groups are ready again.
  */
 function startTurn(game: Game, ref: ActorRef, clock: Clock): Game {
   switch (ref.kind) {
     case 'environment':
-      return advanceTracker(game, clock)
+      return advanceTracker(clearActed(game, (g) => g.owner.kind === 'environment'), clock)
+    case 'group':
+      return clearActed(game, (g) => g.id === ref.id)
     case 'hero':
       return changeHeroPlay(game, ref.id, (p) => setReactionUsed(p, false, clock), clock, false)
     case 'villain':

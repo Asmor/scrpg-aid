@@ -21,7 +21,7 @@
 import { newId, type Hero, type PlayMod, type PlayState } from '../hero/model'
 import { emptyPlay } from '../play/state'
 import type { FeedEntry } from '../session/types'
-import type { Die, Zone } from '../rules/types'
+import type { BasicAction, Die, Zone } from '../rules/types'
 import type { Villain, VillainPlayState } from '../villain/model'
 import { emptyVillainPlay } from '../villain/play'
 
@@ -68,19 +68,32 @@ export interface SyncRequest {
   at: string
 }
 
-/** One minion or lieutenant in a group: its own die and mods. `n` numbers it in its group ("Minion 2") and never changes. */
+/**
+ * One minion or lieutenant in a group: its own die and mods. `n` numbers it in its group
+ * ("Minion 2") and never changes. `acted` is whether it has acted this turn of its group's
+ * (cleared when the group's turn starts, or its environment's).
+ */
 export interface NpcMember {
   id: string
   n: number
   die: Die
   mods: PlayMod[]
+  acted: boolean
 }
 
-/** A GM-controlled group of minions or of lieutenants, with one turn-order entry. */
+/** Who runs a group: the GM (its own turn-order entry), or the environment (it acts on the environment's turn). */
+export type GroupOwner = { kind: 'gm' } | { kind: 'environment' }
+
+/** A group of minions or of lieutenants (docs/design/npcs/spec.md, section 3). A hero's minions stay in that hero's play state. */
 export interface NpcGroup extends Visible {
   id: string
+  /** The library template it came from, if any. */
+  templateId?: string
   kind: 'minions' | 'lieutenants'
   name: string
+  owner: GroupOwner
+  /** The basic actions its members can take; quick add allows any. */
+  actions: 'any' | BasicAction[]
   members: NpcMember[]
 }
 
