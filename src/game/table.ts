@@ -442,14 +442,14 @@ export function setChallengeStep(game: Game, challengeId: string, index: number,
 // ---- Turn order (popcorn) ----
 
 /** Who hasn't acted this round and isn't acting now. */
-export function waiting(game: Game): ActorRef[] {
+export function waiting(game: Pick<Game, 'turn'>): ActorRef[] {
   return game.turn.order.filter((ref) => !sameActor(ref, game.turn.current) && !game.turn.acted.some((a) => sameActor(a, ref)))
 }
 
 export type TurnState = 'acted' | 'current' | 'waiting'
 
 /** The strip: who acted this round in the order they did, then who's acting, then the rest in the fixed order. */
-export function turnStrip(game: Game): { ref: ActorRef; state: TurnState }[] {
+export function turnStrip(game: Pick<Game, 'turn'>): { ref: ActorRef; state: TurnState }[] {
   const acted = game.turn.acted.filter((ref) => game.turn.order.some((o) => sameActor(o, ref)))
   const current = game.turn.current ? [{ ref: game.turn.current, state: 'current' as const }] : []
   return [...acted.map((ref) => ({ ref, state: 'acted' as const })), ...current, ...waiting(game).map((ref) => ({ ref, state: 'waiting' as const }))]
@@ -473,7 +473,7 @@ function startTurn(game: Game, ref: ActorRef, clock: Clock): Game {
 }
 
 /** Whether the round is over: it has started and nobody is left to hand off to. */
-export const roundOver = (game: Game) => game.round > 0 && waiting(game).length === 0
+export const roundOver = (game: Pick<Game, 'turn' | 'round'>) => game.round > 0 && waiting(game).length === 0
 
 /** Whoever is acting hands off to someone who hasn't acted this round. */
 export function handOff(game: Game, to: ActorRef, clock: Clock): Game {

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { advancementPath, editPath, gamePath, gamesPath, partPath, gmPath, heroPath, joinPath, joinUrl, parseRoute, playPath, villainEditPath, villainPath, villainPlayPath } from './route'
+import { advancementPath, editPath, gamePath, gamesPath, partPath, heroPath, joinPath, joinUrl, parseRoute, playPath, tablePath, villainEditPath, villainPath, villainPlayPath } from './route'
+
+describe('the player table route', () => {
+  it('reads a room code, and makes the path', () => {
+    expect(parseRoute('#/table/ABCD-EFGH')).toEqual({ name: 'table', room: 'ABCD-EFGH' })
+    expect(parseRoute('#/table/%E0%A4%A')).toEqual({ name: 'notFound' })
+    expect(tablePath('ABCD-EFGH')).toBe('#/table/ABCD-EFGH')
+  })
+})
 
 describe('routes', () => {
   it('parses the list, a hero, and anything else', () => {
@@ -33,7 +41,7 @@ describe('routes', () => {
   })
 
   it('parses the GM page and joining a game', () => {
-    expect(parseRoute(gmPath)).toEqual({ name: 'gm' })
+    expect(parseRoute('#/gm')).toEqual({ name: 'games' })
     expect(parseRoute(joinPath())).toEqual({ name: 'join' })
     expect(parseRoute(joinPath('ABCD-EFGH'))).toEqual({ name: 'join', room: 'ABCD-EFGH' })
     expect(parseRoute('#/join/%E0%A4%A')).toEqual({ name: 'notFound' })

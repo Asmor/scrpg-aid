@@ -8,7 +8,7 @@ import { stepDie } from '../rules/dice'
 import type { Die, HealthRange } from '../rules/types'
 import type { VillainStatusRule } from '../rules/villain-types'
 import { currentHealth, healthZone, type Clock, type PlayZone } from '../play/state'
-import type { SceneVillain } from '../session/types'
+import type { PlayMod, PlayTwist } from '../hero/model'
 import { villainDisplayName, type Villain, type VillainPlayState } from './model'
 import { buildVillainSheet } from './sheet'
 
@@ -93,8 +93,20 @@ export function resetVillain(): VillainPlayState {
   return emptyVillainPlay()
 }
 
-/** What a game session's table sees of the villain (Phase 5): its Health, zone, status die, mods, and twists. */
-export function villainSummary(villain: Villain, play: VillainPlayState = emptyVillainPlay()): Omit<SceneVillain, 'sharedUpTo'> {
+/** A villain at a glance: its Health, zone, status die, mods and twists (the table's cards are made from it). */
+export interface VillainSummary {
+  id: string
+  name: string
+  health?: number
+  maxHealth?: number
+  zone?: PlayZone
+  statusDie?: Die
+  mods: PlayMod[]
+  twists: PlayTwist[]
+}
+
+/** A villain at a glance, from its sheet and play state. */
+export function villainSummary(villain: Villain, play: VillainPlayState = emptyVillainPlay()): VillainSummary {
   const health = villainHealth(villain, play)
   const current = currentHealth(health, play)
   const zone = villainZone(health, play)

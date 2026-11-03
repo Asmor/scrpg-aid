@@ -5,7 +5,7 @@
  * The villain document is the sheet only: play state lives in the villain's solo game
  * (docs/design/game-table/spec.md, section 12), saved as it changes (./play.ts has the rules).
  */
-import { useEffect, useId, useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { listPath, villainPath } from '../app/route'
 import { ActionIcon, DiceText, DieIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL, PLAY_ZONE_LABEL } from '../hero/labels'
@@ -17,8 +17,7 @@ import { addMod, addTwist, currentHealth, describeMod, removeMod, removeTwist, s
 import { formatFull, formatWhen } from '../play/time'
 import { useTick } from '../play/useTick'
 import { villainDisplayName, type VillainPlayState } from './model'
-import { useGmState, useSession } from '../session/context'
-import { advanceScene, villainSummary, newScene, setChallengeParts, setSceneHeroes, setStatusCount, setWeaknessTier, villainHealth, villainStatusDie, villainZone } from './play'
+import { advanceScene, newScene, setChallengeParts, setSceneHeroes, setStatusCount, setWeaknessTier, villainHealth, villainStatusDie, villainZone } from './play'
 import { buildVillainSheet, villainTraits } from './sheet'
 import { statusSummary } from './status'
 import { useVillainEditor } from './useVillainEditor'
@@ -47,11 +46,6 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
   const [heroesDraft, setHeroesDraft] = useState<string | null>(null)
   const [countDraft, setCountDraft] = useState<string | null>(null)
 
-  // In a game the GM is hosting (Phase 5): the table sees this villain, its history goes to the
-  // feed, and mods players gave it are added here.
-  const session = useSession()
-  const gm = session.gm
-  const gmState = useGmState(gm)
   const loaded = state.status === 'ready' ? state.doc : undefined
   const solo = useSoloGame('villain', loaded, clock)
   const listed = useListedGames()
@@ -59,19 +53,6 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
   const change = (fn: (p: VillainPlayState, c: Clock) => VillainPlayState) => {
     if (copy) solo.apply((g) => changeVillainPlay(g, copy.id, (p) => fn(p, clock()), clock(), false))
   }
-  const inGame = Boolean(gm && gmState?.villains?.some((v) => v.id === id))
-  useEffect(() => {
-    if (!gm || !inGame || !copy) return
-    const given = gm.takeVillainMods(id)
-    if (given.length) {
-      const c = clock()
-      solo.apply((g) => changeVillainPlay(g, copy.id, (p) => given.reduce((q, item) => addMod(q, item.mod, c, { id: item.id, from: item.from }), p), c, false))
-      return
-    }
-    gm.updateVillain(villainSummary(copy.sheet, copy.play))
-    gm.shareVillain(id, copy.play.history)
-    // `solo.apply` and `clock` are new each render, so this runs each render; with nothing new it changes nothing.
-  }, [gm, gmState, inGame, copy, id, solo, clock])
 
   if (state.status !== 'ready' || !copy) {
     return (
@@ -122,7 +103,6 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
         <SoloPlayActions name={villainDisplayName(villain)} clears="mods, twists, counts and the play log are cleared" onStartOver={() => solo.apply(startOverSolo)} />
       </div>
       <AlsoIn name={villainDisplayName(villain)} games={gamesHolding(listed.games ?? [], 'villain', id)} />
-      {inGame && <p className="hint">In your game: the table sees it, and its rolls go to the feed.</p>}
       {solo.saveError && (
         <p role="alert" className="error">
           Your last change couldn't be saved: {solo.saveError}

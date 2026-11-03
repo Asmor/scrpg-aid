@@ -14,20 +14,15 @@ import { ActionIcon, AbilityIcons, AbilityText, DiceText, DieIcon } from '../com
 import { buildSheet } from '../creation/sheet'
 import { modeLimits } from '../creation/format'
 import { ABILITY_TYPE_LABEL, PLAY_ZONE_LABEL, ZONE_LABEL } from '../hero/labels'
-import type { Hero, PlayHistoryEntry, PlayMod, PlayState } from '../hero/model'
+import type { Hero, PlayHistoryEntry, PlayState } from '../hero/model'
 import type { BasicAction, Die, Zone } from '../rules/types'
-import { usePlayerSnapshot, useSession } from '../session/context'
-import { memberName } from '../session/gm'
-import { heroSummary } from '../session/player'
-import { PlayerPanel } from '../session/PlayerPanel'
-import { villainTarget } from '../session/types'
 import { availabilityContext, basicActionBlocked, changesForm, currentForm, dividedForm, formDice, formNoun, formZoneNote, notInDividedForm, playAbilities, playForms, zoneLockNotice, type PlayAbility, type PlayForm } from './forms'
 import { diceChanges, noChanges } from '../creation/dice-changes'
 import type { HeroTrait } from '../creation/traits'
 import { outerLayer, secondaryLayer } from '../creation/layers'
 import { MinionList } from './MinionList'
 import { addMinion, addMinionMod, minionCreation, removeMinion, removeMinionMod, setMinionForm, shrinkMinion, recordMinionRoll } from './minions'
-import { ModForm, type ModTarget } from './ModForm'
+import { ModForm } from './ModForm'
 import { confirmRoll, effectLineAction, rollChange, undoRoll, type RollChange } from './roll'
 import { RollDialog, type FormPicker, type RollSubject } from './RollDialog'
 import {
@@ -39,7 +34,6 @@ import {
   effectiveZone,
   healthZone,
   MAX_HERO_POINTS,
-  noteGivenMod,
   removeMod,
   removeTwist,
   setDividedForm,
@@ -292,42 +286,8 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
   const phone = !useMediaQuery('(min-width: 760px)')
   const [tab, setTab] = useState<PhoneTab>('actions')
 
-  // A game session this hero is playing in (Phase 4).
-  const session = useSession()
-  const player = session.player?.heroId === id ? session.player : undefined
-  const snapshot = usePlayerSnapshot(player)
-  useEffect(() => {
-    if (!player) return
-    // The session's changes (the GM's scene, mods others gave) go into the hero's play state.
-    const next = player.sync(play)
-    if (next) changePlay(() => next)
-    // The table sees the hero, and their history as it happens.
-    player.updateHero(heroSummary(hero, buildSheet(hero), next ?? play))
-    if (snapshot?.status === 'connected') player.share((next ?? play).history)
-  }, [player, snapshot, hero, play, changePlay])
-
   const sheet = buildSheet(hero)
   const change = (fn: (p: PlayState, c: Clock) => PlayState) => changePlay((p) => fn(p, clock()))
-  // In a game, a mod can go to another hero (through the GM).
-  const targets: ModTarget[] =
-    snapshot?.status === 'connected' && player
-      ? [
-          ...(snapshot.state?.members ?? []).filter((m) => m.clientId !== player.clientId && m.hero).map((m) => ({ id: m.clientId, name: memberName(m) })),
-          // Villains in the game take mods too (a Hinder); the GM's browser adds them.
-          ...(snapshot.state?.villains ?? []).map((v) => ({ id: villainTarget(v.id), name: v.name })),
-        ]
-      : []
-  /** Adds a mod to the hero, or gives it to another; false when it couldn't be sent. */
-  const giveOrAdd = (mod: Omit<PlayMod, 'id'>, to?: string): boolean => {
-    if (!to) {
-      change((p, c) => addMod(p, mod, c))
-      return true
-    }
-    const target = targets.find((t) => t.id === to)
-    if (!target || !player?.giveMod(target.id, mod)) return false
-    change((p, c) => noteGivenMod(p, mod, target.name, c))
-    return true
-  }
   const health = currentHealth(sheet, play)
   const own = health === undefined ? undefined : healthZone(sheet, health)
   const zone = effectiveZone(sheet, play)
@@ -420,20 +380,14 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
         )}
       </Card>
 
-      <Card title="Scene" aside={player && <span className="play-card__note">Set by the GM</span>}>
-        {player ? (
-          <p className="play-scene__online">
-            <span className={`zone-chip zone-${scene}`}>{ZONE_LABEL[scene]}</span> Follows the GM's scene tracker
-          </p>
-        ) : (
-          <div className="segmented segmented--fill" role="group" aria-label="Scene zone">
-            {ZONES.map((z) => (
-              <button key={z} type="button" className={scene === z ? `zone-${z}` : undefined} aria-pressed={scene === z} onClick={() => scene !== z && change((p, c) => setSceneZone(p, z, c))}>
-                {ZONE_LABEL[z]}
-              </button>
-            ))}
-          </div>
-        )}
+      <Card title="Scene">
+        <div className="segmented segmented--fill" role="group" aria-label="Scene zone">
+          {ZONES.map((z) => (
+            <button key={z} type="button" className={scene === z ? `zone-${z}` : undefined} aria-pressed={scene === z} onClick={() => scene !== z && change((p, c) => setSceneZone(p, z, c))}>
+              {ZONE_LABEL[z]}
+            </button>
+          ))}
+        </div>
         <div className="status-die-line">
           {die && <DieIcon die={die} />}
           <div>
@@ -575,7 +529,14 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
             ))}
           </ul>
         )}
-        {addingMod && <ModForm targets={targets} onSubmit={(mod, to) => giveOrAdd(mod, to) && setAddingMod(false)} />}
+        {addingMod && (
+          <ModForm
+            onSubmit={(mod) => {
+              change((p, c) => addMod(p, mod, c))
+              setAddingMod(false)
+            }}
+          />
+        )}
       </Card>
 
       <Card
@@ -645,18 +606,6 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
           />
         </Card>
       )}
-
-      <Card title="Game">
-        <PlayerPanel
-          heroId={id}
-          player={session.player}
-          snapshot={snapshot}
-          hosting={Boolean(session.gm)}
-          onLeave={session.leave}
-          lastRoom={session.lastGame?.room}
-          onRejoin={() => session.lastGame && session.join({ ...session.lastGame, heroId: id, sharedUpTo: play.history.at(-1)?.id })}
-        />
-      </Card>
     </>
   )
   const actionCards = (
@@ -713,14 +662,7 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
           creates={rolling.kind === 'ability' ? minionCreation(rolling.text) : undefined}
           minionForms={sheet.minionForms}
           onConfirm={(record, followUps, formChoice, made = []) => {
-            // Mods for other heroes go out first; one whose hero has left can't. A mod for one of the
-            // hero's own minions goes on it.
-            const gifts = followUps
-              .filter((f) => f.to && !f.to.startsWith(MINION_TARGET))
-              .map((f) => {
-                const target = targets.find((t) => t.id === f.to)
-                return { ...f, name: target?.name ?? 'a hero who left', ok: Boolean(target && player?.giveMod(target.id, f.mod)) }
-              })
+            // A mod for one of the hero's own minions goes on it. (Solo Play has no one else to give one to.)
             let undo: RollChange | undefined
             let formBefore: Pick<PlayState, 'form' | 'dividedForm'> = {}
             change((p, c) => {
@@ -736,27 +678,22 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
               for (const f of followUps) if (!f.to) after = addMod(after, f.mod, c)
               for (const f of followUps) if (f.to?.startsWith(MINION_TARGET)) after = addMinionMod(after, f.to.slice(MINION_TARGET.length), f.mod, c)
               for (const m of made) after = addMinion(after, m, c)
-              for (const g of gifts) if (g.ok) after = noteGivenMod(after, g.mod, g.name, c)
               undo = rollChange(p, after, record.title)
               return after
             })
             const usedUp = record.results.flatMap((r) => r.mods).filter((m) => !m.persistent)
-            const given = gifts.filter((g) => g.ok)
-            const failed = gifts.filter((g) => !g.ok)
             setToast({
               text: [
                 'Roll recorded.',
                 usedUp.length ? `Used up: ${usedUp.map(modName).join(', ')}.` : '',
-                ...failed.map((g) => `Couldn't give ${describeMod(g.mod)} to ${g.name}.`),
-                given.length ? `Undo won't take back what you gave ${[...new Set(given.map((g) => g.name))].join(' and ')}.` : '',
               ]
                 .filter(Boolean)
                 .join(' '),
-              // Undo reverses just this roll; in a game the table saw it, so it notes the undo instead.
+              // Undo reverses just this roll.
               undo: () =>
                 undo &&
-                change((p, c) => {
-                  const undone = undoRoll(p, undo!, player ? c : undefined)
+                change((p) => {
+                  const undone = undoRoll(p, undo!)
                   if (formChoice === undefined) return undone
                   // Back to the form or mode it was in: only the one the choice changed.
                   if (formChoice === 'civilian' || formChoice === 'heroic') {
@@ -768,7 +705,7 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
                 }),
             })
           }}
-          targets={[...targets, ...(play.minions ?? []).map((m) => ({ id: `${MINION_TARGET}${m.id}`, name: `${m.name} (your minion)` }))]}
+          targets={(play.minions ?? []).map((m) => ({ id: `${MINION_TARGET}${m.id}`, name: `${m.name} (your minion)` }))}
           random={random}
         />
       )}

@@ -1,30 +1,28 @@
 /**
- * Joining a game as a player (Phase 4): the room code (from the GM's link, or typed in), the
- * password if the game has one, and which hero to play. Then on to that hero's game aid.
+ * Join as a player (docs/design/game-table/spec.md, section 7): the game code (from the GM's link,
+ * or typed in), the player's name (remembered on the device), and Bring a hero, a list of the
+ * player's finished heroes. A hero already in this game rejoins as the game's copy; any other is
+ * copied in when the GM's device takes the hello.
  */
 import { useEffect, useId, useState } from 'react'
-import { listPath, navigate, playPath } from '../app/route'
+import { gamesPath, listPath, navigate, tablePath } from '../app/route'
 import { useStore } from '../app/store-context'
-import { useOptionalGameStore } from '../app/game-store-context'
-import { soloHero } from '../game/solo'
 import { heroDisplayName, isDraft, type Hero } from '../hero/model'
 import { normalizeRoomCode } from './code'
-import { useSession } from './context'
+import { usePlayingSnapshot, useSession } from './context'
+
+/** "Oct 30": the day a hero joined a game. */
+const sinceDate = (at: string) => new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 
 export function JoinPage({ room: given }: { room?: string }) {
   const store = useStore()
-  const gameStore = useOptionalGameStore()
   const session = useSession()
-  // The last entry of each hero's solo play log: what's already been played, so joining doesn't
-  // send it to the table's feed.
-  const [lastPlayed, setLastPlayed] = useState<ReadonlyMap<string, string>>(new Map())
+  const playing = usePlayingSnapshot(session.playing)
   const formId = useId()
   const [heroes, setHeroes] = useState<Hero[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  // The last game joined fills in the code, and its password unless the link is for another room.
-  const last = session.lastGame
-  const [room, setRoom] = useState(given ?? last?.room ?? '')
-  const [password, setPassword] = useState(() => (last && normalizeRoomCode(given ?? last.room) === last.room ? (last.password ?? '') : ''))
+  const [room, setRoom] = useState(given ?? session.lastGame?.room ?? '')
+  const [name, setName] = useState(session.name)
   const [heroId, setHeroId] = useState('')
 
   useEffect(() => {
@@ -39,76 +37,76 @@ export function JoinPage({ room: given }: { room?: string }) {
       },
       (e: unknown) => live && setLoadError(e instanceof Error ? e.message : String(e)),
     )
-    gameStore?.list().then(
-      (list) => {
-        if (!live) return
-        const last = new Map<string, string>()
-        for (const game of list.games) {
-          const copy = soloHero(game)
-          const id = copy?.play.history.at(-1)?.id
-          if (copy && id) last.set(copy.sourceId, id)
-        }
-        setLastPlayed(last)
-      },
-      () => {},
-    )
     return () => {
       live = false
     }
-  }, [store, gameStore])
+  }, [store])
 
   const code = normalizeRoomCode(room)
   const hero = heroes?.find((h) => h.id === heroId)
+  /** When a hero joined this game, if this device knows it's in it. */
+  const since = (h: Hero): string | undefined => {
+    const client = session.playing
+    if (!client || client.info.room !== code || client.info.heroSourceId !== h.id) return undefined
+    return playing?.received?.you?.since ?? playing?.received?.at
+  }
+  const heroSince = hero && since(hero)
+
   return (
-    <div className="play-page">
+    <div className="play-page join-page">
       <p>
-        <a href={listPath}>← All heroes</a>
+        <a href={gamesPath}>← Games</a>
       </p>
       <h2>Join a game</h2>
-      <p>Your GM gives you the room code (or a link with it). Everyone needs to be online.</p>
-      {session.gm && <p className="hint">You’re hosting a game. Joining one ends it.</p>}
+      <p>Your GM gives you the game code, or a link with it. Everyone needs to be online.</p>
+      {session.hosting && <p className="hint">You're hosting a game. Joining one stops hosting it.</p>}
       {loadError && (
         <p role="alert" className="error">
-          Couldn’t load your heroes: {loadError}
-        </p>
-      )}
-      {heroes?.length === 0 && (
-        <p>
-          You have no finished heroes yet. <a href={listPath}>Make one first</a>.
+          Couldn't load your heroes: {loadError}
         </p>
       )}
       <form
         className="play-add"
         onSubmit={(e) => {
           e.preventDefault()
-          if (!code || !hero) return
-          session.join({ room: code, password: password.trim() || undefined, heroId: hero.id, sharedUpTo: lastPlayed.get(hero.id) })
-          navigate(playPath(hero.id))
+          if (!code || !hero || !name.trim()) return
+          session.joinGame({ room: code, name: name.trim(), hero })
+          navigate(tablePath(code))
         }}
       >
         <label className="field" htmlFor={`${formId}-room`}>
-          <span>Room code</span>
+          <span>Game code</span>
           <input id={`${formId}-room`} type="text" autoComplete="off" autoCapitalize="characters" value={room} onChange={(e) => setRoom(e.target.value)} placeholder="ABCD-EFGH" />
         </label>
-        <label className="field" htmlFor={`${formId}-password`}>
-          <span>Password (if the game has one)</span>
-          <input id={`${formId}-password`} type="text" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} />
+        {room.trim() && !code && <p className="hint">A game code is eight letters and numbers, like ABCD-EFGH.</p>}
+        <label className="field" htmlFor={`${formId}-name`}>
+          <span>Your name (everyone at the table sees it)</span>
+          <input id={`${formId}-name`} type="text" autoComplete="nickname" maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
         </label>
-        <label className="field" htmlFor={`${formId}-hero`}>
-          <span>Hero</span>
-          <select id={`${formId}-hero`} value={heroId} onChange={(e) => setHeroId(e.target.value)} disabled={!heroes?.length}>
-            {heroes?.map((h) => (
-              <option key={h.id} value={h.id}>
-                {heroDisplayName(h)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="submit" className="button button--primary" disabled={!code || !hero}>
-          Join
+        <fieldset className="join-heroes">
+          <legend>Bring a hero</legend>
+          {heroes?.length === 0 && (
+            <p>
+              You have no finished heroes yet. <a href={listPath}>Make one first</a>.
+            </p>
+          )}
+          {heroes?.map((h) => {
+            const at = since(h)
+            return (
+              <label key={h.id} className="join-hero">
+                <input type="radio" name={`${formId}-hero`} checked={h.id === heroId} onChange={() => setHeroId(h.id)} />
+                <span>
+                  <strong>{heroDisplayName(h)}</strong>
+                  {at && <span className="gt-sub"> · in this game since {sinceDate(at)}</span>}
+                </span>
+              </label>
+            )
+          })}
+        </fieldset>
+        <button type="submit" className="button button--primary" disabled={!code || !hero || !name.trim()}>
+          {hero ? `${heroSince ? 'Rejoin' : 'Join'} with ${heroDisplayName(hero)}` : 'Join'}
         </button>
       </form>
-      {room.trim() && !code && <p className="hint">A room code is eight letters and numbers, like ABCD-EFGH.</p>}
     </div>
   )
 }

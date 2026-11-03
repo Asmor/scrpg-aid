@@ -118,6 +118,23 @@ describe('hosting a game', () => {
     expect(alex.last('state')!.table.heroes[0]!.play.heroPoints).toBe(1)
   })
 
+  it('answers an action sent again without applying it twice', async () => {
+    const { net, host } = await setup()
+    const alex = client(net)
+    alex.send(hello('c1'))
+    await net.settle()
+    const heroId = host.game!.heroes[0]!.id
+    const action = { v: 2, type: 'action', id: 'a1', heroId, action: { kind: 'heroPoints', by: 1 }, basedOn: 0 }
+    alex.send(action)
+    alex.send(action)
+    await net.settle()
+    expect(host.game!.heroes[0]!.play.heroPoints).toBe(1)
+    expect(alex.got.filter((m) => m.type === 'result')).toEqual([
+      { v: 2, type: 'result', id: 'a1', ok: true },
+      { v: 2, type: 'result', id: 'a1', ok: true },
+    ])
+  })
+
   it("refuses an action with a reason, and one for someone else's hero", async () => {
     const { net, host } = await setup()
     const alex = client(net)

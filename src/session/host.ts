@@ -15,10 +15,13 @@ import type { GameStore } from '../game/store'
 import { addHero, findHero, removeFromTable, updateSheet, withLog, GM } from '../game/table'
 import { heroDisplayName, type Hero } from '../hero/model'
 import type { Clock } from '../play/state'
-import { Subscribable } from './controller'
+import { Subscribable } from './subscribable'
 import { fitView, messageVersion, PLAYER_LIMIT, PROTOCOL_VERSION, readClientMessage, type ClientMessage, type HostMessage, type RefusedReason } from './protocol'
 import { quietAfterLeave, type Connect, type Transport } from './transport'
 import { arrayOf, nonEmptyString, object, oneOf, string } from '../shape'
+
+/** How many action results to remember, for answering an action sent again. */
+const RESULTS_KEPT = 500
 
 /** What the GM's device saves to pick hosting back up after a reload. */
 export interface HostSaved {
@@ -69,6 +72,8 @@ export class HostSession extends Subscribable<HostSnapshot> {
   private peers = new Map<string, Peer>()
   private removed: Set<string>
   private versions: FieldVersions = {}
+  /** Recent results by "<client id>:<action id>": an action sent again (Try again) is answered, never applied twice. */
+  private results = new Map<string, { ok: true } | { ok: false; reason: string }>()
   private waiting: Waiting[] | undefined = []
   /** Saves happen one after another, in order. */
   private saving: Promise<void> = Promise.resolve()
@@ -233,12 +238,23 @@ export class HostSession extends Subscribable<HostSnapshot> {
   private action(msg: Extract<ClientMessage, { type: 'action' }>, from: Peer, peer: string): void {
     const game = this.snapshot.game!
     const reply = (result: { ok: true } | { ok: false; reason: string }) => this.send({ v: PROTOCOL_VERSION, type: 'result', id: msg.id, ...result } as HostMessage, peer)
-    if (!this.owns(from, msg.heroId)) return reply({ ok: false, reason: "that hero isn't yours" })
+    const key = `${from.clientId}:${msg.id}`
+    const known = this.results.get(key)
+    if (known) {
+      this.sendState(peer)
+      return reply(known)
+    }
+    const remember = (r: { ok: true } | { ok: false; reason: string }) => {
+      this.results.set(key, r)
+      if (this.results.size > RESULTS_KEPT) this.results.delete(this.results.keys().next().value!)
+      reply(r)
+    }
+    if (!this.owns(from, msg.heroId)) return remember({ ok: false, reason: "that hero isn't yours" })
     const result = applyHeroAction(game, msg.heroId, msg.action, { basedOn: msg.basedOn, versions: this.versions }, this.clock())
-    if (!result.ok) return reply(result)
+    if (!result.ok) return remember({ ok: false, reason: result.reason })
     // The new state first, so the result arrives with the value already updated.
     this.apply(() => result.game)
-    reply({ ok: true })
+    remember({ ok: true })
   }
 
   private syncRequest(msg: Extract<ClientMessage, { type: 'syncRequest' }>, from: Peer): void {

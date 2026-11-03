@@ -17,7 +17,7 @@ import { GameStoreContext } from './app/game-store-context'
 import { createDefaultGameStore, type GameStore } from './game/store'
 import { GamePage } from './game/GamePage'
 import { GamesPage } from './game/GamesPage'
-import { GmPage } from './session/GmPage'
+import { PlayerTable } from './game/PlayerTable'
 import { JoinPage } from './session/JoinPage'
 import { SessionProvider } from './session/SessionProvider'
 import type { Connect } from './session/transport'
@@ -63,6 +63,10 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
         <div className="app">
           <GamePage key={route.id} id={route.id} />
         </div>
+      ) : route.name === 'table' ? (
+        <div className="app">
+          <PlayerTable key={route.room} room={route.room} />
+        </div>
       ) : (
       <div className="app">
         <header className="app-header">
@@ -79,7 +83,6 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
           {(route.name === 'hero' || route.name === 'play') && <HeroPage key={route.id} id={route.id} mode={route.name === 'play' ? 'play' : 'sheet'} />}
           {route.name === 'edit' && <HeroEditor key={route.id} id={route.id} step={route.step} part={route.part} />}
           {route.name === 'advancement' && <AdvancementPage key={route.id} id={route.id} />}
-          {route.name === 'gm' && <GmPage />}
           {route.name === 'join' && <JoinPage key={route.room ?? ''} room={route.room} />}
           {route.name === 'notFound' && (
             <p role="alert">

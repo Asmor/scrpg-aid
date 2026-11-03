@@ -1,23 +1,23 @@
 /**
- * The browser's game session (Phase 4): at most one at a time, either the GM's or a player's.
- * It resumes after a reload from what ./storage.ts saved. Not tied to React: ./context.ts
- * shares it with the pages.
+ * The device's game session (docs/design/game-table/spec.md, section 10): at most one at a time,
+ * either hosting a game (./host.ts) or playing in one (./client.ts). It resumes after a reload
+ * from what ./storage.ts saved. Not tied to React: ./context.ts shares it with the pages.
  */
-import type { Clock } from '../play/state'
-import { newRoomCode } from './code'
-import { GmSession, PlayerSession } from './controller'
-import { HostSession } from './host'
 import type { GameStore } from '../game/store'
+import type { Hero } from '../hero/model'
+import type { Clock } from '../play/state'
+import { PlayerClient, type PlayingSaved } from './client'
+import { newRoomCode } from './code'
+import { HostSession, type HostSaved } from './host'
 import type { SessionStore } from './storage'
 import type { Connect } from './transport'
-import { SAVED_VERSION, type LastGame, type PlayerSaved } from './types'
-import type { HostSaved } from './host'
+import { SAVED_VERSION, type LastGame } from './types'
 
 export interface CurrentSession {
-  gm?: GmSession
-  player?: PlayerSession
-  /** The game this device is hosting (the game table, Phase 2). */
+  /** The game this device is hosting. */
   hosting?: HostSession
+  /** The hosted game this device is playing in. */
+  playing?: PlayerClient
 }
 
 export class SessionManager {
@@ -35,9 +35,22 @@ export class SessionManager {
     this.games = games
   }
 
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  getSnapshot = (): CurrentSession => this.current
+
   /** The name this device's user goes by at the table. */
   name(): string {
     return this.store.loadName()
+  }
+
+  /** The last game joined (kept after leaving), to join again without typing. */
+  lastGame(): Omit<LastGame, 'v' | 'password'> | undefined {
+    const game = this.store.loadLastGame()
+    return game && { room: game.room, ...(game.at ? { at: game.at } : {}) }
   }
 
   /** Starts hosting a game as `gm`, leaving any session first. */
@@ -45,13 +58,12 @@ export class SessionManager {
     if (!this.games) return
     if (this.current.hosting?.gameId === gameId) return
     this.disconnect()
-    this.store.saveGm(undefined)
-    this.store.savePlayer(undefined)
+    this.store.savePlaying(undefined)
     this.store.saveName(gm)
     this.set({ hosting: this.newHost({ room: newRoomCode(), gameId, gm: gm.trim() || 'GM', removed: [] }) })
   }
 
-  /** Stops hosting; the game stays as it is. */
+  /** Stops hosting; the game stays as it is. Resolves once its last change is saved. */
   stopHosting(): Promise<void> {
     const host = this.current.hosting
     if (!host) return Promise.resolve()
@@ -63,38 +75,47 @@ export class SessionManager {
     })
   }
 
-  private newHost(saved: Omit<HostSaved, 'v'>): HostSession {
-    return new HostSession(this.connect, saved, this.games!, this.clock, (s) => this.store.saveHost(s))
+  /** Joins a hosted game as a player with one hero, leaving any session first. */
+  joinGame({ room, name, hero }: { room: string; name: string; hero: Hero }): void {
+    const current = this.current.playing
+    if (current && current.info.room === room && current.info.heroSourceId === hero.id && current.getSnapshot().status !== 'refused') return
+    this.disconnect()
+    this.store.saveHost(undefined)
+    this.store.saveName(name)
+    this.store.saveLastGame({ v: SAVED_VERSION, room, at: this.clock().now.toISOString() })
+    const saved: PlayingSaved = { v: 1, room, name: name.trim() || 'A player', heroSourceId: hero.id, sheet: hero }
+    this.store.savePlaying(saved)
+    this.set({ playing: this.newPlaying(saved) })
   }
 
-  subscribe = (listener: () => void): (() => void) => {
-    this.listeners.add(listener)
-    return () => this.listeners.delete(listener)
+  /** Leaves the game being played: the hero stays at the table, shown as disconnected. */
+  leaveGame(): void {
+    if (!this.current.playing) return
+    this.current.playing.leave()
+    this.store.savePlaying(undefined)
+    this.set({})
   }
 
-  getSnapshot = (): CurrentSession => this.current
+  noteSeen(key: string): boolean {
+    return this.store.noteSeen(key)
+  }
 
-  /** The last game joined (kept after leaving), to join again without typing. */
-  lastGame(): Omit<LastGame, 'v'> | undefined {
-    const game = this.store.loadLastGame()
-    return game && { room: game.room, ...(game.password ? { password: game.password } : {}), ...(game.at ? { at: game.at } : {}) }
+  markNoteSeen(key: string): void {
+    this.store.markNoteSeen(key)
   }
 
   /** Reconnects to the saved session, if there is one and nothing's connected. */
   resume(): void {
-    if (this.current.gm || this.current.player || this.current.hosting) return
-    const gm = this.store.loadGm()
-    const player = this.store.loadPlayer()
+    if (this.current.hosting || this.current.playing) return
     const host = this.games ? this.store.loadHost() : undefined
+    const playing = this.store.loadPlaying()
     try {
       if (host) this.set({ hosting: this.newHost(host) })
-      else if (gm) this.set({ gm: new GmSession(this.connect, gm, this.clock, (s) => this.store.saveGm(s)) })
-      else if (player) this.set({ player: new PlayerSession(this.connect, player, this.clock, (s) => this.store.savePlayer(s)) })
+      else if (playing) this.set({ playing: this.newPlaying(playing) })
     } catch {
       // A saved session that can't even start would fail on every load: forget it.
-      this.store.saveGm(undefined)
-      this.store.savePlayer(undefined)
       this.store.saveHost(undefined)
+      this.store.savePlaying(undefined)
     }
   }
 
@@ -104,40 +125,30 @@ export class SessionManager {
     this.set({})
   }
 
-  /** Starts hosting a new game, leaving any session first. */
-  host(password?: string): void {
-    this.disconnect()
-    this.store.savePlayer(undefined)
-    this.store.saveHost(undefined)
-    this.set({ gm: new GmSession(this.connect, { room: newRoomCode(), ...(password ? { password } : {}) }, this.clock, (s) => this.store.saveGm(s)) })
+  private newHost(saved: Omit<HostSaved, 'v'>): HostSession {
+    return new HostSession(this.connect, saved, this.games!, this.clock, (s) => this.store.saveHost(s))
   }
 
-  /** Joins a game as a player with one hero, leaving any session first. */
-  join({ room, password, heroId, sharedUpTo }: { room: string; password?: string; heroId: string; sharedUpTo?: string }): void {
-    // Already in this game with this hero: carry on, keeping what's been shared and added.
-    const current = this.current.player
-    if (current && current.room === room && current.heroId === heroId && current.password === password) return
-    this.disconnect()
-    this.store.saveGm(undefined)
-    this.store.saveHost(undefined)
-    this.store.saveLastGame({ v: SAVED_VERSION, room, ...(password ? { password } : {}), at: this.clock().now.toISOString() })
-    const saved: PlayerSaved = { v: SAVED_VERSION, room, ...(password ? { password } : {}), clientId: this.store.clientId(), heroId, ...(sharedUpTo ? { sharedUpTo } : {}), applied: [] }
-    this.set({ player: new PlayerSession(this.connect, saved, this.clock, (s) => this.store.savePlayer(s)) })
-  }
-
-  /** Leaves (or, for the GM, ends) the session, forgetting it. */
-  leave(): void {
-    this.disconnect()
-    this.store.saveGm(undefined)
-    this.store.savePlayer(undefined)
-    this.store.saveHost(undefined)
-    this.set({})
+  private newPlaying(saved: PlayingSaved): PlayerClient {
+    return new PlayerClient(
+      this.connect,
+      { room: saved.room, clientId: this.store.clientId(), name: saved.name, heroSourceId: saved.heroSourceId, sheet: saved.sheet },
+      {
+        ...(saved.syncWaiting ? { syncWaiting: true } : {}),
+        // A sync request waiting for the GM is remembered across reloads.
+        onSyncWaiting: (waiting) => {
+          const now = this.store.loadPlaying()
+          if (now?.room !== saved.room) return
+          const { syncWaiting: _, ...rest } = now
+          this.store.savePlaying(waiting ? { ...rest, syncWaiting: true } : rest)
+        },
+      },
+    )
   }
 
   private disconnect(): void {
-    this.current.gm?.leave()
-    this.current.player?.leave()
     this.current.hosting?.leave()
+    this.current.playing?.leave()
   }
 
   private set(next: CurrentSession): void {

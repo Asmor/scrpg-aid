@@ -17,12 +17,10 @@ import { heroDisplayName, isDraft, newId, type Hero } from '../hero/model'
 import { PopoverGroup, type MenuItem } from '../library/Popover'
 import type { LibraryItem } from '../library/registry'
 import { formatAgoInline } from '../library/when'
-import { formDice } from '../play/forms'
-import { currentHealth, effectiveZone, statusDieFor, type Clock } from '../play/state'
+import type { Clock } from '../play/state'
 import { useTick } from '../play/useTick'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
-import { villainHealth, villainSummary } from '../villain/play'
-import { buildVillainSheet } from '../villain/sheet'
+import { villainHealth } from '../villain/play'
 import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, SceneSetupDialog, TwistDialog, UpdateDialog } from './dialogs'
 import { GmScreen, type GroupActions, type QuickAddKind } from './GmScreen'
 import { applyHeroChange, type HeroChange } from './hero-changes'
@@ -33,6 +31,8 @@ import { TableCenter, TableLog, ZoneChip, type GmControls, type HeroView, type V
 import { useDocMap } from './useDocMap'
 import { useGameEditor } from './useGameEditor'
 import { InviteDialog, StartHostingDialog } from './hosting'
+import { project } from './project'
+import { heroView, villainView } from './views'
 import { useHostSnapshot, useSession } from '../session/context'
 import { formatAgo } from '../library/when'
 import * as T from './table'
@@ -153,32 +153,9 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
 
   // ---- What the cards show ----
 
-  const heroes: HeroView[] = game.heroes.map((h) => {
-    const sheet = buildSheet(h.sheet)
-    const play = T.heroPlayInScene(game, h.play)
-    const heroZone = effectiveZone(sheet, play)
-    const statusDie = statusDieFor(formDice(h.sheet, sheet, play), heroZone)
-    const health = currentHealth(sheet, play)
-    return {
-      ref: { kind: 'hero' as const, id: h.id },
-      name: heroDisplayName(h.sheet),
-      sub: h.player ? h.player.name || 'A player' : "GM's hero",
-      ...(h.player && !connected.has(h.player.clientId) ? { disconnected: true } : {}),
-      ...(game.pendingSyncs.some((r) => r.heroId === h.id) ? { syncRequested: true } : {}),
-      ...(heroZone ? { zone: heroZone } : {}),
-      ...(health !== undefined ? { health } : {}),
-      ...(sheet.maxHealth !== undefined ? { maxHealth: sheet.maxHealth } : {}),
-      ...(statusDie ? { statusDie } : {}),
-      mods: play.mods,
-      minions: (play.minions ?? []).map((m) => ({ id: m.id, name: m.name, die: m.die })),
-      reactionUsed: play.reactionUsed,
-    }
-  })
-
-  const villains: VillainView[] = game.villains.map((v) => {
-    const { id: _, twists: _t, name, ...shown } = villainSummary(v.sheet, v.play)
-    return { ref: { kind: 'villain' as const, id: v.id }, name, hidden: v.hidden, playersSee: v.playersSee, ...shown, kind: buildVillainSheet(v.sheet).major ? 'Major villain' : 'Minor villain' }
-  })
+  const table = project(game, 'gm')
+  const heroes: HeroView[] = game.heroes.map((h) => heroView(h, game, { disconnected: Boolean(h.player && !connected.has(h.player.clientId)), syncRequested: game.pendingSyncs.some((r) => r.heroId === h.id) }))
+  const villains: VillainView[] = table.villains.map(villainView)
 
   // ---- The GM's controls ----
 
@@ -297,7 +274,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       random={random}
     />
   )
-  const center = <TableCenter game={game} heroes={heroes} villains={villains} now={now} gm={gm} hideLog={phone} />
+  const center = <TableCenter game={table} heroes={heroes} villains={villains} now={now} gm={gm} hideLog={phone} />
   const saveError = editor.saveError
   const details = `${game.round > 0 ? `Round ${game.round}` : 'Not started'} · ${sceneDisplayName(game)}`
 

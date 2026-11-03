@@ -13,7 +13,8 @@ import { modName, type PlayZone } from '../play/state'
 import { formatFull, formatWhen } from '../play/time'
 import type { Die } from '../rules/types'
 import { sceneDisplayName, type ActorRef, type Challenge, type Game, type GameFeedEntry, type NpcGroup, type PlayersSee } from './model'
-import { actorKey, boxLabel, groupSummary, isHidden, itemName, memberLabel, memberName, roundOver, sameActor, sceneZone, stepsText, turnStrip, waiting, type ItemRef } from './table'
+import { actorKey, boxLabel, groupSummary, memberLabel, memberName, roundOver, sameActor, sceneZone, stepsText, turnStrip, waiting, type ItemRef } from './table'
+import { heroOnTableName, viewHidden, viewName, type TableView } from './project'
 import { Modal } from '../components/Modal'
 
 /** What a hero's card shows. */
@@ -151,7 +152,7 @@ function PlayersSeeMenu({ villain, gm }: { villain: VillainView; gm: GmControls 
 // ---- The scene ----
 
 /** The scene tracker: buttons for the GM, an image for everyone else (and on the Games page). */
-export function Tracker({ game, gm }: { game: Game; gm?: GmControls }) {
+export function Tracker({ game, gm }: { game: Pick<Game, 'scene'>; gm?: GmControls }) {
   const { tracker, position } = game.scene
   if (!gm) {
     return (
@@ -178,7 +179,7 @@ export function Tracker({ game, gm }: { game: Game; gm?: GmControls }) {
   )
 }
 
-function SceneCard({ game, gm }: { game: Game; gm?: GmControls }) {
+function SceneCard({ game, gm }: { game: Pick<TableView, 'scene' | 'environment'>; gm?: GmControls }) {
   const zone = sceneZone(game)
   const env = game.environment
   return (
@@ -222,12 +223,12 @@ function SceneCard({ game, gm }: { game: Game; gm?: GmControls }) {
 
 // ---- Turn order ----
 
-function TurnCard({ game, gm }: { game: Game; gm?: GmControls }) {
+function TurnCard({ game, gm }: { game: TableView; gm?: GmControls }) {
   const strip = turnStrip(game)
   const [askFirst, setAskFirst] = useState(false)
   const name = (ref: ActorRef) => {
-    const n = itemName(game, ref)
-    return gm && isHidden(game, ref) ? `${n} (hidden)` : n
+    const n = viewName(game, ref, heroOnTableName)
+    return gm && viewHidden(game, ref) ? `${n} (hidden)` : n
   }
   const current = game.turn.current
   const over = roundOver(game)
@@ -548,7 +549,8 @@ export function TableLog({ entries, now, gm }: { entries: readonly GameFeedEntry
 }
 
 interface CenterProps {
-  game: Game
+  /** The game as this audience sees it (the GM's: everything). */
+  game: TableView
   heroes: readonly HeroView[]
   villains: readonly VillainView[]
   now: Date

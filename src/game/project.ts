@@ -118,3 +118,20 @@ export function viewName(view: Pick<TableView, 'heroes' | 'villains' | 'groups' 
 
 /** Whether an actor is in the view's turn order. */
 export const inOrder = (view: Pick<TableView, 'turn'>, ref: ActorRef) => view.turn.order.some((o) => sameActor(o, ref))
+
+/** Whether an actor is hidden in a view (the GM's; players' views have no hidden actors). Missing counts as hidden. */
+export function viewHidden(view: Pick<TableView, 'heroes' | 'villains' | 'groups' | 'environment'>, ref: ActorRef): boolean {
+  switch (ref.kind) {
+    case 'hero':
+      return !view.heroes.some((h) => h.id === ref.id)
+    case 'villain':
+      return view.villains.find((v) => v.id === ref.id)?.hidden ?? true
+    case 'group':
+      return view.groups.find((g) => g.id === ref.id)?.hidden ?? true
+    case 'environment':
+      return view.environment?.id === ref.id ? view.environment.hidden : true
+  }
+}
+
+/** A hero's name in a view. */
+export const heroOnTableName = (h: Pick<HeroOnTable, 'sheet'>) => h.sheet.details.name.trim() || 'Unnamed hero'

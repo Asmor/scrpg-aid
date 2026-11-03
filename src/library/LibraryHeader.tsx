@@ -4,9 +4,9 @@
  * import, the example hero), and the color scheme switch. On phones, Data and the color scheme
  * share one menu, and the section tabs sit under the bar. The Games page shares the header.
  */
-import { gamesPath, gmPath, joinPath, listPath, playPath } from '../app/route'
+import { gamePath, gamesPath, joinPath, listPath, tablePath } from '../app/route'
 import { ThemeToggle } from '../components/ThemeToggle'
-import { useGmState, useSession } from '../session/context'
+import { useHostSnapshot, useSession } from '../session/context'
 import type { ThemePreference } from '../theme/theme'
 import { PopoverDialog } from './Popover'
 import { usePopover } from './popover-state'
@@ -31,14 +31,13 @@ const MenuIcon = () => (
 /** What Play together shows: no game, hosting, or playing in one. */
 function useGame(heroName: (id: string) => string | undefined) {
   const session = useSession()
-  const gmState = useGmState(session.gm)
-  if (session.gm) {
-    const connected = (gmState?.members ?? []).filter((m) => m.connected).length
-    return { kind: 'hosting' as const, room: session.gm.room, connected }
+  const hosted = useHostSnapshot(session.hosting)
+  if (session.hosting) {
+    return { kind: 'hosting' as const, room: session.hosting.room, gameId: session.hosting.gameId, connected: hosted?.connected.size ?? 0 }
   }
-  if (session.player) {
-    const id = session.player.heroId
-    return { kind: 'playing' as const, room: session.player.room, heroId: id, heroName: heroName(id) ?? 'your hero', leave: session.leave }
+  if (session.playing) {
+    const info = session.playing.info
+    return { kind: 'playing' as const, room: info.room, heroName: heroName(info.heroSourceId) ?? 'your hero', leave: session.leaveGame }
   }
   return { kind: 'none' as const, lastGame: session.lastGame }
 }
@@ -69,12 +68,14 @@ export function PlayTogether({ heroName, now, compact = false }: { heroName: (id
         <PopoverDialog popover={popover} label="Play together" className={compact ? 'popover--sheet' : 'popover--end'}>
           {game.kind === 'none' && (
             <div className="popover__stack">
-              <a className="button button--primary" href={gmPath}>
-                Host a game as GM
+              <a className="button button--primary" href={gamesPath}>
+                Open your GM table
               </a>
+              <p className="popover__hint">Run a game. Start hosting when players are ready.</p>
               <a className="button" href={joinPath()}>
-                Join a game
+                Join as a player
               </a>
+              <p className="popover__hint">Bring a hero into someone's game.</p>
               {game.lastGame && (
                 <p className="popover__line">
                   Last game: {game.lastGame.room}
@@ -88,7 +89,7 @@ export function PlayTogether({ heroName, now, compact = false }: { heroName: (id
               <p className="popover__line">
                 You're hosting {game.room} · {players(game.connected)}
               </p>
-              <a className="button button--primary" href={gmPath}>
+              <a className="button button--primary" href={gamePath(game.gameId)}>
                 Return to table
               </a>
             </div>
@@ -98,8 +99,8 @@ export function PlayTogether({ heroName, now, compact = false }: { heroName: (id
               <p className="popover__line">
                 You're in {game.room} as {game.heroName}
               </p>
-              <a className="button button--primary" href={playPath(game.heroId)}>
-                Play {game.heroName}
+              <a className="button button--primary" href={tablePath(game.room)}>
+                Open the game
               </a>
               <button
                 type="button"

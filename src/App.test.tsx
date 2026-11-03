@@ -20,7 +20,7 @@ describe('App', () => {
   it('renders the app title, linking home, on the library and on other pages', async () => {
     render(<App store={new MemoryHeroStore()} villainStore={new MemoryVillainStore()} searchStore={new MemorySavedSearchStore()} />)
     expect(screen.getByRole('link', { name: 'SCRPG Aid' })).toHaveAttribute('href', '#/')
-    go('#/gm')
+    go('#/join')
     const title = await screen.findByRole('heading', { level: 1, name: 'SCRPG Aid' })
     expect(title.querySelector('a')).toHaveAttribute('href', '#/')
   })

@@ -19,13 +19,15 @@ export type Route =
   | { name: 'villainPlay'; id: string }
   | { name: 'game'; id: string }
   | { name: 'games' }
-  | { name: 'gm' } | { name: 'join'; room?: string } | { name: 'hero'; id: string } | { name: 'edit'; id: string; step?: string; part?: string } | { name: 'play'; id: string } | { name: 'advancement'; id: string } | { name: 'notFound' }
+  | { name: 'table'; room: string }
+  | { name: 'join'; room?: string } | { name: 'hero'; id: string } | { name: 'edit'; id: string; step?: string; part?: string } | { name: 'play'; id: string } | { name: 'advancement'; id: string } | { name: 'notFound' }
 
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#/, '') || '/'
   if (path === '/') return { name: 'list', search: '' }
   if (path.startsWith('/?')) return { name: 'list', search: path.slice(2) }
-  if (path === '/gm') return { name: 'gm' }
+  // The old GM page's link: games are run from the Games page now.
+  if (path === '/gm') return { name: 'games' }
   if (path === '/games') return { name: 'games' }
   const game = /^\/game\/([^/]+)$/.exec(path)
   if (game) {
@@ -46,6 +48,14 @@ export function parseRoute(hash: string): Route {
     if (!villain[2]) return { name: 'villain', id }
     if (villain[2] === '/play') return { name: 'villainPlay', id }
     return villain[3] ? { name: 'villainEdit', id, step: villain[3] } : { name: 'villainEdit', id }
+  }
+  const table = /^\/table\/([^/]+)$/.exec(path)
+  if (table) {
+    try {
+      return { name: 'table', room: decodeURIComponent(table[1]!) }
+    } catch {
+      return { name: 'notFound' }
+    }
   }
   const join = /^\/join(?:\/([^/]+))?$/.exec(path)
   if (join) {
@@ -120,7 +130,10 @@ export function gamePath(id: string): string {
   return `#/game/${encodeURIComponent(id)}`
 }
 
-export const gmPath = '#/gm'
+/** A hosted game a player is in (docs/design/game-table/spec.md, section 14). */
+export function tablePath(room: string): string {
+  return `#/table/${encodeURIComponent(room)}`
+}
 
 export function joinPath(room?: string): string {
   return room ? `#/join/${encodeURIComponent(room)}` : '#/join'

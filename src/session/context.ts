@@ -1,23 +1,26 @@
-/** Gives pages the browser's game session (Phase 4); ./SessionProvider.tsx provides it. */
+/** Gives pages the device's game session; ./SessionProvider.tsx provides it. */
 import { createContext, useContext, useSyncExternalStore } from 'react'
-import type { GmSession, PlayerSession, PlayerSnapshot } from './controller'
+import type { Hero } from '../hero/model'
+import type { ClientSnapshot, PlayerClient } from './client'
 import type { HostSession, HostSnapshot } from './host'
 import type { CurrentSession, SessionManager } from './manager'
-import type { SessionState } from './types'
 
 export const SessionContext = createContext<SessionManager | null>(null)
 
 export interface SessionApi extends CurrentSession {
   /** The last game joined, kept after leaving it. */
-  lastGame?: { room: string; password?: string; at?: string }
-  host(password?: string): void
-  /** Hosts a game (the game table) as `gm`; the name is remembered on this device. */
-  hostGame(gameId: string, gm: string): void
-  stopHosting(): Promise<void>
+  lastGame?: { room: string; at?: string }
   /** The name this device's user goes by at the table. */
   name: string
-  join(options: { room: string; password?: string; heroId: string; sharedUpTo?: string }): void
-  leave(): void
+  /** Hosts a game as `gm`; the name is remembered on this device. */
+  hostGame(gameId: string, gm: string): void
+  stopHosting(): Promise<void>
+  /** Joins a hosted game as a player with one hero. */
+  joinGame(options: { room: string; name: string; hero: Hero }): void
+  leaveGame(): void
+  /** Notes shown once per key (the first-join note). */
+  noteSeen(key: string): boolean
+  markNoteSeen(key: string): void
 }
 
 const noSubscribe = () => () => {}
@@ -33,26 +36,22 @@ export function useSession(): SessionApi {
   return {
     ...current,
     ...(lastGame ? { lastGame } : {}),
-    host: (password) => manager?.host(password),
+    name: manager?.name() ?? '',
     hostGame: (gameId, gm) => manager?.hostGame(gameId, gm),
     stopHosting: () => manager?.stopHosting() ?? Promise.resolve(),
-    name: manager?.name() ?? '',
-    join: (options) => manager?.join(options),
-    leave: () => manager?.leave(),
+    joinGame: (options) => manager?.joinGame(options),
+    leaveGame: () => manager?.leaveGame(),
+    noteSeen: (key) => manager?.noteSeen(key) ?? true,
+    markNoteSeen: (key) => manager?.markNoteSeen(key),
   }
-}
-
-/** The GM session's state, kept current; undefined without one. */
-export function useGmState(gm: GmSession | undefined): SessionState | undefined {
-  return useSyncExternalStore(gm?.subscribe ?? noSubscribe, gm?.getSnapshot ?? nothing)
-}
-
-/** The player session's status and state, kept current; undefined without one. */
-export function usePlayerSnapshot(player: PlayerSession | undefined): PlayerSnapshot | undefined {
-  return useSyncExternalStore(player?.subscribe ?? noSubscribe, player?.getSnapshot ?? nothing)
 }
 
 /** The hosting session's snapshot (the game, its version, who's connected), kept current; undefined without one. */
 export function useHostSnapshot(host: HostSession | undefined): HostSnapshot | undefined {
   return useSyncExternalStore(host?.subscribe ?? noSubscribe, host?.getSnapshot ?? nothing)
+}
+
+/** The player's game client's snapshot (status, the table, pending actions, notices); undefined without one. */
+export function usePlayingSnapshot(client: PlayerClient | undefined): ClientSnapshot | undefined {
+  return useSyncExternalStore(client?.subscribe ?? noSubscribe, client?.getSnapshot ?? nothing)
 }

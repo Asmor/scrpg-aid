@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { completeHero } from '../test/heroes'
 import App from '../App'
 import { exampleHero } from '../hero/example'
 import { createHero, type Hero } from '../hero/model'
@@ -9,7 +10,6 @@ import { createGame, type Game } from '../game/model'
 import { createSoloGame } from '../game/solo'
 import { MemoryGameStore } from '../game/store'
 import { addHero, addVillain } from '../game/table'
-import { newSession } from '../session/gm'
 import { localSessionStore, memoryStorage } from '../session/storage'
 import { fakeNetwork } from '../session/transport'
 import { adaptiveBruiser } from '../test/villains'
@@ -446,32 +446,32 @@ describe('the header', () => {
     await loaded()
     await userEvent.click(screen.getByRole('button', { name: 'Play together' }))
     const pop = within(screen.getByRole('dialog', { name: 'Play together' }))
-    expect(pop.getByRole('link', { name: 'Host a game as GM' })).toHaveAttribute('href', '#/gm')
-    expect(pop.getByRole('link', { name: 'Join a game' })).toHaveAttribute('href', '#/join')
+    expect(pop.getByRole('link', { name: 'Open your GM table' })).toHaveAttribute('href', '#/games')
+    expect(pop.getByRole('link', { name: 'Join as a player' })).toHaveAttribute('href', '#/join')
     expect(pop.getByText(/Last game: K7QX-2MAB, 3 days ago/)).toBeInTheDocument()
     expect(pop.getByRole('link', { name: 'Rejoin' })).toHaveAttribute('href', '#/join/K7QX-2MAB')
   })
 
   it('Play together: while hosting', async () => {
     const storage = memoryStorage()
-    localSessionStore(storage).saveGm({ v: 1, room: 'K7QX-2MAB', state: newSession('K7QX-2MAB') })
+    localSessionStore(storage).saveHost({ v: 1, room: 'K7QX-2MAB', gameId: 'thu', gm: 'Sam', removed: [] })
     await standard({ storage })
     await loaded()
     await userEvent.click(await screen.findByRole('button', { name: 'In game · K7QX-2MAB' }))
     const pop = within(screen.getByRole('dialog', { name: 'Play together' }))
     expect(pop.getByText("You're hosting K7QX-2MAB · 0 players connected")).toBeInTheDocument()
-    expect(pop.getByRole('link', { name: 'Return to table' })).toHaveAttribute('href', '#/gm')
+    expect(pop.getByRole('link', { name: 'Return to table' })).toHaveAttribute('href', '#/game/thu')
   })
 
   it('Play together: while playing a hero', async () => {
     const storage = memoryStorage()
-    localSessionStore(storage).savePlayer({ v: 1, room: 'K7QX-2MAB', clientId: 'c1', heroId: 'maya', applied: [] })
+    localSessionStore(storage).savePlaying({ v: 1, room: 'K7QX-2MAB', name: 'Alex', heroSourceId: 'maya', sheet: completeHero() })
     await standard({ storage })
     await loaded()
     await userEvent.click(await screen.findByRole('button', { name: 'In game · K7QX-2MAB' }))
     const pop = within(screen.getByRole('dialog', { name: 'Play together' }))
     expect(pop.getByText("You're in K7QX-2MAB as Maya Reyes")).toBeInTheDocument()
-    expect(pop.getByRole('link', { name: 'Play Maya Reyes' })).toHaveAttribute('href', '#/hero/maya/play')
+    expect(pop.getByRole('link', { name: 'Open the game' })).toHaveAttribute('href', '#/table/K7QX-2MAB')
     await userEvent.click(pop.getByRole('button', { name: 'Leave game' }))
     expect(await screen.findByRole('button', { name: 'Play together' })).toBeInTheDocument()
   })
