@@ -15,6 +15,7 @@ const roll = {
   minionMods: [],
   others: [{ to: { kind: 'member', groupId: 'g', memberId: 'm' }, mod: { label: 'Dazed', value: -1 } }],
   made: [],
+  attacks: [{ result: 0, to: { kind: 'villain', id: 'v1' } }],
 }
 
 describe('reading messages from players and observers', () => {
@@ -61,6 +62,8 @@ describe('reading messages from players and observers', () => {
       { kind: 'heroPoints', by: 3 },
       { kind: 'roll', roll: { ...roll, record: { ...roll.record, rolled: [{ label: 'x', die: 'd8', value: 13 }] } } },
       { kind: 'roll', roll: { ...roll, others: [{ to: { kind: 'member', groupId: 'g' }, mod: { label: 'x', value: -1 } }] } },
+      { kind: 'roll', roll: { ...roll, attacks: [{ result: 12, to: { kind: 'villain', id: 'v1' } }] } },
+      { kind: 'roll', roll: { ...roll, attacks: [{ result: 0, to: { kind: 'group', id: 'g' } }] } },
       { kind: 'handOff', to: { kind: 'challenge', id: 'c' } },
     ]
     for (const a of bad) expect(readClientMessage(action(a)), JSON.stringify(a)).toBeUndefined()

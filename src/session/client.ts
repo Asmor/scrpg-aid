@@ -31,10 +31,10 @@ export interface PendingAction {
   timedOut?: true
 }
 
-/** Something to tell the player once (a toast): a rejected action, the GM's answer to a sync request. */
+/** Something to tell the player once (a toast): a rejected action, the GM's answer to a sync request, a save against their Attack. */
 export interface Notice {
   id: string
-  kind: 'rejected' | 'unreachable' | 'synced' | 'notSynced' | 'codeChanged'
+  kind: 'rejected' | 'unreachable' | 'synced' | 'notSynced' | 'codeChanged' | 'note'
   text: string
   /** A game code to show after the text, kept on one line: the new code. */
   code?: string
@@ -170,7 +170,9 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
         clearTimeout(this.timers.get(msg.id))
         this.timers.delete(msg.id)
         const pending = this.snapshot.pending.filter((p) => p.id !== msg.id)
-        const notices = msg.ok ? this.snapshot.notices : [...this.snapshot.notices, { id: this.newId(), kind: 'rejected' as const, text: `Not applied: ${msg.reason}.` }]
+        const notices = msg.ok
+          ? [...this.snapshot.notices, ...(msg.notes ?? []).map((text) => ({ id: this.newId(), kind: 'note' as const, text }))]
+          : [...this.snapshot.notices, { id: this.newId(), kind: 'rejected' as const, text: `Not applied: ${msg.reason}.` }]
         this.publish({ ...this.snapshot, pending, notices })
         return
       }

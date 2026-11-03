@@ -89,17 +89,19 @@ export class HostSession extends Subscribable<HostSnapshot> {
   private closing = new Set<Transport>()
   private store: GameStore
   private clock: () => Clock
+  /** The GM's dice, for saves against a player's Attack. */
+  private random: () => number
   private save: (saved: HostSaved) => void
   private peers = new Map<string, Peer>()
   private removed: Set<string>
   private versions: FieldVersions = {}
   /** Recent results by "<client id>:<action id>": an action sent again (Try again) is answered, never applied twice. */
-  private results = new Map<string, { ok: true } | { ok: false; reason: string }>()
+  private results = new Map<string, { ok: true; notes?: string[] } | { ok: false; reason: string }>()
   private waiting: Waiting[] | undefined = []
   /** Saves happen one after another, in order. */
   private saving: Promise<void> = Promise.resolve()
 
-  constructor(connect: Connect, saved: Omit<HostSaved, 'v'>, store: GameStore, clock: () => Clock, save: (saved: HostSaved) => void = () => {}) {
+  constructor(connect: Connect, saved: Omit<HostSaved, 'v'>, store: GameStore, clock: () => Clock, save: (saved: HostSaved) => void = () => {}, random: () => number = Math.random) {
     super({ version: 0, connected: new Set(), observers: [], needsNewCode: new Set() })
     this.code = saved.room
     this.connect = connect
@@ -108,6 +110,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
     this.removed = new Set(saved.removed)
     this.store = store
     this.clock = clock
+    this.random = random
     this.save = save
     this.open()
     this.saveInfo()
@@ -365,24 +368,24 @@ export class HostSession extends Subscribable<HostSnapshot> {
 
   private action(msg: Extract<ClientMessage, { type: 'action' }>, from: Peer & { role: 'player' }, peer: string): void {
     const game = this.snapshot.game!
-    const reply = (result: { ok: true } | { ok: false; reason: string }) => this.send({ v: PROTOCOL_VERSION, type: 'result', id: msg.id, ...result } as HostMessage, peer)
+    const reply = (result: { ok: true; notes?: string[] } | { ok: false; reason: string }) => this.send({ v: PROTOCOL_VERSION, type: 'result', id: msg.id, ...result } as HostMessage, peer)
     const key = `${from.clientId}:${msg.id}`
     const known = this.results.get(key)
     if (known) {
       this.sendState(peer)
       return reply(known)
     }
-    const remember = (r: { ok: true } | { ok: false; reason: string }) => {
+    const remember = (r: { ok: true; notes?: string[] } | { ok: false; reason: string }) => {
       this.results.set(key, r)
       if (this.results.size > RESULTS_KEPT) this.results.delete(this.results.keys().next().value!)
       reply(r)
     }
     if (!this.owns(from, msg.heroId)) return remember({ ok: false, reason: "that hero isn't yours" })
-    const result = applyHeroAction(game, msg.heroId, msg.action, { basedOn: msg.basedOn, versions: this.versions }, this.clock())
+    const result = applyHeroAction(game, msg.heroId, msg.action, { basedOn: msg.basedOn, versions: this.versions, random: this.random }, this.clock())
     if (!result.ok) return remember({ ok: false, reason: result.reason })
     // The new state first, so the result arrives with the value already updated.
     this.apply(() => result.game)
-    remember({ ok: true })
+    remember({ ok: true, ...(result.notes ? { notes: result.notes } : {}) })
   }
 
   private syncRequest(msg: Extract<ClientMessage, { type: 'syncRequest' }>, from: Peer & { role: 'player' }): void {

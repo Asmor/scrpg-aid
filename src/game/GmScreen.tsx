@@ -14,7 +14,7 @@ import { heroType, villainType, toItem, type LibraryItem } from '../library/regi
 import { filterItems, matches, type LibraryQuery } from '../library/query'
 import type { SavedSearch } from '../library/saved-searches'
 import { ModForm } from '../play/ModForm'
-import { confirmRoll } from '../play/roll'
+import { confirmRoll, effectAmount } from '../play/roll'
 import { RollDialog, type RollSubject } from '../play/RollDialog'
 import { addMod, addTwist, currentHealth, describeMod, modName, removeMod, removeTwist, setHealth, setReactionUsed, type Clock } from '../play/state'
 import { villainDisplayName, type VillainPlayState } from '../villain/model'
@@ -39,8 +39,11 @@ function LockIcon() {
 
 type VillainChange = (fn: (play: VillainPlayState, clock: Clock) => VillainPlayState) => void
 
+/** A villain's Attack results with targets: who each hits (a target id from ./roll-targets.ts) and how hard. */
+export type VillainAttacks = (attacks: { to: string; amount: number }[]) => void
+
 /** The villain's copy in this game: its sheet and its play state here. */
-function RunningVillain({ copy, change, random }: { copy: VillainInGame; change: VillainChange; random?: () => number }) {
+function RunningVillain({ copy, change, attackTargets, attack, random }: { copy: VillainInGame; change: VillainChange; attackTargets: readonly { id: string; name: string }[]; attack: VillainAttacks; random?: () => number }) {
   const { sheet: villain, play } = copy
   const id = useId()
   const [amount, setAmount] = useState('')
@@ -190,13 +193,15 @@ function RunningVillain({ copy, change, random }: { copy: VillainInGame; change:
           mods={play.mods}
           statusLabel="Status"
           onClose={() => setRolling(null)}
-          onConfirm={(record, followUps) =>
+          attackTargets={attackTargets}
+          onConfirm={(record, followUps, _form, _made, attacks = []) => {
             change((p, c) => {
               const after = confirmRoll(p, record, c)
               const withMods = followUps.reduce((q, f) => addMod(q, f.mod, c), after)
               return rolling.kind === 'ability' && rolling.reaction ? setReactionUsed(withMods, true, c) : withMods
             })
-          }
+            if (attacks.length) attack(attacks.map((a) => ({ to: a.to, amount: effectAmount(record.results[a.result]?.total ?? 0) })))
+          }}
           random={random}
         />
       )}
@@ -334,7 +339,7 @@ export type QuickAddKind = 'minions' | 'lieutenants' | 'challenge'
 interface GmScreenProps {
   game: Game
   quickAdd: (kind: QuickAddKind) => void
-  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'missing' }
+  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange; attackTargets: readonly { id: string; name: string }[]; attack: VillainAttacks } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'missing' }
   stopRunning: () => void
   bring: BringIn
   setNotes: (notes: string) => void
@@ -402,7 +407,7 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
               ×
             </button>
           </div>
-          {running.kind === 'villain' ? <RunningVillain key={running.villain.id} copy={running.villain} change={running.change} random={random} /> : <RunningGroup key={running.group.id} game={game} group={running.group} actions={running.actions} random={random} />}
+          {running.kind === 'villain' ? <RunningVillain key={running.villain.id} copy={running.villain} change={running.change} attackTargets={running.attackTargets} attack={running.attack} random={random} /> : <RunningGroup key={running.group.id} game={game} group={running.group} actions={running.actions} random={random} />}
         </section>
       )}
 

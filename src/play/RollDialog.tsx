@@ -27,6 +27,12 @@ export interface FollowUpMod {
   to?: string
 }
 
+/** An Attack result's target: the result's index in the record, and the target's id. */
+export interface AttackChoice {
+  result: number
+  to: string
+}
+
 /** A minion a roll made: its size from the roll, and the name, action and form the player gives it. */
 export type NewMinion = Omit<PlayMinion, 'id' | 'mods'>
 
@@ -49,7 +55,7 @@ interface RollDialogProps {
   zone: PlayZone | undefined
   mods: readonly PlayMod[]
   /** Done: the roll to record, the follow-up mods to add or give, and the form or mode chosen, if it changed. */
-  onConfirm: (record: RollRecord, followUps: readonly FollowUpMod[], formChoice?: string, minions?: readonly NewMinion[]) => void
+  onConfirm: (record: RollRecord, followUps: readonly FollowUpMod[], formChoice?: string, minions?: readonly NewMinion[], attacks?: readonly AttackChoice[]) => void
   /** For an ability that changes form or mode: the choices, offered in the Resolve step. */
   formPicker?: FormPicker
   /** For an ability that makes minions (Make Minion and the like): the die that sizes each one (ruling 62). */
@@ -58,6 +64,8 @@ interface RollDialogProps {
   minionForms?: readonly MinionForm[]
   /** Other heroes in a game session a Boost's or Hinder's mod can go to. */
   targets?: readonly ModTarget[]
+  /** At a game table: who an Attack can target (docs/design/npcs/spec.md, section 5). Each Attack result gets a Target choice. */
+  attackTargets?: readonly ModTarget[]
   /** What the status die is called in the roll; by default its zone's ("Green status"). A villain's is just "Status". */
   statusLabel?: string
   onClose: () => void
@@ -110,7 +118,7 @@ function modMade(action: Action, total: number): string | undefined {
   return action === 'boost' ? `a +${size} bonus` : `a −${size} penalty`
 }
 
-export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, creates = [], minionForms = [], targets = [], statusLabel, onClose, random }: RollDialogProps) {
+export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, creates = [], minionForms = [], targets = [], attackTargets = [], statusLabel, onClose, random }: RollDialogProps) {
   const titleId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const use = subject.kind === 'ability' ? subject.use : undefined
@@ -159,6 +167,8 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
   const finalResults = rolled ? results(active, rolled, givenValues, chosen, assignment) : []
   const missingValue = finalResults.some((r) => r.total === undefined)
   const [followUps, setFollowUps] = useState<Record<number, FollowUpMod | undefined>>({})
+  // Each Attack result's target, by the result's index.
+  const [attackTo, setAttackTo] = useState<Record<number, string>>({})
   const [formChoice, setFormChoice] = useState(formPicker?.current ?? '')
   // Minions the roll makes: each sized by its die plus the mods moved onto it, named in Resolve.
   const [made, setMade] = useState(() => creates.map(() => ({ name: '', action: 'attack' as BasicAction, form: '' })))
@@ -220,6 +230,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
   const back = () => {
     setRolled(null)
     setFollowUps({})
+    setAttackTo({})
     setStep(0)
   }
   const done = () => {
@@ -239,6 +250,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
         const m = made[j]!
         return { name: m.name.trim() || (creates.length > 1 ? `Minion ${j + 1}` : 'Minion'), die: c.die, action: minionAction(m.form, m.action), ...(m.form ? { form: m.form } : {}) }
       }),
+      finalResults.flatMap((r, i) => (r.action === 'attack' && r.total !== undefined && attackTo[i] && attackTargets.some((t) => t.id === attackTo[i]) ? [{ result: i, to: attackTo[i]! }] : [])),
     )
     onClose()
   }
@@ -645,6 +657,24 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
                   ))}
                 </ul>
                 {picker}
+                {attackTargets.length > 0 &&
+                  finalResults.map((r, i) =>
+                    r.action === 'attack' && r.total !== undefined ? (
+                      <Field key={`attack-${i}`} label={finalResults.filter((x) => x.action === 'attack').length > 1 ? `Target for ${describeEffect(r).replace(/\.$/, '')}` : 'Target'}>
+                        {(id) => (
+                          <select id={id} value={attackTo[i] ?? ''} onChange={(e) => setAttackTo((all) => ({ ...all, [i]: e.target.value }))}>
+                            <option value="">No target</option>
+                            {attackTargets.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </Field>
+                    ) : null,
+                  )}
+                {attackTargets.length > 0 && finalResults.some((r) => r.action === 'attack' && r.total !== undefined) && <p className="hint">A hero or villain target loses that much Health. A minion or lieutenant rolls its save.</p>}
                 {minionCards.map((c, j) => (
                   <fieldset key={`made-${j}`} className="roll-section">
                     <legend>
@@ -695,6 +725,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
                     onClick={() => {
                       // The results can change on the way back, so the follow-ups are chosen again.
                       setFollowUps({})
+                      setAttackTo({})
                       setStep(1)
                     }}
                   >

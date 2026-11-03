@@ -25,6 +25,8 @@ import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, F
 import { GmScreen, type QuickAddKind } from './GmScreen'
 import type { GroupActions } from './RunningGroup'
 import { applyGroupRoll, applySaves } from './npc'
+import { applyAttack, villainAttackTargets } from './attacks'
+import { parseTarget } from './roll-targets'
 import { applyHeroChange, type HeroChange } from './hero-changes'
 import { gameDisplayName, sceneDisplayName, type ActorRef, type Game, type HeroInGame, type VillainInGame } from './model'
 import { healthLine, reconcile, reconcileVillain } from './reconcile'
@@ -246,7 +248,21 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     applyRoll: (action, rows) => apply((g) => applyGroupRoll(g, groupId, action, rows, random ?? Math.random, clock())),
     applySaves: (saves) => apply((g) => applySaves(g, groupId, saves, clock())),
   })
-  const runningPanel = runningVillain ? { kind: 'villain' as const, villain: runningVillain, change: (fn: (p: VillainPlayState, c: Clock) => VillainPlayState) => changeVillain(runningVillain.id, fn) } : runningGroup ? { kind: 'group' as const, group: runningGroup, actions: groupActions(runningGroup.id) } : undefined
+  const runningPanel = runningVillain
+    ? {
+        kind: 'villain' as const,
+        villain: runningVillain,
+        change: (fn: (p: VillainPlayState, c: Clock) => VillainPlayState) => changeVillain(runningVillain.id, fn),
+        attackTargets: villainAttackTargets(game, runningVillain.id),
+        attack: (attacks: { to: string; amount: number }[]) =>
+          apply((g) =>
+            attacks.reduce((x, a) => {
+              const to = parseTarget(a.to)
+              return to ? applyAttack(x, villainDisplayName(runningVillain.sheet), to, a.amount, random ?? Math.random, clock(), runningVillain.hidden).game : x
+            }, g),
+          ),
+      }
+    : runningGroup ? { kind: 'group' as const, group: runningGroup, actions: groupActions(runningGroup.id) } : undefined
 
   const bring = {
     placeOf: (item: LibraryItem) => {

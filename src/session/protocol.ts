@@ -47,7 +47,8 @@ export interface YouAre {
 
 export type HostMessage =
   | { v: 2; type: 'state'; room: string; version: number; table: TableView; gm: string; you?: YouAre }
-  | { v: 2; type: 'result'; id: string; ok: true }
+  /** `notes`: lines for the player as toasts (a save against their Attack). */
+  | { v: 2; type: 'result'; id: string; ok: true; notes?: string[] }
   | { v: 2; type: 'result'; id: string; ok: false; reason: string }
   | { v: 2; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
   | { v: 2; type: 'refused'; reason: RefusedReason }
@@ -106,6 +107,7 @@ const rollAction = object({
   minionMods: list(object({ minionId: id, mod: modInput }), 20),
   others: list(object({ to: target, mod: modInput }), 20),
   made: list(newMinion, 5),
+  attacks: list(object({ result: range(0, 9), to: target }), 10),
 })
 
 const ACTIONS: Record<HeroAction['kind'], Check> = {
@@ -232,7 +234,7 @@ const roomCode: Check = (v, path) => (typeof v === 'string' && normalizeRoomCode
 
 const HOST: Record<string, Check> = {
   state: object({ room: id, version: integer, table: (v, path) => tableViewProblem(v) && `${path} is malformed`, gm: text(MAX_NAME), 'you?': object({ heroId: id, since: text(40) }) }),
-  result: (v, path) => (isRecord(v) && v.ok === false ? object({ id, ok: oneOf(false), reason: text(MAX_TEXT) })(v, path) : object({ id, ok: oneOf(true) })(v, path)),
+  result: (v, path) => (isRecord(v) && v.ok === false ? object({ id, ok: oneOf(false), reason: text(MAX_TEXT) })(v, path) : object({ id, ok: oneOf(true), 'notes?': list(text(MAX_TEXT), 10) })(v, path)),
   syncResult: object({ heroId: id, approved: boolean, adjustments: list(text(), 50) }),
   refused: object({ reason: oneOf('version', 'full', 'taken', 'removed', 'wrongGame') }),
   codeChanged: object({ code: roomCode }),

@@ -5,6 +5,7 @@ import type { Hero } from '../hero/model'
 import { completeHero } from '../test/heroes'
 import { OFFLINE_AFTER, PlayerClient, RESULT_TIMEOUT, RETRY_EVERY, type Received } from './client'
 import { HostSession } from './host'
+import { addGroup } from '../game/table'
 import { fakeNetwork, type Transport } from './transport'
 
 let n = 0
@@ -47,6 +48,17 @@ describe("a player's device", () => {
     await net.settle()
     expect(client.getSnapshot().pending).toEqual([])
     expect(client.getSnapshot().received!.table.heroes[0]!.play.heroPoints).toBe(1)
+  })
+
+  it("tells the player how a minion's save against their Attack went", async () => {
+    const { net, host, client } = await setup()
+    host.apply((g) => addGroup(g, { kind: 'minions', name: 'Drones', die: 'd6', count: 1, hidden: false }, clock()))
+    await net.settle()
+    const group = host.game!.groups[0]!
+    const record = { title: 'Attack', rolled: [{ label: 'Speed', die: 'd8' as const, value: 5 }], results: [{ action: 'attack' as const, use: 'mid' as const, base: 5, mods: [], total: 5 }], manual: false }
+    client.act({ kind: 'roll', roll: { subject: { kind: 'basic', action: 'attack' }, record, selfMods: [], minionMods: [], others: [], made: [], attacks: [{ result: 0, to: { kind: 'member', groupId: group.id, memberId: group.members[0]!.id } }] } })
+    await net.settle()
+    expect(client.getSnapshot().notices).toMatchObject([{ kind: 'note', text: expect.stringMatching(/^Drones 1 (saved|failed its save) against 5 \(rolled \d\): /) }])
   })
 
   it('shows why an action was refused', async () => {

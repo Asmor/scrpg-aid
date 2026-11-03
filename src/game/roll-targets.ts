@@ -25,7 +25,7 @@ export function parseTarget(id: string): TableTarget | undefined {
   return undefined
 }
 
-/** Everyone at the table a player's roll can give a bonus or penalty to: the other heroes, villains, and group members. */
+/** Everyone at the table a player's roll can give a bonus or penalty to, or Attack: the other heroes, villains, and group members. */
 export function tableTargets(view: Pick<TableView, 'heroes' | 'villains' | 'groups'>, heroId: string): { id: string; name: string }[] {
   return [
     ...view.heroes.filter((h) => h.id !== heroId).map((h) => ({ id: targetId({ kind: 'hero', id: h.id }), name: h.sheet.details.name.trim() || 'A hero' })),
@@ -38,7 +38,7 @@ export function tableTargets(view: Pick<TableView, 'heroes' | 'villains' | 'grou
 export type RolledSubject = { kind: 'basic'; action?: BasicAction } | { kind: 'ability'; name: string }
 
 /** A confirmed roll as the action to send: follow-up mods sorted into the hero's own, their minions', and others'. */
-export function rollAction(subject: RolledSubject, record: RollRecord, followUps: readonly { mod: ModInput; to?: string }[], formChoice?: string, made: readonly NewMinion[] = []): RollAction {
+export function rollAction(subject: RolledSubject, record: RollRecord, followUps: readonly { mod: ModInput; to?: string }[], formChoice?: string, made: readonly NewMinion[] = [], attackChoices: readonly { result: number; to: string }[] = []): RollAction {
   const selfMods: ModInput[] = []
   const minionMods: RollAction['minionMods'] = []
   const others: RollAction['others'] = []
@@ -58,5 +58,9 @@ export function rollAction(subject: RolledSubject, record: RollRecord, followUps
     minionMods,
     others,
     made: [...made],
+    attacks: attackChoices.flatMap((a) => {
+      const to = parseTarget(a.to)
+      return to ? [{ result: a.result, to }] : []
+    }),
   }
 }

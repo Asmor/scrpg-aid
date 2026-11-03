@@ -317,9 +317,10 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
           creates={rolling.kind === 'ability' ? minionCreation(rolling.text) : undefined}
           minionForms={sheet.minionForms}
           targets={[...tableTargets(view, hero.id), ...(play.minions ?? []).map((m) => ({ id: `${OWN_MINION}${m.id}`, name: `${m.name} (your minion)` }))]}
-          onConfirm={(record, followUps, formChoice, made = []) => {
+          attackTargets={tableTargets(view, hero.id)}
+          onConfirm={(record, followUps, formChoice, made = [], attacks = []) => {
             const subject = rolling.kind === 'ability' ? { kind: 'ability' as const, name: rolling.name } : { kind: 'basic' as const, ...(rolling.action ? { action: rolling.action } : {}) }
-            act({ kind: 'roll', roll: rollAction(subject, record, followUps, formChoice, made) })
+            act({ kind: 'roll', roll: rollAction(subject, record, followUps, formChoice, made, attacks) })
           }}
           random={random}
         />

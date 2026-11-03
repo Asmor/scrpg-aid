@@ -44,7 +44,10 @@ describe('roll targets', () => {
       { mod: { label: 'Mine', value: 1 }, to: `${OWN_MINION}m1` },
       { mod: { label: 'Theirs', value: -2 }, to: 'villain:v1' },
       { mod: { label: 'Dropped', value: -1 }, to: 'nonsense' },
-    ], 'form:1', [{ name: 'Drone', die: 'd6', action: 'attack' }])
+    ], 'form:1', [{ name: 'Drone', die: 'd6', action: 'attack' }], [
+      { result: 0, to: 'member:g1:m2' },
+      { result: 1, to: 'nonsense' },
+    ])
     expect(action).toEqual({
       subject: { kind: 'ability', name: 'Hinder Them' },
       record,
@@ -53,8 +56,9 @@ describe('roll targets', () => {
       minionMods: [{ minionId: 'm1', mod: { label: 'Mine', value: 1 } }],
       others: [{ to: { kind: 'villain', id: 'v1' }, mod: { label: 'Theirs', value: -2 } }],
       made: [{ name: 'Drone', die: 'd6', action: 'attack' }],
+      attacks: [{ result: 0, to: { kind: 'member', groupId: 'g1', memberId: 'm2' } }],
     })
-    expect(rollAction({ kind: 'basic' }, record, [])).toEqual({ subject: { kind: 'basic' }, record, selfMods: [], minionMods: [], others: [], made: [] })
+    expect(rollAction({ kind: 'basic' }, record, [])).toEqual({ subject: { kind: 'basic' }, record, selfMods: [], minionMods: [], others: [], made: [], attacks: [] })
     expect(rollAction({ kind: 'basic', action: 'boost' }, record, []).subject).toEqual({ kind: 'basic', action: 'boost' })
   })
 })

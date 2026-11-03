@@ -15,10 +15,11 @@ import { buildSheet } from '../creation/sheet'
 import { heroDisplayName, type Hero, type PlayMinion, type PlayMod, type PlayState, type PlayTwist } from '../hero/model'
 import { addMinion, addMinionMod, recordMinionRoll, removeMinion, removeMinionMod, setMinionForm, shrinkMinion, type MinionRoll } from '../play/minions'
 import { availabilityContext, basicActionBlocked, currentForm, playAbilities, playForms } from '../play/forms'
-import { confirmRoll, type RollRecord } from '../play/roll'
+import { confirmRoll, effectAmount, type RollRecord } from '../play/roll'
 import { addMod, addTwist, currentHealth, effectiveZone, MAX_HERO_POINTS, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, type Clock } from '../play/state'
 import type { BasicAction } from '../rules/types'
 import { villainDisplayName } from '../villain/model'
+import { applyAttack } from './attacks'
 import type { ActorRef, Game, HeroInGame } from './model'
 import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, handOff, heroPlayInScene, isHidden, itemName, memberName, roundOver, sameActor, startRound, waiting } from './table'
 
@@ -42,6 +43,8 @@ export interface RollAction {
   others: { to: TableTarget; mod: ModInput }[]
   /** Minions the roll made. */
   made: NewMinion[]
+  /** Attack results with a target: the result's index in the record, and who it hits (docs/design/npcs/spec.md, section 5). */
+  attacks: { result: number; to: TableTarget }[]
 }
 
 export type HeroAction =
@@ -66,7 +69,8 @@ export type HeroAction =
   | { kind: 'handOff'; to: ActorRef }
   | { kind: 'startRound'; first: ActorRef }
 
-export type ActionResult = { ok: true; game: Game } | { ok: false; reason: string }
+/** `notes` are lines for the player as toasts: a minion's or lieutenant's save against their Attack. */
+export type ActionResult = { ok: true; game: Game; notes?: string[] } | { ok: false; reason: string }
 
 /**
  * When each value last changed, as the game's state version at the time (kept by the GM's
@@ -80,6 +84,8 @@ export interface ActionContext {
   /** The state version the player's device last saw. */
   basedOn: number
   versions: FieldVersions
+  /** The GM's dice, for saves against a player's Attack. */
+  random?: () => number
 }
 
 const refuse = (reason: string): ActionResult => ({ ok: false, reason })
@@ -141,7 +147,7 @@ export function applyHeroAction(game: Game, heroId: string, action: HeroAction, 
       if (!buildSheet(hero.sheet).divided) return refuse("your hero isn't Divided")
       return change((p) => setDividedForm(p, action.form, clock))
     case 'roll':
-      return applyRoll(game, hero, action.roll, clock)
+      return applyRoll(game, hero, action.roll, clock, ctx.random ?? Math.random)
     case 'makeMinion':
       return change((p) => addMinion(p, action.minion, clock))
     case 'removeMinion':
@@ -208,7 +214,7 @@ function targetName(game: Game, to: TableTarget, heroId: string): string | undef
   }
 }
 
-function applyRoll(game: Game, hero: HeroInGame, roll: RollAction, clock: Clock): ActionResult {
+function applyRoll(game: Game, hero: HeroInGame, roll: RollAction, clock: Clock, random: () => number): ActionResult {
   const { sheet, play, zone } = inScene(game, hero)
   const ctx = availabilityContext(hero.sheet, sheet, play, zone)
   let reaction = false
@@ -228,6 +234,10 @@ function applyRoll(game: Game, hero: HeroInGame, roll: RollAction, clock: Clock)
   const named = roll.others.map((o) => ({ ...o, name: targetName(game, o.to, hero.id) }))
   const gone = named.find((o) => !o.name)
   if (gone) return refuse("someone you gave a bonus or penalty to isn't at the table any more")
+  const attacks = roll.attacks.map((a) => ({ ...a, name: targetName(game, a.to, hero.id), r: roll.record.results[a.result] }))
+  if (attacks.some((a) => a.r?.action !== 'attack' || a.r.total === undefined)) return refuse("an Attack target is for a result that isn't an Attack")
+  if (new Set(attacks.map((a) => a.result)).size < attacks.length) return refuse('each Attack result has one target')
+  if (attacks.some((a) => !a.name)) return refuse("someone you attacked isn't at the table any more")
   const minions = hero.play.minions ?? []
   if (roll.minionMods.some((m) => !minions.some((x) => x.id === m.minionId))) return refuse('one of your minions is already gone')
   const forms = playForms(sheet)
@@ -261,7 +271,14 @@ function applyRoll(game: Game, hero: HeroInGame, roll: RollAction, clock: Clock)
     else if (to.kind === 'villain') next = changeVillainPlay(next, to.id, (p) => addMod(p, o.mod, clock, { from: giver }), clock)
     else next = addMemberMod(next, to.groupId, to.memberId, o.mod, clock)
   }
-  return { ok: true, game: next }
+  // Then whoever it attacked: Health, or a minion's or lieutenant's save.
+  const notes: string[] = []
+  for (const a of attacks) {
+    const hit = applyAttack(next, giver, a.to, effectAmount(a.r!.total!), random, clock)
+    next = hit.game
+    if (hit.note) notes.push(hit.note)
+  }
+  return { ok: true, game: next, ...(notes.length ? { notes } : {}) }
 }
 
 /**
