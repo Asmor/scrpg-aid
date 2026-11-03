@@ -17,6 +17,7 @@ import { GameStoreContext } from './app/game-store-context'
 import { createDefaultGameStore, type GameStore } from './game/store'
 import { GamePage } from './game/GamePage'
 import { GamesPage } from './game/GamesPage'
+import { GameDisplayPage } from './game/GameDisplayPage'
 import { createDefaultJoinedStore, type JoinedStore } from './game/joined-store'
 import { JoinedStoreContext } from './app/joined-store-context'
 import { PlayerTable } from './game/PlayerTable'
@@ -49,7 +50,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
   const [searchStore] = useState(() => givenSearches ?? createDefaultSavedSearchStore())
   const route = useRoute()
   // The display view is dark unless the player chose light (docs/design/game-table/spec.md, section 13).
-  const [theme, setTheme] = useTheme(route.name === 'watch' ? 'dark' : undefined)
+  const [theme, setTheme] = useTheme(route.name === 'watch' || route.name === 'gameDisplay' ? 'dark' : undefined)
   return (
     <StoreContext.Provider value={store}>
       <VillainStoreContext.Provider value={villainStore}>
@@ -69,6 +70,10 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
       ) : route.name === 'game' ? (
         <div className="app">
           <GamePage key={route.id} id={route.id} />
+        </div>
+      ) : route.name === 'gameDisplay' ? (
+        <div className="app">
+          <GameDisplayPage key={route.id} id={route.id} />
         </div>
       ) : route.name === 'watch' ? (
         <div className="app">

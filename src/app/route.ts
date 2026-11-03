@@ -8,7 +8,7 @@
  * the GM's page for hosting a game, "#/join" (or "#/join/<room code>") joining one, "#/watch" (or
  * "#/watch/<room code>") watching one on a TV, and
  * "#/villain/<id>" a villain's sheet ("#/villain/<id>/edit/<step>" its editor), "#/games" the Games
- * page, and "#/game/<id>" a game's table.
+ * page, "#/game/<id>" a game's table, and "#/game/<id>/display" its display view.
  */
 import { useEffect, useState } from 'react'
 
@@ -19,6 +19,8 @@ export type Route =
   | { name: 'villainEdit'; id: string; step?: string }
   | { name: 'villainPlay'; id: string }
   | { name: 'game'; id: string }
+  /** A game's display view on the GM's own device. */
+  | { name: 'gameDisplay'; id: string }
   | { name: 'games' }
   | { name: 'table'; room: string }
   /** Watching a hosted game on a TV or second screen; no code yet asks for one. */
@@ -32,10 +34,10 @@ export function parseRoute(hash: string): Route {
   // The old GM page's link: games are run from the Games page now.
   if (path === '/gm') return { name: 'games' }
   if (path === '/games') return { name: 'games' }
-  const game = /^\/game\/([^/]+)$/.exec(path)
+  const game = /^\/game\/([^/]+)(\/display)?$/.exec(path)
   if (game) {
     try {
-      return { name: 'game', id: decodeURIComponent(game[1]!) }
+      return { name: game[2] ? 'gameDisplay' : 'game', id: decodeURIComponent(game[1]!) }
     } catch {
       return { name: 'notFound' }
     }
@@ -140,6 +142,11 @@ export const gamesPath = '#/games'
 
 export function gamePath(id: string): string {
   return `#/game/${encodeURIComponent(id)}`
+}
+
+/** A game's display view, opened from the GM's table in a new window (section 13). */
+export function gameDisplayPath(id: string): string {
+  return `${gamePath(id)}/display`
 }
 
 /** A hosted game a player is in (docs/design/game-table/spec.md, section 14). */

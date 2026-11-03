@@ -5,8 +5,8 @@
  * are in ./table.ts and ./hero-changes.ts; this page wires them to the shared center
  * (./TableCenter.tsx) and the GM screen (./GmScreen.tsx).
  */
-import { useCallback, useState } from 'react'
-import { gamesPath } from '../app/route'
+import { useCallback, useMemo, useState } from 'react'
+import { gameDisplayPath, gamesPath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
 import { RenameHeading } from '../components/RenameHeading'
@@ -29,6 +29,7 @@ import { healthLine, reconcile, reconcileVillain } from './reconcile'
 import { sheetDiff } from './sheet-diff'
 import { TableCenter, TableLog, ZoneChip, type GmControls, type HeroView, type VillainView } from './TableCenter'
 import { useDocMap } from './useDocMap'
+import { useDisplayBroadcast } from './useDisplayBroadcast'
 import { useGameEditor } from './useGameEditor'
 import { InviteDialog, StartHostingDialog } from './hosting'
 import { project } from './project'
@@ -93,6 +94,9 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const [tab, setTab] = useState<'table' | 'gm' | 'log'>('table')
   const [announce, setAnnounce] = useState('')
   const [hostError, setHostError] = useState<string | null>(null)
+  // Display windows of this game on this device (Open display view) get what observers see.
+  const observed = useMemo(() => (game ? project(game, 'observer') : undefined), [game])
+  useDisplayBroadcast(id, observed, host?.room)
 
   if (!game) {
     return (
@@ -307,6 +311,11 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
             <span className="gt-pill">Not hosting</span>
           )}
           <span className="gt-grow" />
+          {!phone && (
+            <button type="button" className="button button--small" onClick={() => window.open(gameDisplayPath(game.id), `scrpg-display-${game.id}`)}>
+              Open display view
+            </button>
+          )}
           {host ? (
             <button type="button" className="button button--primary button--small" onClick={() => setDialog({ kind: 'invite' })}>
               Invite

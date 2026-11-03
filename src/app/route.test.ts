@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { advancementPath, editPath, gamePath, gamesPath, partPath, heroPath, joinPath, joinUrl, parseRoute, watchPath, watchUrl, playPath, tablePath, villainEditPath, villainPath, villainPlayPath } from './route'
+import { advancementPath, editPath, gamePath, gamesPath, partPath, heroPath, joinPath, joinUrl, parseRoute, watchPath, watchUrl, gameDisplayPath, playPath, tablePath, villainEditPath, villainPath, villainPlayPath } from './route'
 
 describe('the player table route', () => {
   it('reads a room code, and makes the path', () => {
@@ -38,6 +38,12 @@ describe('routes', () => {
     expect(parseRoute(`${heroPath(id)}/plays`)).toEqual({ name: 'notFound' })
     expect(parseRoute(editPath('edit'))).toEqual({ name: 'edit', id: 'edit' })
     expect(parseRoute(heroPath('edit'))).toEqual({ name: 'hero', id: 'edit' })
+  })
+
+  it('parses a game’s display view', () => {
+    expect(gameDisplayPath('g 1')).toBe('#/game/g%201/display')
+    expect(parseRoute(gameDisplayPath('g 1'))).toEqual({ name: 'gameDisplay', id: 'g 1' })
+    expect(parseRoute('#/game/%E0%A4%A/display')).toEqual({ name: 'notFound' })
   })
 
   it('parses watching a game, with or without its code', () => {

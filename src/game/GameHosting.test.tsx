@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { GameStoreContext } from '../app/game-store-context'
 import { SavedSearchStoreContext } from '../app/saved-search-context'
 import { StoreContext } from '../app/store-context'
@@ -85,6 +85,14 @@ describe('hosting from the game table', () => {
     expect(invite.getByRole('img', { name: 'QR code for the player link' })).toBeInTheDocument()
     expect(invite.getByRole('button', { name: 'Copy player link' })).toBeInTheDocument()
     expect(invite.getByText('No one has joined yet.')).toBeInTheDocument()
+  })
+
+  it('opens the display view in a new window', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    await setup()
+    await userEvent.click(screen.getByRole('button', { name: 'Open display view' }))
+    expect(open).toHaveBeenCalledWith('#/game/g1/display', 'scrpg-display-g1')
+    open.mockRestore()
   })
 
   it('shows a joining player’s hero with their name, then Disconnected when they leave, and removes them after asking', async () => {
