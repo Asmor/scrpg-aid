@@ -9,6 +9,8 @@ import { HeroPage } from './components/HeroPage'
 import { AdvancementPage } from './editor/AdvancementPage'
 import { HeroEditor } from './editor/HeroEditor'
 import { VillainStoreContext } from './app/villain-store-context'
+import { TemplateStoresContext } from './app/template-store-context'
+import { createDefaultTemplateStores, type TemplateStores } from './template/store'
 import { createDefaultVillainStore, type VillainStore } from './villain/store'
 import { VillainEditor } from './villain/VillainEditor'
 import { VillainPage } from './villain/VillainPage'
@@ -37,18 +39,20 @@ interface AppProps {
   gameStore?: GameStore
   joinedStore?: JoinedStore
   searchStore?: SavedSearchStore
+  templateStores?: TemplateStores
   backupTime?: BackupTimeStore
   connect?: Connect
   sessionStore?: SessionStore
 }
 
 /** The stores, `connect`, `sessionStore`, and `backupTime` are injectable for tests. */
-export default function App({ store: given, villainStore: givenVillains, gameStore: givenGames, joinedStore: givenJoined, searchStore: givenSearches, backupTime, connect, sessionStore }: AppProps) {
+export default function App({ store: given, villainStore: givenVillains, gameStore: givenGames, joinedStore: givenJoined, searchStore: givenSearches, templateStores: givenTemplates, backupTime, connect, sessionStore }: AppProps) {
   const [store] = useState(() => given ?? createDefaultStore())
   const [villainStore] = useState(() => givenVillains ?? createDefaultVillainStore())
   const [gameStore] = useState(() => givenGames ?? createDefaultGameStore())
   const [joinedStore] = useState(() => givenJoined ?? createDefaultJoinedStore())
   const [searchStore] = useState(() => givenSearches ?? createDefaultSavedSearchStore())
+  const [templateStores] = useState(() => givenTemplates ?? createDefaultTemplateStores())
   const route = useRoute()
   // The display view is dark unless the player chose light (docs/design/game-table/spec.md, section 13).
   const [theme, setTheme] = useTheme(route.name === 'watch' || route.name === 'gameDisplay' ? 'dark' : undefined)
@@ -58,6 +62,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
       <GameStoreContext.Provider value={gameStore}>
       <JoinedStoreContext.Provider value={joinedStore}>
       <SavedSearchStoreContext.Provider value={searchStore}>
+      <TemplateStoresContext.Provider value={templateStores}>
       <SessionProvider {...(connect ? { connect } : {})} {...(sessionStore ? { store: sessionStore } : {})}>
       {/* The library (the home screen), the Games page and the game table have their own header bars and layouts. */}
       {route.name === 'list' ? (
@@ -111,6 +116,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
       </div>
       )}
       </SessionProvider>
+      </TemplateStoresContext.Provider>
       </SavedSearchStoreContext.Provider>
       </JoinedStoreContext.Provider>
       </GameStoreContext.Provider>
