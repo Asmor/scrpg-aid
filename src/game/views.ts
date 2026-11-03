@@ -12,7 +12,7 @@ import { heroPlayInScene } from './table'
 import type { HeroView, VillainView } from './TableCenter'
 
 /** A hero's card: from the game's copy, with the scene's zone. */
-export function heroView(h: HeroInGame | HeroOnTable, game: Pick<Game, 'scene' | 'solo'>, extra: { disconnected?: boolean; syncRequested?: boolean } = {}): HeroView {
+export function heroView(h: HeroInGame | HeroOnTable, game: Pick<Game, 'scene' | 'solo'>, extra: { disconnected?: boolean; syncRequested?: boolean; waiting?: readonly { id: string; by: string; amount: number }[]; chooser?: string } = {}): HeroView {
   const sheet = buildSheet(h.sheet)
   const play = heroPlayInScene(game, h.play)
   const zone = effectiveZone(sheet, play)
@@ -32,6 +32,7 @@ export function heroView(h: HeroInGame | HeroOnTable, game: Pick<Game, 'scene' |
     reactionUsed: play.reactionUsed,
     ...(extra.disconnected ? { disconnected: true } : {}),
     ...(extra.syncRequested ? { syncRequested: true } : {}),
+    ...(extra.waiting?.length ? { waiting: extra.waiting, chooser: extra.chooser ?? 'The GM' } : {}),
   }
 }
 

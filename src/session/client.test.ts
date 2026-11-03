@@ -6,6 +6,7 @@ import { completeHero } from '../test/heroes'
 import { OFFLINE_AFTER, PlayerClient, RESULT_TIMEOUT, RETRY_EVERY, type Received } from './client'
 import { HostSession } from './host'
 import { addGroup } from '../game/table'
+import { defend, hitCharacter } from '../game/hits'
 import { fakeNetwork, type Transport } from './transport'
 
 let n = 0
@@ -59,6 +60,24 @@ describe("a player's device", () => {
     client.act({ kind: 'roll', roll: { subject: { kind: 'basic', action: 'attack' }, record, selfMods: [], minionMods: [], others: [], made: [], defends: [], attacks: [{ result: 0, to: { kind: 'member', groupId: group.id, memberId: group.members[0]!.id } }] } })
     await net.settle()
     expect(client.getSnapshot().notices).toMatchObject([{ kind: 'note', text: expect.stringMatching(/^Drones 1 (saved|failed its save) against 5 \(rolled \d\): /) }])
+  })
+
+  it('gets a hit waiting for its choice of defense, and settles it', async () => {
+    const { net, host, client } = await setup()
+    const heroId = client.heroId!
+    host.apply((g) => {
+      const c = clock()
+      const guarded = defend(defend(g, { kind: 'hero', id: heroId }, 2, 'Jo', c), { kind: 'hero', id: heroId }, 6, 'Jo', c)
+      return hitCharacter(guarded, 'Gravelord', { kind: 'hero', id: heroId }, 5, c, false)
+    })
+    await net.settle()
+    const table = client.getSnapshot().received!.table
+    expect(table.pendingHits).toMatchObject([{ heroId, by: 'Gravelord', amount: 5 }])
+    const six = table.heroes[0]!.play.defenses!.find((d) => d.value === 6)!
+    client.act({ kind: 'chooseDefense', hitId: table.pendingHits![0]!.id, defenseId: six.id })
+    await net.settle()
+    expect(client.getSnapshot().received!.table.pendingHits).toBeUndefined()
+    expect(host.game!.heroes[0]!.play.defenses!.map((d) => d.value)).toEqual([2])
   })
 
   it('shows why an action was refused', async () => {

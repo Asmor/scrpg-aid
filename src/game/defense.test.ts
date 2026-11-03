@@ -12,7 +12,9 @@ import { applyAttack } from './attacks'
 import { defend, hitCharacter } from './hits'
 import { createGame, type Game } from './model'
 import { applyGroupRoll, memberSaveText, npcTargetId, rollSave } from './npc'
-import { addGroup, addHero, addVillain, handOff, startRound } from './table'
+import { addGroup, addHero, addVillain, handOff, resolveHit, startRound } from './table'
+import { project } from './project'
+import { tableViewProblem } from '../session/protocol'
 
 function clock(): Clock {
   let n = 0
@@ -90,16 +92,53 @@ describe('hits after defenses', () => {
     expect(next.villains[0]!.play.defenses).toBeUndefined()
   })
 
-  it('uses exactly one defense per hit: the default, or the one chosen', () => {
+  it("waits for the hero's owner to choose when it has two or more defenses, then uses that one", () => {
+    const { g, c, maya } = table()
+    const guarded = defend(defend(g, { kind: 'hero', id: maya }, 2, 'Jo', c), { kind: 'hero', id: maya }, 6, 'Jo', c)
+    const [two, six] = guarded.heroes[0]!.play.defenses!
+    const held = hitCharacter(guarded, 'Gravelord', { kind: 'hero', id: maya }, 5, c, false)
+    expect(heroHp(held, maya)).toBe(heroHp(g, maya))
+    expect(held.pendingHits).toMatchObject([{ heroId: maya, by: 'Gravelord', amount: 5 }])
+    expect(held.feed.at(-1)!.text).toBe('Gravelord attacked Maya Reyes: 5 damage. Alex chooses which defense to use.')
+    const hitId = held.pendingHits![0]!.id
+
+    // The default: the largest that fits under the damage.
+    const byDefault = resolveHit(held, hitId, undefined, c)
+    expect(heroHp(byDefault, maya)).toBe(heroHp(g, maya) - 3)
+    expect(byDefault.heroes[0]!.play.defenses).toEqual([six])
+    expect(byDefault.pendingHits).toEqual([])
+    expect(byDefault.feed.slice(-2).map((e) => e.text)).toEqual(["Maya Reyes used Defend 2 from Jo against Gravelord's 5 damage: 3 taken.", 'Lost 3 HP (30 → 27).'])
+
+    // The player's choice, sent as an action.
+    const chosen = applyHeroAction(held, maya, { kind: 'chooseDefense', hitId, defenseId: six!.id }, { basedOn: 0, versions: {} }, clock())
+    expect(chosen.ok && heroHp(chosen.game, maya)).toBe(heroHp(g, maya))
+    expect(chosen.ok && chosen.game.heroes[0]!.play.defenses).toEqual([two])
+    expect(applyHeroAction(chosen.ok ? chosen.game : held, maya, { kind: 'chooseDefense', hitId, defenseId: six!.id }, { basedOn: 0, versions: {} }, clock())).toEqual({ ok: false, reason: 'that hit is already settled' })
+
+    // A choice already made skips the wait.
+    expect(hitCharacter(guarded, 'Gravelord', { kind: 'hero', id: maya }, 5, c, false, six!.id).pendingHits).toBeUndefined()
+  })
+
+  it('settles a waiting hit with the default when the hero’s turn starts, before its defenses go', () => {
+    const { g, c, maya, jo } = table()
+    let next = defend(defend(g, { kind: 'hero', id: maya }, 2, 'Jo', c), { kind: 'hero', id: maya }, 6, 'Jo', c)
+    next = hitCharacter(next, 'Gravelord', { kind: 'hero', id: maya }, 5, c, false)
+    next = startRound(next, { kind: 'hero', id: jo }, c)
+    expect(next.pendingHits).toHaveLength(1)
+    next = handOff(next, { kind: 'hero', id: maya }, c)
+    expect(next.pendingHits).toEqual([])
+    expect(heroHp(next, maya)).toBe(heroHp(g, maya) - 3)
+    expect(next.heroes[0]!.play.defenses).toBeUndefined()
+  })
+
+  it('names a hidden attacker for the GM only', () => {
     const { g, c, maya } = table()
     let next = defend(defend(g, { kind: 'hero', id: maya }, 2, 'Jo', c), { kind: 'hero', id: maya }, 6, 'Jo', c)
-    const [two, six] = next.heroes[0]!.play.defenses!
-    const hit = hitCharacter(next, 'Gravelord', { kind: 'hero', id: maya }, 5, c, false)
-    expect(heroHp(hit, maya)).toBe(heroHp(g, maya) - 3)
-    expect(hit.heroes[0]!.play.defenses).toEqual([six])
-    next = hitCharacter(next, 'Gravelord', { kind: 'hero', id: maya }, 5, c, false, six!.id)
-    expect(heroHp(next, maya)).toBe(heroHp(g, maya))
-    expect(next.heroes[0]!.play.defenses).toEqual([two])
+    next = hitCharacter(next, 'Secret', { kind: 'hero', id: maya }, 5, c, true)
+    expect(project(next, 'gm').pendingHits![0]!.by).toBe('Secret')
+    expect(project(next, 'player').pendingHits![0]).toMatchObject({ by: 'Someone unseen', amount: 5 })
+    expect(project(next, 'player').pendingHits![0]).not.toHaveProperty('gmOnly')
+    expect(tableViewProblem(project(next, 'player'))).toBeUndefined()
   })
 
   it("blocks before a member's save; with nothing getting through there's no save", () => {

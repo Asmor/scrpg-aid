@@ -62,6 +62,19 @@ export interface VillainInGame extends CharacterInGame<Villain, VillainPlayState
   playersSee: PlayersSee
 }
 
+/**
+ * A hit on a hero holding two or more defenses: the hero's owner (its player, or the GM for
+ * their own hero) chooses which one blocks it. `gmOnly` when the attacker is hidden.
+ */
+export interface PendingHit {
+  id: string
+  heroId: string
+  by: string
+  amount: number
+  at: string
+  gmOnly?: true
+}
+
 /** A player asking for the game's copy of their hero to match their library sheet (section 8; sent from Phase 2). */
 export interface SyncRequest {
   heroId: string
@@ -149,6 +162,8 @@ export interface Game {
   challenges: Challenge[]
   /** Sheet update requests waiting for the GM, one per hero at most. */
   pendingSyncs: SyncRequest[]
+  /** Hits on heroes waiting for the hero's owner to choose one of its defenses (ruling 65). */
+  pendingHits?: PendingHit[]
   /** Private to the GM. */
   notes: string
   /** The code players join with. It stays the same each time the game is hosted. */

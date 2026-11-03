@@ -3,6 +3,7 @@
  * the turn order, the heroes, the opposition and the log. It's the same for everyone; `gm`
  * adds the GM's controls and never moves anything around. Without it, everything is read-only.
  */
+import { ChooseDefense } from './ChooseDefense'
 import { defenseText, type Defense } from '../play/defense'
 import { useState, type ReactNode } from 'react'
 import { DiceText, DieIcon } from '../components/icons'
@@ -37,6 +38,9 @@ export interface HeroView {
   disconnected?: boolean
   /** The player asked for the game's copy to match their sheet (the GM's only). */
   syncRequested?: boolean
+  /** Hits waiting for a choice of defense, and who chooses (the GM's only; ruling 65). */
+  waiting?: readonly { id: string; by: string; amount: number }[]
+  chooser?: string
 }
 
 /** What a villain's card shows (all of it: the GM's view). */
@@ -65,6 +69,8 @@ export interface GmControls {
   turnMenu: MenuItem[]
   heroMenu: (hero: HeroView) => MenuItem[]
   reviewSync: (heroId: string) => void
+  /** Settles a hit waiting on a hero with the defense chosen (for the GM's own hero, or in a player's place). */
+  resolveHit: (hitId: string, defenseId: string) => void
   reveal: (ref: ItemRef) => void
   hide: (ref: ItemRef) => void
   itemMenu: (ref: ItemRef, hidden: boolean) => MenuItem[]
@@ -356,6 +362,13 @@ function HeroCard({ hero, acting, gm }: { hero: HeroView; acting: boolean; gm?: 
               {hero.disconnected && <span className="gt-flag">Disconnected</span>}
             </div>
           )}
+          {gm &&
+            hero.waiting?.map((h) => (
+              <div key={h.id} className="gt-waiting">
+                {hero.chooser !== 'The GM' && <p className="gt-sub">Waiting for {hero.chooser} to choose a defense. You can choose for them:</p>}
+                <ChooseDefense hit={h} heroName={hero.name} defenses={hero.defenses} onChoose={(defenseId) => gm.resolveHit(h.id, defenseId)} />
+              </div>
+            ))}
           {gm && hero.syncRequested && (
             <button type="button" className="button button--small gt-sync-button" onClick={() => gm.reviewSync(hero.ref.id)}>
               Sheet update requested · Review

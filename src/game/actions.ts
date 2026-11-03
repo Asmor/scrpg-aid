@@ -22,7 +22,7 @@ import { villainDisplayName } from '../villain/model'
 import { applyAttack } from './attacks'
 import { defend } from './hits'
 import type { ActorRef, Game, HeroInGame } from './model'
-import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, handOff, heroPlayInScene, isHidden, itemName, memberName, roundOver, sameActor, startRound, waiting, withLog } from './table'
+import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, handOff, heroPlayInScene, isHidden, itemName, memberName, resolveHit, roundOver, sameActor, startRound, waiting, withLog } from './table'
 
 export type ModInput = Omit<PlayMod, 'id'>
 /** A minion to make. */
@@ -69,6 +69,8 @@ export type HeroAction =
   | { kind: 'removeMinionMod'; minionId: string; modId: string }
   | { kind: 'minionRoll'; minionId: string; roll: MinionRoll }
   | { kind: 'minionForm'; minionId: string; form: string }
+  /** Chooses the defense for a hit waiting on the hero (ruling 65). */
+  | { kind: 'chooseDefense'; hitId: string; defenseId: string }
   | { kind: 'handOff'; to: ActorRef }
   | { kind: 'startRound'; first: ActorRef }
 
@@ -149,6 +151,12 @@ export function applyHeroAction(game: Game, heroId: string, action: HeroAction, 
     case 'dividedForm':
       if (!buildSheet(hero.sheet).divided) return refuse("your hero isn't Divided")
       return change((p) => setDividedForm(p, action.form, clock))
+    case 'chooseDefense': {
+      const hit = game.pendingHits?.find((h) => h.id === action.hitId && h.heroId === heroId)
+      if (!hit) return refuse('that hit is already settled')
+      if (!(hero.play.defenses ?? []).some((d) => d.id === action.defenseId)) return refuse('that defense is already gone')
+      return { ok: true, game: resolveHit(game, hit.id, action.defenseId, clock) }
+    }
     case 'roll':
       return applyRoll(game, hero, action.roll, clock, ctx.random ?? Math.random)
     case 'makeMinion':

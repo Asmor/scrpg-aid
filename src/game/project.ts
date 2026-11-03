@@ -17,7 +17,7 @@ import { villainSummary } from '../villain/play'
 import type { PlayMod, PlayTwist } from '../hero/model'
 import type { PlayZone } from '../play/state'
 import type { Die } from '../rules/types'
-import type { ActorRef, Challenge, EnvironmentOnTable, Game, GameFeedEntry, NpcGroup, PlayersSee } from './model'
+import type { ActorRef, Challenge, EnvironmentOnTable, Game, GameFeedEntry, NpcGroup, PendingHit, PlayersSee } from './model'
 import { isHidden, sameActor } from './table'
 
 export type Audience = 'gm' | 'player' | 'observer'
@@ -60,6 +60,8 @@ export interface TableView {
   villains: VillainOnTable[]
   groups: NpcGroup[]
   challenges: Challenge[]
+  /** Hits waiting for a hero's owner to choose a defense (ruling 65); a hidden attacker is unnamed for players. */
+  pendingHits?: PendingHit[]
   feed: GameFeedEntry[]
 }
 
@@ -100,6 +102,7 @@ export function project(game: Game, audience: Audience): TableView {
     villains: shown(game.villains).map((v) => villainFor(v, audience)),
     groups: shown(game.groups),
     challenges: shown(game.challenges),
+    ...(game.pendingHits?.length ? { pendingHits: gm ? game.pendingHits : game.pendingHits.map(({ gmOnly, ...h }) => (gmOnly ? { ...h, by: 'Someone unseen' } : h)) } : {}),
     feed: gm ? game.feed : game.feed.filter((e) => !e.gmOnly),
   }
 }

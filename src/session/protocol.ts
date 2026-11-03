@@ -128,6 +128,7 @@ const ACTIONS: Record<HeroAction['kind'], Check> = {
   shrinkMinion: object({ minionId: id }),
   minionMod: object({ minionId: id, mod: modInput }),
   removeMinionMod: object({ minionId: id, modId: id }),
+  chooseDefense: object({ hitId: id, defenseId: id }),
   minionRoll: object({ minionId: id, roll: object({ action: basicAction, value: range(1, 12), mods: list(mod, 20) }) }),
   minionForm: object({ minionId: id, form: text(MAX_NAME) }),
   handOff: object({ to: actor }),
@@ -219,6 +220,7 @@ const tableViewShape = object({
     50,
   ),
   challenges: list(object({ id, name: text(MAX_NAME), hidden: boolean, steps: list(boolean, 20) }), 50),
+  'pendingHits?': list(object({ id, heroId: id, by: text(MAX_NAME), amount: range(0, 1000), at: text(MAX_NAME), 'gmOnly?': oneOf(true) }), 50),
   feed: list(feedEntry, VIEW_FEED),
 })
 

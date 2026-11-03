@@ -11,11 +11,12 @@ import { nameList } from './names'
 import { stepDie } from '../rules/dice'
 import type { Die, Zone } from '../rules/types'
 import { heroDisplayName, type Hero, type PlayHistoryEntry, type PlayMod, type PlayState } from '../hero/model'
-import { describeMod, setReactionUsed, type Clock } from '../play/state'
-import { clearDefenses } from '../play/defense'
+import { currentHealth, describeMod, setHealth, setReactionUsed, type Clock } from '../play/state'
+import { blockWith, clearDefenses, defensesOf, defenseText, pickDefense, removeDefense, type Defense } from '../play/defense'
+import { buildSheet } from '../creation/sheet'
 import { FEED_LIMIT } from '../session/types'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
-import { heroCopy, MAX_BOXES, MAX_GROUP_SIZE, MAX_STEPS, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type Game, type GameFeedEntry, type HeroInGame, type NpcGroup, type PlayersSee, type TrackerCounts, type VillainInGame } from './model'
+import { heroCopy, MAX_BOXES, MAX_GROUP_SIZE, MAX_STEPS, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type Game, type GameFeedEntry, type HeroInGame, type NpcGroup, type PendingHit, type PlayersSee, type TrackerCounts, type VillainInGame } from './model'
 import { reconcile, reconcileVillain } from './reconcile'
 
 export const GM = 'GM'
@@ -238,7 +239,7 @@ export function removeFromTable(game: Game, ref: ItemRef | ActorRef, clock: Cloc
   switch (ref.kind) {
     case 'hero':
       if (!game.heroes.some((h) => h.id === ref.id)) return game
-      next = { ...game, heroes: game.heroes.filter((h) => h.id !== ref.id), pendingSyncs: game.pendingSyncs.filter((r) => r.heroId !== ref.id) }
+      next = { ...game, heroes: game.heroes.filter((h) => h.id !== ref.id), pendingSyncs: game.pendingSyncs.filter((r) => r.heroId !== ref.id), ...(game.pendingHits ? { pendingHits: game.pendingHits.filter((x) => x.heroId !== ref.id) } : {}) }
       break
     case 'villain':
       if (!findVillain(game, ref.id)) return game
@@ -449,6 +450,48 @@ export function removeMemberMod(game: Game, groupId: string, memberId: string, m
   return log(next, clock, `${memberName(group, member.n)}: removed ${describeMod(mod)}.`, { gmOnly: group.hidden })
 }
 
+// ---- Hits on heroes (ruling 65) ----
+
+/** Takes `amount` off a hero's Health after `defense` (used up). No log line: the caller writes it. */
+export function damageHero(game: Game, heroId: string, amount: number, defense: Defense | undefined, clock: Clock): Game {
+  const { taken } = blockWith(amount, defense)
+  return changeHeroPlay(
+    game,
+    heroId,
+    (p, sheet) => {
+      const after = defense ? removeDefense(p, defense.id) : p
+      const built = buildSheet(sheet)
+      const now = currentHealth(built, after)
+      return now === undefined || taken === 0 ? after : setHealth(after, built, now - taken, clock)
+    },
+    clock,
+  )
+}
+
+/** Who chooses a hero's defense: its player, or the GM for their own hero. */
+export const defenseChooser = (hero: Pick<HeroInGame, 'player'>) => hero.player?.name || (hero.player ? 'The player' : 'The GM')
+
+/**
+ * Settles a hit that was waiting for a choice of defense: `defenseId`, or the default if it's
+ * unset or gone. "Maya Reyes used Defend 5 against Gravelord's 8 damage: 3 taken."
+ */
+export function resolveHit(game: Game, hitId: string, defenseId: string | undefined, clock: Clock): Game {
+  const hit = game.pendingHits?.find((h) => h.id === hitId)
+  if (!hit) return game
+  const rest = { ...game, pendingHits: game.pendingHits!.filter((h) => h.id !== hitId) }
+  const hero = findHero(rest, hit.heroId)
+  if (!hero) return rest
+  const defense = pickDefense(defensesOf(hero.play), hit.amount, defenseId)
+  const { taken } = blockWith(hit.amount, defense)
+  const text = defense ? `${heroDisplayName(hero.sheet)} used ${defenseText(defense)} against ${hit.by}'s ${hit.amount} damage: ${taken} taken.` : `${heroDisplayName(hero.sheet)} took ${hit.amount} damage from ${hit.by}.`
+  return damageHero(log(rest, clock, text, { by: hit.by, gmOnly: Boolean(hit.gmOnly) }), hit.heroId, hit.amount, defense, clock)
+}
+
+/** Puts a hit on a hero aside until its owner chooses a defense. */
+export function holdHit(game: Game, hit: Omit<PendingHit, 'id' | 'at'>, clock: Clock): Game {
+  return { ...game, pendingHits: [...(game.pendingHits ?? []), { ...hit, id: clock.newId(), at: clock.now.toISOString() }] }
+}
+
 // ---- Challenges ----
 
 /** "1 of 3 done". */
@@ -489,8 +532,11 @@ function startTurn(game: Game, ref: ActorRef, clock: Clock): Game {
       return advanceTracker(clearActed(game, (g) => g.owner.kind === 'environment'), clock)
     case 'group':
       return clearActed(game, (g) => g.id === ref.id)
-    case 'hero':
-      return changeHeroPlay(game, ref.id, (p) => clearDefenses(setReactionUsed(p, false, clock)), clock, false)
+    case 'hero': {
+      // Hits still waiting for a choice take the default defense before the defenses go.
+      const resolved = (game.pendingHits ?? []).filter((h) => h.heroId === ref.id).reduce((g, h) => resolveHit(g, h.id, undefined, clock), game)
+      return changeHeroPlay(resolved, ref.id, (p) => clearDefenses(setReactionUsed(p, false, clock)), clock, false)
+    }
     case 'villain':
       return changeVillainPlay(game, ref.id, (p) => clearDefenses(setReactionUsed(p, false, clock)), clock, false)
     default:

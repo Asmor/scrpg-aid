@@ -169,7 +169,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   // ---- What the cards show ----
 
   const table = project(game, 'gm')
-  const heroes: HeroView[] = game.heroes.map((h) => heroView(h, game, { disconnected: Boolean(h.player && !connected.has(h.player.clientId)), syncRequested: game.pendingSyncs.some((r) => r.heroId === h.id) }))
+  const heroes: HeroView[] = game.heroes.map((h) => heroView(h, game, { disconnected: Boolean(h.player && !connected.has(h.player.clientId)), syncRequested: game.pendingSyncs.some((r) => r.heroId === h.id), waiting: (game.pendingHits ?? []).filter((x) => x.heroId === h.id), chooser: T.defenseChooser(h) }))
   const villains: VillainView[] = table.villains.map(villainView)
 
   // ---- The GM's controls ----
@@ -215,6 +215,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       ]
     },
     reviewSync: (heroId) => setDialog({ kind: 'review', heroId }),
+    resolveHit: (hitId, defenseId) => apply((g) => T.resolveHit(g, hitId, defenseId, clock())),
     reveal,
     hide,
     itemMenu: (ref, hidden) => [

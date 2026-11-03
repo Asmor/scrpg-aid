@@ -7067,3 +7067,23 @@ span.gt-step--done {
 .gt-defense {
   border-style: dashed;
 }
+
+/* Choosing a defense against a waiting hit (ruling 65). */
+.gt-choose-defense {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.gt-choose-defense legend {
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.gt-choose-defense .button {
+  align-self: flex-start;
+}

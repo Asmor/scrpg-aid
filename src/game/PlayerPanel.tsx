@@ -8,6 +8,7 @@
  * While the GM isn't connected, controls that change the game are disabled and say "Needs the GM".
  */
 import { defenseText } from '../play/defense'
+import { ChooseDefense } from './ChooseDefense'
 import { useId, useState, type ReactNode } from 'react'
 import { DieIcon } from '../components/icons'
 import { buildSheet } from '../creation/sheet'
@@ -30,7 +31,7 @@ import { MenuButton, ZoneChip } from './TableCenter'
 
 interface Props {
   hero: HeroOnTable
-  view: Pick<TableView, 'scene' | 'heroes' | 'villains' | 'groups'>
+  view: Pick<TableView, 'scene' | 'heroes' | 'villains' | 'groups' | 'pendingHits'>
   /** Actions sent and not answered yet. */
   pending: readonly PendingAction[]
   /** Whether the GM is connected: actions can be sent. */
@@ -121,6 +122,13 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
           </button>
         </section>
       )}
+      {(view.pendingHits ?? [])
+        .filter((h) => h.heroId === hero.id)
+        .map((h) => (
+          <section key={h.id} className="card gt-card gt-waiting" aria-label="Choose a defense" role="alert">
+            <ChooseDefense hit={h} heroName={name} defenses={play.defenses ?? []} disabled={off} {...(describedBy ? { describedBy } : {})} onChoose={(defenseId) => act({ kind: 'chooseDefense', hitId: h.id, defenseId })} />
+          </section>
+        ))}
       <section className="card gt-card gt-player">
         <div className="gt-row">
           <div className="gt-grow">
