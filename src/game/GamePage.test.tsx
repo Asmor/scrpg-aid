@@ -223,7 +223,7 @@ describe('the game table', () => {
     await waitFor(async () => expect((await saved()).groups).toEqual([]))
   })
 
-  it('runs a group: shrinks a member and rolls its die', async () => {
+  it('runs a group: shrinks a member, rolls its die, and marks it acted', async () => {
     await setup()
     await userEvent.click(gmScreen().getByRole('button', { name: '+ Lieutenant' }))
     const dialog = within(screen.getByRole('dialog', { name: 'Add lieutenants' }))
@@ -231,12 +231,17 @@ describe('the game table', () => {
     await userEvent.click(dialog.getByRole('button', { name: 'Add to table' }))
     await userEvent.click(screen.getByRole('button', { name: 'Run Static Choir' }))
     const running = within(screen.getByRole('region', { name: 'Static Choir' }))
-    await userEvent.click(running.getByRole('button', { name: 'Shrink Static Choir 1' }))
+    await userEvent.click(running.getByRole('button', { name: 'More actions for Static Choir 1' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Shrink' }))
     expect(within(screen.getByRole('article', { name: 'Static Choir' })).getByRole('list', { name: 'Dice' })).toHaveTextContent('× 2')
+    expect(running.getByText('0 of 3 acted')).toBeInTheDocument()
     await userEvent.click(running.getByRole('button', { name: 'Roll Static Choir 2' }))
-    await userEvent.click(running.getByRole('button', { name: 'Roll d8' }))
-    await userEvent.click(running.getByRole('button', { name: 'Done' }))
-    expect(log()).toHaveTextContent('Static Choir 2 took Attack:')
+    const roll = within(screen.getByRole('dialog', { name: 'Static Choir 2 rolls Attack' }))
+    expect(roll.getByRole('row', { name: /Static Choir 2/ })).toHaveTextContent('5')
+    await userEvent.click(roll.getByRole('button', { name: 'Apply' }))
+    expect(log()).toHaveTextContent('Static Choir 2 took Attack: 5, with no target.')
+    expect(running.getByText('1 of 3 acted')).toBeInTheDocument()
+    expect(running.getByRole('button', { name: 'Roll Static Choir 2' })).toBeDisabled()
   })
 
   it('adds a challenge and checks its steps', async () => {

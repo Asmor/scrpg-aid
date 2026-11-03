@@ -11,8 +11,7 @@ import { nameList } from './names'
 import { stepDie } from '../rules/dice'
 import type { Die, Zone } from '../rules/types'
 import { heroDisplayName, type Hero, type PlayHistoryEntry, type PlayMod, type PlayState } from '../hero/model'
-import { describeMod, modName, setReactionUsed, type Clock } from '../play/state'
-import { minionEffect, type MinionRoll } from '../play/minions'
+import { describeMod, setReactionUsed, type Clock } from '../play/state'
 import { FEED_LIMIT } from '../session/types'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
 import { heroCopy, MAX_BOXES, MAX_GROUP_SIZE, MAX_STEPS, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type Game, type GameFeedEntry, type HeroInGame, type NpcGroup, type PlayersSee, type TrackerCounts, type VillainInGame } from './model'
@@ -403,18 +402,21 @@ export function setMemberActed(game: Game, groupId: string, memberId: string, ac
   return log(next, clock, `The GM marked ${memberName(group, member.n)} as ${acted ? 'acted' : 'not acted'}.`, { gmOnly: group.hidden })
 }
 
-/** Removes a member; the last one gone removes the group and its turn-order entry. */
-export function removeMember(game: Game, groupId: string, memberId: string, clock: Clock, why: 'removed' | 'shrank' = 'removed'): Game {
+/**
+ * Removes a member; the last one gone removes the group and its turn-order entry. A member KO'd
+ * by a save (`ko`) gets no line of its own: the save's line already says so.
+ */
+export function removeMember(game: Game, groupId: string, memberId: string, clock: Clock, why: 'removed' | 'shrank' | 'ko' = 'removed'): Game {
   const group = findGroup(game, groupId)
   const member = group?.members.find((m) => m.id === memberId)
   if (!group || !member) return game
   const gmOnly = group.hidden
   const name = memberName(group, member.n)
-  const text = why === 'shrank' ? `${name} shrank away and is gone.` : `${name} was removed.`
+  const lines = why === 'ko' ? [] : [line(clock, why === 'shrank' ? `${name} shrank away and is gone.` : `${name} was removed.`, { gmOnly })]
   const members = group.members.filter((m) => m.id !== memberId)
-  if (members.length) return log(changeGroup(game, groupId, (g) => ({ ...g, members })), clock, text, { gmOnly })
+  if (members.length) return withLog(changeGroup(game, groupId, (g) => ({ ...g, members })), lines)
   const without = syncTurnOrder({ ...game, groups: game.groups.filter((g) => g.id !== groupId) })
-  return withLog(without, [line(clock, text, { gmOnly }), line(clock, `All of ${group.name} are gone; the group left the table.`, { gmOnly })])
+  return withLog(without, [...lines, line(clock, `All of ${group.name} are gone; the group left the table.`, { gmOnly })])
 }
 
 /** Drops a member one die size; on a d4 it's removed instead. */
@@ -444,19 +446,6 @@ export function removeMemberMod(game: Game, groupId: string, memberId: string, m
   if (!group || !member || !mod) return game
   const next = changeGroup(game, groupId, (g) => ({ ...g, members: g.members.map((m) => (m.id === memberId ? { ...m, mods: m.mods.filter((x) => x.id !== modId) } : m)) }))
   return log(next, clock, `${memberName(group, member.n)}: removed ${describeMod(mod)}.`, { gmOnly: group.hidden })
-}
-
-/** Records a member's roll of its die, using up the non-persistent mods it used (p. 26). */
-export function recordMemberRoll(game: Game, groupId: string, memberId: string, roll: MinionRoll, clock: Clock): Game {
-  const group = findGroup(game, groupId)
-  const member = group?.members.find((m) => m.id === memberId)
-  if (!group || !member) return game
-  const usedUp = roll.mods.filter((m) => !m.persistent)
-  const name = memberName(group, member.n)
-  const action = roll.action[0]!.toUpperCase() + roll.action.slice(1)
-  const details = [`${roll.value} (${member.die})`, minionEffect(roll), ...roll.mods.map((m) => `Applied ${describeMod(m)}.`)]
-  const next = changeGroup(game, groupId, (g) => ({ ...g, members: g.members.map((m) => (m.id === memberId ? { ...m, mods: m.mods.filter((x) => !usedUp.some((u) => u.id === x.id)) } : m)) }))
-  return withLog(next, [line(clock, `${name} took ${action}:`, { by: group.name, gmOnly: group.hidden, details }), ...usedUp.map((m) => line(clock, `${name} used up ${modName(m)}.`, { by: group.name, gmOnly: group.hidden }))])
 }
 
 // ---- Challenges ----

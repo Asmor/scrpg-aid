@@ -22,7 +22,6 @@ import {
   heroPlayInScene,
   isHidden,
   itemName,
-  recordMemberRoll,
   removeFromTable,
   removeMember,
   removeMemberMod,
@@ -489,19 +488,16 @@ describe('groups', () => {
     expect(g.groups[0]!.members.map((m) => m.n)).toEqual([2, 3])
   })
 
-  it('gives members their own mods, used up by their rolls unless persistent', () => {
+  it('gives members their own mods, and removes them', () => {
     const { game, c, groupId } = table()
     const memberId = game.groups[0]!.members[0]!.id
     let g = addMemberMod(game, groupId, memberId, { label: 'Dazed', value: -1 }, c)
     g = addMemberMod(g, groupId, memberId, { label: 'Swarm', value: 1, persistent: true }, c)
     const mods = g.groups[0]!.members[0]!.mods
     expect(mods.map((m) => m.label)).toEqual(['Dazed', 'Swarm'])
-    g = recordMemberRoll(g, groupId, memberId, { action: 'attack', value: 4, mods }, c)
+    g = removeMemberMod(g, groupId, memberId, mods[0]!.id, c)
     expect(g.groups[0]!.members[0]!.mods.map((m) => m.label)).toEqual(['Swarm'])
-    expect(g.feed.at(-2)).toMatchObject({ by: 'Scrap drones', text: 'Scrap drones 1 took Attack:' })
-    expect(last(g).text).toBe('Scrap drones 1 used up Dazed.')
-    g = removeMemberMod(g, groupId, memberId, g.groups[0]!.members[0]!.mods[0]!.id, c)
-    expect(g.groups[0]!.members[0]!.mods).toEqual([])
+    expect(last(g).text).toBe("Scrap drones 1: removed '-1 Dazed' penalty.")
   })
 
   it('refuses a group size out of range', () => {

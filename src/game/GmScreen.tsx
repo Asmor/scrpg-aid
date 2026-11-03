@@ -9,12 +9,10 @@ import { useVillainStore } from '../app/villain-store-context'
 import { villainPath } from '../app/route'
 import { ActionIcon, DieIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL } from '../hero/labels'
-import { isDraft, type PlayMod } from '../hero/model'
+import { isDraft } from '../hero/model'
 import { heroType, villainType, toItem, type LibraryItem } from '../library/registry'
 import { filterItems, matches, type LibraryQuery } from '../library/query'
 import type { SavedSearch } from '../library/saved-searches'
-import { MinionUse } from '../play/MinionList'
-import type { MinionRoll } from '../play/minions'
 import { ModForm } from '../play/ModForm'
 import { confirmRoll } from '../play/roll'
 import { RollDialog, type RollSubject } from '../play/RollDialog'
@@ -23,7 +21,7 @@ import { villainDisplayName, type VillainPlayState } from '../villain/model'
 import { villainHealth, villainStatusDie, villainZone } from '../villain/play'
 import { buildVillainSheet, villainTraits } from '../villain/sheet'
 import type { Game, NpcGroup, VillainInGame } from './model'
-import { memberLabel, memberName } from './table'
+import { RunningGroup, type GroupActions } from './RunningGroup'
 import { ZoneChip } from './TableCenter'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -203,73 +201,6 @@ function RunningVillain({ copy, change, random }: { copy: VillainInGame; change:
         />
       )}
     </>
-  )
-}
-
-// ---- Running a group ----
-
-export interface GroupActions {
-  shrink: (memberId: string) => void
-  remove: (memberId: string) => void
-  addMod: (memberId: string, mod: Omit<PlayMod, 'id'>) => void
-  removeMod: (memberId: string, modId: string) => void
-  roll: (memberId: string, roll: MinionRoll) => void
-}
-
-function RunningGroup({ group, actions, random }: { group: NpcGroup; actions: GroupActions; random?: () => number }) {
-  const [modding, setModding] = useState<string | null>(null)
-  const [rolling, setRolling] = useState<string | null>(null)
-  return (
-    <ul className="gt-members gt-members--running" aria-label={`Members of ${group.name}`}>
-      {group.members.map((m) => {
-        const name = memberName(group, m.n)
-        return (
-          <li key={m.id}>
-            <div className="gt-row">
-              <DieIcon die={m.die} />
-              <strong>{memberLabel(group, m.n)}</strong>
-              <span className="gt-grow" />
-              <button type="button" className="button button--primary button--small" aria-label={`Roll ${name}`} aria-expanded={rolling === m.id} onClick={() => setRolling(rolling === m.id ? null : m.id)}>
-                Roll
-              </button>
-              <button type="button" className="button button--small" aria-label={`Shrink ${name}`} disabled={m.die === 'd4' || rolling === m.id} onClick={() => actions.shrink(m.id)}>
-                Shrink
-              </button>
-              <button type="button" className="button button--small" aria-label={`Remove ${name}`} onClick={() => actions.remove(m.id)}>
-                Remove
-              </button>
-            </div>
-            <ul className="gt-chips" aria-label={`${name}'s mods`}>
-              {m.mods.map((x) => (
-                <li key={x.id} className="gt-mod">
-                  {x.value > 0 ? `+${x.value}` : `−${-x.value}`} {modName(x)}
-                  <button type="button" className="gt-chip-x" aria-label={`Remove ${describeMod(x)} from ${name}`} onClick={() => actions.removeMod(m.id, x.id)}>
-                    ×
-                  </button>
-                </li>
-              ))}
-              <li>
-                <button type="button" className="button button--quiet button--small" aria-label={`Add a bonus or penalty to ${name}`} aria-expanded={modding === m.id} onClick={() => setModding(modding === m.id ? null : m.id)}>
-                  + Mod
-                </button>
-              </li>
-            </ul>
-            {modding === m.id && <ModForm onSubmit={(mod) => (actions.addMod(m.id, mod), setModding(null))} />}
-            {rolling === m.id && (
-              <MinionUse
-                minion={{ id: m.id, name, die: m.die, action: 'any', mods: m.mods }}
-                random={random}
-                onCancel={() => setRolling(null)}
-                onDone={(roll) => {
-                  actions.roll(m.id, roll)
-                  setRolling(null)
-                }}
-              />
-            )}
-          </li>
-        )
-      })}
-    </ul>
   )
 }
 
@@ -471,7 +402,7 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
               ×
             </button>
           </div>
-          {running.kind === 'villain' ? <RunningVillain key={running.villain.id} copy={running.villain} change={running.change} random={random} /> : <RunningGroup key={running.group.id} group={running.group} actions={running.actions} random={random} />}
+          {running.kind === 'villain' ? <RunningVillain key={running.villain.id} copy={running.villain} change={running.change} random={random} /> : <RunningGroup key={running.group.id} game={game} group={running.group} actions={running.actions} random={random} />}
         </section>
       )}
 

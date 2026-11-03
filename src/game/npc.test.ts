@@ -95,7 +95,7 @@ describe('groups on the table', () => {
     expect(readable(bad((g) => ({ ...g, owner: { kind: 'hero' } })))).toBe(false)
     expect(readable(bad((g) => ({ ...g, actions: ['dance'] })))).toBe(false)
     expect(readable(bad((g) => ({ ...g, actions: 'some' })))).toBe(false)
-    expect(readable(bad((g) => ({ ...g, members: g.members.map(({ acted: _, ...m }) => m) })))).toBe(false)
+    expect(readable(bad((g) => ({ ...g, members: g.members.map((m) => Object.fromEntries(Object.entries(m).filter(([k]) => k !== 'acted'))) })))).toBe(false)
     expect(readable(bad((g) => ({ ...g, actions: ['attack', 'hinder'] })))).toBe(true)
     const view = project(game, 'player')
     expect(tableViewProblem(view)).toBeUndefined()
