@@ -13,14 +13,17 @@ import { draftStepText, heroType, issuesText, itemFields, LIBRARY_TYPES, library
 const stores = () => ({ heroes: new MemoryHeroStore(), villains: new MemoryVillainStore(), games: new MemoryGameStore() })
 
 describe('library types', () => {
-  it('lists heroes, then villains, by key; games have their own page', () => {
+  it('lists heroes, villains, then the NPC templates, by key; games have their own page', () => {
     expect(LIBRARY_TYPES.map((t) => [t.key, t.label, t.plural, t.inGames])).toEqual([
       ['hero', 'Hero', 'Heroes', 'hero'],
       ['villain', 'Villain', 'Villains', 'villain'],
+      ['minion', 'Minion', 'Minions', 'minion'],
+      ['lieutenant', 'Lieutenant', 'Lieutenants', 'lieutenant'],
+      ['challenge', 'Challenge', 'Challenges', 'challenge'],
     ])
     expect(libraryType('villain')).toBe(villainType)
     expect(libraryType('game')).toBeUndefined()
-    expect(libraryType('minion')).toBeUndefined()
+    expect(libraryType('environment')).toBeUndefined()
   })
 
   it('reads, saves and removes through the stores', async () => {

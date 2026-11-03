@@ -20,6 +20,7 @@ import { ConfirmDialog } from './dialogs'
 import { heroDisplayName } from '../hero/model'
 import { localBackupTime, type BackupTimeStore } from '../library/backup-time'
 import type { LibraryStores } from '../library/registry'
+import { useOptionalTemplateStores } from '../app/template-store-context'
 import type { SavedSearchStore } from '../library/saved-searches'
 import { useDataMenu } from '../library/useDataMenu'
 import { itemKey, useLibraryData } from '../library/useLibraryData'
@@ -188,7 +189,8 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
   const store = useGameStore()
   const heroStore = useStore()
   const villainStore = useVillainStore()
-  const stores: LibraryStores = useMemo(() => ({ heroes: heroStore, villains: villainStore, games: store }), [heroStore, villainStore, store])
+  const templates = useOptionalTemplateStores()
+  const stores: LibraryStores = useMemo(() => ({ heroes: heroStore, villains: villainStore, games: store, ...(templates ? { templates } : {}) }), [heroStore, villainStore, store, templates])
   // The library's items: the Data menu backs them up, and Play together names heroes.
   const library = useLibraryData(stores, searchStore)
   const ready = library.state.status === 'ready' ? library.state : undefined

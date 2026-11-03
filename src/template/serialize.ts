@@ -13,6 +13,9 @@ const KINDS = {
 
 export type TemplateKind = keyof typeof KINDS
 
+/** A kind's envelope format ("scrpg-minion-template"). */
+export const templateFormat = (kind: TemplateKind) => KINDS[kind].format
+
 export const TEMPLATE_VERSION = 1
 /** Migrations keyed by the version they upgrade from (none yet). */
 const MIGRATIONS: Readonly<Record<number, Migration>> = {}

@@ -3,6 +3,7 @@
  * sheet of views, Filters opens a sheet of type and tag filters, and rows are a list. Press and
  * hold a row (or ⋯ Select) to start selecting; a bottom bar holds the bulk actions.
  */
+import { DieIcon } from '../components/icons'
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { Modal } from '../components/Modal'
 import { ActiveTags, FooterLine, LibraryMessages, NameCell, NewMenu, NoMatches, RemoveTagPanel, RowMenu, SaveSearchField, SearchField, TagChecklist, TypeChips, EmptyLibrary, UnreadableList } from './DesktopLibrary'
@@ -148,7 +149,12 @@ function PhoneRow({ model, row, selecting }: { model: LibraryModel; row: Row; se
         </div>
         <div className="phone-row__sub">
           {row.item.type.label}
-          {info.details && ` · ${info.details}`}
+          {info.details && (
+            <>
+              {' · '}
+              {info.detailsDie && <DieIcon die={info.detailsDie} size="inline" />} {info.details}
+            </>
+          )}
         </div>
         {info.issues && (
           <a className="library-issues" href={info.issues.href}>

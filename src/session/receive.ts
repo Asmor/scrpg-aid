@@ -8,6 +8,9 @@ import { heroType, villainType } from '../library/registry'
 import { heroesToSave } from '../transfer/files'
 import type { VillainStore } from '../villain/store'
 import type { Offer } from './send'
+import { templateCount, TEMPLATE_LIST_INFO, TEMPLATE_LIST_KEYS } from '../template/lists'
+import { templateName, type TemplateBase } from '../template/model'
+import type { TemplateStores } from '../template/store'
 
 export interface Saved {
   /** The names of everything saved, in the offer's order. */
@@ -16,9 +19,10 @@ export interface Saved {
   copies: string[]
 }
 
-/** Saves the offer's sheets. Without a villain store, villains can't be received. */
-export async function saveOffer(offer: Offer, heroes: HeroStore, villains: VillainStore | null): Promise<Saved> {
+/** Saves the offer's documents. Without a villain store, villains can't be received, nor templates without the templates' stores. */
+export async function saveOffer(offer: Offer, heroes: HeroStore, villains: VillainStore | null, templates: TemplateStores | null = null): Promise<Saved> {
   if (offer.villains.length && !villains) throw new Error("villains can't be saved here")
+  if (templateCount(offer.templates) && !templates) throw new Error("templates can't be saved here")
   const heroList = await heroes.list()
   const heroIds = new Set([...heroList.heroes.map((h) => h.id), ...heroList.unreadable.map((u) => u.id)])
   const villainList = offer.villains.length && villains ? await villains.list() : { villains: [], unreadable: [] }
@@ -37,6 +41,19 @@ export async function saveOffer(offer: Offer, heroes: HeroStore, villains: Villa
     const name = villainType.row(villain).name
     saved.names.push(name)
     if (villain.id !== offer.villains[i]!.id) saved.copies.push(name)
+  }
+  for (const key of TEMPLATE_LIST_KEYS) {
+    const info = TEMPLATE_LIST_INFO[key]
+    const incoming = offer.templates[key] as TemplateBase[]
+    if (!incoming.length) continue
+    const list = await info.store(templates!).list()
+    const ids = new Set([...list.docs.map((d) => d.id), ...list.unreadable.map((u) => u.id)])
+    for (const [i, doc] of heroesToSave(incoming, ids, {}).entries()) {
+      await info.store(templates!).save(doc)
+      const name = templateName(doc, info.kind)
+      saved.names.push(name)
+      if (doc.id !== incoming[i]!.id) saved.copies.push(name)
+    }
   }
   return saved
 }

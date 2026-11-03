@@ -7,6 +7,9 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { listPath, navigate, receivePath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useOptionalVillainStore } from '../app/villain-store-context'
+import { useOptionalTemplateStores } from '../app/template-store-context'
+import { TEMPLATE_LIST_INFO, TEMPLATE_LIST_KEYS } from '../template/lists'
+import { templateName, type TemplateBase } from '../template/model'
 import { heroType, villainType } from '../library/registry'
 import { nameList } from '../library/names'
 import { normalizeRoomCode } from './code'
@@ -54,8 +57,19 @@ function ReceiveForm({ code: given }: { code?: string }) {
 }
 
 /** The offered items: name, kind and tags. */
+function offerItems(offer: Offer) {
+  return [
+    ...offer.heroes.map((h) => ({ id: `hero:${h.id}`, type: heroType.label, name: heroType.row(h).name, tags: h.tags })),
+    ...offer.villains.map((v) => ({ id: `villain:${v.id}`, type: villainType.label, name: villainType.row(v).name, tags: v.tags })),
+    ...TEMPLATE_LIST_KEYS.flatMap((key) => {
+      const kind = TEMPLATE_LIST_INFO[key].kind
+      return (offer.templates[key] as TemplateBase[]).map((d) => ({ id: `${kind}:${d.id}`, type: kind[0]!.toUpperCase() + kind.slice(1), name: templateName(d, kind), tags: d.tags }))
+    }),
+  ]
+}
+
 function OfferList({ offer }: { offer: Offer }) {
-  const items = [...offer.heroes.map((h) => ({ id: `hero:${h.id}`, type: heroType.label, name: heroType.row(h).name, tags: h.tags })), ...offer.villains.map((v) => ({ id: `villain:${v.id}`, type: villainType.label, name: villainType.row(v).name, tags: v.tags }))]
+  const items = offerItems(offer)
   return (
     <ul className="receive-list">
       {items.map((i, n) => (
@@ -80,6 +94,7 @@ function Receiving({ code }: { code: string }) {
   const session = useSession()
   const heroes = useStore()
   const villains = useOptionalVillainStore()
+  const templates = useOptionalTemplateStores()
   const [receiver, setReceiver] = useState<Receiver | undefined>()
   // Opened once per code (the session's functions are new on every render).
   const open = useRef(session.receive)
@@ -97,7 +112,7 @@ function Receiving({ code }: { code: string }) {
     setError(null)
     setSaving(true)
     try {
-      const result = await saveOffer(offer, heroes, villains)
+      const result = await saveOffer(offer, heroes, villains, templates)
       setSaved(result)
       receiver?.accept()
     } catch (e) {
@@ -169,11 +184,12 @@ function Receiving({ code }: { code: string }) {
     )
   }
   const offer = snapshot.offer
-  const count = offer.heroes.length + offer.villains.length
+  const listed = offerItems(offer)
+  const count = listed.length
   return (
     <div className="watch-page">
       {back}
-      <h2>Receive {count === 1 ? (offer.heroes[0] ? heroType.row(offer.heroes[0]).name : villainType.row(offer.villains[0]!).name) : `${count} items`}</h2>
+      <h2>Receive {count === 1 ? listed[0]!.name : `${count} items`}</h2>
       <OfferList offer={offer} />
       {offer.unreadable > 0 && <p className="hint">{offer.unreadable === 1 ? "One more item couldn't be read, so it won't come in." : `${offer.unreadable} more items couldn't be read, so they won't come in.`}</p>}
       {snapshot.status === 'gone' ? (

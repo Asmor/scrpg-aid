@@ -7,9 +7,8 @@
  * Games aren't a library type: they have their own Games page (../game/GamesPage.tsx). Library
  * documents are sheets only, so rows show nothing from play.
  *
- * Minions and lieutenants are left out for now: they have their own documents and store
- * (../minion/), but no page of their own to open them on yet, so there's nothing for a row to
- * link to. Add an entry once they do.
+ * The NPC templates (minions, lieutenants and challenges) are library types too:
+ * ./template-types.ts.
  */
 import { editPath, playPath, heroPath, villainEditPath, villainPath, villainPlayPath } from '../app/route'
 import type { NewHeroes } from '../app/new-heroes'
@@ -23,6 +22,9 @@ import type { GameStore } from '../game/store'
 import { createVillain, duplicateVillain, villainDisplayName, type Villain } from '../villain/model'
 import { buildVillainSheet } from '../villain/sheet'
 import type { VillainStore } from '../villain/store'
+import type { TemplateStores } from '../template/store'
+import type { Die } from '../rules/types'
+import { TEMPLATE_TYPES } from './template-types'
 
 /** Every document in the library has these. */
 export interface LibraryDoc {
@@ -36,6 +38,8 @@ export interface LibraryStores {
   heroes: HeroStore
   villains: VillainStore
   games: GameStore
+  /** NPC templates (docs/design/npcs/spec.md, section 2); a page without them lists none. */
+  templates?: TemplateStores
 }
 
 /** What a row shows for one item, worked out from its document. */
@@ -47,10 +51,12 @@ export interface RowInfo {
   draft: boolean
   /** The Details column: "Speedster · Accident", or a draft's step. */
   details: string
+  /** A die shown as an icon before the details (a minion's or lieutenant's starting die). */
+  detailsDie?: Die
   /** Rule issues, linking to where they can be fixed. */
   issues?: { count: number; href: string }
   openHref: string
-  primary: { label: 'Play' | 'Continue'; href: string }
+  primary: { label: 'Play' | 'Continue' | 'Edit'; href: string }
   editHref: string
 }
 
@@ -69,9 +75,9 @@ export interface LibraryType<D extends LibraryDoc = LibraryDoc> {
   /** The single-item export: JSON in the same envelope as storage. */
   exportFile(doc: D): { name: string; text: string }
   /** Which list of a backup file it goes in. */
-  backupKey: 'heroes' | 'villains'
-  /** Which kind of copy a game holds of it, for the In games column. */
-  inGames: 'hero' | 'villain'
+  backupKey: 'heroes' | 'villains' | 'minionTemplates' | 'lieutenantTemplates' | 'challengeTemplates'
+  /** Which kind of copy a game holds of it, for the In games column: a hero's or villain's copy, or something made from a template. */
+  inGames: 'hero' | 'villain' | 'minion' | 'lieutenant' | 'challenge'
   /** Starts a new one from the New menu, returning the page to open (unset if the type can't be created). */
   create?(context: { stores: LibraryStores; newHeroes: NewHeroes }): Promise<string>
 }
@@ -172,7 +178,7 @@ export const villainType: LibraryType<Villain> = {
 }
 
 /** Every library type, in the order the type chips and New menu list them. */
-export const LIBRARY_TYPES: readonly LibraryType[] = [heroType as unknown as LibraryType, villainType as unknown as LibraryType]
+export const LIBRARY_TYPES: readonly LibraryType[] = [heroType as unknown as LibraryType, villainType as unknown as LibraryType, ...TEMPLATE_TYPES]
 
 export function libraryType(key: string): LibraryType | undefined {
   return LIBRARY_TYPES.find((t) => t.key === key)

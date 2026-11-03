@@ -1,8 +1,10 @@
 /**
- * Edit mode's snapshot (the hero wizard spec, "Saving and revert"): the hero as it was on
- * entering edit mode, so "Revert changes" can tell whether anything changed and put it back.
+ * Edit mode's snapshot (the hero wizard spec, "Saving and revert"): the document (a hero, or an
+ * NPC template) as it was on entering edit mode, so "Revert changes" can tell whether anything
+ * changed and put it back.
  */
-import type { Hero } from '../hero/model'
+/** What a snapshot covers: any library document. */
+type Doc = { updatedAt: string; tags: string[] }
 
 /** Whether two values hold the same data, whatever order their keys were added in. */
 function same(a: unknown, b: unknown): boolean {
@@ -20,12 +22,12 @@ function same(a: unknown, b: unknown): boolean {
  * Whether the hero differs from the snapshot, ignoring when it was last saved. Tags are
  * outside the snapshot (docs/design/library/spec.md): changing them isn't an edit to revert.
  */
-export function changedSince(snapshot: Hero, hero: Hero): boolean {
+export function changedSince<T extends Doc>(snapshot: T, hero: T): boolean {
   return !same({ ...snapshot, updatedAt: '', tags: [] }, { ...hero, updatedAt: '', tags: [] })
 }
 
 /** Puts the snapshot's data back into `draft` (an editor change), keeping only its current tags. */
-export function restoreSnapshot(draft: Hero, snapshot: Hero): void {
+export function restoreSnapshot<T extends Doc>(draft: T, snapshot: T): void {
   const tags = [...draft.tags]
   for (const key of Object.keys(draft)) delete (draft as unknown as Record<string, unknown>)[key]
   Object.assign(draft, structuredClone(snapshot), { tags })

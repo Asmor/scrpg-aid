@@ -54,7 +54,7 @@ describe('heroHtml', () => {
 
   it('imports back to the same hero', () => {
     const hero = { ...formChangerHero(), id: 'f1' }
-    expect(readImport(heroHtml(hero))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], skipped: [] })
+    expect(readImport(heroHtml(hero))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [] }, skipped: [] })
   })
 
   it('keeps the player’s text as text, and the real payload findable', () => {
@@ -66,9 +66,9 @@ describe('heroHtml', () => {
     expect(doc.title).toBe(hero.details.name)
     expect(doc.querySelectorAll('script')).toHaveLength(1)
     expect(doc.querySelectorAll('img[onerror], img[src="x"]')).toHaveLength(0)
-    expect(readImport(html)).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], skipped: [] })
+    expect(readImport(html)).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [] }, skipped: [] })
     // A Markdown export with the same text still finds its own comment.
-    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], skipped: [] })
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [] }, skipped: [] })
   })
 })
 
@@ -82,6 +82,6 @@ describe('villainHtml', () => {
     expect(doc.querySelector('[aria-label="Ironclad villain sheet"]')).not.toBeNull()
     // It needs a mastery, but exports leave rule issues out.
     expect(doc.querySelector('.sheet-warnings')).toBeNull()
-    expect(readImport(html)).toEqual({ ok: true, heroes: [], villains: [v], games: [], savedSearches: [], skipped: [] })
+    expect(readImport(html)).toEqual({ ok: true, heroes: [], villains: [v], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [] }, skipped: [] })
   })
 })

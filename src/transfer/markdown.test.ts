@@ -46,7 +46,7 @@ describe('heroMarkdown', () => {
 
   it('imports back to the same hero', () => {
     const hero = { ...dividedHero(), id: 'd1' }
-    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], skipped: [] })
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [] }, skipped: [] })
   })
 
   it('escapes the player’s text so it stays plain', () => {
@@ -111,7 +111,7 @@ describe('embedded JSON', () => {
     const hero = createHero('guided', { id: 'h1' })
     expect(JSON.parse(embeddableJson(hero)).hero).not.toHaveProperty('play')
     const old = { ...hero, play: { health: 3, heroPoints: 1, reactionUsed: false, mods: [], twists: [], history: [] } }
-    expect(readImport(heroMarkdown(old))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], skipped: [] })
+    expect(readImport(heroMarkdown(old))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [] }, skipped: [] })
   })
 
   it('can’t close its comment or script tag, whatever the player typed', () => {
@@ -121,7 +121,7 @@ describe('embedded JSON', () => {
     expect(json).not.toMatch(/--|<|>|&/)
     expect(JSON.parse(json).hero.details.name).toBe(hero.details.name)
     expect(extractEmbedded(`text\n\n${markdownPayload(embeddableJson(hero))}\n`)?.trim()).toBe(json)
-    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], skipped: [] })
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [] }, skipped: [] })
   })
 
   it('finds the real comment when the player’s text looks like one', () => {
@@ -129,12 +129,12 @@ describe('embedded JSON', () => {
     hero.details.name = 'Agent <!-- scrpg-hero #'
     hero.details.costume = '<!-- scrpg-hero {"format":"scrpg-hero"} -->'
     hero.background = { id: 'upper-class', qualities: [], principle: { id: 'custom', custom: { category: 'identity', name: '<!-- scrpg-hero', roleplaying: 'x -->', minorTwist: '', majorTwist: '', greenAbility: { name: 'a --> b', text: '' } } } }
-    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], skipped: [] })
+    expect(readImport(heroMarkdown(hero))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [] }, skipped: [] })
   })
 
   it('explains a Markdown file without a readable hero', () => {
-    expect(readImport('# Just notes')).toEqual({ ok: false, error: "This file isn't a hero, villain, game, or backup the app can read." })
-    expect(readImport('# Hero\n\n<!-- scrpg-hero\n{"unclosed": 1')).toEqual({ ok: false, error: "This file isn't a hero, villain, game, or backup the app can read." })
+    expect(readImport('# Just notes')).toEqual({ ok: false, error: "This file isn't a hero, villain, template, game, or backup the app can read." })
+    expect(readImport('# Hero\n\n<!-- scrpg-hero\n{"unclosed": 1')).toEqual({ ok: false, error: "This file isn't a hero, villain, template, game, or backup the app can read." })
     expect(readImport('# Hero\n\n<!-- scrpg-hero\n{broken\n-->')).toEqual({ ok: false, error: "This file's data is damaged, so it can't be imported." })
   })
 })
@@ -166,13 +166,13 @@ describe('villainMarkdown', () => {
     for (const expected of ['# Ironclad', '- **Approach:** Adaptive', '- **Kind:** Major villain', '- **Motivation:** Revenge', '| Robotics', '**Max Health:** 70 (built for 4 heroes, 5 Health each)', '## Status die', 'Status follows its Health zone.', '- Green d6', '- **Lash Out** (Action)', '### Vehicle (d12)', '- **Sturdy** (Inherent)', '### Mastery']) {
       expect(md).toContain(expected)
     }
-    expect(readImport(md)).toEqual({ ok: true, heroes: [], villains: [v], games: [], savedSearches: [], skipped: [] })
+    expect(readImport(md)).toEqual({ ok: true, heroes: [], villains: [v], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [] }, skipped: [] })
   })
 
   it('leaves a villain’s play state out of its sheet exports', () => {
     const v = { ...adaptiveBruiser(), play: { health: 3, reactionUsed: false, mods: [], twists: [], history: [] } }
     const { play: _, ...withoutPlay } = v
-    expect(readImport(villainMarkdown(v))).toEqual({ ok: true, heroes: [], villains: [withoutPlay], games: [], savedSearches: [], skipped: [] })
+    expect(readImport(villainMarkdown(v))).toEqual({ ok: true, heroes: [], villains: [withoutPlay], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [] }, skipped: [] })
   })
 
   it('writes a blank villain, and each kind of status rule', () => {

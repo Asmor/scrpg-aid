@@ -12,6 +12,7 @@ import type { Hero } from '../hero/model'
 import { downloadFile } from '../transfer/download'
 import { backupFileName, backupJson } from '../transfer/files'
 import type { Villain } from '../villain/model'
+import { templateListsOf } from './send-text'
 import { backupStatus, type BackupTimeStore } from './backup-time'
 import type { DataActions } from './LibraryHeader'
 import { heroType, type LibraryItem, type LibraryStores, type LibraryType } from './registry'
@@ -26,7 +27,7 @@ const timestamp = () => new Date().toISOString()
 /** Downloads items in the backup format, with any games and saved searches. */
 export function downloadItems(list: readonly LibraryItem[], fileName: string, extras: { games: readonly Game[]; savedSearches: readonly SavedSearch[] }) {
   const of = (key: LibraryType['backupKey']) => list.filter((i) => i.type.backupKey === key).map((i) => i.doc)
-  const contents = { heroes: of('heroes') as unknown as Hero[], villains: of('villains') as unknown as Villain[], games: [...extras.games], savedSearches: [...extras.savedSearches] }
+  const contents = { heroes: of('heroes') as unknown as Hero[], villains: of('villains') as unknown as Villain[], games: [...extras.games], savedSearches: [...extras.savedSearches], templates: templateListsOf(of) }
   downloadFile(fileName, backupJson(contents), 'application/json')
 }
 

@@ -115,6 +115,8 @@ export interface NpcGroup extends Visible {
 
 export interface Challenge extends Visible {
   id: string
+  /** The library template it came from, if any. */
+  templateId?: string
   name: string
   /** Each step, done or not. */
   steps: boolean[]

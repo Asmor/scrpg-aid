@@ -96,6 +96,20 @@ export function useListedGames(): { games: Game[] | null; error: string | null; 
 }
 
 /** The listed games holding a copy of a character, by name (a character's "also in" line). */
-export function gamesHolding(games: readonly Game[], kind: 'hero' | 'villain', sourceId: string): Game[] {
-  return games.filter((g) => isListedGame(g) && copyOf(g, kind, sourceId))
+export function gamesHolding(games: readonly Game[], kind: 'hero' | 'villain' | 'minion' | 'lieutenant' | 'challenge', sourceId: string): Game[] {
+  return games.filter((g) => isListedGame(g) && holds(g, kind, sourceId))
+}
+
+/** Whether a game holds a copy of a library document, or something made from a template. */
+function holds(game: Game, kind: 'hero' | 'villain' | 'minion' | 'lieutenant' | 'challenge', sourceId: string): boolean {
+  switch (kind) {
+    case 'hero':
+    case 'villain':
+      return Boolean(copyOf(game, kind, sourceId))
+    case 'minion':
+    case 'lieutenant':
+      return game.groups.some((g) => g.templateId === sourceId && g.kind === (kind === 'minion' ? 'minions' : 'lieutenants'))
+    case 'challenge':
+      return game.challenges.some((c) => c.templateId === sourceId)
+  }
 }

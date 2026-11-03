@@ -13,13 +13,16 @@ import { extractEmbedded } from './embed'
 import { parseSavedSearch, searchToSaved, type SavedSearch, type SavedSearchEnvelope } from '../library/saved-searches'
 import type { Game } from '../game/model'
 import { GAME_FORMAT, gameToSaved, parseSavedGame, type SavedGame } from '../game/serialize'
+import { templateFormat } from '../template/serialize'
+import { emptyTemplateLists, TEMPLATE_LIST_INFO, TEMPLATE_LIST_KEYS, type TemplateLists } from '../template/lists'
 
 export const BACKUP_FORMAT = 'scrpg-backup'
 /**
- * Version 2 added villains, version 3 the library's saved searches, and version 4 games; older
- * backups still read. A multi-item export from the library uses the same format, with no saved searches.
+ * Version 2 added villains, version 3 the library's saved searches, version 4 games, and version
+ * 5 the NPC templates (../template/lists.ts); older backups still read. A multi-item export from
+ * the library uses the same format, with no saved searches.
  */
-export const BACKUP_VERSION = 4
+export const BACKUP_VERSION = 5
 
 export interface Backup {
   format: typeof BACKUP_FORMAT
@@ -29,6 +32,9 @@ export interface Backup {
   villains: SavedVillain[]
   games: SavedGame[]
   savedSearches: SavedSearchEnvelope[]
+  minionTemplates: unknown[]
+  lieutenantTemplates: unknown[]
+  challengeTemplates: unknown[]
 }
 
 /** One hero as JSON, the same envelope the app stores. */
@@ -48,7 +54,7 @@ export function gameJson(game: Game): string {
 
 /** Heroes, villains, games and saved searches in one JSON file: a backup, or a library export. `now` is injectable for tests. */
 export function backupJson(
-  { heroes = [], villains = [], games = [], savedSearches = [] }: { heroes?: readonly Hero[]; villains?: readonly Villain[]; games?: readonly Game[]; savedSearches?: readonly SavedSearch[] },
+  { heroes = [], villains = [], games = [], savedSearches = [], templates = {} }: { heroes?: readonly Hero[]; villains?: readonly Villain[]; games?: readonly Game[]; savedSearches?: readonly SavedSearch[]; templates?: Partial<TemplateLists> },
   now: Date = new Date(),
 ): string {
   const backup: Backup = {
@@ -59,7 +65,11 @@ export function backupJson(
     villains: villains.map(villainToSaved),
     games: games.map(gameToSaved),
     savedSearches: savedSearches.map(searchToSaved),
+    minionTemplates: [],
+    lieutenantTemplates: [],
+    challengeTemplates: [],
   }
+  for (const key of TEMPLATE_LIST_KEYS) backup[key] = (templates[key] ?? []).map((doc) => TEMPLATE_LIST_INFO[key].envelope.toSaved(doc))
   return JSON.stringify(backup, null, 2)
 }
 
@@ -97,16 +107,19 @@ export function backupFileName(now: Date = new Date()): string {
 
 /** A hero, villain, game or saved search in an imported backup that couldn't be read; `index` counts from 1 within its list. */
 export interface SkippedHero {
-  kind: 'hero' | 'villain' | 'game' | 'savedSearch'
+  kind: 'hero' | 'villain' | 'game' | 'savedSearch' | 'minion' | 'lieutenant' | 'challenge'
   index: number
   error: string
 }
 
-export type ImportResult = { ok: true; heroes: Hero[]; villains: Villain[]; games: Game[]; savedSearches: SavedSearch[]; skipped: SkippedHero[] } | { ok: false; error: string }
+export type ImportResult = { ok: true; heroes: Hero[]; villains: Villain[]; games: Game[]; savedSearches: SavedSearch[]; templates: TemplateLists; skipped: SkippedHero[] } | { ok: false; error: string }
+
+/** An import result with nothing in it but what's given. */
+const only = (given: Partial<Omit<Extract<ImportResult, { ok: true }>, 'ok'>>): ImportResult => ({ ok: true, heroes: [], villains: [], games: [], savedSearches: [], templates: emptyTemplateLists(), skipped: [], ...given })
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
-const NOT_OURS = "This file isn't a hero, villain, game, or backup the app can read."
+const NOT_OURS = "This file isn't a hero, villain, template, game, or backup the app can read."
 
 const parseJson = (text: string): { ok: true; value: unknown } | { ok: false } => {
   try {
@@ -132,14 +145,24 @@ export function readImport(text: string): ImportResult {
   if (isRecord(value) && value.format === BACKUP_FORMAT) return readBackup(value)
   if (isRecord(value) && value.format === VILLAIN_FORMAT) {
     const villain = parseSavedVillain(value)
-    return villain.ok ? { ok: true, heroes: [], villains: [villain.villain], games: [], savedSearches: [], skipped: [] } : { ok: false, error: `This villain couldn't be read: ${villain.error}.` }
+    return villain.ok ? only({ villains: [villain.villain] }) : { ok: false, error: `This villain couldn't be read: ${villain.error}.` }
   }
   if (isRecord(value) && value.format === GAME_FORMAT) {
     const game = parseSavedGame(value)
-    return game.ok ? { ok: true, heroes: [], villains: [], games: [game.game], savedSearches: [], skipped: [] } : { ok: false, error: `This game couldn't be read: ${game.error}.` }
+    return game.ok ? only({ games: [game.game] }) : { ok: false, error: `This game couldn't be read: ${game.error}.` }
+  }
+  // One template: its envelope's format names its kind.
+  for (const key of TEMPLATE_LIST_KEYS) {
+    const info = TEMPLATE_LIST_INFO[key]
+    if (!isRecord(value) || value.format !== templateFormat(info.kind)) continue
+    const doc = info.envelope.parse(value)
+    if (!doc.ok) return { ok: false, error: `This ${info.one} couldn't be read: ${doc.error}.` }
+    const templates = emptyTemplateLists()
+    ;(templates[key] as unknown[]).push(doc.doc)
+    return only({ templates })
   }
   const result = parseSaved(value)
-  if (result.ok) return { ok: true, heroes: [result.hero], villains: [], games: [], savedSearches: [], skipped: [] }
+  if (result.ok) return only({ heroes: [result.hero] })
   return { ok: false, error: result.error === 'not a saved hero' ? NOT_OURS : `This hero couldn't be read: ${result.error}.` }
 }
 
@@ -179,7 +202,19 @@ function readBackup(value: Record<string, unknown>): ImportResult {
     if (result.ok) savedSearches.push(result.search)
     else skipped.push({ kind: 'savedSearch', index: i + 1, error: result.error })
   })
-  return { ok: true, heroes, villains, games, savedSearches, skipped }
+  // Version 5 added the NPC templates.
+  const templates = emptyTemplateLists()
+  for (const key of TEMPLATE_LIST_KEYS) {
+    if (version < 5) continue
+    const list = value[key]
+    if (!Array.isArray(list)) return { ok: false, error: `This backup couldn't be read: it has no list of ${TEMPLATE_LIST_INFO[key].many}.` }
+    list.forEach((saved, i) => {
+      const result = TEMPLATE_LIST_INFO[key].envelope.parse(saved)
+      if (result.ok) (templates[key] as unknown[]).push(result.doc)
+      else skipped.push({ kind: TEMPLATE_LIST_INFO[key].kind, index: i + 1, error: result.error })
+    })
+  }
+  return { ok: true, heroes, villains, games, savedSearches, templates, skipped }
 }
 
 /** How to import a hero or villain whose id is already saved. */

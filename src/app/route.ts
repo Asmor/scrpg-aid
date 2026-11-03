@@ -7,7 +7,8 @@
  * "#/hero/<id>/play" the game aid, "#/gm"
  * the GM's page for hosting a game, "#/join" (or "#/join/<room code>") joining one, "#/watch" (or
  * "#/watch/<room code>") watching one on a TV, "#/receive" (or "#/receive/<code>") receiving items
- * someone is sending, and
+ * someone is sending, "#/minion/<id>", "#/lieutenant/<id>" and "#/challenge/<id>" an NPC
+ * template's editor, and
  * "#/villain/<id>" a villain's sheet ("#/villain/<id>/edit/<step>" its editor), "#/games" the Games
  * page, "#/game/<id>" a game's table, and "#/game/<id>/display" its display view.
  */
@@ -26,6 +27,8 @@ export type Route =
   | { name: 'table'; room: string }
   /** Watching a hosted game on a TV or second screen; no code yet asks for one. */
   | { name: 'watch'; room?: string }
+  /** An NPC template's editor (docs/design/npcs/spec.md, section 2). */
+  | { name: 'template'; kind: 'minion' | 'lieutenant' | 'challenge'; id: string }
   /** Receiving items someone is sending (section 15); no code yet asks for one. */
   | { name: 'receive'; code?: string }
   | { name: 'join'; room?: string } | { name: 'hero'; id: string } | { name: 'edit'; id: string; step?: string; part?: string } | { name: 'play'; id: string } | { name: 'advancement'; id: string } | { name: 'notFound' }
@@ -70,6 +73,14 @@ export function parseRoute(hash: string): Route {
     if (!watch[1]) return { name: 'watch' }
     try {
       return { name: 'watch', room: decodeURIComponent(watch[1]) }
+    } catch {
+      return { name: 'notFound' }
+    }
+  }
+  const template = /^\/(minion|lieutenant|challenge)\/([^/]+)$/.exec(path)
+  if (template) {
+    try {
+      return { name: 'template', kind: template[1] as 'minion' | 'lieutenant' | 'challenge', id: decodeURIComponent(template[2]!) }
     } catch {
       return { name: 'notFound' }
     }
@@ -183,6 +194,11 @@ export function watchPath(room?: string): string {
 /** The full link a TV or second screen opens to watch a game. */
 export function watchUrl(room: string): string {
   return `${window.location.origin}${window.location.pathname}${watchPath(room)}`
+}
+
+/** An NPC template's editor. */
+export function templatePath(kind: 'minion' | 'lieutenant' | 'challenge', id: string): string {
+  return `#/${kind}/${encodeURIComponent(id)}`
 }
 
 /** Receiving items someone is sending (docs/design/game-table/spec.md, section 15). */

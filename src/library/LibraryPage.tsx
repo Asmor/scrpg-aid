@@ -9,6 +9,7 @@ import { useNewHeroes } from '../app/new-heroes'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
 import { useGameStore } from '../app/game-store-context'
+import { useOptionalTemplateStores } from '../app/template-store-context'
 import { gamesHolding, useListedGames } from '../game/useGameEditor'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
 import type { JoinedGame } from '../game/joined-store'
@@ -62,7 +63,8 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
   const heroes = useStore()
   const villains = useVillainStore()
   const games = useGameStore()
-  const stores: LibraryStores = useMemo(() => ({ heroes, villains, games }), [heroes, villains, games])
+  const templates = useOptionalTemplateStores()
+  const stores: LibraryStores = useMemo(() => ({ heroes, villains, games, ...(templates ? { templates } : {}) }), [heroes, villains, games, templates])
   const newHeroes = useNewHeroes()
   const data = useLibraryData(stores, searchStore)
   // Games aren't library rows, but rows say which games hold a copy, and backups include them.

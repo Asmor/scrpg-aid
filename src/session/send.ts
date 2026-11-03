@@ -1,8 +1,8 @@
 /**
  * Sending library items peer to peer (docs/design/game-table/spec.md, section 15). The sender
  * opens a short code; a device that enters it (Play together, then Receive) says so, gets the
- * items, and says when it has accepted them. Only sheets travel: heroes and villains, with their
- * tags, in the backup file's format (../transfer/files.ts), so the receiver reads them the way
+ * items, and says when it has accepted them. Only library documents travel: heroes, villains and
+ * NPC templates, with their tags, in the backup file's format (../transfer/files.ts), so the receiver reads them the way
  * an imported file is read.
  *
  * A send uses its own room ("send:<code>"), so a send code never finds a game, or the other way
@@ -16,6 +16,7 @@ import { readImport } from '../transfer/files'
 import type { Hero } from '../hero/model'
 import type { Villain } from '../villain/model'
 import { isRecord } from '../shape'
+import { templateCount, type TemplateLists } from '../template/lists'
 
 export const SEND_VERSION = 1
 /** How long the receiver waits for an offer before saying nothing is being sent with the code. */
@@ -84,10 +85,11 @@ export class Sender extends Subscribable<SenderSnapshot> {
   }
 }
 
-/** What was offered: the sheets that could be read, and how many couldn't. */
+/** What was offered: the library documents that could be read (sheets and templates), and how many couldn't. */
 export interface Offer {
   heroes: Hero[]
   villains: Villain[]
+  templates: TemplateLists
   unreadable: number
 }
 
@@ -100,13 +102,13 @@ export type ReceiverSnapshot =
   | { status: 'gone'; offer: Offer }
   | { status: 'accepted'; offer: Offer }
 
-/** Reads an offer's backup text: only heroes and villains travel. */
+/** Reads an offer's backup text: only library documents travel (heroes, villains and templates), never games or saved searches. */
 export function readOffer(backup: string): Offer | undefined {
   const result = readImport(backup)
   if (!result.ok) return undefined
-  const unreadable = result.skipped.filter((s) => s.kind === 'hero' || s.kind === 'villain').length
-  if (result.heroes.length + result.villains.length === 0) return undefined
-  return { heroes: result.heroes, villains: result.villains, unreadable }
+  const unreadable = result.skipped.filter((s) => s.kind !== 'game' && s.kind !== 'savedSearch').length
+  if (result.heroes.length + result.villains.length + templateCount(result.templates) === 0) return undefined
+  return { heroes: result.heroes, villains: result.villains, templates: result.templates, unreadable }
 }
 
 /** The receiving device: enters the code, gets the items, and tells the sender once they're in the library. */

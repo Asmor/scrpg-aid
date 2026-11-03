@@ -8,6 +8,9 @@ import { useStore } from '../app/store-context'
 import { useOptionalVillainStore } from '../app/villain-store-context'
 import { useOptionalSavedSearchStore } from '../app/saved-search-context'
 import { useOptionalGameStore } from '../app/game-store-context'
+import { useOptionalTemplateStores } from '../app/template-store-context'
+import { templateCount, TEMPLATE_LIST_INFO, TEMPLATE_LIST_KEYS, type TemplateListKey, type TemplateLists } from '../template/lists'
+import { templateName, type TemplateBase } from '../template/model'
 import { useSession } from '../session/context'
 import { gameDisplayName, type Game } from '../game/model'
 import { searchesToRestore, type SavedSearch } from '../library/saved-searches'
@@ -30,24 +33,27 @@ interface Pending {
   villains: Villain[]
   games: Game[]
   savedSearches: SavedSearch[]
+  templates: TemplateLists
   skipped: SkippedHero[]
   savedIds: Set<string>
   villainIds: Set<string>
   gameIds: Set<string>
+  templateIds: Record<TemplateListKey, Set<string>>
   conflicts: Conflict[]
 }
 
 const heroCount = (n: number) => (n === 1 ? 'one hero' : `${n} heroes`)
 const villainCount = (n: number) => (n === 1 ? 'one villain' : `${n} villains`)
 const gameCount = (n: number) => (n === 1 ? 'one game' : `${n} games`)
-/** "2 heroes", "one villain", "2 heroes and one villain", "2 heroes, one villain and one game" */
-function count(heroes: number, villains: number, games = 0): string {
-  const parts = [heroes ? heroCount(heroes) : '', villains ? villainCount(villains) : '', games ? gameCount(games) : ''].filter(Boolean)
+const templateCountText = (n: number) => (n === 1 ? 'one template' : `${n} templates`)
+/** "2 heroes", "one villain", "2 heroes and one villain", "2 heroes, one villain and one game", "… and 3 templates" */
+function count(heroes: number, villains: number, games = 0, templates = 0): string {
+  const parts = [heroes ? heroCount(heroes) : '', villains ? villainCount(villains) : '', games ? gameCount(games) : '', templates ? templateCountText(templates) : ''].filter(Boolean)
   if (parts.length === 0) return heroCount(0)
   return parts.length === 1 ? parts[0]! : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`
 }
 
-const KIND_TEXT: Record<SkippedHero['kind'], string> = { hero: 'Hero', villain: 'Villain', game: 'Game', savedSearch: 'Saved search' }
+const KIND_TEXT: Record<SkippedHero['kind'], string> = { hero: 'Hero', villain: 'Villain', game: 'Game', savedSearch: 'Saved search', minion: 'Minion', lieutenant: 'Lieutenant', challenge: 'Challenge' }
 
 function skippedText(skipped: readonly SkippedHero[]): string {
   return skipped.map((s) => `${KIND_TEXT[s.kind]} ${s.index} in the file couldn't be read: ${s.error}.`).join(' ')
@@ -55,7 +61,7 @@ function skippedText(skipped: readonly SkippedHero[]): string {
 
 const searchCount = (n: number) => (n === 1 ? 'one saved search' : `${n} saved searches`)
 
-const PLURAL = { hero: 'heroes', villain: 'villains', game: 'games' } as const
+const PLURAL = { hero: 'heroes', villain: 'villains', game: 'games', minion: 'minions', lieutenant: 'lieutenants', challenge: 'challenges' } as const
 
 /** "You already have this hero", "… these villains", or "… these" for a mix. */
 function conflictLegend(list: readonly Conflict[]): string {
@@ -66,7 +72,7 @@ function conflictLegend(list: readonly Conflict[]): string {
 }
 
 /** The choices for one kind, by id. */
-const choicesFor = (choices: Readonly<Record<string, Resolution>>, kind: 'hero' | 'villain' | 'game') =>
+const choicesFor = (choices: Readonly<Record<string, Resolution>>, kind: keyof typeof PLURAL) =>
   Object.fromEntries(Object.entries(choices).flatMap(([key, value]) => (key.startsWith(`${kind}:`) ? [[key.slice(kind.length + 1), value]] : [])))
 
 interface ImportControlProps {
@@ -96,6 +102,7 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
   const gameStore = useOptionalGameStore()
   const session = useSession()
   const searchStore = useOptionalSavedSearchStore()
+  const templateStores = useOptionalTemplateStores()
   const id = useId()
   const input = useRef<HTMLInputElement>(null)
   const button = useRef<HTMLButtonElement>(null)
@@ -132,6 +139,7 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
     let heroes = 0
     let villains = 0
     let games = 0
+    let templates = 0
     try {
       for (const hero of heroesToSave(p.heroes, p.savedIds, choicesFor(chosen, 'hero'))) {
         await store.save(hero)
@@ -149,6 +157,13 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
         else await gameStore!.save(imported)
         games++
       }
+      for (const key of TEMPLATE_LIST_KEYS) {
+        const info = TEMPLATE_LIST_INFO[key]
+        for (const doc of heroesToSave<TemplateBase>(p.templates[key], p.templateIds[key], choicesFor(chosen, info.kind))) {
+          await info.store(templateStores!).save(doc)
+          templates++
+        }
+      }
       // A backup's saved searches come back too (docs/design/library/spec.md, "Saved searches").
       let searches = 0
       if (searchStore && p.savedSearches.length) {
@@ -157,11 +172,11 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
           searches++
         }
       }
-      const items = heroes + villains + games ? count(heroes, villains, games) : ''
+      const items = heroes + villains + games + templates ? count(heroes, villains, games, templates) : ''
       const imported = [items, searches ? searchCount(searches) : ''].filter(Boolean).join(' and ') || count(0, 0)
       setMessage({ error: false, text: [`Imported ${imported}.`, skippedText(p.skipped)].filter(Boolean).join(' ') })
     } catch (e) {
-      setMessage({ error: true, text: `The import stopped after ${count(heroes, villains, games)} of ${count(p.heroes.length, p.villains.length, p.games.length)}: ${errorText(e)}` })
+      setMessage({ error: true, text: `The import stopped after ${count(heroes, villains, games, templates)} of ${count(p.heroes.length, p.villains.length, p.games.length, templateCount(p.templates))}: ${errorText(e)}` })
     } finally {
       close()
       setBusy(false)
@@ -183,8 +198,12 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
       setMessage({ error: true, text: result.error })
       return
     }
-    if (result.heroes.length === 0 && result.villains.length === 0 && result.games.length === 0 && (result.savedSearches.length === 0 || !searchStore)) {
-      setMessage({ error: true, text: ['There are no heroes, villains or games in this file to import.', skippedText(result.skipped)].filter(Boolean).join(' ') })
+    if (result.heroes.length === 0 && result.villains.length === 0 && result.games.length === 0 && templateCount(result.templates) === 0 && (result.savedSearches.length === 0 || !searchStore)) {
+      setMessage({ error: true, text: ['There are no heroes, villains, templates or games in this file to import.', skippedText(result.skipped)].filter(Boolean).join(' ') })
+      return
+    }
+    if (templateCount(result.templates) && !templateStores) {
+      setMessage({ error: true, text: "Templates can't be imported here." })
       return
     }
     if (result.villains.length && !villainStore) {
@@ -220,11 +239,26 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
         return
       }
     }
+    const templateIds = { minionTemplates: new Set<string>(), lieutenantTemplates: new Set<string>(), challengeTemplates: new Set<string>() }
+    const unreadableTemplates = new Set<string>()
+    for (const key of TEMPLATE_LIST_KEYS) {
+      if (!result.templates[key].length) continue
+      try {
+        const list = await TEMPLATE_LIST_INFO[key].store(templateStores!).list()
+        templateIds[key] = new Set([...list.docs.map((d) => d.id), ...list.unreadable.map((u) => u.id)])
+        for (const u of list.unreadable) unreadableTemplates.add(`${TEMPLATE_LIST_INFO[key].kind}:${u.id}`)
+      } catch (e) {
+        setMessage({ error: true, text: `Couldn't check your saved ${TEMPLATE_LIST_INFO[key].many}: ${errorText(e)}` })
+        return
+      }
+    }
     const p: Pending = {
       heroes: result.heroes,
       villains: result.villains,
       games: result.games,
       savedSearches: result.savedSearches,
+      templates: result.templates,
+      templateIds,
       skipped: result.skipped,
       savedIds: ids,
       villainIds,
@@ -233,6 +267,10 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
         ...conflicts(result.heroes, ids).map((h) => ({ key: `hero:${h.id}`, name: heroDisplayName(h), unreadable: unreadableIds.has(h.id) })),
         ...conflicts(result.villains, villainIds).map((v) => ({ key: `villain:${v.id}`, name: villainDisplayName(v), unreadable: unreadableVillains.has(v.id) })),
         ...conflicts(result.games, gameIds).map((g) => ({ key: `game:${g.id}`, name: gameDisplayName(g), unreadable: unreadableGames.has(g.id) })),
+        ...TEMPLATE_LIST_KEYS.flatMap((key) => {
+          const kind = TEMPLATE_LIST_INFO[key].kind
+          return conflicts<TemplateBase>(result.templates[key], templateIds[key]).map((d) => ({ key: `${kind}:${d.id}`, name: templateName(d, kind), unreadable: unreadableTemplates.has(`${kind}:${d.id}`) }))
+        }),
       ],
     }
     if (p.conflicts.length === 0) {
@@ -302,7 +340,7 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
           ))}
           <div className="button-row">
             <button type="button" className="button button--primary" disabled={busy} onClick={() => void finish(pending, choices)}>
-              Import {count(pending.heroes.length, pending.villains.length, pending.games.length)}
+              Import {count(pending.heroes.length, pending.villains.length, pending.games.length, templateCount(pending.templates))}
             </button>
             <button type="button" className="button" disabled={busy} onClick={close}>
               Cancel

@@ -3,6 +3,7 @@
  * the rail of views, the title row with New, the filter bar (or the selection bar while rows
  * are checked), the table, and the footer.
  */
+import { DieIcon } from '../components/icons'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { GameLink, LibraryModel } from './LibraryPage'
 import { PopoverDialog, PopoverMenu } from './Popover'
@@ -422,7 +423,7 @@ function LibraryTable({ model }: { model: LibraryModel }) {
                 <td className="library-table__type">{r.item.type.label}</td>
                 <td className="library-table__details">
                   <span className="library-details" title={info.details}>
-                    {info.details}
+                    {info.detailsDie && <DieIcon die={info.detailsDie} size="inline" />} {info.details}
                   </span>
                   {info.issues && (
                     <a className="library-issues" href={info.issues.href}>

@@ -26,6 +26,7 @@ import { PlayerTable } from './game/PlayerTable'
 import { JoinPage } from './session/JoinPage'
 import { WatchPage } from './session/WatchPage'
 import { ReceivePage } from './session/ReceivePage'
+import { TemplateEditor } from './template/TemplateEditor'
 import { SessionProvider } from './session/SessionProvider'
 import type { Connect } from './session/transport'
 import type { SessionStore } from './session/storage'
@@ -107,6 +108,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
           {route.name === 'advancement' && <AdvancementPage key={route.id} id={route.id} />}
           {route.name === 'join' && <JoinPage key={route.room ?? ''} room={route.room} />}
           {route.name === 'receive' && <ReceivePage key={route.code ?? ''} code={route.code} />}
+          {route.name === 'template' && <TemplateEditor key={`${route.kind}:${route.id}`} kind={route.kind} id={route.id} />}
           {route.name === 'notFound' && (
             <p role="alert">
               That page doesn't exist. <a href={listPath}>Go to your library</a>.
