@@ -557,9 +557,11 @@ interface CenterProps {
   gm?: GmControls
   /** Leaves out the log (the GM's phone has it on its own tab). */
   hideLog?: boolean
+  /** Heroes and opposition as tight rows, one per line (a player's phone). */
+  compact?: boolean
 }
 
-export function TableCenter({ game, heroes, villains, now, gm, hideLog = false }: CenterProps) {
+export function TableCenter({ game, heroes, villains, now, gm, hideLog = false, compact = false }: CenterProps) {
   const current = game.turn.current
   // Hidden items are the GM's alone.
   const shownVillains = gm ? villains : villains.filter((v) => !v.hidden)
@@ -567,7 +569,7 @@ export function TableCenter({ game, heroes, villains, now, gm, hideLog = false }
   const challenges = gm ? game.challenges : game.challenges.filter((c) => !c.hidden)
   const opposition = shownVillains.length + groups.length + challenges.length
   return (
-    <div className="gt-center">
+    <div className={compact ? 'gt-center gt-center--compact' : 'gt-center'}>
       <SceneCard game={game} gm={gm} />
       <TurnCard game={game} gm={gm} />
       <section aria-labelledby="gt-heroes">

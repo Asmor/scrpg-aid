@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
 import type { Hero } from '../hero/model'
 import { MemoryHeroStore } from '../hero/store'
@@ -14,7 +14,7 @@ import { adaptiveBruiser } from '../test/villains'
 import { MemoryVillainStore } from '../villain/store'
 import { createGame } from './model'
 import { MemoryGameStore } from './store'
-import { addVillain, changeHeroPlay, startRound } from './table'
+import { addVillain, changeHeroPlay, handOff, startRound } from './table'
 
 let n = 0
 const clock = (): Clock => ({ now: new Date(), newId: () => `id${++n}` })
@@ -74,7 +74,8 @@ async function join(settle: () => Promise<void>) {
   await userEvent.click(screen.getByRole('button', { name: 'Join with Maya Reyes' }))
   await waitFor(() => expect(window.location.hash).toBe(`#/table/${ROOM}`))
   await settle()
-  await screen.findByRole('complementary', { name: 'My hero' })
+  // The panel, or on a phone the tabs it sits behind.
+  await waitFor(() => expect(screen.queryByRole('complementary', { name: 'My hero' }) ?? screen.queryByRole('tablist', { name: 'Game table' })).toBeTruthy())
 }
 
 const panel = () => within(screen.getByRole('complementary', { name: 'My hero' }))
@@ -197,5 +198,45 @@ describe('a player at the table', () => {
     await setup()
     window.location.hash = '#/table/WXYZ-2345'
     expect(await screen.findByText(/You're not in game WXYZ-2345 on this device/)).toBeInTheDocument()
+  })
+
+  it('announces handoffs as they happen', async () => {
+    const { host, settle } = await setup()
+    await join(settle)
+    const heroId = host.game!.heroes[0]!.id
+    const villain = { kind: 'villain' as const, id: host.game!.villains[0]!.id }
+    host.apply((g) => startRound(g, villain, clock()))
+    await settle()
+    await waitFor(() => expect(screen.getByText(/^Round 1 started\./, { selector: '[role="status"]' })).toBeInTheDocument())
+    host.apply((g) => handOff(g, { kind: 'hero', id: heroId }, clock()))
+    await settle()
+    // Handing off to the player's hero: "Your turn" is what's said.
+    await waitFor(() => expect(screen.getByText('Your turn.', { selector: '[role="status"]' })).toBeInTheDocument())
+  })
+
+  it('on a phone: a top bar with the round and scene, Your turn, and Table and hero tabs', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => {
+      const max = /max-width:\s*([\d.]+)px/.exec(query)
+      const min = /min-width:\s*([\d.]+)px/.exec(query)
+      return { matches: max ? 390 <= Number(max[1]) : min ? 390 >= Number(min[1]) : false, media: query, addEventListener: () => {}, removeEventListener: () => {} }
+    })
+    try {
+      const { host, settle } = await setup()
+      await join(settle)
+      host.apply((g) => startRound(g, { kind: 'hero', id: g.heroes[0]!.id }, clock()))
+      await settle()
+      expect(await screen.findByRole('region', { name: 'Your turn' })).toBeInTheDocument()
+      expect(screen.getByText('Round 1 · Unnamed scene')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Back to Games' })).toHaveAttribute('href', '#/games')
+      const tabs = within(screen.getByRole('tablist', { name: 'Game table' }))
+      expect(tabs.getByRole('tab', { name: 'Table' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByRole('article', { name: 'Maya Reyes' }).closest('.gt-center')).toHaveClass('gt-center--compact')
+      expect(screen.queryByRole('complementary', { name: 'My hero' })).not.toBeInTheDocument()
+      await userEvent.click(tabs.getByRole('tab', { name: 'Maya Reyes' }))
+      expect(screen.getByRole('complementary', { name: 'My hero' })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Heroes' })).not.toBeInTheDocument()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

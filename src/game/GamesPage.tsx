@@ -13,7 +13,7 @@ import { useMediaQuery } from '../components/useMediaQuery'
 import { useVillainStore } from '../app/villain-store-context'
 import { useHostSnapshot, usePlayingSnapshot, useSession } from '../session/context'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
-import type { JoinedGame } from './joined-store'
+import { receivedFrom, type JoinedGame } from './joined-store'
 import { JoinedCard } from './JoinedCard'
 import { InviteDialog, StartHostingDialog } from './hosting'
 import { ConfirmDialog } from './dialogs'
@@ -240,7 +240,7 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
   const openJoined = (j: JoinedGame) => {
     // Rejoin with the cached game, shown read-only until the GM answers.
     if (session.playing?.info.room !== j.room || session.playing.info.heroSourceId !== j.heroSourceId) {
-      session.joinGame({ room: j.room, name: j.name, hero: j.sheet, cached: { room: j.room, version: j.version, table: j.table, gm: j.gm, you: { heroId: j.heroId, since: j.since }, at: j.updatedAt } })
+      session.joinGame({ room: j.room, name: j.name, hero: j.sheet, cached: receivedFrom(j) })
     }
     navigate(tablePath(j.room))
   }

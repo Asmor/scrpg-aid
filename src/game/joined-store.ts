@@ -13,6 +13,7 @@ import { integer, isRecord, nonEmptyString, object, oneOf, string } from '../sha
 import { IndexedDbRecords, MemoryRecords, readAll, type StoredRecord } from '../store/records'
 import type { Hero } from '../hero/model'
 import type { TableView } from './project'
+import type { Received } from '../session/client'
 
 export const JOINED_VERSION = 1
 
@@ -50,6 +51,11 @@ const joinedShape = object({
   version: integer,
   table: (v, path) => tableViewProblem(v) && `${path} is malformed`,
 })
+
+/** A cached game as the state it was last received in, to show until the GM answers. */
+export function receivedFrom(j: JoinedGame): Received {
+  return { room: j.room, version: j.version, table: j.table, gm: j.gm, you: { heroId: j.heroId, since: j.since }, at: j.updatedAt }
+}
 
 export function joinedToSaved(joined: JoinedGame): unknown {
   return { v: JOINED_VERSION, joined }

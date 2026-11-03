@@ -299,4 +299,12 @@ describe('the Games page', () => {
     expect(await screen.findByRole('complementary', { name: 'My hero' })).toBeInTheDocument()
     expect(screen.getByText(/This is Friday game as of Oct 28/)).toBeInTheDocument()
   })
+
+  it("offers to open a cached game from its table link when this device isn't connected to it", async () => {
+    await setup([], memoryStorage(), [friday()])
+    window.location.hash = '#/table/WXYZ-2345'
+    expect(await screen.findByText(/This device isn't connected to it right now\./)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Open Friday game' }))
+    expect(await screen.findByText(/This is Friday game as of Oct 28/)).toBeInTheDocument()
+  })
 })

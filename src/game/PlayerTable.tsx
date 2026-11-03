@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from 'react'
 import { gamesPath, heroPath, joinPath, navigate } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
+import { receivedFrom, type JoinedGame } from './joined-store'
 import { HeroSheetView } from '../components/HeroSheetView'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
@@ -25,14 +26,17 @@ import { useTick } from '../play/useTick'
 import type { ClientSnapshot, Notice } from '../session/client'
 import { usePlayingSnapshot, useSession } from '../session/context'
 import type { HeroAction } from './actions'
-import { gameDisplayName } from './model'
+import { gameDisplayName, sceneDisplayName } from './model'
 import { heroOnTableName, viewName, type HeroOnTable, type TableView } from './project'
 import { PlayerPanel } from './PlayerPanel'
 import { healthLine, reconcile } from './reconcile'
 import { sheetDiff, type DiffSection } from './sheet-diff'
-import { roundOver, sameActor, waiting } from './table'
-import { MenuButton, TableCenter, type HeroView } from './TableCenter'
+import { roundOver, sameActor, sceneZone, waiting } from './table'
+import { MenuButton, TableCenter, ZoneChip, type HeroView } from './TableCenter'
 import { heroView, villainView } from './views'
+
+/** Log lines about the turn order: handoffs and rounds starting. */
+const TURN_LINE = /handed off to|is up\.$|^Round \d+ started/
 
 const REFUSED: Record<NonNullable<ClientSnapshot['refused']>, string> = {
   removed: 'The GM removed you from this game.',
@@ -124,6 +128,8 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
   const [noteHidden, setNoteHidden] = useState(false)
   const [announce, setAnnounce] = useState('')
   const [askFirst, setAskFirst] = useState(false)
+  // On a phone (section 14, "Phones"): the table and the hero, as tabs.
+  const [tab, setTab] = useState<'table' | 'hero'>('table')
   const lastTurn = useRef<{ mine: boolean; reactionUsed: boolean } | undefined>(undefined)
   const [reactionBack, setReactionBack] = useState(false)
 
@@ -150,7 +156,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     joinedStore.list().then(
       (list) => {
         const j = list.find((x) => x.room === room && x.heroSourceId === client.info.heroSourceId)
-        if (live && j) client.showCached({ room: j.room, version: j.version, table: j.table, gm: j.gm, you: { heroId: j.heroId, since: j.since }, at: j.updatedAt })
+        if (live && j) client.showCached(receivedFrom(j))
       },
       () => {},
     )
@@ -159,12 +165,39 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     }
   }, [client, needsCache, joinedStore, room])
 
+  // Not connected to this game on this device, but it's cached: offer to open it.
+  const [cachedGame, setCachedGame] = useState<JoinedGame | undefined>()
+  useEffect(() => {
+    if (client || !joinedStore) return
+    let live = true
+    joinedStore.list().then(
+      (list) => live && setCachedGame(list.find((x) => x.room === room)),
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [client, joinedStore, room])
+
   const received = snap?.received
   const table: TableView | undefined = received?.table
   const heroId = received?.you?.heroId
   const copy = table?.heroes.find((h) => h.id === heroId)
   const live = snap?.status === 'live'
   const mine = Boolean(heroId && table && sameActor(table.turn.current, { kind: 'hero', id: heroId }))
+
+  // Handoffs are announced as they happen (players never receive hidden ones).
+  const seenLines = useRef<Set<string> | undefined>(undefined)
+  const feed = table?.feed
+  useEffect(() => {
+    if (!feed) return
+    const seen = seenLines.current
+    seenLines.current = new Set(feed.map((e) => e.id))
+    // The first state is what's already happened.
+    if (!seen) return
+    const turns = feed.filter((e) => !seen.has(e.id) && TURN_LINE.test(e.text)).map((e) => e.text)
+    if (turns.length) setAnnounce(turns.join(' '))
+  }, [feed])
 
   // "Your turn", and "Your reaction is ready again" when the turn starting just cleared it.
   useEffect(() => {
@@ -189,9 +222,24 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
         <p>
           <a href={gamesPath}>← Games</a>
         </p>
-        <p>
-          You're not in game {room} on this device. <a href={joinPath(room)}>Join it</a>.
-        </p>
+        {cachedGame ? (
+          <>
+            <p>
+              {gameDisplayName(cachedGame.table)}: you play {cachedGame.table.heroes.find((h) => h.id === cachedGame.heroId)?.sheet.details.name || 'a hero'}. This device isn't connected to it right now.
+            </p>
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={() => session.joinGame({ room: cachedGame.room, name: cachedGame.name, hero: cachedGame.sheet, cached: receivedFrom(cachedGame) })}
+            >
+              Open {gameDisplayName(cachedGame.table)}
+            </button>
+          </>
+        ) : (
+          <p>
+            You're not in game {room} on this device. <a href={joinPath(room)}>Join it</a>.
+          </p>
+        )}
       </div>
     )
   }
@@ -234,6 +282,32 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     return waiting(table).map((ref) => ({ label: name(ref), onSelect: () => act({ kind: 'handOff', to: ref }) }))
   }
 
+  const panel = copy && table && (
+    <PlayerPanel
+      hero={copy}
+      view={table}
+      pending={snap?.pending ?? []}
+      live={live}
+      syncWaiting={snap?.syncWaiting ?? false}
+      act={act}
+      menu={menu}
+      onCancelSync={() => client.cancelSync()}
+      onOpenSheet={() => setSheetOpen(true)}
+      {...(showNote && noteKey
+        ? {
+            note: {
+              gameName,
+              dismiss: () => {
+                session.markNoteSeen(noteKey)
+                setNoteHidden(true)
+              },
+            },
+          }
+        : {})}
+      random={random}
+    />
+  )
+
   const banner =
     status === 'refused' ? (
       <p role="alert" className="gt-banner gt-banner--error">
@@ -265,15 +339,29 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
   return (
     <PopoverGroup>
       <div className={phone ? 'gt-page gt-page--phone' : 'gt-page'}>
-        <header className="app-header gt-header">
-          <a className="button button--quiet button--small" href={gamesPath}>
-            ← Games
-          </a>
-          <h1 className="gt-title">{gameName}</h1>
-          <span className="gt-pill">Playing as {heroName}</span>
-          {table && <span className="gt-sub">{table.heroes.filter((h) => h.player).length === 1 ? '1 player' : `${table.heroes.filter((h) => h.player).length} players`}</span>}
-          {received && <span className="gt-sub">GM: {received.gm}</span>}
-        </header>
+        {phone ? (
+          // A phone's sticky top bar: back, the game, the round and scene, and the scene's zone.
+          <header className="app-header gt-header">
+            <a className="icon-button" href={gamesPath} aria-label="Back to Games">
+              ←
+            </a>
+            <div className="gt-grow">
+              <h1 className="gt-title">{gameName}</h1>
+              {table && <p className="gt-sub gt-header__line">{[table.round > 0 ? `Round ${table.round}` : 'Not started', sceneDisplayName(table)].join(' · ')}</p>}
+            </div>
+            {table && <ZoneChip zone={sceneZone(table)} label={`SCENE ${sceneZone(table).toUpperCase()}`} />}
+          </header>
+        ) : (
+          <header className="app-header gt-header">
+            <a className="button button--quiet button--small" href={gamesPath}>
+              ← Games
+            </a>
+            <h1 className="gt-title">{gameName}</h1>
+            <span className="gt-pill">Playing as {heroName}</span>
+            {table && <span className="gt-sub">{table.heroes.filter((h) => h.player).length === 1 ? '1 player' : `${table.heroes.filter((h) => h.player).length} players`}</span>}
+            {received && <span className="gt-sub">GM: {received.gm}</span>}
+          </header>
+        )}
         <p className="visually-hidden" role="status" aria-live="polite">
           {announce}
         </p>
@@ -288,34 +376,28 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
         {banner}
         {!table ? (
           <p className="app-main">{status === 'refused' ? null : `Connecting to game ${room}…`}</p>
+        ) : phone ? (
+          <>
+            <div className="gt-tabs gt-tabs--page" role="tablist" aria-label="Game table">
+              {(
+                [
+                  ['table', 'Table'],
+                  ['hero', heroName],
+                ] as const
+              ).map(([key, label]) => (
+                <button key={key} type="button" role="tab" id={`gt-ptab-${key}`} aria-controls="gt-ptabpanel" aria-selected={tab === key} className={tab === key ? 'gt-tabs__on' : undefined} onClick={() => setTab(key)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div id="gt-ptabpanel" role="tabpanel" aria-labelledby={`gt-ptab-${tab}`} className="gt-phone-panel">
+              {tab === 'table' ? <TableCenter game={table} heroes={heroes} villains={villains} now={now} compact /> : panel}
+            </div>
+          </>
         ) : (
           <div className="gt-layout">
             <TableCenter game={table} heroes={heroes} villains={villains} now={now} />
-            {copy && (
-              <PlayerPanel
-                hero={copy}
-                view={table}
-                pending={snap?.pending ?? []}
-                live={live}
-                syncWaiting={snap?.syncWaiting ?? false}
-                act={act}
-                menu={menu}
-                onCancelSync={() => client.cancelSync()}
-                onOpenSheet={() => setSheetOpen(true)}
-                {...(showNote && noteKey
-                  ? {
-                      note: {
-                        gameName,
-                        dismiss: () => {
-                          session.markNoteSeen(noteKey)
-                          setNoteHidden(true)
-                        },
-                      },
-                    }
-                  : {})}
-                random={random}
-              />
-            )}
+            {panel}
           </div>
         )}
       </div>

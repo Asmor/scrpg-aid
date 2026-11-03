@@ -6576,3 +6576,36 @@ span.gt-step--done {
   border: 1px solid var(--ui-border);
   border-radius: 0.5rem;
 }
+
+/* A player's phone: heroes and opposition as rows (docs/design/game-table/spec.md, section 14, "Phones"). */
+.gt-center--compact .gt-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.gt-center--compact .gt-ent {
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.gt-center--compact .gt-bar {
+  display: none;
+}
+
+/* The player's phone tabs, under the sticky top bar. */
+.gt-page--phone .gt-yourturn,
+.gt-page--phone .gt-banner {
+  margin: 0.5rem 0.75rem;
+}
+
+.gt-header__line {
+  margin: 0;
+}
+
+/* A long hero name in the phone tab bar is cut short, not wrapped. */
+.gt-tabs--page button {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
