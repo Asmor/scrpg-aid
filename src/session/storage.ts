@@ -6,6 +6,7 @@
  * session just doesn't survive a reload.
  */
 import { newId } from '../hero/model'
+import { readHostSaved, type HostSaved } from './host'
 import { readGmSaved, readLastGame, readPlayerSaved, type GmSaved, type LastGame, type PlayerSaved } from './types'
 
 export interface SessionStore {
@@ -16,13 +17,19 @@ export interface SessionStore {
   /** The last game joined, kept after leaving it. */
   loadLastGame(): LastGame | undefined
   saveLastGame(game: LastGame): void
+  /** The game this device is hosting, to pick it back up after a reload. */
+  loadHost(): HostSaved | undefined
+  saveHost(saved: HostSaved | undefined): void
+  /** The name this device's user goes by at the table (as the GM or a player). */
+  loadName(): string
+  saveName(name: string): void
   /** This browser's id in sessions, the same every time. */
   clientId(): string
 }
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
-const KEYS = { gm: 'scrpg.session.gm', player: 'scrpg.session.player', lastGame: 'scrpg.session.lastGame', clientId: 'scrpg.session.clientId' }
+const KEYS = { gm: 'scrpg.session.gm', player: 'scrpg.session.player', host: 'scrpg.session.host', name: 'scrpg.session.name', lastGame: 'scrpg.session.lastGame', clientId: 'scrpg.session.clientId' }
 
 function defaultStorage(): StorageLike | undefined {
   try {
@@ -58,6 +65,13 @@ export function localSessionStore(storage: StorageLike | null | undefined = defa
     savePlayer: (saved) => write(KEYS.player, saved),
     loadLastGame: () => readLastGame(read(KEYS.lastGame)),
     saveLastGame: (game) => write(KEYS.lastGame, game),
+    loadHost: () => readHostSaved(read(KEYS.host)),
+    saveHost: (saved) => write(KEYS.host, saved),
+    loadName() {
+      const name = read(KEYS.name)
+      return typeof name === 'string' ? name.slice(0, 200) : ''
+    },
+    saveName: (name) => write(KEYS.name, name.trim().slice(0, 200)),
     clientId() {
       const known = read(KEYS.clientId)
       if (typeof known === 'string' && known) return known

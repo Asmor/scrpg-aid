@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { SessionManager } from './manager'
 import { localSessionStore, memoryStorage } from './storage'
 import { fakeNetwork } from './transport'
+import { createGame } from '../game/model'
+import { MemoryGameStore } from '../game/store'
 
 let n = 0
 const clock = () => ({ now: new Date('2026-10-27T10:00:00Z'), newId: () => `id${++n}` })
@@ -81,5 +83,46 @@ describe('the browser’s session', () => {
     broken.resume()
     expect(broken.getSnapshot()).toEqual({})
     expect(storage.data.has('scrpg.session.player')).toBe(false)
+  })
+
+  it('hosts a game from the table, remembering the name, resuming after a reload and stopping', async () => {
+    const net = fakeNetwork()
+    const storage = memoryStorage()
+    const games = new MemoryGameStore()
+    await games.save(createGame({ id: 'g1' }))
+    const manager = new SessionManager(net.connect, localSessionStore(storage), clock, games)
+    manager.host('pw')
+    manager.hostGame('g1', '  Sam ')
+    const host = manager.getSnapshot().hosting!
+    expect(host.gameId).toBe('g1')
+    expect(host.gm).toBe('Sam')
+    expect(manager.getSnapshot().gm).toBeUndefined()
+    expect(storage.data.has('scrpg.session.gm')).toBe(false)
+    expect(manager.name()).toBe('Sam')
+    // Hosting the same game again keeps the session.
+    manager.hostGame('g1', 'Sam')
+    expect(manager.getSnapshot().hosting).toBe(host)
+
+    manager.suspend()
+    manager.resume()
+    expect(manager.getSnapshot().hosting).toMatchObject({ room: host.room, gameId: 'g1', gm: 'Sam' })
+
+    await manager.stopHosting()
+    expect(manager.getSnapshot().hosting).toBeUndefined()
+    expect(storage.data.has('scrpg.session.host')).toBe(false)
+    await manager.stopHosting()
+  })
+
+  it("can't host without a game store, and forgets a broken saved host", () => {
+    const storage = memoryStorage()
+    const manager = new SessionManager(fakeNetwork().connect, localSessionStore(storage), clock)
+    manager.hostGame('g1', 'Sam')
+    expect(manager.getSnapshot().hosting).toBeUndefined()
+    storage.setItem('scrpg.session.host', JSON.stringify({ v: 1, room: 'X', gameId: 'g', gm: 'S', removed: [] }))
+    const throwing = new SessionManager(() => {
+      throw new Error('no network')
+    }, localSessionStore(storage), clock, new MemoryGameStore())
+    throwing.resume()
+    expect(storage.data.has('scrpg.session.host')).toBe(false)
   })
 })

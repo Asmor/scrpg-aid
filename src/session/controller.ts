@@ -13,7 +13,7 @@ import { FEED_BATCH, INBOX_LIMIT, readGmMessage, readPlayerMessage, SAVED_VERSIO
 
 type Listener = () => void
 
-class Subscribable<T> {
+export class Subscribable<T> {
   private listeners = new Set<Listener>()
   protected snapshot: T
   constructor(snapshot: T) {

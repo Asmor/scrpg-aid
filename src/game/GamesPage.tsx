@@ -11,6 +11,7 @@ import { useStore } from '../app/store-context'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { useVillainStore } from '../app/villain-store-context'
+import { useHostSnapshot, useSession } from '../session/context'
 import { heroDisplayName } from '../hero/model'
 import { localBackupTime, type BackupTimeStore } from '../library/backup-time'
 import type { LibraryStores } from '../library/registry'
@@ -186,11 +187,14 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
     }
   }, [store, loads])
 
-  const sorted = useMemo(() => [...(games ?? [])].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [games])
+  // The hosted game is live in the hosting session: its card shows that, not the list as loaded.
+  const session = useSession()
+  const hostedGame = useHostSnapshot(session.hosting)?.game
+  const sorted = useMemo(() => (games ?? []).map((g) => (hostedGame?.id === g.id ? hostedGame : g)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [games, hostedGame])
   const needle = text.trim().toLocaleLowerCase()
   const shown = needle ? sorted.filter((g) => gameDisplayName(g).toLocaleLowerCase().includes(needle)) : sorted
   const tags = useMemo(() => allTags(games ?? []), [games])
-  const find = (id: string) => games?.find((g) => g.id === id)
+  const find = (id: string) => sorted.find((g) => g.id === id)
 
   const run = async (what: string, action: () => Promise<void>) => {
     setError(null)
@@ -209,6 +213,8 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
     setGames((list) => [...(list ?? []).filter((g) => g.id !== game.id), game])
   })
   const change = (id: string, fn: (g: Game) => Game) => {
+    // A game being hosted is held by the hosting session: change it there, so the next change at the table keeps this one.
+    if (session.hosting?.gameId === id) return session.hosting.apply(fn)
     const game = find(id)
     if (!game) return
     const next = fn(game)
@@ -326,6 +332,8 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
           onCancel={() => setDialog(null)}
           onConfirm={() =>
             void run('delete the game', async () => {
+              // Deleting a hosted game stops hosting it first.
+              if (session.hosting?.gameId === open.id) await session.stopHosting()
               await store.remove(open.id)
               setGames((list) => (list ?? []).filter((g) => g.id !== open.id))
               setDialog(null)

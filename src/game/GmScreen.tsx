@@ -407,10 +407,13 @@ interface GmScreenProps {
   stopRunning: () => void
   bring: BringIn
   setNotes: (notes: string) => void
+  /** Players' sheet update requests, shown at the top while there are any (section 8). */
+  requests?: { heroId: string; name: string; summary: string }[]
+  onReview?: (heroId: string) => void
   random?: () => number
 }
 
-export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes, random }: GmScreenProps) {
+export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes, requests = [], onReview, random }: GmScreenProps) {
   const id = useId()
   const [tab, setTab] = useState<'bring' | 'notes'>('bring')
   const runningName = running?.kind === 'villain' ? villainDisplayName(running.villain.sheet) : running?.kind === 'group' ? running.group.name : ''
@@ -423,6 +426,26 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
             <LockIcon /> Only you see this
           </span>
         </div>
+        {requests.length > 0 && (
+          <section className="gt-requests" aria-labelledby={`${id}-requests`}>
+            <h3 id={`${id}-requests`} className="gt-label">
+              Requests <span className="gt-count">{requests.length}</span>
+            </h3>
+            <ul className="gt-lib">
+              {requests.map((r) => (
+                <li key={r.heroId} className="gt-row">
+                  <span className="gt-grow">
+                    <strong>{r.name}</strong>
+                    <span className="gt-sub"> {r.summary}</span>
+                  </span>
+                  <button type="button" className="button button--small button--primary" aria-label={`Review ${r.name}'s sheet update`} onClick={() => onReview?.(r.heroId)}>
+                    Review
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <div className="gt-label">Quick add</div>
         <div className="gt-quick">
           <button type="button" className="button button--small" onClick={() => quickAdd('minions')}>

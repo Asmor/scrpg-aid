@@ -8,6 +8,7 @@ import { useStore } from '../app/store-context'
 import { useOptionalVillainStore } from '../app/villain-store-context'
 import { useOptionalSavedSearchStore } from '../app/saved-search-context'
 import { useOptionalGameStore } from '../app/game-store-context'
+import { useSession } from '../session/context'
 import { gameDisplayName, type Game } from '../game/model'
 import { searchesToRestore, type SavedSearch } from '../library/saved-searches'
 import { heroDisplayName, type Hero } from '../hero/model'
@@ -93,6 +94,7 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
   const store = useStore()
   const villainStore = useOptionalVillainStore()
   const gameStore = useOptionalGameStore()
+  const session = useSession()
   const searchStore = useOptionalSavedSearchStore()
   const id = useId()
   const input = useRef<HTMLInputElement>(null)
@@ -140,7 +142,9 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
         villains++
       }
       for (const game of heroesToSave(p.games, p.gameIds, choicesFor(chosen, 'game'))) {
-        await gameStore!.save(game)
+        // The game being hosted is held by the hosting session: replace it there, or its next save would undo the import.
+        if (session.hosting?.gameId === game.id) session.hosting.apply(() => game)
+        else await gameStore!.save(game)
         games++
       }
       // A backup's saved searches come back too (docs/design/library/spec.md, "Saved searches").

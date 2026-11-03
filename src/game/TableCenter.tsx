@@ -31,6 +31,8 @@ export interface HeroView {
   minions: readonly { id: string; name: string; die: Die }[]
   reactionUsed: boolean
   disconnected?: boolean
+  /** The player asked for the game's copy to match their sheet (the GM's only). */
+  syncRequested?: boolean
 }
 
 /** What a villain's card shows (all of it: the GM's view). */
@@ -57,6 +59,7 @@ export interface GmControls {
   handOff: (to: ActorRef) => void
   turnMenu: MenuItem[]
   heroMenu: (hero: HeroView) => MenuItem[]
+  reviewSync: (heroId: string) => void
   reveal: (ref: ItemRef) => void
   hide: (ref: ItemRef) => void
   itemMenu: (ref: ItemRef, hidden: boolean) => MenuItem[]
@@ -341,6 +344,11 @@ function HeroCard({ hero, acting, gm }: { hero: HeroView; acting: boolean; gm?: 
               {hero.reactionUsed && <span className="gt-flag">Reaction used</span>}
               {hero.disconnected && <span className="gt-flag">Disconnected</span>}
             </div>
+          )}
+          {gm && hero.syncRequested && (
+            <button type="button" className="button button--small gt-sync-button" onClick={() => gm.reviewSync(hero.ref.id)}>
+              Sheet update requested · Review
+            </button>
           )}
         </>
       )}

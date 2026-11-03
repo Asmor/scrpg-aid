@@ -32,6 +32,9 @@ import { sheetDiff } from './sheet-diff'
 import { TableCenter, TableLog, ZoneChip, type GmControls, type HeroView, type VillainView } from './TableCenter'
 import { useDocMap } from './useDocMap'
 import { useGameEditor } from './useGameEditor'
+import { InviteDialog, StartHostingDialog } from './hosting'
+import { useHostSnapshot, useSession } from '../session/context'
+import { formatAgo } from '../library/when'
 import * as T from './table'
 
 type Dialog =
@@ -43,6 +46,9 @@ type Dialog =
   | { kind: 'memberMod'; groupId: string; memberId: string; name: string }
   | { kind: 'fix'; part: 'current' | 'acted' | 'round' }
   | { kind: 'update'; ref: { kind: 'hero' | 'villain'; id: string }; sheet: Hero | Villain }
+  | { kind: 'review'; heroId: string }
+  | { kind: 'startHosting' }
+  | { kind: 'invite' }
 
 const defaultClock = (): Clock => ({ now: new Date(), newId: () => newId() })
 const noSave = async () => {}
@@ -72,8 +78,12 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     return r.status === 'found' ? { status: 'found', doc: r.villain } : r
   }, [villainStore])
 
-  const editor = useGameEditor(id)
-  const game = editor.state.status === 'ready' ? editor.state.doc : undefined
+  // While this device hosts this game, the hosting session holds it (and saves it); otherwise the page does.
+  const session = useSession()
+  const host = session.hosting?.gameId === id ? session.hosting : undefined
+  const hosted = useHostSnapshot(host)
+  const editor = useGameEditor(host ? '' : id)
+  const game = host ? hosted?.game : editor.state.status === 'ready' ? editor.state.doc : undefined
   const libraryHeroes = useDocMap(game?.heroes.filter((h) => !h.player).map((h) => h.sourceId) ?? [], loadHero, noSave)
   const libraryVillains = useDocMap(game?.villains.map((v) => v.sourceId) ?? [], loadVillain, noSave)
   const phone = useMediaQuery('(max-width: 759px)', false)
@@ -89,7 +99,18 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         <p>
           <a href={gamesPath}>← Games</a>
         </p>
-        {editor.state.status === 'loading' && <p>Loading…</p>}
+        {host &&
+          (hosted?.error ? (
+            <>
+              <p role="alert">{hosted.error}</p>
+              <button type="button" className="button" onClick={() => void session.stopHosting()}>
+                Stop hosting
+              </button>
+            </>
+          ) : (
+            <p>Loading…</p>
+          ))}
+        {!host && editor.state.status === 'loading' && <p>Loading…</p>}
         {editor.state.status === 'missing' && <p role="alert">There's no saved game with that link. It may have been deleted.</p>}
         {editor.state.status === 'unreadable' && <p role="alert">This game couldn't be read: {editor.state.error}</p>}
         {editor.state.status === 'error' && <p role="alert">Something went wrong loading this game: {editor.state.message}</p>}
@@ -97,7 +118,9 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     )
   }
 
-  const { apply } = editor
+  const apply = host ? (fn: (g: Game) => Game) => host.apply(fn) : editor.apply
+  const connected = hosted?.connected ?? new Set<string>()
+  const players = game.heroes.filter((h) => h.player)
   const zone = T.sceneZone(game)
 
   /** A GM change to a hero's copy in this game, in its history and the log. */
@@ -140,6 +163,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       ref: { kind: 'hero' as const, id: h.id },
       name: heroDisplayName(h.sheet),
       sub: h.player ? h.player.name || 'A player' : "GM's hero",
+      ...(h.player && !connected.has(h.player.clientId) ? { disconnected: true } : {}),
+      ...(game.pendingSyncs.some((r) => r.heroId === h.id) ? { syncRequested: true } : {}),
       ...(heroZone ? { zone: heroZone } : {}),
       ...(health !== undefined ? { health } : {}),
       ...(sheet.maxHealth !== undefined ? { maxHealth: sheet.maxHealth } : {}),
@@ -184,10 +209,12 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     heroMenu: (hero) => {
       const remove: MenuItem = { label: 'Remove from the game…', danger: true, onSelect: () => setDialog({ kind: 'heroRemove', hero }) }
       const copy = T.findHero(game, hero.ref.id)
+      const request = game.pendingSyncs.some((r) => r.heroId === hero.ref.id)
       // The GM's own heroes follow the library like villains do (a player's asks to sync instead, from Phase 2).
       const newer = copy && !copy.player ? libraryChange('hero', copy) : undefined
       return [
         ...(newer ? [{ label: `Library sheet changed ${formatAgoInline(newer.updatedAt, now)}`, note: true as const, onSelect: () => {} }, { label: 'Update from library…', onSelect: () => setDialog({ kind: 'update', ref: { kind: 'hero', id: hero.ref.id }, sheet: newer }) }] : []),
+        ...(request ? [{ label: 'Review sheet update…', onSelect: () => setDialog({ kind: 'review', heroId: hero.ref.id }) }] : []),
         { label: 'Change Health…', onSelect: () => setDialog({ kind: 'heroHealth', hero }) },
         { label: 'Give a bonus or penalty…', onSelect: () => setDialog({ kind: 'heroMod', hero }) },
         { label: 'Add a twist…', onSelect: () => setDialog({ kind: 'heroTwist', hero }) },
@@ -195,6 +222,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         remove,
       ]
     },
+    reviewSync: (heroId) => setDialog({ kind: 'review', heroId }),
     reveal,
     hide,
     itemMenu: (ref, hidden) => [
@@ -257,6 +285,15 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       stopRunning={() => setRunning(null)}
       bring={bring}
       setNotes={(notes) => apply((g) => T.setNotes(g, notes))}
+      requests={game.pendingSyncs.flatMap((r) => {
+        const copy = T.findHero(game, r.heroId)
+        if (!copy) return []
+        const { changes, adjustments } = updatePreview(copy, r.sheet)
+        const count = changes.reduce((n, c) => n + c.changes.length, 0)
+        const summary = `${copy.player?.name ?? 'The player'} updated the sheet: ${count === 1 ? '1 change' : `${count} changes`}${adjustments.length ? `, ${adjustments.length === 1 ? '1 adjustment' : `${adjustments.length} adjustments`}` : ''}`
+        return [{ heroId: r.heroId, name: heroDisplayName(copy.sheet), summary }]
+      })}
+      onReview={(heroId) => setDialog({ kind: 'review', heroId })}
       random={random}
     />
   )
@@ -276,10 +313,33 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
             <span className="gt-header__phone">
               <span className="gt-sub">{details}</span> <ZoneChip zone={zone} />
             </span>
+          ) : host ? (
+            <>
+              <span className="gt-pill gt-pill--live">
+                <span className="gt-live-dot" aria-hidden="true" />
+                Hosting · {host.room}
+              </span>
+              <span className="gt-sub">{players.length === 1 ? '1 player' : `${players.length} players`}</span>
+            </>
           ) : (
             <span className="gt-pill">Not hosting</span>
           )}
+          <span className="gt-grow" />
+          {host ? (
+            <button type="button" className="button button--primary button--small" onClick={() => setDialog({ kind: 'invite' })}>
+              Invite
+            </button>
+          ) : (
+            <button type="button" className="button button--small" onClick={() => setDialog({ kind: 'startHosting' })}>
+              Start hosting
+            </button>
+          )}
         </header>
+        {hosted?.error && (
+          <p role="alert" className="error gt-save-error">
+            {hosted.error}
+          </p>
+        )}
         {saveError && (
           <p role="alert" className="error gt-save-error">
             Your last change couldn't be saved: {saveError}
@@ -337,7 +397,12 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           title={`Remove ${dialog.hero.name} from the game?`}
           text="They leave the table and the turn order, and this game's copy of them goes. Your library sheet doesn't change."
           confirm="Remove"
-          onConfirm={() => apply((g) => T.removeFromTable(g, dialog.hero.ref, clock()))}
+          onConfirm={() => {
+            const copy = T.findHero(game, dialog.hero.ref.id)
+            // A player's hero: the player goes too, and can't rejoin while hosting.
+            if (host && copy?.player) host.removePlayer(copy.id)
+            else apply((g) => T.removeFromTable(g, dialog.hero.ref, clock()))
+          }}
           onClose={() => setDialog(null)}
         />
       )}
@@ -362,6 +427,36 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           const ref = dialog.ref.kind === 'hero' ? { kind: 'hero' as const, id: copy.id, sheet: dialog.sheet as Hero } : { kind: 'villain' as const, id: copy.id, sheet: dialog.sheet as Villain }
           return <UpdateDialog {...preview} onUpdate={() => apply((g) => T.updateSheet(g, ref, clock()))} onClose={() => setDialog(null)} />
         })()}
+      {dialog?.kind === 'review' &&
+        (() => {
+          const request = game.pendingSyncs.find((r) => r.heroId === dialog.heroId)
+          const copy = T.findHero(game, dialog.heroId)
+          if (!request || !copy) return null
+          const preview = updatePreview(copy, request.sheet)
+          const who = copy.player?.name ?? 'the player'
+          const approve = () => (host ? host.approveSync(copy.id) : apply((g) => T.updateSheet(g, { kind: 'hero', id: copy.id, sheet: request.sheet }, clock(), "at the player's request")))
+          const decline = () => (host ? host.declineSync(copy.id) : apply((g) => ({ ...g, pendingSyncs: g.pendingSyncs.filter((r) => r.heroId !== copy.id) })))
+          return (
+            <UpdateDialog
+              {...preview}
+              review={{ title: `Update ${preview.name} to ${who}'s sheet?`, requested: `Requested ${formatAgo(request.at, now).replace(/^./, (c) => c.toLowerCase())}.`, onDecline: decline }}
+              onUpdate={approve}
+              onClose={() => setDialog(null)}
+            />
+          )
+        })()}
+      {dialog?.kind === 'startHosting' && <StartHostingDialog name={session.name} onStart={(name) => session.hostGame(game.id, name)} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'invite' && host && (
+        <InviteDialog
+          room={host.room}
+          gameName={gameDisplayName(game)}
+          players={players}
+          connected={connected}
+          onRemove={(hero) => host.removePlayer(hero.id)}
+          onStop={() => session.stopHosting()}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog?.kind === 'fix' && (
         <FixTurnDialog
           part={dialog.part}

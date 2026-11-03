@@ -290,16 +290,26 @@ export function FixTurnDialog({
   )
 }
 
+/** A player's sheet update for the GM to review, instead of Update from library: its title, when it was asked, and Decline/Approve. */
+export interface SyncReview {
+  title: string
+  requested: string
+  onDecline: () => void
+}
+
 /**
  * "Update Gravelord from your library?" (docs/design/game-table/spec.md, section 9): what changed
  * on the sheet (`sheetDiff`), what happens in this game (`reconcile`'s adjustments, or the line on
- * Health), and that only this game's copy changes.
+ * Health), and that only this game's copy changes. With `review`, a player's sheet update for the
+ * GM to approve or decline (section 8).
  */
-export function UpdateDialog({ name, changes, adjustments, healthLine, onUpdate, onClose }: { name: string; changes: readonly DiffSection[]; adjustments: readonly string[]; healthLine?: string; onUpdate: () => void; onClose: () => void }) {
+
+export function UpdateDialog({ name, changes, adjustments, healthLine, onUpdate, onClose, review }: { name: string; changes: readonly DiffSection[]; adjustments: readonly string[]; healthLine?: string; onUpdate: () => void; onClose: () => void; review?: SyncReview }) {
   const inGame = adjustments.length ? adjustments : healthLine ? [healthLine] : ['Nothing else changes: mods, twists and the rest stay.']
   return (
-    <Modal title={`Update ${name} from your library?`} onClose={onClose}>
-      <h3 className="gt-label">What changed</h3>
+    <Modal title={review ? review.title : `Update ${name} from your library?`} onClose={onClose}>
+      {review && <p className="gt-sub">{review.requested}</p>}
+      <h3 className="gt-label">{review ? 'What changed on the sheet' : 'What changed'}</h3>
       {changes.length === 0 ? (
         <p className="gt-sub">Nothing that plays differently: only details like the description changed.</p>
       ) : (
@@ -320,10 +330,17 @@ export function UpdateDialog({ name, changes, adjustments, healthLine, onUpdate,
           <li key={line}>{line}</li>
         ))}
       </ul>
-      <p className="hint">Only this game's {name} changes. Other games keep their own copy.</p>
+      <p className="hint">{review ? 'Kept as they are: mods, twists, hero points, reaction and the play log.' : `Only this game's ${name} changes. Other games keep their own copy.`}</p>
       <div className="button-row gt-dialog-actions">
-        <button type="button" className="button" onClick={onClose}>
-          Cancel
+        <button
+          type="button"
+          className="button"
+          onClick={() => {
+            review?.onDecline()
+            onClose()
+          }}
+        >
+          {review ? 'Decline' : 'Cancel'}
         </button>
         <button
           type="button"
@@ -333,7 +350,7 @@ export function UpdateDialog({ name, changes, adjustments, healthLine, onUpdate,
             onClose()
           }}
         >
-          Update
+          {review ? 'Approve' : 'Update'}
         </button>
       </div>
     </Modal>

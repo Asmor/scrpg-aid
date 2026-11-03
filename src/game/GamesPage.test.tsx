@@ -10,7 +10,7 @@ import { fakeNetwork } from '../session/transport'
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { downloadFile } from '../transfer/download'
-import { readImport } from '../transfer/files'
+import { backupJson, readImport } from '../transfer/files'
 import { MemoryVillainStore } from '../villain/store'
 import { createGame, type Game } from './model'
 import { createSoloGame } from './solo'
@@ -22,7 +22,7 @@ vi.mock('../transfer/download', () => ({ downloadFile: vi.fn() }))
 let n = 0
 const clock = { now: new Date(), newId: () => `id${++n}` }
 
-async function setup(games: Game[]) {
+async function setup(games: Game[], sessionStorage = memoryStorage()) {
   const store = new MemoryGameStore()
   for (const g of games) await store.save(g)
   window.location.hash = '#/games'
@@ -34,11 +34,18 @@ async function setup(games: Game[]) {
       searchStore={new MemorySavedSearchStore()}
       backupTime={localBackupTime(memoryStorage())}
       connect={fakeNetwork().connect}
-      sessionStore={localSessionStore(memoryStorage())}
+      sessionStore={localSessionStore(sessionStorage)}
     />,
   )
   await screen.findByRole('heading', { level: 1, name: 'Games' })
   return store
+}
+
+/** Session storage saying this device hosts the game: the app picks hosting back up when it starts. */
+function hosting(gameId: string) {
+  const storage = memoryStorage()
+  storage.setItem('scrpg.session.host', JSON.stringify({ v: 1, room: 'ABCD-EFGH', gameId, gm: 'Sam', removed: [] }))
+  return storage
 }
 
 /** Thursday game: started, with Maya Reyes (the GM's own), a revealed villain, a hidden group and a challenge. */
@@ -153,5 +160,55 @@ describe('the Games page', () => {
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/game\/[^/]+$/))
     expect(await screen.findByRole('complementary', { name: 'GM screen' })).toBeInTheDocument()
     expect(screen.getByText('Not hosting')).toBeInTheDocument()
+  })
+
+  it('changes a hosted game through the hosting session, so the next change at the table keeps it', async () => {
+    const store = await setup([thursday()], hosting('thu'))
+    await userEvent.click(screen.getByRole('button', { name: 'More actions for Thursday game' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    const rename = within(screen.getByRole('dialog'))
+    await userEvent.clear(rename.getByLabelText('Game name'))
+    await userEvent.type(rename.getByLabelText('Game name'), 'Friday game')
+    await userEvent.click(rename.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('article', { name: 'Friday game' })).toBeInTheDocument()
+    await waitFor(async () => {
+      const r = await store.get('thu')
+      expect(r.status === 'found' && r.game.name).toBe('Friday game')
+    })
+  })
+
+  it('imports over a hosted game through the hosting session', async () => {
+    const store = await setup([thursday()], hosting('thu'))
+    await userEvent.click(screen.getByRole('button', { name: /^Data/ }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Import from a file…' }))
+    const imported = { ...thursday(), name: 'Imported game', tags: ['from-file'] }
+    await userEvent.upload(document.querySelector<HTMLInputElement>('input[type="file"]')!, new File([backupJson({ heroes: [], games: [imported] })], 'backup.json', { type: 'application/json' }))
+    await userEvent.click(within(await screen.findByRole('radiogroup', { name: 'Imported game' })).getByRole('radio', { name: 'Replace mine' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Import/ }))
+    await waitFor(async () => {
+      const r = await store.get('thu')
+      expect(r.status === 'found' && r.game.name).toBe('Imported game')
+    })
+    // The hosting session has the imported game: its next change keeps it.
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions for Imported game' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    const rename = within(screen.getByRole('dialog'))
+    await userEvent.clear(rename.getByLabelText('Game name'))
+    await userEvent.type(rename.getByLabelText('Game name'), 'Renamed')
+    await userEvent.click(rename.getByRole('button', { name: 'Save' }))
+    await waitFor(async () => {
+      const r = await store.get('thu')
+      expect(r.status === 'found' && { name: r.game.name, tags: r.game.tags }).toEqual({ name: 'Renamed', tags: ['from-file'] })
+    })
+  })
+
+  it('stops hosting a game before deleting it, so it stays deleted', async () => {
+    const store = await setup([thursday()], hosting('thu'))
+    await userEvent.click(screen.getByRole('button', { name: 'More actions for Thursday game' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Delete…' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Delete Thursday game?' })).getByRole('button', { name: 'Yes, delete' }))
+    await waitFor(() => expect(screen.queryByRole('article', { name: 'Thursday game' })).not.toBeInTheDocument())
+    await new Promise((r) => setTimeout(r, 20))
+    expect(await store.get('thu')).toEqual({ status: 'missing' })
   })
 })
