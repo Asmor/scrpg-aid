@@ -18,6 +18,9 @@ import { nonEmptyString, object, oneOf, string } from '../shape'
 
 export { OFFLINE_AFTER, RETRY_EVERY, type ClientStatus, type Received } from './link'
 
+/** How long joining waits for the GM's device before saying no game is using the code. */
+export const JOIN_WAIT = 15_000
+
 /** How long an action waits for its result. */
 export const RESULT_TIMEOUT = 5000
 

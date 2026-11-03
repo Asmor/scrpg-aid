@@ -11,8 +11,8 @@
  * - Toasts for rejected actions, actions that didn't reach the GM, and the GM's answer to a
  *   sheet update request.
  */
-import { useEffect, useRef, useState } from 'react'
-import { gamesPath, heroPath, joinPath, navigate } from '../app/route'
+import { useEffect, useId, useRef, useState } from 'react'
+import { gamesPath, heroPath, joinPath, navigate, tablePath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
 import { receivedFrom, type JoinedGame } from './joined-store'
@@ -23,8 +23,10 @@ import { buildSheet } from '../creation/sheet'
 import { heroDisplayName, isDraft, type Hero } from '../hero/model'
 import { PopoverGroup, type MenuItem } from '../library/Popover'
 import { useTick } from '../play/useTick'
-import type { ClientSnapshot, Notice } from '../session/client'
+import type { Notice } from '../session/client'
+import { normalizeRoomCode } from '../session/code'
 import { usePlayingSnapshot, useSession } from '../session/context'
+import { refusedText } from '../session/refused'
 import type { HeroAction } from './actions'
 import { gameDisplayName, sceneDisplayName } from './model'
 import { heroOnTableName, viewName, type HeroOnTable, type TableView } from './project'
@@ -37,15 +39,6 @@ import { heroView, villainView } from './views'
 
 /** Log lines about the turn order: handoffs and rounds starting. */
 const TURN_LINE = /handed off to|is up\.$|^Round \d+ started/
-
-const REFUSED: Record<NonNullable<ClientSnapshot['refused']>, string> = {
-  removed: 'The GM removed you from this game.',
-  wrongGame: 'That code now belongs to a different game. Check the code with your GM.',
-  full: 'This game is full.',
-  taken: "Your hero is being played in this game on another device. Leave the game there, or ask the GM, then try again.",
-  version: "This game's GM is on a newer version of the app. Reload this page to update.",
-  oldHost: "This game's GM is on an older version of the app. Ask them to reload their page to update.",
-}
 
 /** "Your sheet for Maya Reyes has changed" (section 8): the changes, the line on play state, and Ask or Keep. */
 function SheetChanged({ name, changes, inGame, onAsk, onKeep }: { name: string; changes: readonly DiffSection[]; inGame: readonly string[]; onAsk: () => void; onKeep: () => void }) {
@@ -82,6 +75,35 @@ function SheetChanged({ name, changes, inGame, onAsk, onKeep }: { name: string; 
   )
 }
 
+/** "New code from your GM" and Reconnect: rejoins a saved game on its new code, keeping the hero's place. */
+function NewCodeForm({ onReconnect }: { onReconnect: (code: string) => void }) {
+  const id = useId()
+  const [value, setValue] = useState('')
+  const code = normalizeRoomCode(value)
+  return (
+    <form
+      className="gt-new-code"
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (code) onReconnect(code)
+      }}
+    >
+      <div className="gt-row">
+        <label className="field gt-grow" htmlFor={id}>
+          <span>New code from your GM</span>
+          <input id={id} type="text" autoComplete="off" autoCapitalize="characters" placeholder="ABCD-EFGH" value={value} onChange={(e) => setValue(e.target.value)} aria-describedby={`${id}-hint`} />
+        </label>
+        <button type="submit" className="button button--small button--primary" disabled={!code}>
+          Reconnect
+        </button>
+      </div>
+      <p id={`${id}-hint`} className="gt-sub">
+        Reconnecting with a new code keeps your hero's place in the game.
+      </p>
+    </form>
+  )
+}
+
 /** How long a toast stays: it's announced through the live region anyway. */
 export const TOAST_MS = 8000
 
@@ -100,6 +122,12 @@ function ToastItem({ notice: n, onDismiss, onRetry }: { notice: Notice; onDismis
     <div className={`toast${n.kind === 'rejected' || n.kind === 'unreachable' ? ' toast--warn' : ''}`}>
       <span>
         {n.text}
+        {n.code && (
+          <>
+            {' '}
+            <code className="toast__code">{n.code}</code>
+          </>
+        )}
         {n.adjustments?.length ? ` ${n.adjustments.join(' ')}` : ''}
       </span>
       {n.retry && (
@@ -137,8 +165,14 @@ function sheetChange(copy: HeroOnTable, library: Hero) {
 export function PlayerTable({ room, random }: { room: string; random?: () => number }) {
   const session = useSession()
   const heroStore = useStore()
-  const client = session.playing?.info.room === room ? session.playing : undefined
+  // The game on this code, or one the GM has since moved to a new code (the page follows it there).
+  const current = session.playing
+  const client = current && (current.room === room || current.formerRooms.includes(room)) ? current : undefined
   const snap = usePlayingSnapshot(client)
+  const clientRoom = client?.room
+  useEffect(() => {
+    if (clientRoom && clientRoom !== room) window.location.replace(tablePath(clientRoom))
+  }, [clientRoom, room])
   const now = useTick()
   const phone = useMediaQuery('(max-width: 759px)', false)
   const [library, setLibrary] = useState<Hero | undefined>()
@@ -331,13 +365,29 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
   const banner =
     status === 'refused' ? (
       <p role="alert" className="gt-banner gt-banner--error">
-        {REFUSED[snap!.refused ?? 'removed']}
+        {refusedText(snap!.refused ?? 'removed', gameName)}
       </p>
     ) : status === 'reconnecting' ? (
       <p role="status" className="gt-banner">
         Reconnecting to the GM… Actions are paused.
       </p>
-    ) : (status === 'offline' || status === 'connecting') && received ? (
+    ) : status === 'offline' && received && table ? (
+      // The usual tries failed: the GM isn't hosting, or got a new code (and this device missed it).
+      <div role="status" className="gt-banner">
+        <p>
+          <strong>Can't reach {gameName}.</strong> The GM isn't hosting, or changed the code. Read-only until you reconnect. <span className="gt-sub">As of {asOf}.</span>
+        </p>
+        <button type="button" className="button button--small" onClick={() => client.reconnect()}>
+          Try to reconnect
+        </button>
+        <NewCodeForm
+          onReconnect={(code) => {
+            session.joinGame({ room: code, name: client.info.name, hero: client.info.sheet, cached: received, gameId: table.id })
+            navigate(tablePath(code))
+          }}
+        />
+      </div>
+    ) : status === 'connecting' && received ? (
       <div role="status" className="gt-banner">
         <p>
           <strong>The GM isn't connected.</strong> This is {gameName} as of {asOf}. Read-only until the GM is back.

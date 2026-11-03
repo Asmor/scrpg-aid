@@ -1,9 +1,9 @@
 /**
  * A modal panel: a dialog in the middle, a drawer from the right, or a bottom sheet. Focus
- * moves to its title when it opens, stays inside it (Tab wraps around), and goes back to
- * where it was when it closes. Escape and the backdrop close it.
+ * moves to its title (or `initialFocus`) when it opens, stays inside it (Tab wraps around),
+ * and goes back to where it was when it closes. Escape and the backdrop close it.
  */
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react'
 
 /** Open modals, innermost last: only the innermost one answers Escape and Tab. */
 const open: object[] = []
@@ -16,14 +16,18 @@ interface ModalProps {
   hideTitle?: boolean
   variant?: 'dialog' | 'drawer' | 'sheet'
   onClose: () => void
+  /** What gets focus when it opens, instead of the title (a dialog whose first choice is the point of it). */
+  initialFocus?: RefObject<HTMLElement | null>
   children: ReactNode
 }
 
-export function Modal({ title, hideTitle = false, variant = 'dialog', onClose, children }: ModalProps) {
+export function Modal({ title, hideTitle = false, variant = 'dialog', onClose, initialFocus, children }: ModalProps) {
   const titleId = useId()
   const panel = useRef<HTMLDivElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const closeRef = useRef(onClose)
+  // Read once, when it opens.
+  const focusFirst = useRef(initialFocus)
   useEffect(() => {
     closeRef.current = onClose
   })
@@ -31,7 +35,8 @@ export function Modal({ title, hideTitle = false, variant = 'dialog', onClose, c
     const before = document.activeElement as HTMLElement | null
     const self = {}
     open.push(self)
-    heading.current?.focus()
+    const first = focusFirst.current?.current ?? heading.current
+    first?.focus()
     const onKey = (e: KeyboardEvent) => {
       if (open.at(-1) !== self) return
       if (e.key === 'Escape') {

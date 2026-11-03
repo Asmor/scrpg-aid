@@ -3,7 +3,7 @@
  * screen" (remembered on the device), then Start watching. While this device watches the game,
  * the page is the display view: the table as players see it, read-only, filling the screen.
  */
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { gamesPath, navigate, watchPath } from '../app/route'
 import { DisplayView } from '../game/DisplayView'
 import { gameDisplayName } from '../game/model'
@@ -26,8 +26,14 @@ const timeOf = (at: string) => new Date(at).toLocaleTimeString(undefined, { hour
 export function WatchPage({ room: given }: { room?: string }) {
   const session = useSession()
   const code = given ? normalizeRoomCode(given) : undefined
-  const watching = session.watching && code && session.watching.room === code ? session.watching : undefined
+  // This code's game, or one the GM has since moved to a new code (the page follows it there).
+  const current = session.watching
+  const watching = current && code && (current.room === code || current.formerRooms.includes(code)) ? current : undefined
   const snapshot = useWatchingSnapshot(watching)
+  const watchingRoom = watching?.room
+  useEffect(() => {
+    if (watchingRoom && watchingRoom !== code) window.location.replace(watchPath(watchingRoom))
+  }, [watchingRoom, code])
 
   if (watching && snapshot) {
     const received = snapshot.received

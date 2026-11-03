@@ -36,6 +36,7 @@ import { project } from './project'
 import { heroView, villainView } from './views'
 import { useHostSnapshot, useSession } from '../session/context'
 import { formatAgo } from '../library/when'
+import { newRoomCode } from '../session/code'
 import * as T from './table'
 
 type Dialog =
@@ -321,9 +322,17 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
               Invite
             </button>
           ) : (
-            <button type="button" className="button button--small" onClick={() => (session.name ? startHosting(session.name) : setDialog({ kind: 'startHosting' }))}>
-              Start hosting
-            </button>
+            <>
+              {/* A game hosted before keeps its code: Invite shows it (and New code…) while not hosting. */}
+              {game.code && (
+                <button type="button" className="button button--small" onClick={() => setDialog({ kind: 'invite' })}>
+                  Invite
+                </button>
+              )}
+              <button type="button" className="button button--small" onClick={() => (session.name ? startHosting(session.name) : setDialog({ kind: 'startHosting' }))}>
+                Start hosting
+              </button>
+            </>
           )}
         </header>
         {hostError && !host && (
@@ -442,17 +451,27 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           )
         })()}
       {dialog?.kind === 'startHosting' && <StartHostingDialog name={session.name} onStart={startHosting} onClose={() => setDialog(null)} />}
-      {dialog?.kind === 'invite' && host && (
+      {dialog?.kind === 'invite' && (host || game.code) && (
         <InviteDialog
-          room={host.room}
-          gm={host.gm}
+          room={host?.room ?? game.code!}
+          hosting={Boolean(host)}
+          needsNewCode={hosted?.needsNewCode ?? new Set()}
+          onNewCode={async (keep) => {
+            if (host) return session.newCode(game.id, keep)
+            // Not hosting: the table holds the game, so the new code goes in through it.
+            let code = newRoomCode()
+            while (code === game.code) code = newRoomCode()
+            apply((g) => T.setGameCode(g, code, clock()))
+            return { ok: true, code }
+          }}
+          gm={host?.gm ?? session.name}
           onRenameGm={(name) => session.renameGm(name)}
           gameName={gameDisplayName(game)}
           players={players}
           connected={connected}
-          onRemove={(hero) => host.removePlayer(hero.id)}
+          onRemove={(hero) => host?.removePlayer(hero.id)}
           observers={hosted?.observers ?? []}
-          onRemoveObserver={(clientId) => host.removeObserver(clientId)}
+          onRemoveObserver={(clientId) => host?.removeObserver(clientId)}
           onStop={() => session.stopHosting()}
           onClose={() => setDialog(null)}
         />

@@ -20,8 +20,10 @@ export interface SessionApi extends CurrentSession {
   /** Changes the GM's name players see, and remembers it on this device. */
   renameGm(gm: string): void
   stopHosting(): Promise<void>
+  /** Gives a game a new code; while hosting it, keeps these connected players and screens and removes the rest. */
+  newCode(gameId: string, keep?: ReadonlySet<string>): ReturnType<SessionManager['newCode']>
   /** Joins a hosted game as a player with one hero. */
-  joinGame(options: { room: string; name: string; hero: Hero; cached?: Received }): void
+  joinGame(options: { room: string; name: string; hero: Hero; cached?: Received; gameId?: string }): void
   leaveGame(): void
   /** The name this screen goes by when watching. */
   screenName: string
@@ -50,6 +52,7 @@ export function useSession(): SessionApi {
     hostGame: (gameId, gm) => manager?.hostGame(gameId, gm) ?? Promise.resolve("There's no game session here."),
     renameGm: (gm) => manager?.renameGm(gm),
     stopHosting: () => manager?.stopHosting() ?? Promise.resolve(),
+    newCode: (gameId, keep) => manager?.newCode(gameId, keep) ?? Promise.resolve({ ok: false as const, error: "There's no game session here." }),
     joinGame: (options) => manager?.joinGame(options),
     leaveGame: () => manager?.leaveGame(),
     screenName: manager?.screenName() ?? '',

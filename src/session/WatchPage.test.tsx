@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import App from '../App'
@@ -51,6 +51,17 @@ describe('watching a game', () => {
     host.leave()
     await act(() => net.settle())
     expect(await screen.findByText('Reconnecting to the GM…')).toBeInTheDocument()
+  })
+
+  it('follows the game to a new code', async () => {
+    const { net, host } = await setup(`#/watch/${ROOM}`, (s) => s.saveWatching({ v: 1, room: ROOM, screenName: 'TV' }))
+    await act(() => net.settle())
+    expect(await screen.findByRole('heading', { name: 'The Foundry' })).toBeInTheDocument()
+    act(() => void host.changeCode('K7QX-2MRT', new Set(host.getSnapshot().observers.map((o) => o.clientId))))
+    await act(() => net.settle())
+    await waitFor(() => expect(window.location.hash).toBe('#/watch/K7QX-2MRT'))
+    await act(() => net.settle())
+    expect(await screen.findByText('Watching Thursday game · K7QX-2MRT')).toBeInTheDocument()
   })
 
   it('prefills the code from the watch link and the remembered screen name', async () => {

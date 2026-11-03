@@ -73,6 +73,8 @@ async function setup(library: Hero = maya()) {
 async function join(settle: () => Promise<void>) {
   await userEvent.type(screen.getByLabelText('Your name (everyone at the table sees it)'), 'Alex')
   await userEvent.click(screen.getByRole('button', { name: 'Join with Maya Reyes' }))
+  // Joining waits on the Join page until the GM's device answers.
+  await settle()
   await waitFor(() => expect(window.location.hash).toBe(`#/table/${ROOM}`))
   await settle()
   // The panel, or on a phone the tabs it sits behind.

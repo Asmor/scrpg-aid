@@ -3,12 +3,18 @@
  * or typed in), the player's name (remembered on the device), and Bring a hero, a list of the
  * player's finished heroes. A hero already in this game rejoins as the game's copy; any other is
  * copied in when the GM's device takes the hello.
+ *
+ * Joining waits here until the GM's device answers, then opens the table. A code no game answers
+ * on (changed by the GM, or not hosted yet) gets an error under the code field instead
+ * (docs/design/game-table/game-table-spec-addendum-game-codes.md).
  */
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { gamesPath, listPath, navigate, tablePath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { heroDisplayName, isDraft, type Hero } from '../hero/model'
 import { normalizeRoomCode } from './code'
+import { JOIN_WAIT } from './client'
+import { NO_GAME, refusedText } from './refused'
 import { usePlayingSnapshot, useSession } from './context'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
 import type { JoinedGame } from '../game/joined-store'
@@ -57,6 +63,28 @@ export function JoinPage({ room: given }: { room?: string }) {
     }
   }, [store])
 
+  // Joining: waiting for the GM's device to answer, and why it didn't.
+  const [joining, setJoining] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const status = playing?.status
+  const leaveGame = useRef(session.leaveGame)
+  useEffect(() => {
+    leaveGame.current = session.leaveGame
+  })
+  useEffect(() => {
+    if (!joining) return
+    if (status === 'live') return navigate(tablePath(joining))
+    const fail = (why: string) => {
+      leaveGame.current()
+      setJoining(null)
+      setError(why)
+    }
+    if (status === 'refused') return fail(refusedText(playing?.refused ?? 'removed', 'this game'))
+    if (status === 'offline') return fail(NO_GAME)
+    const timer = setTimeout(() => fail(NO_GAME), JOIN_WAIT)
+    return () => clearTimeout(timer)
+  }, [joining, status, playing?.refused])
+
   const code = normalizeRoomCode(room)
   const hero = heroes?.find((h) => h.id === heroId)
   /** When a hero joined this game, if this device knows it's in it. */
@@ -84,15 +112,34 @@ export function JoinPage({ room: given }: { room?: string }) {
         className="play-add"
         onSubmit={(e) => {
           e.preventDefault()
-          if (!code || !hero || !name.trim()) return
+          if (!code || !hero || !name.trim() || joining) return
+          setError(null)
           session.joinGame({ room: code, name: name.trim(), hero })
-          navigate(tablePath(code))
+          setJoining(code)
         }}
       >
         <label className="field" htmlFor={`${formId}-room`}>
           <span>Game code</span>
-          <input id={`${formId}-room`} type="text" autoComplete="off" autoCapitalize="characters" value={room} onChange={(e) => setRoom(e.target.value)} placeholder="ABCD-EFGH" />
+          <input
+            id={`${formId}-room`}
+            type="text"
+            autoComplete="off"
+            autoCapitalize="characters"
+            value={room}
+            onChange={(e) => {
+              setRoom(e.target.value)
+              setError(null)
+            }}
+            placeholder="ABCD-EFGH"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `${formId}-error` : undefined}
+          />
         </label>
+        {error && (
+          <p id={`${formId}-error`} role="alert" className="error">
+            {error}
+          </p>
+        )}
         {room.trim() && !code && <p className="hint">A game code is eight letters and numbers, like ABCD-EFGH.</p>}
         <label className="field" htmlFor={`${formId}-name`}>
           <span>Your name (everyone at the table sees it)</span>
@@ -118,8 +165,8 @@ export function JoinPage({ room: given }: { room?: string }) {
             )
           })}
         </fieldset>
-        <button type="submit" className="button button--primary" disabled={!code || !hero || !name.trim()}>
-          {hero ? `${heroSince ? 'Rejoin' : 'Join'} with ${heroDisplayName(hero)}` : 'Join'}
+        <button type="submit" className="button button--primary" disabled={!code || !hero || !name.trim() || Boolean(joining)}>
+          {joining ? `Looking for game ${joining}…` : hero ? `${heroSince ? 'Rejoin' : 'Join'} with ${heroDisplayName(hero)}` : 'Join'}
         </button>
       </form>
     </div>
