@@ -7181,6 +7181,51 @@ span.gt-step--done {
   min-width: 0;
 }
 
+/* An environment template's aspects, twists and attached templates (docs/design/npcs/spec.md, section 2). */
+.template-aspect {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.template-aspect .field {
+  flex: 1 1 12rem;
+}
+
+.template-twists__zone {
+  margin-bottom: 1rem;
+}
+
+.template-twists__zone h3 {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.template-twist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.5rem;
+}
+
+.template-twist .button--quiet {
+  align-self: flex-start;
+}
+
+.template-attached__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
 /* A challenge's labeled steps, from a template (docs/design/npcs/spec.md, section 2). */
 .gt-steps {
   display: flex;

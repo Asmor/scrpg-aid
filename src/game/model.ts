@@ -128,6 +128,8 @@ export interface Challenge extends Visible {
 
 export interface EnvironmentOnTable extends Visible {
   id: string
+  /** The template it came from, if any. */
+  templateId?: string
   name: string
 }
 

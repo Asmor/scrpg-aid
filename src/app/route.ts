@@ -13,6 +13,7 @@
  * page, "#/game/<id>" a game's table, and "#/game/<id>/display" its display view.
  */
 import { useEffect, useState } from 'react'
+import type { TemplateKindName } from '../template/model'
 
 export type Route =
   /** `search` is the library view's query string, without the "?". */
@@ -28,7 +29,7 @@ export type Route =
   /** Watching a hosted game on a TV or second screen; no code yet asks for one. */
   | { name: 'watch'; room?: string }
   /** An NPC template's editor (docs/design/npcs/spec.md, section 2). */
-  | { name: 'template'; kind: 'minion' | 'lieutenant' | 'challenge'; id: string }
+  | { name: 'template'; kind: TemplateKindName; id: string }
   /** Receiving items someone is sending (section 15); no code yet asks for one. */
   | { name: 'receive'; code?: string }
   | { name: 'join'; room?: string } | { name: 'hero'; id: string } | { name: 'edit'; id: string; step?: string; part?: string } | { name: 'play'; id: string } | { name: 'advancement'; id: string } | { name: 'notFound' }
@@ -77,10 +78,10 @@ export function parseRoute(hash: string): Route {
       return { name: 'notFound' }
     }
   }
-  const template = /^\/(minion|lieutenant|challenge)\/([^/]+)$/.exec(path)
+  const template = /^\/(minion|lieutenant|challenge|environment)\/([^/]+)$/.exec(path)
   if (template) {
     try {
-      return { name: 'template', kind: template[1] as 'minion' | 'lieutenant' | 'challenge', id: decodeURIComponent(template[2]!) }
+      return { name: 'template', kind: template[1] as TemplateKindName, id: decodeURIComponent(template[2]!) }
     } catch {
       return { name: 'notFound' }
     }
@@ -197,7 +198,7 @@ export function watchUrl(room: string): string {
 }
 
 /** An NPC template's editor. */
-export function templatePath(kind: 'minion' | 'lieutenant' | 'challenge', id: string): string {
+export function templatePath(kind: TemplateKindName, id: string): string {
   return `#/${kind}/${encodeURIComponent(id)}`
 }
 

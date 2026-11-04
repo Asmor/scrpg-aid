@@ -21,7 +21,7 @@ const gameShape = object({
   name: string,
   'solo?': object({ kind: oneOf('hero', 'villain'), sourceId: nonEmptyString }),
   scene: object({ name: string, tracker: arrayOf(zone), position }),
-  'environment?': object({ id: nonEmptyString, name: string, hidden: boolean }),
+  'environment?': object({ id: nonEmptyString, 'templateId?': nonEmptyString, name: string, hidden: boolean }),
   round: position,
   turn: object({ order: arrayOf(actor), acted: arrayOf(actor), 'current?': actor }),
   heroes: arrayOf(object({ id: nonEmptyString, sourceId: nonEmptyString, sheet: heroShape, play: playStateShape, 'player?': object({ clientId: nonEmptyString, name: string, 'since?': string }) })),

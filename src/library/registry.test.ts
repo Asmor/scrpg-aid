@@ -20,10 +20,12 @@ describe('library types', () => {
       ['minion', 'Minion', 'Minions', 'minion'],
       ['lieutenant', 'Lieutenant', 'Lieutenants', 'lieutenant'],
       ['challenge', 'Challenge', 'Challenges', 'challenge'],
+      ['environment', 'Environment', 'Environments', 'environment'],
     ])
     expect(libraryType('villain')).toBe(villainType)
     expect(libraryType('game')).toBeUndefined()
-    expect(libraryType('environment')).toBeUndefined()
+    expect(libraryType('environment')?.label).toBe('Environment')
+    expect(libraryType('scene')).toBeUndefined()
   })
 
   it('reads, saves and removes through the stores', async () => {

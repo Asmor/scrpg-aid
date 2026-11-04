@@ -1,12 +1,15 @@
 /**
- * NPC templates in the library (docs/design/npcs/spec.md, section 2): minions, lieutenants and
- * challenges the GM prepares, then brings into games, where each copy starts fresh. Templates
- * hold no play state. Environments come in NPCs phase 3.
+ * NPC templates in the library (docs/design/npcs/spec.md, section 2): minions, lieutenants,
+ * challenges and environments the GM prepares, then brings into games, where each copy starts
+ * fresh. Templates hold no play state.
  *
  * Versioning (./serialize.ts) follows the hero's rules.
  */
 import { newId } from '../hero/model'
 import type { BasicAction, Die } from '../rules/types'
+
+/** The template kinds, by name. */
+export type TemplateKindName = 'minion' | 'lieutenant' | 'challenge' | 'environment'
 
 /** What every template has: the library's fields and a name. */
 export interface TemplateBase {
@@ -53,6 +56,42 @@ export interface ChallengeTemplate extends TemplateBase {
   done: string
 }
 
+/** One of an environment's three aspects: its name and its die, one of the environment dice. */
+export interface EnvironmentAspect {
+  name: string
+  die: Die
+}
+
+/**
+ * A twist: a suggestion in free text for a zone, minor or major. The app shows it and tracks its
+ * use but never applies its mechanics.
+ */
+export interface EnvironmentTwist {
+  id: string
+  zone: 'green' | 'yellow' | 'red'
+  kind: 'minor' | 'major'
+  name?: string
+  text: string
+}
+
+/** A minion or lieutenant template the environment brings along. */
+export interface AttachedTemplate {
+  kind: 'minion' | 'lieutenant'
+  templateId: string
+}
+
+export const ASPECT_COUNT = 3
+export const MAX_TWISTS = 60
+export const MAX_ATTACHED = 20
+
+export interface EnvironmentTemplate extends TemplateBase {
+  description: string
+  /** Always three. */
+  aspects: EnvironmentAspect[]
+  twists: EnvironmentTwist[]
+  attached: AttachedTemplate[]
+}
+
 const stamp = (options: { id?: string; now?: Date }) => {
   const at = (options.now ?? new Date()).toISOString()
   return { id: options.id ?? newId(), createdAt: at, updatedAt: at, tags: [], name: '' }
@@ -73,6 +112,16 @@ export function createChallengeTemplate(options: { id?: string; now?: Date } = {
   return { ...stamp(options), description: '', steps: [{ label: '' }, { label: '' }, { label: '' }], done: '' }
 }
 
+/** A new environment: three unnamed d8 aspects, no twists, nothing attached. */
+export function createEnvironmentTemplate(options: { id?: string; now?: Date } = {}): EnvironmentTemplate {
+  return { ...stamp(options), description: '', aspects: Array.from({ length: ASPECT_COUNT }, () => ({ name: '', die: 'd8' as const })), twists: [], attached: [] }
+}
+
+/** A new twist for a zone: minor, with no text yet. */
+export function createTwist(zone: EnvironmentTwist['zone']): EnvironmentTwist {
+  return { id: newId(), zone, kind: 'minor', text: '' }
+}
+
 /** A copy with a new id, "(copy)" after the name, and the same tags. */
 export function duplicateTemplate<T extends TemplateBase>(doc: T, options: { id?: string; now?: Date } = {}): T {
   const at = (options.now ?? new Date()).toISOString()
@@ -80,6 +129,6 @@ export function duplicateTemplate<T extends TemplateBase>(doc: T, options: { id?
 }
 
 /** A template's name, or a placeholder until it has one. */
-export function templateName(doc: Pick<TemplateBase, 'name'>, kind: 'minion' | 'lieutenant' | 'challenge'): string {
+export function templateName(doc: Pick<TemplateBase, 'name'>, kind: TemplateKindName): string {
   return doc.name.trim() || `Unnamed ${kind}`
 }

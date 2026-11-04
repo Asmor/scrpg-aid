@@ -1,13 +1,13 @@
 /**
  * The NPC templates as library types (docs/design/npcs/spec.md, section 2): minions,
- * lieutenants and challenges. They hold no play state, so the primary action is Edit, and the
+ * lieutenants, challenges and environments. They hold no play state, so the primary action is Edit, and the
  * In games column lists games holding something made from them.
  */
 import { templatePath } from '../app/route'
 import { actionsText } from '../game/npc'
 import type { DocStore } from '../store/doc-store'
-import { createChallengeTemplate, createLieutenantTemplate, createMinionTemplate, duplicateTemplate, templateName, type ChallengeTemplate, type LieutenantTemplate, type MinionTemplate, type TemplateBase } from '../template/model'
-import { challengeTemplateEnvelope, lieutenantTemplateEnvelope, minionTemplateEnvelope, templateJson, type TemplateKind } from '../template/serialize'
+import { createChallengeTemplate, createEnvironmentTemplate, createLieutenantTemplate, createMinionTemplate, duplicateTemplate, templateName, type ChallengeTemplate, type EnvironmentTemplate, type LieutenantTemplate, type MinionTemplate, type TemplateBase } from '../template/model'
+import { challengeTemplateEnvelope, environmentTemplateEnvelope, lieutenantTemplateEnvelope, minionTemplateEnvelope, templateJson, type TemplateKind } from '../template/serialize'
 import type { TemplateStores } from '../template/store'
 import type { DocEnvelope } from '../store/doc-store'
 import type { LibraryStores, LibraryType, RowInfo } from './registry'
@@ -21,7 +21,7 @@ interface TemplateTypeSpec<D> {
   kind: TemplateKind
   label: string
   plural: string
-  backupKey: 'minionTemplates' | 'lieutenantTemplates' | 'challengeTemplates'
+  backupKey: 'minionTemplates' | 'lieutenantTemplates' | 'challengeTemplates' | 'environmentTemplates'
   store: (stores: TemplateStores) => DocStore<D>
   envelope: DocEnvelope<D>
   create: () => D
@@ -94,4 +94,16 @@ export const challengeTemplateType = templateType<ChallengeTemplate>({
   details: (c) => ({ details: plural(c.steps.length, 'step') }),
 })
 
-export const TEMPLATE_TYPES: readonly LibraryType[] = [minionTemplateType, lieutenantTemplateType, challengeTemplateType] as unknown as LibraryType[]
+export const environmentTemplateType = templateType<EnvironmentTemplate>({
+  kind: 'environment',
+  label: 'Environment',
+  plural: 'Environments',
+  backupKey: 'environmentTemplates',
+  store: (s) => s.environments,
+  envelope: environmentTemplateEnvelope,
+  create: () => createEnvironmentTemplate(),
+  // "3 aspects · 6 twists · 2 attached"
+  details: (e) => ({ details: [plural(e.aspects.length, 'aspect'), plural(e.twists.length, 'twist'), `${e.attached.length} attached`].join(' · ') }),
+})
+
+export const TEMPLATE_TYPES: readonly LibraryType[] = [minionTemplateType, lieutenantTemplateType, challengeTemplateType, environmentTemplateType] as unknown as LibraryType[]

@@ -11,7 +11,7 @@ import { ActionIcon, DieIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL } from '../hero/labels'
 import { isDraft, type PlayMod } from '../hero/model'
 import { heroType, villainType, toItem, type LibraryItem, type LibraryStores } from '../library/registry'
-import { TEMPLATE_TYPES } from '../library/template-types'
+import { TEMPLATE_TYPES as ALL_TEMPLATE_TYPES } from '../library/template-types'
 import { useOptionalTemplateStores } from '../app/template-store-context'
 import { MAX_GROUP_SIZE, type MinionTemplate } from '../template/model'
 import { filterItems, matches, type LibraryQuery } from '../library/query'
@@ -29,6 +29,9 @@ import { RunningGroup, type GroupActions } from './RunningGroup'
 import { targetId } from './roll-targets'
 import { gmTable, targetOptions } from './target-options'
 import { ZoneChip } from './TableCenter'
+
+// Environments come to the table in NPCs phase 3, stage B.
+const TEMPLATE_TYPES = ALL_TEMPLATE_TYPES.filter((t) => t.key !== 'environment')
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 

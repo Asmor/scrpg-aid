@@ -1,11 +1,11 @@
 /**
  * The template editors (docs/design/npcs/spec.md, section 2, and templates.dc.html): one page
- * each for minions, lieutenants and challenges, with the hero wizard's header pattern. The name
+ * each for minions, lieutenants, challenges and environments, with the hero wizard's header pattern. The name
  * is renamed from the header, every change saves straight away, and Revert changes puts the
  * template back as it was when the page opened. No steps.
  */
-import { useCallback, useId, useRef, useState, type ReactNode } from 'react'
-import { listPath } from '../app/route'
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { listPath, navigate, templatePath } from '../app/route'
 import { useTemplateStores } from '../app/template-store-context'
 import { AbilityText, ActionIcon, DieIcon } from '../components/icons'
 import { Modal } from '../components/Modal'
@@ -15,7 +15,8 @@ import { useDocumentEditor, type Lookup } from '../editor/useDocumentEditor'
 import { DICE } from '../rules/dice'
 import type { BasicAction, Die } from '../rules/types'
 import type { DocStore } from '../store/doc-store'
-import { MAX_GROUP_SIZE, MAX_STEPS, templateName, type ChallengeTemplate, type LieutenantTemplate, type MinionTemplate, type TemplateAbility, type TemplateBase } from './model'
+import { createLieutenantTemplate, createMinionTemplate, createTwist, MAX_ATTACHED, MAX_GROUP_SIZE, MAX_STEPS, MAX_TWISTS, templateName, type AttachedTemplate, type ChallengeTemplate, type EnvironmentTemplate, type EnvironmentTwist, type LieutenantTemplate, type MinionTemplate, type TemplateAbility, type TemplateBase } from './model'
+import { filterItems } from '../library/query'
 import type { TemplateKind } from './serialize'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
 
@@ -23,12 +24,12 @@ const ACTIONS: readonly BasicAction[] = ['attack', 'defend', 'boost', 'hinder', 
 const ALL_EFFECTS = [...ACTIONS, 'recover' as const]
 const ACTION_NAME: Record<BasicAction, string> = { attack: 'Attack', defend: 'Defend', boost: 'Boost', hinder: 'Hinder', overcome: 'Overcome' }
 const TYPE_NAME: Record<TemplateAbility['type'], string> = { A: 'Action', R: 'Reaction', I: 'Inherent' }
-const KIND_LABEL: Record<TemplateKind, string> = { minion: 'Minion template', lieutenant: 'Lieutenant template', challenge: 'Challenge template' }
+const KIND_LABEL: Record<TemplateKind, string> = { minion: 'Minion template', lieutenant: 'Lieutenant template', challenge: 'Challenge template', environment: 'Environment template' }
 
-type AnyTemplate = MinionTemplate | LieutenantTemplate | ChallengeTemplate
+type AnyTemplate = MinionTemplate | LieutenantTemplate | ChallengeTemplate | EnvironmentTemplate
 
 function storeFor(stores: ReturnType<typeof useTemplateStores>, kind: TemplateKind): DocStore<AnyTemplate> {
-  return (kind === 'minion' ? stores.minions : kind === 'lieutenant' ? stores.lieutenants : stores.challenges) as unknown as DocStore<AnyTemplate>
+  return { minion: stores.minions, lieutenant: stores.lieutenants, challenge: stores.challenges, environment: stores.environments }[kind] as unknown as DocStore<AnyTemplate>
 }
 
 function Field({ label, children }: { label: string; children: (id: string) => ReactNode }) {
@@ -224,6 +225,253 @@ function ChallengeFields({ doc, update }: { doc: ChallengeTemplate; update: Upda
   )
 }
 
+const ZONES: readonly EnvironmentTwist['zone'][] = ['green', 'yellow', 'red']
+const ZONE_NAME: Record<EnvironmentTwist['zone'], string> = { green: 'Green', yellow: 'Yellow', red: 'Red' }
+
+/** A zone's twists, minor before major, each with its place in the full list. */
+function zoneTwists(twists: readonly EnvironmentTwist[], zone: EnvironmentTwist['zone']) {
+  return twists.flatMap((t, i) => (t.zone === zone ? [{ t, i }] : [])).sort((a, b) => Number(a.t.kind === 'major') - Number(b.t.kind === 'major'))
+}
+
+const countText = (list: readonly EnvironmentTwist[]) => {
+  const minor = list.filter((t) => t.kind === 'minor').length
+  return list.length ? `${minor} minor, ${list.length - minor} major` : 'None yet'
+}
+
+function Twists({ doc, update }: { doc: EnvironmentTemplate; update: Update<EnvironmentTemplate> }) {
+  const full = doc.twists.length >= MAX_TWISTS
+  return (
+    <fieldset className="template-twists">
+      <legend>Twists</legend>
+      <p className="hint">Suggestions for the GM, by zone. The app shows them and tracks which are used, but never applies them.</p>
+      {ZONES.map((zone) => {
+        const list = zoneTwists(doc.twists, zone)
+        return (
+          <section key={zone} className="template-twists__zone" aria-label={`${ZONE_NAME[zone]} twists`}>
+            <h3 className="gt-row">
+              <span className={`zone-chip zone-${zone}`}>{ZONE_NAME[zone]}</span>
+              <span className="gt-sub">{countText(list.map((x) => x.t))}</span>
+            </h3>
+            {list.map(({ t, i }, j) => (
+              <fieldset key={t.id} className="template-twist">
+                <legend>
+                  {ZONE_NAME[zone]} twist {j + 1}
+                </legend>
+                <div className="template-ability__head">
+                  <Field label="Kind">
+                    {(id) => (
+                      <select id={id} value={t.kind} onChange={(e) => update((d) => void (d.twists[i]!.kind = e.target.value as EnvironmentTwist['kind']))}>
+                        <option value="minor">Minor</option>
+                        <option value="major">Major</option>
+                      </select>
+                    )}
+                  </Field>
+                  <Field label="Zone">
+                    {(id) => (
+                      <select id={id} value={t.zone} onChange={(e) => update((d) => void (d.twists[i]!.zone = e.target.value as EnvironmentTwist['zone']))}>
+                        {ZONES.map((z) => (
+                          <option key={z} value={z}>
+                            {ZONE_NAME[z]}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </Field>
+                </div>
+                <Field label="Name (optional)">
+                  {(id) => (
+                    <input
+                      id={id}
+                      type="text"
+                      maxLength={MAX_NAME}
+                      value={t.name ?? ''}
+                      onChange={(e) =>
+                        update((d) => {
+                          const tw = d.twists[i]!
+                          if (e.target.value) tw.name = e.target.value
+                          else delete tw.name
+                        })
+                      }
+                    />
+                  )}
+                </Field>
+                <Field label="What happens">{(id) => <textarea id={id} rows={2} maxLength={MAX_TEXT} value={t.text} onChange={(e) => update((d) => void (d.twists[i]!.text = e.target.value))} />}</Field>
+                <button type="button" className="button button--quiet button--small" aria-label={`Remove ${ZONE_NAME[zone]} twist ${j + 1}`} onClick={() => update((d) => void d.twists.splice(i, 1))}>
+                  Remove
+                </button>
+              </fieldset>
+            ))}
+            <button type="button" className="button button--small" disabled={full} onClick={() => update((d) => void d.twists.push(createTwist(zone)))}>
+              + Add {ZONE_NAME[zone]} twist
+            </button>
+          </section>
+        )
+      })}
+    </fieldset>
+  )
+}
+
+/** A minion or lieutenant template in the library, as the attach picker and the attached list show it. */
+interface Attachable {
+  kind: AttachedTemplate['kind']
+  id: string
+  name: string
+  die: Die
+  tags: string[]
+}
+
+const KIND_WORD: Record<AttachedTemplate['kind'], string> = { minion: 'minion template', lieutenant: 'lieutenant template' }
+
+/** The minion and lieutenant templates in the library, loaded again whenever `reload` changes. */
+function useAttachable(reload: number): Attachable[] | null {
+  const stores = useTemplateStores()
+  const [list, setList] = useState<Attachable[] | null>(null)
+  useEffect(() => {
+    let current = true
+    Promise.all([stores.minions.list(), stores.lieutenants.list()]).then(
+      ([m, l]) => {
+        if (!current) return
+        const of = (kind: AttachedTemplate['kind'], docs: readonly MinionTemplate[]) => docs.map((d) => ({ kind, id: d.id, name: templateName(d, kind), die: d.die, tags: d.tags }))
+        setList([...of('minion', m.docs), ...of('lieutenant', l.docs)])
+      },
+      () => current && setList([]),
+    )
+    return () => {
+      current = false
+    }
+  }, [stores, reload])
+  return list
+}
+
+function Attached({ doc, update }: { doc: EnvironmentTemplate; update: Update<EnvironmentTemplate> }) {
+  const stores = useTemplateStores()
+  const [picking, setPicking] = useState(false)
+  const [reload, setReload] = useState(0)
+  const [text, setText] = useState('')
+  const all = useAttachable(reload)
+  const find = (a: AttachedTemplate) => all?.find((t) => t.kind === a.kind && t.id === a.templateId)
+  const attachedAlready = (t: Attachable) => doc.attached.some((a) => a.kind === t.kind && a.templateId === t.id)
+  const full = doc.attached.length >= MAX_ATTACHED
+  const shown = all ? filterItems(all.map((t) => ({ ...t, type: t.kind })), { text, types: [], tags: [] }) : []
+  const attach = (kind: AttachedTemplate['kind'], templateId: string) => update((d) => void d.attached.push({ kind, templateId }))
+  // "Make new": a new template, attached straight away, then its editor opens.
+  const [makeError, setMakeError] = useState<string | null>(null)
+  const makeNew = async (kind: AttachedTemplate['kind']) => {
+    const made = kind === 'minion' ? createMinionTemplate() : createLieutenantTemplate()
+    try {
+      await (kind === 'minion' ? stores.minions : stores.lieutenants).save(made)
+    } catch (e) {
+      setMakeError(`The new ${kind} couldn't be saved: ${e instanceof Error ? e.message : String(e)}`)
+      return
+    }
+    attach(kind, made.id)
+    setPicking(false)
+    navigate(templatePath(kind, made.id))
+  }
+  return (
+    <fieldset className="template-attached">
+      <legend>Its minions and lieutenants</legend>
+      {doc.attached.length === 0 && <p className="hint">None attached. Attached templates can be added to the table on the environment's turn.</p>}
+      <ul className="template-attached__list">
+        {doc.attached.map((a, i) => {
+          const t = find(a)
+          const label = t ? t.name : 'Missing template'
+          return (
+            <li key={`${a.kind}:${a.templateId}:${i}`} className="gt-row">
+              {t && <DieIcon die={t.die} size="inline" />}
+              {t ? <a href={templatePath(a.kind, a.templateId)}>{t.name}</a> : all && <strong>Missing template</strong>}
+              <span className="gt-sub">{t || !all ? KIND_WORD[a.kind] : `This ${KIND_WORD[a.kind]} was deleted from the library.`}</span>
+              <button type="button" className="button button--quiet button--small" aria-label={`Remove ${label}`} onClick={() => update((d) => void d.attached.splice(i, 1))}>
+                Remove
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+      <button
+        type="button"
+        className="button button--small"
+        disabled={full}
+        onClick={() => {
+          setReload((n) => n + 1)
+          setText('')
+          setMakeError(null)
+          setPicking(true)
+        }}
+      >
+        + Attach
+      </button>
+      {picking && (
+        <Modal title="Attach a minion or lieutenant" onClose={() => setPicking(false)}>
+          <Field label="Search">{(id) => <input id={id} type="search" value={text} onChange={(e) => setText(e.target.value)} />}</Field>
+          <p className="label">From library</p>
+          {all === null ? (
+            <p>Loading…</p>
+          ) : shown.length === 0 ? (
+            <p className="hint">{all.length ? 'Nothing matches.' : 'No minion or lieutenant templates in your library yet.'}</p>
+          ) : (
+            <ul className="template-attached__list" aria-label="Minion and lieutenant templates">
+              {shown.map((t) => (
+                <li key={`${t.kind}:${t.id}`} className="gt-row">
+                  <DieIcon die={t.die} size="inline" />
+                  <strong>{t.name}</strong>
+                  <span className="gt-sub">{KIND_WORD[t.kind]}</span>
+                  <button
+                    type="button"
+                    className="button button--small"
+                    disabled={attachedAlready(t) || full}
+                    aria-label={attachedAlready(t) ? `${t.name} is attached` : `Attach ${t.name}`}
+                    onClick={() => {
+                      attach(t.kind, t.id)
+                      setPicking(false)
+                    }}
+                  >
+                    {attachedAlready(t) ? 'Attached' : 'Attach'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="label">Make new</p>
+          <div className="button-row">
+            <button type="button" className="button button--small" onClick={() => void makeNew('minion')}>
+              New minion
+            </button>
+            <button type="button" className="button button--small" onClick={() => void makeNew('lieutenant')}>
+              New lieutenant
+            </button>
+          </div>
+          <p className="hint">A new one is attached straight away, and its editor opens.</p>
+          {makeError && (
+            <p role="alert" className="error">
+              {makeError}
+            </p>
+          )}
+        </Modal>
+      )}
+    </fieldset>
+  )
+}
+
+function EnvironmentFields({ doc, update }: { doc: EnvironmentTemplate; update: Update<EnvironmentTemplate> }) {
+  return (
+    <>
+      <Field label="Description">{(id) => <textarea id={id} rows={2} maxLength={MAX_TEXT} value={doc.description} onChange={(e) => update((d) => void (d.description = e.target.value))} />}</Field>
+      <fieldset className="template-aspects">
+        <legend>Aspects (the environment dice)</legend>
+        {doc.aspects.map((a, i) => (
+          <div key={i} className="template-aspect">
+            <Field label={`Aspect ${i + 1}`}>{(id) => <input id={id} type="text" maxLength={MAX_NAME} value={a.name} onChange={(e) => update((d) => void (d.aspects[i]!.name = e.target.value))} />}</Field>
+            <DiePicker label={`Aspect ${i + 1} die`} value={a.die} onChange={(die) => update((d) => void (d.aspects[i]!.die = die))} />
+          </div>
+        ))}
+      </fieldset>
+      <Twists doc={doc} update={update} />
+      <Attached doc={doc} update={update} />
+    </>
+  )
+}
+
 export function TemplateEditor({ kind, id }: { kind: TemplateKind; id: string }) {
   const stores = useTemplateStores()
   const store = storeFor(stores, kind)
@@ -281,6 +529,8 @@ export function TemplateEditor({ kind, id }: { kind: TemplateKind; id: string })
       <section className="editor-step template-fields" aria-label={KIND_LABEL[kind]}>
         {kind === 'challenge' ? (
           <ChallengeFields doc={doc as ChallengeTemplate} update={update as Update<ChallengeTemplate>} />
+        ) : kind === 'environment' ? (
+          <EnvironmentFields doc={doc as EnvironmentTemplate} update={update as Update<EnvironmentTemplate>} />
         ) : (
           <>
             <MinionFields doc={doc as MinionTemplate} update={update as Update<MinionTemplate>} />

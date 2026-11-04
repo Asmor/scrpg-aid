@@ -3,19 +3,20 @@
  * each kind's list key in a backup file, its envelope and store, and its words.
  */
 import type { DocEnvelope, DocStore } from '../store/doc-store'
-import type { ChallengeTemplate, LieutenantTemplate, MinionTemplate, TemplateBase } from './model'
-import { challengeTemplateEnvelope, lieutenantTemplateEnvelope, minionTemplateEnvelope, type TemplateKind } from './serialize'
+import type { ChallengeTemplate, EnvironmentTemplate, LieutenantTemplate, MinionTemplate, TemplateBase } from './model'
+import { challengeTemplateEnvelope, environmentTemplateEnvelope, lieutenantTemplateEnvelope, minionTemplateEnvelope, type TemplateKind } from './serialize'
 import type { TemplateStores } from './store'
 
 export interface TemplateLists {
   minionTemplates: MinionTemplate[]
   lieutenantTemplates: LieutenantTemplate[]
   challengeTemplates: ChallengeTemplate[]
+  environmentTemplates: EnvironmentTemplate[]
 }
 
 export type TemplateListKey = keyof TemplateLists
 
-export const TEMPLATE_LIST_KEYS: readonly TemplateListKey[] = ['minionTemplates', 'lieutenantTemplates', 'challengeTemplates']
+export const TEMPLATE_LIST_KEYS: readonly TemplateListKey[] = ['minionTemplates', 'lieutenantTemplates', 'challengeTemplates', 'environmentTemplates']
 
 export interface TemplateListInfo {
   kind: TemplateKind
@@ -24,15 +25,18 @@ export interface TemplateListInfo {
   /** "minion", "minions". */
   one: string
   many: string
+  /** The backup version that added this list. */
+  since: number
 }
 
 export const TEMPLATE_LIST_INFO: Record<TemplateListKey, TemplateListInfo> = {
-  minionTemplates: { kind: 'minion', envelope: minionTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.minions as unknown as DocStore<TemplateBase>, one: 'minion', many: 'minions' },
-  lieutenantTemplates: { kind: 'lieutenant', envelope: lieutenantTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.lieutenants as unknown as DocStore<TemplateBase>, one: 'lieutenant', many: 'lieutenants' },
-  challengeTemplates: { kind: 'challenge', envelope: challengeTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.challenges as unknown as DocStore<TemplateBase>, one: 'challenge', many: 'challenges' },
+  minionTemplates: { kind: 'minion', envelope: minionTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.minions as unknown as DocStore<TemplateBase>, one: 'minion', many: 'minions', since: 5 },
+  lieutenantTemplates: { kind: 'lieutenant', envelope: lieutenantTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.lieutenants as unknown as DocStore<TemplateBase>, one: 'lieutenant', many: 'lieutenants', since: 5 },
+  challengeTemplates: { kind: 'challenge', envelope: challengeTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.challenges as unknown as DocStore<TemplateBase>, one: 'challenge', many: 'challenges', since: 5 },
+  environmentTemplates: { kind: 'environment', envelope: environmentTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.environments as unknown as DocStore<TemplateBase>, one: 'environment', many: 'environments', since: 6 },
 }
 
-export const emptyTemplateLists = (): TemplateLists => ({ minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [] })
+export const emptyTemplateLists = (): TemplateLists => ({ minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] })
 
 /** How many templates in all. */
 export const templateCount = (lists: TemplateLists) => TEMPLATE_LIST_KEYS.reduce((n, k) => n + lists[k].length, 0)

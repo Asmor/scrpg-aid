@@ -19,10 +19,11 @@ import { emptyTemplateLists, TEMPLATE_LIST_INFO, TEMPLATE_LIST_KEYS, type Templa
 export const BACKUP_FORMAT = 'scrpg-backup'
 /**
  * Version 2 added villains, version 3 the library's saved searches, version 4 games, and version
- * 5 the NPC templates (../template/lists.ts); older backups still read. A multi-item export from
+ * 5 the NPC templates (../template/lists.ts), and version 6 environment templates; older backups
+ * still read. A multi-item export from
  * the library uses the same format, with no saved searches.
  */
-export const BACKUP_VERSION = 5
+export const BACKUP_VERSION = 6
 
 export interface Backup {
   format: typeof BACKUP_FORMAT
@@ -35,6 +36,7 @@ export interface Backup {
   minionTemplates: unknown[]
   lieutenantTemplates: unknown[]
   challengeTemplates: unknown[]
+  environmentTemplates: unknown[]
 }
 
 /** One hero as JSON, the same envelope the app stores. */
@@ -68,6 +70,7 @@ export function backupJson(
     minionTemplates: [],
     lieutenantTemplates: [],
     challengeTemplates: [],
+    environmentTemplates: [],
   }
   for (const key of TEMPLATE_LIST_KEYS) backup[key] = (templates[key] ?? []).map((doc) => TEMPLATE_LIST_INFO[key].envelope.toSaved(doc))
   return JSON.stringify(backup, null, 2)
@@ -107,7 +110,7 @@ export function backupFileName(now: Date = new Date()): string {
 
 /** A hero, villain, game or saved search in an imported backup that couldn't be read; `index` counts from 1 within its list. */
 export interface SkippedHero {
-  kind: 'hero' | 'villain' | 'game' | 'savedSearch' | 'minion' | 'lieutenant' | 'challenge'
+  kind: 'hero' | 'villain' | 'game' | 'savedSearch' | 'minion' | 'lieutenant' | 'challenge' | 'environment'
   index: number
   error: string
 }
@@ -202,10 +205,10 @@ function readBackup(value: Record<string, unknown>): ImportResult {
     if (result.ok) savedSearches.push(result.search)
     else skipped.push({ kind: 'savedSearch', index: i + 1, error: result.error })
   })
-  // Version 5 added the NPC templates.
+  // Version 5 added the NPC templates, and version 6 environments.
   const templates = emptyTemplateLists()
   for (const key of TEMPLATE_LIST_KEYS) {
-    if (version < 5) continue
+    if (version < TEMPLATE_LIST_INFO[key].since) continue
     const list = value[key]
     if (!Array.isArray(list)) return { ok: false, error: `This backup couldn't be read: it has no list of ${TEMPLATE_LIST_INFO[key].many}.` }
     list.forEach((saved, i) => {

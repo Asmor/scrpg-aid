@@ -95,13 +95,16 @@ export function useListedGames(): { games: Game[] | null; error: string | null; 
   return { games, error, reload: () => setTick((t) => t + 1) }
 }
 
+/** What a game can hold a copy of, or something made from. */
+type HeldKind = 'hero' | 'villain' | 'minion' | 'lieutenant' | 'challenge' | 'environment'
+
 /** The listed games holding a copy of a character, by name (a character's "also in" line). */
-export function gamesHolding(games: readonly Game[], kind: 'hero' | 'villain' | 'minion' | 'lieutenant' | 'challenge', sourceId: string): Game[] {
+export function gamesHolding(games: readonly Game[], kind: HeldKind, sourceId: string): Game[] {
   return games.filter((g) => isListedGame(g) && holds(g, kind, sourceId))
 }
 
 /** Whether a game holds a copy of a library document, or something made from a template. */
-function holds(game: Game, kind: 'hero' | 'villain' | 'minion' | 'lieutenant' | 'challenge', sourceId: string): boolean {
+function holds(game: Game, kind: HeldKind, sourceId: string): boolean {
   switch (kind) {
     case 'hero':
     case 'villain':
@@ -111,5 +114,7 @@ function holds(game: Game, kind: 'hero' | 'villain' | 'minion' | 'lieutenant' | 
       return game.groups.some((g) => g.templateId === sourceId && g.kind === (kind === 'minion' ? 'minions' : 'lieutenants'))
     case 'challenge':
       return game.challenges.some((c) => c.templateId === sourceId)
+    case 'environment':
+      return game.environment?.templateId === sourceId
   }
 }

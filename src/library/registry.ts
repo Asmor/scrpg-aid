@@ -75,9 +75,9 @@ export interface LibraryType<D extends LibraryDoc = LibraryDoc> {
   /** The single-item export: JSON in the same envelope as storage. */
   exportFile(doc: D): { name: string; text: string }
   /** Which list of a backup file it goes in. */
-  backupKey: 'heroes' | 'villains' | 'minionTemplates' | 'lieutenantTemplates' | 'challengeTemplates'
+  backupKey: 'heroes' | 'villains' | 'minionTemplates' | 'lieutenantTemplates' | 'challengeTemplates' | 'environmentTemplates'
   /** Which kind of copy a game holds of it, for the In games column: a hero's or villain's copy, or something made from a template. */
-  inGames: 'hero' | 'villain' | 'minion' | 'lieutenant' | 'challenge'
+  inGames: 'hero' | 'villain' | 'minion' | 'lieutenant' | 'challenge' | 'environment'
   /** Starts a new one from the New menu, returning the page to open (unset if the type can't be created). */
   create?(context: { stores: LibraryStores; newHeroes: NewHeroes }): Promise<string>
 }

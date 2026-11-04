@@ -53,7 +53,7 @@ function count(heroes: number, villains: number, games = 0, templates = 0): stri
   return parts.length === 1 ? parts[0]! : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`
 }
 
-const KIND_TEXT: Record<SkippedHero['kind'], string> = { hero: 'Hero', villain: 'Villain', game: 'Game', savedSearch: 'Saved search', minion: 'Minion', lieutenant: 'Lieutenant', challenge: 'Challenge' }
+const KIND_TEXT: Record<SkippedHero['kind'], string> = { hero: 'Hero', villain: 'Villain', game: 'Game', savedSearch: 'Saved search', minion: 'Minion', lieutenant: 'Lieutenant', challenge: 'Challenge', environment: 'Environment' }
 
 function skippedText(skipped: readonly SkippedHero[]): string {
   return skipped.map((s) => `${KIND_TEXT[s.kind]} ${s.index} in the file couldn't be read: ${s.error}.`).join(' ')
@@ -61,7 +61,7 @@ function skippedText(skipped: readonly SkippedHero[]): string {
 
 const searchCount = (n: number) => (n === 1 ? 'one saved search' : `${n} saved searches`)
 
-const PLURAL = { hero: 'heroes', villain: 'villains', game: 'games', minion: 'minions', lieutenant: 'lieutenants', challenge: 'challenges' } as const
+const PLURAL = { hero: 'heroes', villain: 'villains', game: 'games', minion: 'minions', lieutenant: 'lieutenants', challenge: 'challenges', environment: 'environments' } as const
 
 /** "You already have this hero", "… these villains", or "… these" for a mix. */
 function conflictLegend(list: readonly Conflict[]): string {
@@ -239,7 +239,7 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
         return
       }
     }
-    const templateIds = { minionTemplates: new Set<string>(), lieutenantTemplates: new Set<string>(), challengeTemplates: new Set<string>() }
+    const templateIds = { minionTemplates: new Set<string>(), lieutenantTemplates: new Set<string>(), challengeTemplates: new Set<string>(), environmentTemplates: new Set<string>() }
     const unreadableTemplates = new Set<string>()
     for (const key of TEMPLATE_LIST_KEYS) {
       if (!result.templates[key].length) continue

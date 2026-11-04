@@ -10,7 +10,7 @@ import { MemorySavedSearchStore } from '../library/saved-searches'
 import { localSessionStore, memoryStorage } from '../session/storage'
 import { fakeNetwork } from '../session/transport'
 import { MemoryVillainStore } from '../villain/store'
-import { createChallengeTemplate, createLieutenantTemplate, createMinionTemplate } from './model'
+import { createChallengeTemplate, createEnvironmentTemplate, createLieutenantTemplate, createMinionTemplate } from './model'
 import { memoryTemplateStores, type TemplateStores } from './store'
 
 afterEach(() => {
@@ -37,6 +37,7 @@ describe('the template library rows', () => {
       await t.minions.save({ ...createMinionTemplate({ id: 'm' }), name: 'Burglar', die: 'd8', actions: ['attack', 'hinder'] })
       await t.lieutenants.save({ ...createLieutenantTemplate({ id: 'l' }), name: 'Static Choir', die: 'd10', abilities: [{ name: 'a', type: 'A', text: '' }, { name: 'b', type: 'R', text: '' }] })
       await t.challenges.save({ ...createChallengeTemplate({ id: 'c' }), name: 'Shut down the crucible' })
+      await t.environments.save({ ...createEnvironmentTemplate({ id: 'e' }), name: 'Rooftop Heist', twists: [{ id: 't', zone: 'red', kind: 'major', text: 'Fall.' }], attached: [{ kind: 'minion', templateId: 'm' }] })
       let g = addGroup({ ...createGame({ id: 'g' }), name: 'Thursday game' }, { kind: 'minions', name: 'Burglars', die: 'd8', count: 2, hidden: true }, { now: new Date(), newId: () => Math.random().toString(36).slice(2) })
       g = { ...g, groups: g.groups.map((x) => ({ ...x, templateId: 'm' })) }
       await games.save(g)
@@ -47,6 +48,7 @@ describe('the template library rows', () => {
     expect(row('Burglar').getByRole('img', { name: 'd8' })).toBeInTheDocument()
     expect(row('Static Choir').getByText('2 abilities')).toBeInTheDocument()
     expect(row('Shut down the crucible').getByText('3 steps')).toBeInTheDocument()
+    expect(row('Rooftop Heist').getByText('3 aspects · 1 twist · 1 attached')).toBeInTheDocument()
     expect(row('Burglar').getByRole('link', { name: 'Edit Burglar' })).toHaveAttribute('href', '#/minion/m')
     expect(row('Burglar').getByText('Thursday game')).toBeInTheDocument()
     expect(row('Static Choir').queryByText('Thursday game')).not.toBeInTheDocument()
@@ -115,6 +117,68 @@ describe('the template editors', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Revert changes' }))
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Revert changes?' })).getByRole('button', { name: 'Revert changes' }))
     await waitFor(async () => expect(await saved(() => t.challenges.get('c'))).toMatchObject({ steps: [{ label: '' }, { label: '' }, { label: '' }], done: '' }))
+  })
+
+  it('edits an environment: aspects, twists by zone, and attached templates', async () => {
+    const t = await setup('#/environment/e', async (s) => {
+      await s.environments.save({ ...createEnvironmentTemplate({ id: 'e' }), name: 'Rooftop Heist' })
+      await s.minions.save({ ...createMinionTemplate({ id: 'm' }), name: 'Security drones', die: 'd6' })
+      await s.lieutenants.save({ ...createLieutenantTemplate({ id: 'l' }), name: 'Night Watch Captain', die: 'd10' })
+    })
+    expect(await screen.findByText('Environment template')).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Description'), 'Slick tiles and a long drop.')
+    await userEvent.type(screen.getByLabelText('Aspect 1'), 'Slick Tiles')
+    await userEvent.click(within(screen.getByRole('group', { name: 'Aspect 1 die' })).getByRole('radio', { name: 'd10' }))
+    // Twists: grouped by zone, minor before major.
+    const yellow = within(screen.getByRole('region', { name: 'Yellow twists' }))
+    await userEvent.click(yellow.getByRole('button', { name: '+ Add Yellow twist' }))
+    await userEvent.click(yellow.getByRole('button', { name: '+ Add Yellow twist' }))
+    await userEvent.selectOptions(within(yellow.getByRole('group', { name: 'Yellow twist 1' })).getByLabelText('Kind'), 'Major')
+    // The major one moves after the minor one.
+    const second = within(yellow.getByRole('group', { name: 'Yellow twist 2' }))
+    expect(second.getByLabelText('Kind')).toHaveValue('major')
+    await userEvent.type(second.getByLabelText('Name (optional)'), 'Floodlights')
+    await userEvent.type(second.getByLabelText('What happens'), 'Everyone is seen.')
+    expect(yellow.getByText('1 minor, 1 major')).toBeInTheDocument()
+    // Attach from the library, searching.
+    await userEvent.click(screen.getByRole('button', { name: '+ Attach' }))
+    const picker = within(screen.getByRole('dialog', { name: 'Attach a minion or lieutenant' }))
+    await userEvent.type(picker.getByLabelText('Search'), 'drones')
+    expect(picker.queryByText('Night Watch Captain')).not.toBeInTheDocument()
+    await userEvent.click(picker.getByRole('button', { name: 'Attach Security drones' }))
+    expect(screen.getByRole('link', { name: 'Security drones' })).toHaveAttribute('href', '#/minion/m')
+    await waitFor(async () =>
+      expect(await saved(() => t.environments.get('e'))).toMatchObject({
+        description: 'Slick tiles and a long drop.',
+        aspects: [{ name: 'Slick Tiles', die: 'd10' }, { name: '', die: 'd8' }, { name: '', die: 'd8' }],
+        twists: [
+          { zone: 'yellow', kind: 'major', name: 'Floodlights', text: 'Everyone is seen.' },
+          { zone: 'yellow', kind: 'minor', text: '' },
+        ],
+        attached: [{ kind: 'minion', templateId: 'm' }],
+      }),
+    )
+    // Already attached: it can't be attached twice.
+    await userEvent.click(screen.getByRole('button', { name: '+ Attach' }))
+    expect(within(screen.getByRole('dialog', { name: 'Attach a minion or lieutenant' })).getByRole('button', { name: 'Security drones is attached' })).toBeDisabled()
+  })
+
+  it('shows a deleted attached template as missing, which can be removed', async () => {
+    const t = await setup('#/environment/e', async (s) => s.environments.save({ ...createEnvironmentTemplate({ id: 'e' }), attached: [{ kind: 'lieutenant', templateId: 'gone' }] }))
+    expect(await screen.findByText('Missing template')).toBeInTheDocument()
+    expect(screen.getByText('This lieutenant template was deleted from the library.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Missing template' }))
+    await waitFor(async () => expect((await saved(() => t.environments.get('e')))?.attached).toEqual([]))
+  })
+
+  it('makes a new minion from the attach picker, attaches it, and opens its editor', async () => {
+    const t = await setup('#/environment/e', async (s) => s.environments.save(createEnvironmentTemplate({ id: 'e' })))
+    await userEvent.click(await screen.findByRole('button', { name: '+ Attach' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Attach a minion or lieutenant' })).getByRole('button', { name: 'New minion' }))
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/minion\/.+$/))
+    const made = (await t.minions.list()).docs
+    expect(made).toHaveLength(1)
+    await waitFor(async () => expect((await saved(() => t.environments.get('e')))?.attached).toEqual([{ kind: 'minion', templateId: made[0]!.id }]))
   })
 
   it('says when there is no such template', async () => {

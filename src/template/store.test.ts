@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { IndexedDbHeroStore } from '../hero/store'
 import { createHero } from '../hero/model'
 import { MemoryDocStore, IndexedDbDocStore } from '../store/doc-store'
-import { createChallengeTemplate, createLieutenantTemplate, createMinionTemplate, duplicateTemplate, templateName, type MinionTemplate } from './model'
-import { challengeTemplateEnvelope, lieutenantTemplateEnvelope, minionTemplateEnvelope, parseTemplateJson, templateJson } from './serialize'
+import { createChallengeTemplate, createEnvironmentTemplate, createLieutenantTemplate, createMinionTemplate, createTwist, duplicateTemplate, templateName, type EnvironmentTemplate, type MinionTemplate } from './model'
+import { challengeTemplateEnvelope, environmentTemplateEnvelope, lieutenantTemplateEnvelope, minionTemplateEnvelope, parseTemplateJson, templateJson } from './serialize'
 import { createDefaultTemplateStores, memoryTemplateStores } from './store'
 
 const now = new Date('2026-11-03T12:00:00Z')
@@ -15,6 +15,9 @@ describe('new templates', () => {
     expect(createMinionTemplate({ id: 'm', now })).toEqual({ id: 'm', createdAt: now.toISOString(), updatedAt: now.toISOString(), tags: [], name: '', die: 'd6', groupSize: 4, actions: 'any', notes: '' })
     expect(createLieutenantTemplate({ id: 'l', now })).toMatchObject({ die: 'd8', groupSize: 2, abilities: [] })
     expect(createChallengeTemplate({ id: 'c', now }).steps).toEqual([{ label: '' }, { label: '' }, { label: '' }])
+    expect(createEnvironmentTemplate({ id: 'e', now })).toMatchObject({ description: '', aspects: [{ name: '', die: 'd8' }, { name: '', die: 'd8' }, { name: '', die: 'd8' }], twists: [], attached: [] })
+    expect(createTwist('red')).toMatchObject({ zone: 'red', kind: 'minor', text: '' })
+    expect(templateName({ name: '' }, 'environment')).toBe('Unnamed environment')
   })
 
   it('duplicate with a new id and "(copy)", keeping tags', () => {
@@ -45,6 +48,23 @@ describe('saved templates', () => {
     expect(lieutenantTemplateEnvelope.parse({ format: 'scrpg-lieutenant-template', version: 1, lieutenant: badAbility }).ok).toBe(false)
     expect(minionTemplateEnvelope.parse({ format: 'scrpg-minion-template', version: 2, minion: createMinionTemplate() })).toEqual({ ok: false, error: 'saved by a newer version of the app (format 2)' })
   })
+
+  it('keep an environment’s aspects, twists and attached templates, and turn away bad ones', () => {
+    const e: EnvironmentTemplate = {
+      ...createEnvironmentTemplate({ id: 'e', now }),
+      name: 'Rooftop Heist',
+      aspects: [{ name: 'Slick Tiles', die: 'd10' }, { name: 'Howling Wind', die: 'd6' }, { name: 'Night Security', die: 'd8' }],
+      twists: [{ id: 't1', zone: 'green', kind: 'minor', name: 'Loose gear', text: 'Something slides toward the edge.' }, { id: 't2', zone: 'red', kind: 'major', text: 'The roof gives way.' }],
+      attached: [{ kind: 'minion', templateId: 'm' }],
+    }
+    expect(parseTemplateJson(environmentTemplateEnvelope, templateJson(environmentTemplateEnvelope, e))).toEqual({ ok: true, doc: e })
+    const ok = (doc: object) => environmentTemplateEnvelope.parse(environmentTemplateEnvelope.toSaved({ ...e, ...doc } as EnvironmentTemplate)).ok
+    expect(ok({ aspects: e.aspects.slice(0, 2) })).toBe(false)
+    expect(ok({ twists: [{ id: 't', zone: 'blue', kind: 'minor', text: '' }] })).toBe(false)
+    expect(ok({ twists: Array.from({ length: 61 }, (_, i) => ({ id: `t${i}`, zone: 'green', kind: 'minor', text: '' })) })).toBe(false)
+    expect(ok({ attached: [{ kind: 'villain', templateId: 'v' }] })).toBe(false)
+    expect(ok({ attached: Array.from({ length: 21 }, () => ({ kind: 'minion', templateId: 'm' })) })).toBe(false)
+  })
 })
 
 describe.each<[string, () => MemoryDocStore<MinionTemplate> | IndexedDbDocStore<MinionTemplate>]>([
@@ -68,10 +88,12 @@ describe('the template stores', () => {
     const stores = createDefaultTemplateStores(factory)
     await stores.minions.save(minion('m', '2026-01-01T00:00:00Z'))
     await stores.challenges.save(createChallengeTemplate({ id: 'c', now }))
+    await stores.environments.save(createEnvironmentTemplate({ id: 'e', now }))
     await new IndexedDbHeroStore(factory).save(createHero('guided', { id: 'h' }))
     expect((await stores.minions.list()).docs.map((d) => d.id)).toEqual(['m'])
     expect((await stores.lieutenants.list()).docs).toEqual([])
     expect((await stores.challenges.list()).docs.map((d) => d.id)).toEqual(['c'])
+    expect((await stores.environments.list()).docs.map((d) => d.id)).toEqual(['e'])
     expect((await new IndexedDbHeroStore(factory).list()).heroes.map((h) => h.id)).toEqual(['h'])
   })
 
