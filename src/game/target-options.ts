@@ -6,8 +6,12 @@
  * Hinder, allies for Boost and Defend. "Show allies too" (or "Show opponents too") adds the other
  * side as a second, labeled group. Overcome has no target.
  *
- * - The heroes' side is the heroes and their minions; the opposition is the villains and every
- *   group (the GM's and the environment's).
+ * - The heroes' side is the heroes and their minions; the opposition is the villains and the
+ *   GM's groups.
+ * - The environment's groups have no side: their members are in every list, whatever the effect
+ *   or the toggle, in their own section named for the environment. When one of them (or the
+ *   environment itself) acts, every list shows everyone, a section per side, with no toggle.
+ * - The environment is never a target.
  * - The actor itself is labeled "(you)", its own group's members "(same group)", a hero's minions
  *   "(Swarmwright's minion)" (or "(your minion)" for the actor's own).
  * - The actor's own entries come first in its side, then everything else in table order.
@@ -23,8 +27,8 @@ import { memberName } from './table'
 
 /**
  * Who is choosing: a hero, a hero's minion, a villain, a group's member, a whole group ("Same
- * target for all"), or the environment (its basic actions). The environment is on the
- * opposition's side, but isn't a target itself: it has no Health, mods or defenses.
+ * target for all"), or the environment (its basic actions). The environment and its groups have
+ * no side.
  */
 export type TargetActor = TableTarget | { kind: 'group'; id: string } | { kind: 'environment' }
 
@@ -32,7 +36,9 @@ export type TargetActor = TableTarget | { kind: 'group'; id: string } | { kind: 
 export interface TargetTable {
   heroes: readonly { id: string; name: string; minions: readonly { id: string; name: string }[] }[]
   villains: readonly { id: string; name: string }[]
-  groups: readonly { id: string; name: string; members: readonly { id: string; n: number }[] }[]
+  groups: readonly { id: string; name: string; owner?: { kind: string }; members: readonly { id: string; n: number }[] }[]
+  /** The environment's name, for its groups' section ("Rooftop Heist"). */
+  environment?: string
 }
 
 export interface TargetOption {
@@ -46,10 +52,14 @@ export interface TargetList {
   likely: TargetOption[]
   /** The other side, when shown (or when one of its options is kept): "Allies" or "Opponents". */
   other?: { label: 'Allies' | 'Opponents'; options: TargetOption[] }
+  /** Sections always shown after those: the environment's groups, or each side for an actor with none. */
+  always?: { label: string; options: TargetOption[] }[]
+  /** The actor has no side (the environment or one of its groups): everyone is listed, with no toggle. */
+  sideless?: true
 }
 
-/** Every option in a list, both sides. */
-export const allOptions = (list: TargetList): TargetOption[] => [...list.likely, ...(list.other?.options ?? [])]
+/** Every option in a list, every section. */
+export const allOptions = (list: TargetList): TargetOption[] => [...list.likely, ...(list.other?.options ?? []), ...(list.always ?? []).flatMap((s) => s.options)]
 
 type Side = 'heroes' | 'opposition'
 export type Polarity = 'negative' | 'positive'
@@ -69,7 +79,36 @@ export function toggleLabel(polarities: readonly Polarity[]): string | undefined
   return set.has('negative') ? 'Show allies too' : 'Show opponents too'
 }
 
-const sideOf = (actor: TargetActor): Side => (actor.kind === 'hero' || actor.kind === 'heroMinion' ? 'heroes' : 'opposition')
+const isEnvGroup = (g: { owner?: { kind: string } }) => g.owner?.kind === 'environment'
+
+/** The actor's side, or none for the environment and its groups. */
+function sideOf(actor: TargetActor, table: TargetTable): Side | undefined {
+  if (actor.kind === 'hero' || actor.kind === 'heroMinion') return 'heroes'
+  if (actor.kind === 'environment') return undefined
+  const groupId = actor.kind === 'member' ? actor.groupId : actor.kind === 'group' ? actor.id : undefined
+  const group = groupId === undefined ? undefined : table.groups.find((g) => g.id === groupId)
+  return group && isEnvGroup(group) ? undefined : 'opposition'
+}
+
+/** Members of these groups, labeled for this actor: "(you)", "(same group)", its own group first. */
+function memberOptions(groups: TargetTable['groups'], actor: TargetActor): TargetOption[] {
+  const ownGroup = actor.kind === 'member' ? actor.groupId : actor.kind === 'group' ? actor.id : undefined
+  return [...groups]
+    .sort((a, b) => Number(b.id === ownGroup) - Number(a.id === ownGroup))
+    .flatMap((g) =>
+      g.members.map((m) => {
+        const name = memberName(g, m.n)
+        const you = actor.kind === 'member' && actor.groupId === g.id && actor.memberId === m.id
+        return { id: targetId({ kind: 'member', groupId: g.id, memberId: m.id }), name: you ? `${name} (you)` : g.id === ownGroup ? `${name} (same group)` : name }
+      }),
+    )
+}
+
+/** The environment's groups' section, if it has any members on the table. */
+function environmentSection(table: TargetTable, actor: TargetActor): { label: string; options: TargetOption[] }[] {
+  const options = memberOptions(table.groups.filter(isEnvGroup), actor)
+  return options.length ? [{ label: table.environment || 'Environment', options }] : []
+}
 
 /** Every option on one side, the actor's own first, labeled for this actor. */
 function sideOptions(table: TargetTable, side: Side, actor: TargetActor): TargetOption[] {
@@ -85,18 +124,10 @@ function sideOptions(table: TargetTable, side: Side, actor: TargetActor): Target
       }),
     ])
   }
-  const ownGroup = actor.kind === 'member' ? actor.groupId : actor.kind === 'group' ? actor.id : undefined
-  const groups = [...table.groups].sort((a, b) => Number(b.id === ownGroup) - Number(a.id === ownGroup))
   const villains = [...table.villains].sort((a, b) => Number(actor.kind === 'villain' && b.id === actor.id) - Number(actor.kind === 'villain' && a.id === actor.id))
   return [
     ...villains.map((v) => ({ id: targetId({ kind: 'villain', id: v.id }), name: actor.kind === 'villain' && actor.id === v.id ? `${v.name} (you)` : v.name })),
-    ...groups.flatMap((g) =>
-      g.members.map((m) => {
-        const name = memberName(g, m.n)
-        const you = actor.kind === 'member' && actor.groupId === g.id && actor.memberId === m.id
-        return { id: targetId({ kind: 'member', groupId: g.id, memberId: m.id }), name: you ? `${name} (you)` : g.id === ownGroup ? `${name} (same group)` : name }
-      }),
-    ),
+    ...memberOptions(table.groups.filter((g) => !isEnvGroup(g)), actor),
   ]
 }
 
@@ -108,13 +139,21 @@ function sideOptions(table: TargetTable, side: Side, actor: TargetActor): Target
 export function targetOptions(actor: TargetActor, effect: BasicAction, table: TargetTable, { showOtherSide = false, keep = [] }: { showOtherSide?: boolean; keep?: readonly string[] } = {}): TargetList {
   const p = polarity(effect)
   if (!p) return { likely: [] }
-  const own = sideOf(actor)
+  const own = sideOf(actor, table)
+  const env = environmentSection(table, actor)
+  if (!own) {
+    const sides = [
+      { label: 'Heroes', options: sideOptions(table, 'heroes', actor) },
+      { label: 'Opposition', options: sideOptions(table, 'opposition', actor) },
+    ].filter((x) => x.options.length)
+    return { likely: [], always: [...sides, ...env], sideless: true }
+  }
   const likelySide: Side = p === 'positive' ? own : own === 'heroes' ? 'opposition' : 'heroes'
   const otherSide: Side = likelySide === 'heroes' ? 'opposition' : 'heroes'
   const likely = sideOptions(table, likelySide, actor)
   const all = sideOptions(table, otherSide, actor)
   const shown = showOtherSide ? all : all.filter((o) => keep.includes(o.id))
-  return shown.length ? { likely, other: { label: p === 'negative' ? 'Allies' : 'Opponents', options: shown } } : { likely }
+  return { likely, ...(shown.length ? { other: { label: p === 'negative' ? ('Allies' as const) : ('Opponents' as const), options: shown } } : {}), ...(env.length ? { always: env } : {}) }
 }
 
 /** The whole table, for the GM: hidden villains and groups too. */
@@ -123,15 +162,17 @@ export function gmTable(game: Game): TargetTable {
     heroes: game.heroes.map((h) => ({ id: h.id, name: heroDisplayName(h.sheet), minions: (h.play.minions ?? []).map((m) => ({ id: m.id, name: m.name })) })),
     villains: game.villains.map((v) => ({ id: v.id, name: villainDisplayName(v.sheet) })),
     groups: game.groups,
+    ...(game.environment ? { environment: game.environment.name } : {}),
   }
 }
 
 /** The table as a player sees it: hidden villains and groups never appear. */
-export function viewTable(view: Pick<TableView, 'heroes' | 'villains' | 'groups'>): TargetTable {
+export function viewTable(view: Pick<TableView, 'heroes' | 'villains' | 'groups' | 'environment'>): TargetTable {
   return {
     heroes: view.heroes.map((h) => ({ id: h.id, name: heroDisplayName(h.sheet), minions: (h.play.minions ?? []).map((m) => ({ id: m.id, name: m.name })) })),
     villains: view.villains.filter((v) => !v.hidden),
     groups: view.groups.filter((g) => !g.hidden),
+    ...(view.environment ? { environment: view.environment.name } : {}),
   }
 }
 

@@ -68,6 +68,18 @@ describe('running a group', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it("lists everyone for the environment's group, with no toggle: it has no side", async () => {
+    setup((g) => ({ ...g, environment: { id: 'e', name: 'Rooftop Heist', hidden: false }, groups: [{ ...g.groups[0]!, owner: { kind: 'environment' } }] }))
+    await userEvent.click(screen.getByRole('button', { name: 'Roll Burglars 2' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Burglars 2 rolls Attack' }))
+    const row = dialog.getByRole('combobox', { name: 'Target for Burglars 2' })
+    expect([...row.querySelectorAll('optgroup')].map((g) => [g.label, [...g.querySelectorAll('option')].map((o) => o.textContent)])).toEqual([
+      ['Heroes', ['Maya Reyes', 'Paradigm']],
+      ['Rooftop Heist', ['Burglars 1 (same group)', 'Burglars 2 (you)', 'Burglars 3 (same group)']],
+    ])
+    expect(dialog.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
   it('lists opponents first, and its allies (itself and its group too) with "Show allies too"', async () => {
     const { actions, ids } = setup()
     await userEvent.click(screen.getByRole('button', { name: 'Roll Burglars 2' }))

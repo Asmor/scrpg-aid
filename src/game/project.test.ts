@@ -7,7 +7,8 @@ import { adaptiveBruiser } from '../test/villains'
 import type { Villain } from '../villain/model'
 import { createGame, type Game } from './model'
 import { project, VIEW_HISTORY, viewName } from './project'
-import { addChallenge, addGroup, addHero, addVillain, changeHeroPlay, changeVillainPlay, handOff, setEnvironment, setPlayersSee, startRound } from './table'
+import { addChallenge, addGroup, addHero, addMemberMod, addVillain, changeHeroPlay, changeVillainPlay, handOff, setEnvironment, setHidden, setPlayersSee, startRound } from './table'
+import { logEnvironmentRoll, rollAspects } from './environment'
 import { setHealth } from '../play/state'
 import { villainHealth } from '../villain/play'
 
@@ -55,6 +56,29 @@ describe('project', () => {
       expect(view.heroes[0]!.player).toEqual({ name: 'Alex', since: '2026-10-30T20:00:00Z' })
       expect(tableViewProblem(view)).toBeUndefined()
     }
+  })
+
+  describe('who sees log lines', () => {
+    const texts = (g: Game) => project(g, 'player').feed.map((e) => e.text)
+
+    it("keeps a hidden group's lines from players, and shares its lines after it's revealed; earlier ones stay the GM's", () => {
+      const c = clock()
+      let g = addGroup(createGame({ id: 'g' }), { kind: 'minions', name: 'Drones', die: 'd6', count: 1, hidden: true }, c)
+      const drones = g.groups[0]!
+      g = addMemberMod(g, drones.id, drones.members[0]!.id, { label: 'Dazed', value: -1 }, c)
+      expect(texts(g)).toEqual([])
+      g = setHidden(g, { kind: 'group', id: drones.id }, false, c)
+      g = addMemberMod(g, drones.id, drones.members[0]!.id, { label: 'Slowed', value: -2 }, c)
+      expect(texts(g)).toEqual(['The GM revealed Drones.', "Drones 1 gained '-2 Slowed' penalty."])
+      expect(project(g, 'gm').feed.filter((e) => e.gmOnly).map((e) => e.text)).toEqual(['The GM added Drones (1 d6 minion), hidden from players.', "Drones 1 gained '-1 Dazed' penalty."])
+    })
+
+    it("shares the environment's lines: it's always known", () => {
+      const c = clock()
+      let g = setEnvironment(createGame({ id: 'g' }), { name: 'Docks', hidden: true, aspects: [{ name: 'Fog', die: 'd6' }, { name: 'Cranes', die: 'd8' }, { name: 'Tide', die: 'd10' }] }, c)
+      g = logEnvironmentRoll(g, rollAspects(g.environment!.aspects!, () => 0)!, c)
+      expect(texts(g)).toEqual(['Rolled the environment dice: Min 1 (Fog), Mid 1 (Cranes), Max 1 (Tide).'])
+    })
   })
 
   it('drops hidden actors from the turn order, and who is acting when they are', () => {

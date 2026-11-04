@@ -188,7 +188,8 @@ export function GroupRollDialog({ game, group, action, rows, onCancel, onApply }
   const listFor = (actor: TargetActor) => targetOptions(actor, action, table, { showOtherSide: showOther, keep: chosenIds })
   const p = polarity(action)
   const hasTargets = p !== undefined
-  const toggle = p && toggleLabel([p])
+  // An environment group has no side: its lists show everyone, with no toggle.
+  const toggle = p && !listFor({ kind: 'group', id: group.id }).sideless ? toggleLabel([p]) : undefined
   const first = useRef<HTMLSelectElement>(null)
   // A full-screen sheet on phones (section 7).
   const phone = useMediaQuery('(max-width: 759px)', false)

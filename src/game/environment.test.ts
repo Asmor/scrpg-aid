@@ -76,7 +76,7 @@ describe('an environment template on the table', () => {
     expect(tableViewProblem(project(long, 'player'))).toBeUndefined()
   })
 
-  it('rolls the environment dice as Min, Mid and Max, naming each aspect, logged for everyone once it is revealed', () => {
+  it('rolls the environment dice as Min, Mid and Max, naming each aspect, logged for everyone', () => {
     const { g, c } = table()
     const roll = rollAspects(g.environment!.aspects!, dice(7, 2, 5))!
     expect([roll.min, roll.mid, roll.max].map((d) => [d.value, d.aspect])).toEqual([
@@ -84,10 +84,10 @@ describe('an environment template on the table', () => {
       [5, 'Night Security'],
       [7, 'Slick Tiles'],
     ])
-    // Hidden, as it arrives: the GM's line.
-    expect(logEnvironmentRoll(g, roll, c).feed.at(-1)).toMatchObject({ text: 'Rolled the environment dice: Min 2 (Howling Wind), Mid 5 (Night Security), Max 7 (Slick Tiles).', gmOnly: true })
-    const revealed = { ...g, environment: { ...g.environment!, hidden: false } }
-    expect(logEnvironmentRoll(revealed, roll, c).feed.at(-1)).not.toHaveProperty('gmOnly')
+    // The environment is always known, so its lines are public, even while it's hidden.
+    const logged = logEnvironmentRoll(g, roll, c).feed.at(-1)
+    expect(logged).toMatchObject({ text: 'Rolled the environment dice: Min 2 (Howling Wind), Mid 5 (Night Security), Max 7 (Slick Tiles).' })
+    expect(logged).not.toHaveProperty('gmOnly')
     expect(rollAspects([], dice())).toBeUndefined()
   })
 
@@ -100,14 +100,14 @@ describe('an environment template on the table', () => {
     expect(g.feed.at(-1)).toMatchObject({ text: "The GM set Docks's aspects: Fog (d6), Aspect 2 (d8), Cranes (d10)." })
     expect(g.feed.at(-1)).not.toHaveProperty('gmOnly')
     expect(setAspects(g, [{ name: 'Only one', die: 'd6' }], c)).toBe(g)
-    // While the environment is hidden, the line is the GM's.
+    // Public even while the environment is hidden.
     const hidden = { ...g, environment: { ...g.environment!, hidden: true } }
-    expect(setAspects(hidden, [{ name: 'Fog', die: 'd6' }, { name: '', die: 'd8' }, { name: 'Cranes', die: 'd10' }], c).feed.at(-1)).toMatchObject({ gmOnly: true })
+    expect(setAspects(hidden, [{ name: 'Fog', die: 'd6' }, { name: '', die: 'd8' }, { name: 'Cranes', die: 'd10' }], c).feed.at(-1)).not.toHaveProperty('gmOnly')
   })
 
   it('marks twists used in the round, unmarks them, and resets them all', () => {
     const { g, c } = table()
-    expect(setTwistUsed(g, 't1', true, c).feed.at(-1)).toMatchObject({ text: 'Twist used: Floodlights.', gmOnly: true })
+    expect(setTwistUsed(g, 't1', true, c).feed.at(-1)).not.toHaveProperty('gmOnly')
     let next = setTwistUsed({ ...g, round: 2, environment: { ...g.environment!, hidden: false } }, 't1', true, c)
     expect(next.environment!.twists![0]!.used).toEqual({ round: 2 })
     expect(next.feed.at(-1)!.text).toBe('Twist used: Floodlights.')
@@ -183,14 +183,14 @@ describe("the environment's basic actions", () => {
   }
   const health = (g: Game) => currentHealth(buildSheet(g.heroes[0]!.sheet), g.heroes[0]!.play)!
 
-  it('logs the roll and attacks a hero, GM-only while the environment is hidden', () => {
+  it('logs the roll and attacks a hero, publicly even while the environment is hidden', () => {
     const { g, c, maya } = withHero()
     const next = environmentBasicAction(g, record('attack', 6), [], [{ result: 0, to: `hero:${maya}` }], dice(), c)
     expect(health(next)).toBe(health(g) - 6)
     const lines = next.feed.slice(g.feed.length)
     expect(lines.map((l) => [l.text, l.gmOnly])).toEqual([
-      ['Rooftop Heist used the environment dice: Deal 6 (Max) damage.', true],
-      ['Rooftop Heist attacked Maya Reyes: 6 damage.', true],
+      ['Rooftop Heist used the environment dice: Deal 6 (Max) damage.', undefined],
+      ['Rooftop Heist attacked Maya Reyes: 6 damage.', undefined],
       // The hero's own history, as with any hit.
       [expect.stringMatching(/^Lost 6 HP/), undefined],
     ])
@@ -210,9 +210,15 @@ describe("the environment's basic actions", () => {
     expect(environmentBasicAction(createGame({ id: 'x' }), record('attack', 3), [], [], dice(), c).feed).toEqual([])
   })
 
-  it('picks heroes first for its Attack, and its own side for Boost', () => {
+  it('has no side: every list shows everyone, heroes, opposition and its own groups', () => {
     const { g } = withHero()
-    expect(targetOptions({ kind: 'environment' }, 'attack', gmTable(g)).likely.map((o) => o.name)).toEqual(['Maya Reyes'])
-    expect(targetOptions({ kind: 'environment' }, 'boost', gmTable(g)).likely.map((o) => o.name)).toEqual(['Security drones 1'])
+    for (const effect of ['attack', 'boost'] as const) {
+      const list = targetOptions({ kind: 'environment' }, effect, gmTable(g))
+      expect(list).toMatchObject({ likely: [], sideless: true })
+      expect(list.always!.map((s) => [s.label, s.options.map((o) => o.name)])).toEqual([
+        ['Heroes', ['Maya Reyes']],
+        ['Rooftop Heist', ['Security drones 1']],
+      ])
+    }
   })
 })

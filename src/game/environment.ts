@@ -7,8 +7,8 @@
  * - Twists are suggestions; the app only tracks which are used, and in which round.
  * - Its attached templates come on the table as environment-owned groups, revealed: they act on
  *   its turn and have no turn-order entry.
- * - Its log lines are for everyone (the user's call), unless the environment is still hidden. Its
- *   aspects, twists and attached templates aren't sent to players (./project.ts).
+ * - Its log lines are for everyone: the environment is always known (spec section 6, "Who sees
+ *   log lines"). Its aspects, twists and attached templates aren't sent to players (./project.ts).
  */
 import { rollDie } from '../rules/rolling'
 import type { Die } from '../rules/types'
@@ -23,8 +23,8 @@ import { parseTarget } from './roll-targets'
 
 type Random = () => number
 
-/** A log line about the environment: for everyone, or the GM's while the environment is hidden. */
-const envLine = (game: Game, clock: Clock, text: string) => withLog(game, [{ id: clock.newId(), at: clock.now.toISOString(), by: game.environment?.name ?? 'Environment', text, ...(game.environment?.hidden ? { gmOnly: true as const } : {}) }])
+/** A log line about the environment: for everyone, since the environment is always known. */
+const envLine = (game: Game, clock: Clock, text: string) => withLog(game, [{ id: clock.newId(), at: clock.now.toISOString(), by: game.environment?.name ?? 'Environment', text }])
 
 /** A template's attached minions and lieutenants as found in the library: missing ones are left out. */
 export type FoundAttached = { kind: 'minion'; doc: MinionTemplate } | { kind: 'lieutenant'; doc: LieutenantTemplate }
@@ -145,26 +145,25 @@ export function addAttached(game: Game, index: number, count: number, clock: Clo
  * roll is logged ("Rooftop Heist used the environment dice: Deal 6 (Max) damage."), then each
  * result goes to its target: an Attack takes Health or rolls a save, a Defend gives a defense,
  * and a Boost's or Hinder's mod goes to whoever it was given to. The environment itself holds
- * none of these, so results without a target only show in the log. A hidden environment's lines
- * are the GM's.
+ * none of these, so results without a target only show in the log. Its lines are public; a
+ * line about a hidden target is still the GM's.
  */
 export function environmentBasicAction(game: Game, record: RollRecord, followUps: readonly { mod: ModInput; to?: string }[], choices: readonly { result: number; to: string }[], random: Random, clock: Clock): Game {
   const env = game.environment
   if (!env) return game
   const by = env.name
-  const gmOnly = env.hidden
   const said = record.results.map((r) => (r.action === 'overcome' && r.total !== undefined ? `Overcome ${r.total} (${overcomeOutcome(r.total)}).` : describeEffect(r))).join(' ')
-  let next = withLog(game, [{ id: clock.newId(), at: clock.now.toISOString(), by, text: `${by} used the environment dice: ${said}`, ...(gmOnly ? { gmOnly: true as const } : {}) }])
+  let next = withLog(game, [{ id: clock.newId(), at: clock.now.toISOString(), by, text: `${by} used the environment dice: ${said}` }])
   for (const c of choices) {
     const r = record.results[c.result]
     const to = c.to ? parseTarget(c.to) : undefined
     if (!r || r.total === undefined || !to) continue
-    if (r.action === 'attack') next = applyAttack(next, by, to, effectAmount(r.total), random, clock, gmOnly).game
-    else if (r.action === 'defend') next = protect(next, by, to, effectAmount(r.total), clock, gmOnly)
+    if (r.action === 'attack') next = applyAttack(next, by, to, effectAmount(r.total), random, clock).game
+    else if (r.action === 'defend') next = protect(next, by, to, effectAmount(r.total), clock)
   }
   for (const f of followUps) {
     const to = f.to ? parseTarget(f.to) : undefined
-    if (to) next = giveMod(next, to, f.mod, by, clock, !gmOnly)
+    if (to) next = giveMod(next, to, f.mod, by, clock)
   }
   return next
 }

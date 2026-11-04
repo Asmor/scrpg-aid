@@ -127,7 +127,7 @@ describe('targets at a table', () => {
 })
 
 describe('a roll with fixed dice (the environment)', () => {
-  it('rolls its dice as they are, and picks Min, Mid or Max after the roll', async () => {
+  it('rolls its dice as they are, uses Mid, and lists everyone with no toggle', async () => {
     const onConfirm = vi.fn()
     render(
       <RollDialog
@@ -153,9 +153,10 @@ describe('a roll with fixed dice (the environment)', () => {
     // 0.5 rolls 6 on a d10, 4 on a d6, 5 on a d8: a basic action always uses Mid, 5.
     expect(dialog.queryByLabelText('Use')).not.toBeInTheDocument()
     await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
-    // The environment's Attack lists the heroes' side first.
+    // The environment has no side: everyone is listed, each side in its own section, with no toggle.
     const target = dialog.getByLabelText('Target')
-    expect(optionTexts(target)).toEqual(['Maya', 'Jo', "Rat (Jo's minion)", 'No target'])
+    expect(optionTexts(target)).toEqual(['Heroes: Maya', 'Heroes: Jo', "Heroes: Rat (Jo's minion)", 'Opposition: Gravelord', 'Opposition: Drones 1', 'No target'])
+    expect(dialog.queryByRole('checkbox')).not.toBeInTheDocument()
     await userEvent.selectOptions(target, 'Jo')
     await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
     expect(onConfirm.mock.calls[0]![0].results).toMatchObject([{ action: 'attack', use: 'mid', total: 5 }])

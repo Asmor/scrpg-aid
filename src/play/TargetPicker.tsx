@@ -1,7 +1,7 @@
 /**
  * The pieces every target picker shares (docs/design/npcs/spec.md, "Choosing targets"): a
- * select's options (the likely side, the other side as a labeled group, then No target), and the
- * one "Show allies too" or "Show opponents too" checkbox per dialog. Who is listed comes from
+ * select's options (the likely side, the other side as a labeled group, the sections always
+ * shown, then No target), and the one "Show allies too" or "Show opponents too" checkbox per dialog. Who is listed comes from
  * ../game/target-options.ts.
  */
 import type { TargetList } from '../game/target-options'
@@ -24,6 +24,15 @@ export function TargetOptions({ list, noTarget = true, noTargetValue = '' }: { l
           ))}
         </optgroup>
       )}
+      {list.always?.map((section) => (
+        <optgroup key={section.label} label={section.label}>
+          {section.options.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </optgroup>
+      ))}
       {noTarget && <option value={noTargetValue}>No target</option>}
     </>
   )

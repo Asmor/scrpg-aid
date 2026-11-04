@@ -263,7 +263,8 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
         if (r.total === undefined || r.action === 'recover' || r.action === 'overcome') return []
         if ((r.action === 'boost' || r.action === 'hinder') && modSize(r.total) === 0) return []
         const p = polarity(r.action)
-        return p ? [p] : []
+        // An actor with no side (the environment) sees everyone already: no toggle.
+        return p && !targetsFor(r.action, { showOtherSide: false, keep: [] }).sideless ? [p] : []
       })
     : []
   const toggle = toggleLabel(picking)
@@ -833,7 +834,9 @@ function ModOffer({
   const [exclusive, setExclusive] = useState(x)
   const [to, setTo] = useState<string | null>(null)
   // A bonus starts on the roller (or the first ally, for a roller who can't hold one); a penalty on the first opponent, if there is one. Either stays listed.
-  const first = list?.([]).likely[0]?.id
+  const start0 = list?.([])
+  // An actor with no side has no likely side: its first option that isn't itself.
+  const first = start0 && (start0.likely[0] ?? allOptions(start0).find((o) => o.id !== selfId))?.id
   const fallback = value > 0 ? selfId || first || '' : (first ?? selfId)
   const listed = list ? list([to ?? fallback]) : undefined
   // With nobody but the roller to give it to (solo, no minions), there's no For choice.
