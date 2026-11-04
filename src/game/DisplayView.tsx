@@ -101,8 +101,11 @@ export function DisplayView({ table, watching, status }: Props) {
       <div ref={ref} className="dv-stage" style={{ transform: `scale(${fit.scale})`, left: fit.left, top: fit.top }}>
         <header className="dv-top">
           <div className="dv-grow">
-            <div className="dv-label">Scene</div>
-            <h1 className="dv-scene">{sceneDisplayName(table)}</h1>
+            <div className="dv-label">Scene {scene.number}</div>
+            {/* Keyed by number, so a new scene's name animates in. */}
+            <h1 key={scene.number} className="dv-scene dv-scene--enter">
+              {sceneDisplayName(table)}
+            </h1>
             {table.environment && <div className="dv-sub">Environment: {table.environment.name}</div>}
           </div>
           <div>

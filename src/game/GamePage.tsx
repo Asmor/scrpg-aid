@@ -5,7 +5,7 @@
  * are in ./table.ts and ./hero-changes.ts; this page wires them to the shared center
  * (./TableCenter.tsx) and the GM screen (./GmScreen.tsx).
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { gameDisplayPath, gamesPath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
@@ -32,7 +32,9 @@ import { applyHeroChange, type HeroChange } from './hero-changes'
 import { currentScene, gameDisplayName, sceneName, sceneNumber, sceneOnTable, type ActorRef, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
 import { healthLine, reconcile, reconcileVillain } from './reconcile'
 import { SceneEditor, type EditorTarget } from './SceneEditor'
-import { addAsideTo, deleteScene, duplicateScene, moveScene, moveToTable, removeAside, saveCurrentScene, savePlannedScene, setSceneRecord, waitingNote } from './scenes'
+import type { SceneDraft } from './scenes'
+import { addAsideTo, deleteScene, duplicateScene, moveScene, moveToTable, removeAside, saveCurrentScene, savePlannedScene, setSceneRecord, startScene, waitingNote } from './scenes'
+import { StartSceneDialog } from './StartSceneDialog'
 import { sheetDiff } from './sheet-diff'
 import { TableCenter, TableLog, ZoneChip, type GmControls, type HeroView, type VillainView } from './TableCenter'
 import { useDocMap } from './useDocMap'
@@ -59,6 +61,7 @@ type Dialog =
   | { kind: 'quick'; which: QuickAddKind }
   | { kind: 'environment' }
   | { kind: 'scene'; target: EditorTarget }
+  | { kind: 'sceneStart'; sceneId: string }
   | { kind: 'sceneRecord'; sceneId: string }
   | { kind: 'sceneDelete'; sceneId: string; number: number }
   | { kind: 'asideRemove'; ref: OppositionRef; name: string }
@@ -72,6 +75,9 @@ type Dialog =
   | { kind: 'invite' }
   | { kind: 'bringVillain'; villain: Villain }
   | { kind: 'recalculate'; villainId: string }
+
+/** How long a started scene can be undone. */
+export const SCENE_UNDO_MS = 30_000
 
 const defaultClock = (): Clock => ({ now: new Date(), newId: () => newId() })
 const noSave = async () => {}
@@ -123,6 +129,13 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const [saveTemplateError, setSaveTemplateError] = useState<string | null>(null)
   const templates = useOptionalTemplateStores()
   // Display windows of this game on this device (Open display view) get what observers see.
+  // The game before a scene started, kept until the undo window closes.
+  const [sceneUndo, setSceneUndo] = useState<{ entryId: string; before: Game } | null>(null)
+  useEffect(() => {
+    if (!sceneUndo) return
+    const timer = setTimeout(() => setSceneUndo(null), SCENE_UNDO_MS)
+    return () => clearTimeout(timer)
+  }, [sceneUndo])
   const observed = useMemo(() => (game ? project(game, 'observer') : undefined), [game])
   useDisplayBroadcast(id, observed, host?.room)
 
@@ -213,11 +226,17 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const reveal = (ref: T.ItemRef) => apply((g) => T.setHidden(g, ref, false, clock()))
   const hide = (ref: T.ItemRef) => apply((g) => T.setHidden(g, ref, true, clock()))
   const env = game.environment
+  const planned = game.scenes.filter((s) => s.state === 'planned')
+  const nextScene = planned[0]
+  // Someone joining or leaving since makes "restore it exactly" wrong for them, so Undo goes.
+  const sameHeroes = (a: Game, b: Game) => a.heroes.map((h) => h.id).join() === b.heroes.map((h) => h.id).join()
+  const logUndo = sceneUndo && sameHeroes(sceneUndo.before, game) ? { entryId: sceneUndo.entryId, onUndo: () => { const { before } = sceneUndo; setSceneUndo(null); apply(() => before); setAnnounce('Scene change undone.') } } : undefined
   const gm: GmControls = {
+    ...(logUndo ? { logUndo } : {}),
     setPosition: (i) => apply((g) => T.setTrackerPosition(g, i, clock())),
     sceneMenu: [
       { label: 'Edit this scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'current' } }) },
-      ...(game.scenes.some((s) => s.state === 'planned') ? [] : [{ label: 'Plan the next scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'new' } }) }]),
+      nextScene ? { label: `Start the next scene: ${sceneName(nextScene)}…`, onSelect: () => setDialog({ kind: 'sceneStart', sceneId: nextScene.id }) } : { label: 'Plan the next scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'new' } }) },
       {
         label: 'Plan scenes',
         onSelect: () => {
@@ -385,6 +404,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       tab={gmTab}
       setTab={setGmTab}
       scenes={{
+        start: (sceneId) => setDialog({ kind: 'sceneStart', sceneId }),
         edit: (sceneId) => setDialog({ kind: 'scene', target: sceneId === game.currentSceneId ? { kind: 'current' } : { kind: 'planned', sceneId } }),
         plan: () => setDialog({ kind: 'scene', target: { kind: 'new' } }),
         move: (sceneId, to) => apply((g) => moveScene(g, sceneId, to)),
@@ -501,7 +521,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
               {tab === 'gm' && screen}
               {tab === 'log' && (
                 <section className="card gt-card" aria-label="Table log">
-                  <TableLog entries={game.feed} now={now} gm />
+                  <TableLog entries={game.feed} now={now} gm undo={logUndo} />
                 </section>
               )}
             </div>
@@ -553,6 +573,16 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
             setDialog(null)
             apply((g) => (target.kind === 'current' ? saveCurrentScene(g, draft, restart, clock()) : savePlannedScene(g, target.kind === 'planned' ? target.sceneId : undefined, draft, clock()).game))
           }}
+          {...((dialog.target.kind === 'planned' && dialog.target.sceneId === nextScene?.id) || (dialog.target.kind === 'new' && !nextScene)
+            ? {
+                onSaveAndStart: (draft: SceneDraft) => {
+                  const { target } = dialog
+                  const sceneId = target.kind === 'planned' ? target.sceneId : clock().newId()
+                  apply((g) => savePlannedScene(g, sceneId, draft, clock()).game)
+                  setDialog({ kind: 'sceneStart', sceneId })
+                },
+              }
+            : {})}
           {...(dialog.target.kind === 'planned'
             ? {
                 onDelete: () => {
@@ -562,6 +592,34 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
                 },
               }
             : {})}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.kind === 'sceneStart' && game.scenes.some((s) => s.id === dialog.sceneId) && (
+        <StartSceneDialog
+          game={game}
+          sceneId={dialog.sceneId}
+          onEdit={() => setDialog({ kind: 'scene', target: { kind: 'planned', sceneId: dialog.sceneId } })}
+          onStart={(choices) => {
+            const { sceneId } = dialog
+            setDialog(null)
+            setRunning(null)
+            const c = clock()
+            let undo: { entryId: string; before: Game } | null = null
+            let line = ''
+            apply((g) => {
+              const next = startScene(g, sceneId, choices, c)
+              const entry = next.feed.at(-1)
+              if (next !== g && entry) {
+                // A copy: both the editor's draft and what the host hands over can change afterwards.
+                undo = { entryId: entry.id, before: structuredClone(g) }
+                line = entry.text
+              }
+              return next
+            })
+            setSceneUndo(undo)
+            if (line) setAnnounce(line)
+          }}
           onClose={() => setDialog(null)}
         />
       )}

@@ -213,6 +213,17 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
   const live = snap?.status === 'live'
   const mine = Boolean(heroId && table && sameActor(table.turn.current, { kind: 'hero', id: heroId }))
 
+  // A new scene is a toast. The first number seen, and going back (the GM's Undo), aren't.
+  const sceneNow = table?.scene.number
+  const sceneNowName = table ? sceneDisplayName(table) : ''
+  const seenScene = useRef<number | undefined>(undefined)
+  const [sceneToast, setSceneToast] = useState<ToastData | null>(null)
+  useEffect(() => {
+    if (sceneNow === undefined) return
+    if (seenScene.current !== undefined && sceneNow > seenScene.current) setSceneToast({ id: `scene-${sceneNow}`, text: `New scene: ${sceneNowName}` })
+    seenScene.current = sceneNow
+  }, [sceneNow, sceneNowName])
+
   // Handoffs are announced as they happen (players never receive hidden ones).
   const seenLines = useRef<Set<string> | undefined>(undefined)
   const feed = table?.feed
@@ -472,7 +483,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
           </div>
         </Modal>
       )}
-      <Toasts toasts={(snap?.notices ?? []).map((n) => noticeToast(n, (id) => client.retry(id)))} onDismiss={(id) => client.dismiss(id)} />
+      <Toasts toasts={[...(snap?.notices ?? []).map((n) => noticeToast(n, (id) => client.retry(id))), ...(sceneToast ? [sceneToast] : [])]} onDismiss={(id) => (id === sceneToast?.id ? setSceneToast(null) : client.dismiss(id))} />
     </PopoverGroup>
   )
 }

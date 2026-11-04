@@ -194,7 +194,7 @@ export interface Scene {
   tracker: TrackerCounts
   /** The index of the current box, used while it's the current scene (a done scene keeps where it ended). */
   position: number
-  /** A planned scene's environment; it can be the one on the table now, which then stays. The current scene's is `game.environment`. */
+  /** A planned scene's environment; it can be the one on the table now, which then stays. The current scene's is `game.environment`; a done scene's is what Duplicate brings back. */
   environmentId?: string
   environmentHidden?: boolean
   /**
@@ -372,35 +372,6 @@ export function sceneName(scene: Pick<Scene, 'name'>): string {
 
 /** The name to show for what's on the table in a view. */
 export const sceneDisplayName = (view: { scene: Pick<Scene, 'name'> }) => sceneName(view.scene)
-
-/**
- * A fresh copy of the setup to save as a new game (the Games page's Duplicate): a new id,
- * "(copy)" after the name, the same tags, round 0, the tracker at its first box, no players
- * (their heroes leave), characters at fresh play state, no requests and no log. The GM's own
- * heroes, the opposition and the notes stay, so a prepared game can be reused.
- */
-export function duplicateGame(game: Game, options: { id?: string; now?: Date } = {}): Game {
-  const timestamp = (options.now ?? new Date()).toISOString()
-  const copy = structuredClone(game)
-  const heroes = copy.heroes.filter((h) => !h.player).map((h) => ({ ...h, play: emptyPlay() }))
-  const order = copy.turn.order.filter((ref) => ref.kind !== 'hero' || heroes.some((h) => h.id === ref.id))
-  // A copy is a new game: it gets its own code when it's first hosted.
-  const { solo: _solo, code: _code, ...rest } = copy
-  return {
-    ...rest,
-    id: options.id ?? newId(),
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    name: `${gameDisplayName(copy)} (copy)`,
-    scenes: copy.scenes.map((s) => ({ ...s, position: s.id === copy.currentSceneId ? 0 : s.position })),
-    round: 0,
-    turn: { order, acted: [] },
-    heroes,
-    villains: copy.villains.map((v) => ({ ...v, play: emptyVillainPlay() })),
-    pendingSyncs: [],
-    feed: [],
-  }
-}
 
 /** Whether a game is one the Games page lists: not a character's solo game. */
 export const isListedGame = (game: Pick<Game, 'solo'>) => !game.solo

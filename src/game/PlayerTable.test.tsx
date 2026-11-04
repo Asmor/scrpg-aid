@@ -8,6 +8,7 @@ import { MemorySavedSearchStore } from '../library/saved-searches'
 import { addMod, type Clock } from '../play/state'
 import { HostSession } from '../session/host'
 import { localSessionStore, memoryStorage } from '../session/storage'
+import { defaultChoices, draftOfNew, savePlannedScene, startPlan, startScene } from './scenes'
 import { fakeNetwork, type Connect } from '../session/transport'
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
@@ -100,6 +101,31 @@ describe('a player at the table', () => {
     await userEvent.click(note.getByRole('button', { name: 'Got it' }))
     expect(screen.queryByRole('region', { name: "About the game's copy" })).not.toBeInTheDocument()
     expect(storage.getItem('scrpg.session.notes')).toContain(host.game!.heroes[0]!.id)
+  })
+
+  it('gets "Scene N" with no total, and a toast when a new scene starts, but not on joining or on Undo', async () => {
+    const { host, settle } = await setup()
+    await join(settle)
+    expect(screen.getByText('Scene 1')).toBeInTheDocument()
+    expect(screen.queryByText(/^New scene/)).not.toBeInTheDocument()
+    const saved = savePlannedScene(host.game!, undefined, { ...draftOfNew(host.game!), name: 'The Foundry' }, clock())
+    act(() => host.apply(() => saved.game))
+    await settle()
+    // A planned scene is nobody's business.
+    expect(screen.getByText('Scene 1')).toBeInTheDocument()
+    expect(screen.queryByText('The Foundry')).not.toBeInTheDocument()
+    const before = host.game!
+    const started = startScene(before, saved.sceneId, defaultChoices(startPlan(before, saved.sceneId)), clock())
+    act(() => host.apply(() => started))
+    await settle()
+    expect(await screen.findByText('New scene: The Foundry')).toBeInTheDocument()
+    expect(screen.getByText('Scene 2')).toBeInTheDocument()
+    await userEvent.click(within(screen.getByText('New scene: The Foundry').closest('.toast')!).getByRole('button'))
+    expect(screen.queryByText('New scene: The Foundry')).not.toBeInTheDocument()
+    act(() => host.apply(() => before))
+    await settle()
+    expect(screen.getByText('Scene 1')).toBeInTheDocument()
+    expect(screen.queryByText(/^New scene/)).not.toBeInTheDocument()
   })
 
   it('sends an action and shows the result from the GM', async () => {

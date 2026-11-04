@@ -11,7 +11,11 @@ import { MAX_NAME } from '../session/protocol'
 import type { Clock } from '../play/state'
 import { villainDisplayName, type Villain } from '../villain/model'
 import { villainSummary } from '../villain/play'
-import { createScene, currentScene, emptyOffTable, sceneName, sceneNumber, trackerFromCounts, type Challenge, type EnvironmentOnTable, type Game, type NpcGroup, type OffTable, type OppositionRef, type Scene, type SceneItem, type SceneItemSource, type VillainInGame } from './model'
+import { newId } from '../hero/model'
+import { emptyPlay } from '../play/state'
+import { clearDefenses } from '../play/defense'
+import { emptyVillainPlay } from '../villain/play'
+import { createScene, currentScene, emptyOffTable, gameDisplayName, sceneName, sceneNumber, trackerFromCounts, type Challenge, type EnvironmentOnTable, type Game, type NpcGroup, type OffTable, type OppositionRef, type Scene, type SceneItem, type SceneItemSource, type VillainInGame } from './model'
 import { boxLabel, newChallenge, newGroup, newVillainCopy, placeEnvironment, removeFromTable, setHidden, setupScene, syncTurnOrder, withLog, type ChallengeSpec, type GroupSpec } from './table'
 
 export const refKey = (ref: OppositionRef) => `${ref.kind}:${ref.id}`
@@ -147,7 +151,7 @@ export function sceneChips(game: Game, scene: Scene): SceneChip[] {
   return scene.opposition.flatMap((i) => {
     const item = findItem(game, i.ref)
     if (!item) return []
-    const aside = i.source.kind === 'aside' && !isOnTable(game, i.ref)
+    const aside = game.aside.some((a) => sameRef(a.ref, i.ref))
     return [{ key: refKey(i.ref), text: `${itemTitle(item, i.ref)}${aside ? ' (set aside)' : ''}`, hidden: i.startHidden }]
   })
 }
@@ -304,10 +308,10 @@ export function draftSetEnvironment(draft: SceneDraft, environment: EnvironmentO
   return { ...draft, copies: { ...draft.copies, environments }, environment: { id: environment.id, hidden: environment.hidden } }
 }
 
-/** Saves a planned scene, or a new one at the end of the list when there's no `sceneId`. Returns the scene's id too. */
+/** Saves a planned scene, or a new one at the end of the list when no scene has `sceneId` (which it then takes). Returns the scene's id too. */
 export function savePlannedScene(game: Game, sceneId: string | undefined, draft: SceneDraft, clock: Clock): { game: Game; sceneId: string } {
   const before = sceneId ? game.scenes.find((s) => s.id === sceneId) : undefined
-  const base = before ?? createScene({ id: clock.newId() })
+  const base = before ?? createScene({ id: sceneId ?? clock.newId() })
   const { environmentId: _, environmentHidden: __, ...rest } = base
   const scene: Scene = {
     ...rest,
@@ -462,4 +466,274 @@ export function waitingNote(game: Game, kind: string, sourceId: string): string 
   const scene = game.scenes.find((s) => s.state === 'planned' && (s.opposition.some((i) => matches(i.ref)) || (s.environmentId !== undefined && matches({ kind: 'environment', id: s.environmentId }))))
   if (scene) return `Planned for scene ${sceneNumber(game, scene.id)}`
   return game.aside.some((a) => matches(a.ref)) ? 'Set aside' : undefined
+}
+
+// ---- Starting the next scene ----
+
+/** What happens to something leaving the table. */
+export type Fate = 'aside' | 'remove' | 'along'
+
+export interface SceneResets {
+  /** Round 0, nobody has acted, every reaction ready. */
+  round: boolean
+  /** Every bonus and penalty on what stays at the table. */
+  mods: boolean
+  /** Each villain's once-per-scene Overcome that advances the tracker (p. 154). */
+  once: boolean
+  /** Every environment twist unmarked. */
+  twists: boolean
+}
+
+export interface StartChoices {
+  /** Each leaving item's fate, by refKey. */
+  fates: Record<string, Fate>
+  /** Each incoming item's Hidden, by refKey. */
+  hidden: Record<string, boolean>
+  resets: SceneResets
+}
+
+export interface LeavingItem {
+  ref: OppositionRef
+  name: string
+  kind: string
+  fate: Fate
+  /** Hidden now: brought along, it stays that way. */
+  hidden: boolean
+}
+
+export interface ComingItem {
+  ref: OppositionRef
+  name: string
+  kind: string
+  hidden: boolean
+  fromAside: boolean
+}
+
+export interface StartPlan {
+  leaving: LeavingItem[]
+  /** The environment being replaced, and by what. It has no choice. */
+  replaced?: { name: string; by: string }
+  coming: ComingItem[]
+}
+
+/** Whether a planned scene other than `except` still names this item. */
+function plannedLater(game: Game, ref: OppositionRef, except: string): boolean {
+  return game.scenes.some((s) => s.state === 'planned' && s.id !== except && (s.opposition.some((i) => sameRef(i.ref, ref)) || (ref.kind === 'environment' && s.environmentId === ref.id)))
+}
+
+/** What starting a scene would do, for its dialog: what's leaving, each with its default fate, and what's coming in as planned. */
+export function startPlan(game: Game, nextId: string): StartPlan {
+  const next = game.scenes.find((s) => s.id === nextId)
+  if (!next) return { leaving: [], coming: [] }
+  const envRef = next.environmentId ? ({ kind: 'environment', id: next.environmentId } as const) : undefined
+  const nextEnv = envRef && (findItem(game, envRef) as EnvironmentOnTable | undefined)
+  const keptEnv = Boolean(nextEnv && game.environment?.id === nextEnv.id)
+  const leaving: LeavingItem[] = tableOpposition(game)
+    .filter((ref) => !next.opposition.some((i) => sameRef(i.ref, ref)))
+    .map((ref) => {
+      const item = findItem(game, ref)!
+      // A villain keeps; so does what a later scene needs. An environment staying keeps its groups with it.
+      const owned = ref.kind === 'group' && (item as NpcGroup).owner.kind === 'environment'
+      const fate: Fate = owned && keptEnv ? 'along' : ref.kind === 'villain' || plannedLater(game, ref, nextId) ? 'aside' : 'remove'
+      return { ref, name: itemTitle(item, ref), kind: itemKind(item, ref), fate, hidden: (item as { hidden: boolean }).hidden }
+    })
+  const old = game.environment
+  let replaced: StartPlan['replaced']
+  if (old && !keptEnv) {
+    const ref = { kind: 'environment' as const, id: old.id }
+    if (nextEnv) replaced = { name: old.name, by: nextEnv.name }
+    else leaving.push({ ref, name: old.name, kind: 'Environment', fate: plannedLater(game, ref, nextId) ? 'aside' : 'remove', hidden: old.hidden })
+  }
+  const coming: ComingItem[] = next.opposition.flatMap((row) => {
+    const item = findItem(game, row.ref)
+    if (!item) return []
+    return [{ ref: row.ref, name: itemTitle(item, row.ref), kind: itemKind(item, row.ref), hidden: row.startHidden, fromAside: game.aside.some((a) => sameRef(a.ref, row.ref)) }]
+  })
+  if (nextEnv && envRef) coming.push({ ref: envRef, name: nextEnv.name, kind: 'Environment', hidden: next.environmentHidden ?? true, fromAside: game.aside.some((a) => sameRef(a.ref, envRef)) })
+  return { leaving, ...(replaced ? { replaced } : {}), coming }
+}
+
+export const ALL_RESETS: SceneResets = { round: true, mods: true, once: true, twists: true }
+
+/** The dialog's starting choices. */
+export function defaultChoices(plan: StartPlan): StartChoices {
+  return { fates: Object.fromEntries(plan.leaving.map((l) => [refKey(l.ref), l.fate])), hidden: Object.fromEntries(plan.coming.map((c) => [refKey(c.ref), c.hidden])), resets: { ...ALL_RESETS } }
+}
+
+function unusedTwists(env: EnvironmentOnTable): EnvironmentOnTable {
+  if (!env.twists) return env
+  return {
+    ...env,
+    twists: env.twists.map((t) => {
+      const { used: _, ...rest } = t
+      return rest
+    }),
+  }
+}
+
+/** Applies the checked resets. `arrived` keep their bonuses and penalties: they were prepped, or left with them. */
+function applyResets(game: Game, resets: SceneResets, arrived: ReadonlySet<string>): Game {
+  const heroes = game.heroes.map((h) => {
+    let play = h.play
+    if (resets.round) play = { ...clearDefenses(play), reactionUsed: false, ...(play.minions ? { minions: play.minions.map((m) => clearDefenses(m)) } : {}) }
+    if (resets.mods) play = { ...play, mods: [], ...(play.minions ? { minions: play.minions.map((m) => ({ ...m, mods: [] })) } : {}) }
+    return { ...h, play }
+  })
+  const villains = game.villains.map((v) => {
+    let play = v.play
+    if (resets.round) play = { ...clearDefenses(play), reactionUsed: false }
+    if (resets.mods && !arrived.has(refKey({ kind: 'villain', id: v.id }))) play = { ...play, mods: [] }
+    if (resets.once) {
+      const { sceneAdvanced: _, ...rest } = play
+      play = rest
+    }
+    return { ...v, play }
+  })
+  const groups = game.groups.map((g) => ({
+    ...g,
+    members: g.members.map((m) => {
+      let member = m
+      if (resets.round) member = { ...clearDefenses(member), acted: false }
+      if (resets.mods && !arrived.has(refKey({ kind: 'group', id: g.id }))) member = { ...member, mods: [] }
+      return member
+    }),
+  }))
+  const environment = resets.twists && game.environment ? { environment: unusedTwists(game.environment) } : {}
+  const round = resets.round ? { round: 0, turn: { order: [], acted: [] } } : {}
+  return { ...game, heroes, villains, groups, ...environment, ...round }
+}
+
+/**
+ * Starts a planned scene: the current one becomes done, what's leaving goes where it was told to,
+ * the new scene's items arrive with their Hidden choices, the checked resets apply, and the
+ * tracker sits at its first box. The log gets one line: what became of things is the GM's.
+ */
+export function startScene(game: Game, nextId: string, choices: StartChoices, clock: Clock): Game {
+  const next = game.scenes.find((s) => s.id === nextId)
+  if (!next || next.state !== 'planned') return game
+  const plan = startPlan(game, nextId)
+  const previous = currentScene(game)
+  const previousNumber = sceneNumber(game, previous.id)
+  const record = draftOfCurrent(game).rows
+  const hiddenOf = (ref: OppositionRef, fallback: boolean) => choices.hidden[refKey(ref)] ?? fallback
+  let g = game
+
+  // What's leaving.
+  for (const item of plan.leaving) {
+    const fate = choices.fates[refKey(item.ref)] ?? item.fate
+    if (fate === 'along') continue
+    if (item.ref.kind === 'environment') {
+      const env = g.environment
+      if (!env) continue
+      const { environment: _, ...rest } = g
+      g = fate === 'aside' ? { ...rest, aside: [...g.aside, { ref: item.ref, afterScene: previousNumber }], offTable: { ...g.offTable, environments: [...g.offTable.environments, env] } } : rest
+    } else g = fate === 'aside' ? setAside(g, item.ref, previousNumber, clock) : removeFromTable(g, item.ref, clock)
+  }
+
+  // What's coming in, and what's staying with its Hidden choice.
+  const arrived = new Set<string>()
+  for (const row of next.opposition) {
+    const hidden = hiddenOf(row.ref, row.startHidden)
+    if (isOnTable(g, row.ref)) g = setHidden(g, row.ref, hidden, clock)
+    else if (findItem(g, row.ref)) {
+      arrived.add(refKey(row.ref))
+      g = moveToTable(g, row.ref, hidden, clock)
+    }
+  }
+  if (next.environmentId) {
+    const ref = { kind: 'environment' as const, id: next.environmentId }
+    const hidden = hiddenOf(ref, next.environmentHidden ?? true)
+    if (isOnTable(g, ref)) g = setHidden(g, ref, hidden, clock)
+    else {
+      const coming = g.offTable.environments.find((e) => e.id === ref.id)
+      // A replaced environment stays off the table only if a scene after this one names it.
+      if (coming) g = placeEnvironment(g, { ...coming, hidden }, clock)
+    }
+  }
+  // An environment gone takes its claim on its groups with it: they're the GM's now.
+  if (g.environment?.id !== game.environment?.id) g = { ...g, groups: g.groups.map((x) => (x.owner.kind === 'environment' ? { ...x, owner: { kind: 'gm' as const } } : x)) }
+  g = { ...g, aside: g.aside.filter((a) => !isOnTable(g, a.ref)) }
+
+  // The scenes themselves.
+  const summary = game.round > 0 ? `Ended after round ${game.round}.` : 'Ended before round 1.'
+  const scenes = g.scenes.map((s): Scene => {
+    if (s.id === previous.id) return { ...s, state: 'done', summary, opposition: record, ...(game.environment ? { environmentId: game.environment.id, environmentHidden: game.environment.hidden } : {}) }
+    if (s.id === nextId) return { ...s, state: 'now', position: 0, opposition: next.opposition.map((row) => ({ ...row, startHidden: hiddenOf(row.ref, row.startHidden) })) }
+    return s
+  })
+  g = syncTurnOrder(applyResets({ ...g, scenes, currentSceneId: nextId }, choices.resets, arrived))
+  const name = next.name.trim()
+  const text = `Scene ${sceneNumber(g, nextId)} began${name ? `: ${name}` : ''}.`
+  return gcOffTable(withLog({ ...g, feed: game.feed }, [logLine(clock, text, false)]))
+}
+
+/** What players will see of the new scene, for the dialog's preview. */
+export function playersWillSee(plan: StartPlan, choices: StartChoices): { seen: string[]; hidden: number } {
+  const along = plan.leaving.filter((l) => (choices.fates[refKey(l.ref)] ?? l.fate) === 'along')
+  const hiddenOf = (c: ComingItem) => choices.hidden[refKey(c.ref)] ?? c.hidden
+  const shown = <T extends { ref: OppositionRef; name: string }>(items: readonly T[], hidden: (item: T) => boolean) => items.filter((i) => i.ref.kind !== 'environment' && !hidden(i)).map((i) => i.name)
+  return { seen: [...shown(along, (l) => l.hidden), ...shown(plan.coming, hiddenOf)], hidden: along.filter((l) => l.hidden).length + plan.coming.filter(hiddenOf).length }
+}
+
+// ---- Duplicating a game ----
+
+/**
+ * A fresh copy of the setup to save as a new game (the Games page's Duplicate): a new id, "(copy)"
+ * after the name, the same tags, round 0, every scene back to planned with the first one current,
+ * no players (their heroes leave), everything at fresh play state, no requests and no log. The
+ * GM's own heroes, the opposition and the notes stay, so a prepared game can be reused.
+ */
+export function duplicateGame(game: Game, options: { id?: string; now?: Date } = {}): Game {
+  const timestamp = (options.now ?? new Date()).toISOString()
+  const copy = structuredClone(game)
+  const noClock: Clock = { now: options.now ?? new Date(), newId: () => newId() }
+  // A copy is a new game: it gets its own code when it's first hosted.
+  const { solo: _solo, code: _code, environment, ...rest } = copy
+  // An environment's group only stays its own if the copy opens on the scene that has that environment.
+  const opensOnCurrent = copy.scenes[0]?.id === copy.currentSceneId
+  const freshGroup = (x: NpcGroup): NpcGroup => ({ ...x, ...(opensOnCurrent ? {} : { owner: { kind: 'gm' as const } }), members: x.members.map((m) => ({ ...clearDefenses(m), mods: [], acted: false })) })
+  const freshChallenge = (x: Challenge): Challenge => ({ ...x, steps: x.steps.map(() => false) })
+  const freshVillain = (x: VillainInGame): VillainInGame => ({ ...x, play: emptyVillainPlay() })
+  // Everything starts off the table, then the first scene brings its own on.
+  const offTable: OffTable = {
+    villains: [...copy.villains, ...copy.offTable.villains].map(freshVillain),
+    groups: [...copy.groups, ...copy.offTable.groups].map(freshGroup),
+    challenges: [...copy.challenges, ...copy.offTable.challenges].map(freshChallenge),
+    environments: [...(environment ? [environment] : []), ...copy.offTable.environments].map(unusedTwists),
+  }
+  const tableRows = (): SceneItem[] => {
+    const hiddenRow = (ref: OppositionRef, hidden: boolean): SceneItem => ({ ref, startHidden: hidden, source: copy.scenes.find((s) => s.id === copy.currentSceneId)?.opposition.find((i) => sameRef(i.ref, ref))?.source ?? { kind: 'library' } })
+    return [...copy.villains.map((v) => hiddenRow({ kind: 'villain', id: v.id }, v.hidden)), ...copy.groups.map((x) => hiddenRow({ kind: 'group', id: x.id }, x.hidden)), ...copy.challenges.map((c) => hiddenRow({ kind: 'challenge', id: c.id }, c.hidden))]
+  }
+  const scenes = copy.scenes.map((s, i): Scene => {
+    const { summary: _summary, ...scene } = s
+    // The current scene's items are what's on the table now.
+    const now = s.id === copy.currentSceneId
+    const base: Scene = now ? { ...scene, opposition: tableRows(), ...(environment ? { environmentId: environment.id, environmentHidden: environment.hidden } : {}) } : scene
+    return { ...base, position: 0, state: i === 0 ? 'now' : 'planned' }
+  })
+  const first = scenes[0]!
+  let g: Game = {
+    ...rest,
+    id: options.id ?? newId(),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    name: `${gameDisplayName(copy)} (copy)`,
+    scenes,
+    currentSceneId: first.id,
+    round: 0,
+    turn: { order: [], acted: [] },
+    heroes: copy.heroes.filter((h) => !h.player).map((h) => ({ ...h, play: emptyPlay() })),
+    villains: [],
+    groups: [],
+    challenges: [],
+    offTable,
+    pendingSyncs: [],
+    feed: [],
+  }
+  delete g.pendingHits
+  for (const row of first.opposition) g = moveToTable(g, row.ref, row.startHidden, noClock)
+  const env = first.environmentId ? g.offTable.environments.find((e) => e.id === first.environmentId) : undefined
+  if (env) g = placeEnvironment(g, { ...env, hidden: first.environmentHidden ?? true }, noClock)
+  return gcOffTable(syncTurnOrder({ ...g, aside: g.aside.filter((a) => !isOnTable(g, a.ref)), feed: [] }))
 }

@@ -12,7 +12,7 @@ function game(): Game {
 }
 
 function setup(sheets: boolean) {
-  const actions: SceneActions = { edit: vi.fn(), plan: vi.fn(), move: vi.fn(), duplicate: vi.fn(), remove: vi.fn(), record: vi.fn(), addAside: vi.fn(), removeAside: vi.fn() }
+  const actions: SceneActions = { start: vi.fn(), edit: vi.fn(), plan: vi.fn(), move: vi.fn(), duplicate: vi.fn(), remove: vi.fn(), record: vi.fn(), addAside: vi.fn(), removeAside: vi.fn() }
   render(
     <PopoverGroup>
       <ScenesTab game={game()} actions={actions} sheets={sheets} />
@@ -57,6 +57,9 @@ describe('the Scenes tab', () => {
     expect(await items('Foundry')).toEqual(['Duplicate', 'Delete…'])
     expect(within(screen.getByRole('article', { name: 'Scene 3: Foundry' })).getByText('Next')).toBeInTheDocument()
     expect(within(screen.getByRole('article', { name: 'Scene 4: Throne' })).queryByText('Next')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: 'Scene 4: Throne' })).queryByRole('button', { name: /^Start/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Start Foundry' }))
+    expect(actions.start).toHaveBeenCalledWith('a')
     const done = within(screen.getByRole('article', { name: 'Scene 1: Bank job' }))
     expect(done.getByText('Ended after round 4.')).toBeInTheDocument()
     await userEvent.click(done.getByRole('button', { name: 'Edit the summary of Bank job' }))

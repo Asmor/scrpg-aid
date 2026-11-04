@@ -27,6 +27,12 @@ function game(): Game {
 }
 
 describe('the display view', () => {
+  it('shows "Scene N", never the total, and marks the name to animate in', () => {
+    render(<DisplayView table={project(game(), 'observer')} watching="Watching" />)
+    expect(screen.getByText('Scene 1')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'The Foundry' })).toHaveClass('dv-scene--enter')
+  })
+
   it('shows the table as an observer receives it, at room scale, with nothing to click', () => {
     const { container } = render(<DisplayView table={project(game(), 'observer')} watching="Watching Thursday game · ABCD-EFGH" />)
     expect(screen.getByRole('heading', { name: 'The Foundry' })).toBeInTheDocument()

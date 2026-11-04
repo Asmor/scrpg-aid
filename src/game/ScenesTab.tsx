@@ -12,6 +12,8 @@ import { MenuButton } from './TableCenter'
 
 export interface SceneActions {
   edit: (sceneId: string) => void
+  /** The start dialog, for the next planned scene. */
+  start: (sceneId: string) => void
   plan: () => void
   /** Moves a planned scene to a place in the list. */
   move: (sceneId: string, toIndex: number) => void
@@ -101,6 +103,11 @@ function SceneRow({ game, scene, next, actions, sheets, lifted, onHandleKey, onD
         ) : (
           <button type="button" className="button button--small" aria-label={`Edit ${name}`} onClick={() => actions.edit(scene.id)}>
             Edit
+          </button>
+        )}
+        {next && (
+          <button type="button" className="button button--primary button--small" aria-label={`Start ${name}`} onClick={() => actions.start(scene.id)}>
+            Start this scene…
           </button>
         )}
         {planned && (

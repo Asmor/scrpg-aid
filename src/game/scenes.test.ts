@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { tableViewProblem } from '../session/protocol'
+import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
-import { createGame, currentScene, emptyOffTable, type Game } from './model'
+import { createGame, currentScene, emptyOffTable, sceneOnTable, type Game } from './model'
 import { project } from './project'
-import { addAsideTo, asideChips, deleteScene, draftAddChallenge, draftAddGroup, draftAddVillain, draftOfCurrent, draftOfNew, draftOfPlanned, draftSetEnvironment, duplicateScene, gcOffTable, hasChanged, itemTitle, moveScene, moveToTable, removeAside, saveCurrentScene, savePlannedScene, sceneChips, sceneDetail, setAside, setSceneRecord, sourceText, trackerLine, waitingNote, type SceneDraft } from './scenes'
-import { addChallenge, addGroup, addVillain, newEnvironment, setEnvironment, setTrackerPosition, startRound } from './table'
+import { addAsideTo, ALL_RESETS, asideChips, defaultChoices, deleteScene, draftAddChallenge, draftAddGroup, draftAddVillain, draftOfCurrent, draftOfNew, draftOfPlanned, draftSetEnvironment, duplicateGame, duplicateScene, gcOffTable, hasChanged, itemTitle, moveScene, moveToTable, playersWillSee, refKey, removeAside, saveCurrentScene, savePlannedScene, sceneChips, sceneDetail, setAside, setSceneRecord, sourceText, startPlan, startScene, trackerLine, waitingNote, type SceneDraft, type SceneResets, type StartChoices } from './scenes'
+import { addChallenge, addGroup, addHero, addVillain, newEnvironment, setEnvironment, setRound, setTrackerPosition, startRound } from './table'
 
 let n = 0
 const clock = { now: new Date('2026-11-04T12:00:00Z'), newId: () => `id${++n}` }
@@ -419,5 +421,347 @@ describe('planning scenes', () => {
       expect(onTable.aside).toEqual([])
       expect(onTable.offTable.environments).toEqual([])
     })
+  })
+})
+
+describe('starting a scene', () => {
+  /** On the table: a villain, a group, a challenge, an environment; a hero with mods. Scene 2 planned with a new group and a challenge. */
+  function ready(): { g: Game; id: string } {
+    let g = setEnvironment(table(), { name: 'Rooftop Heist', hidden: false, twists: [{ id: 't', zone: 'green', kind: 'minor', text: 'Gust' }] }, clock)
+    g = addHero(g, completeHero(), clock)
+    g = startRound(g, { kind: 'hero', id: g.heroes[0]!.id }, clock)
+    g = setRound(g, 3, clock)
+    const envCopy = newEnvironment({ name: 'Foundry Floor', hidden: true }, clock)
+    let d = draftOfNew(g)
+    d = { ...draftSetEnvironment(d, envCopy), name: 'The Foundry', tracker: { green: 3, yellow: 5, red: 3 } }
+    d = draftAddGroup(d, { kind: 'minions', name: 'Grave Guard', die: 'd8', count: 4, hidden: false }, { kind: 'library' }, clock)
+    d = draftAddChallenge(d, { name: 'Furnace', steps: 2, hidden: true }, { kind: 'quick' }, clock)
+    const saved = savePlannedScene(g, undefined, d, clock)
+    return { g: { ...saved.game, feed: [] }, id: saved.sceneId }
+  }
+  const start = (g: Game, id: string, change: (c: StartChoices) => StartChoices = (c) => c) => startScene(g, id, change(defaultChoices(startPlan(g, id))), clock)
+
+  it('plans what leaves and what comes in, with default fates', () => {
+    const { g, id } = ready()
+    const plan = startPlan(g, id)
+    expect(plan.leaving.map((l) => [l.name, l.fate])).toEqual([
+      ['Ironclad', 'aside'],
+      ['Burglars ×3', 'remove'],
+      ['Catch the van', 'remove'],
+    ])
+    expect(plan.replaced).toEqual({ name: 'Rooftop Heist', by: 'Foundry Floor' })
+    expect(plan.coming.map((c) => [c.name, c.hidden, c.fromAside])).toEqual([
+      ['Grave Guard ×4', false, false],
+      ['Furnace', true, false],
+      ['Foundry Floor', true, false],
+    ])
+    expect(startPlan(g, 'nobody')).toEqual({ leaving: [], coming: [] })
+  })
+
+  it('makes the current scene done, the next one current at its first box, and logs one public line', () => {
+    const { g, id } = ready()
+    const previous = g.currentSceneId
+    const next = start(setTrackerPosition(g, 4, clock), id)
+    expect(next.currentSceneId).toBe(id)
+    expect(next.scenes.find((s) => s.id === previous)).toMatchObject({ state: 'done', summary: 'Ended after round 3.', position: 4 })
+    expect(next.scenes.find((s) => s.id === id)).toMatchObject({ state: 'now', position: 0 })
+    expect(sceneOnTable(next)).toMatchObject({ name: 'The Foundry', number: 2, position: 0 })
+    expect(next.feed.at(-1)).toMatchObject({ text: 'Scene 2 began: The Foundry.' })
+    expect(next.feed.at(-1)!.gmOnly).toBeUndefined()
+    expect(next.feed.filter((e) => e.text.includes('Ironclad'))).toEqual([])
+  })
+
+  it('says a scene ended before round 1, and logs an unnamed scene plainly', () => {
+    const c = createGame()
+    const { game, sceneId } = savePlannedScene(c, undefined, { ...draftOfNew(c), name: '' }, clock)
+    const next = start(game, sceneId)
+    expect(next.scenes[0]!.summary).toBe('Ended before round 1.')
+    expect(next.feed.at(-1)!.text).toBe('Scene 2 began.')
+  })
+
+  it('applies each fate: Set aside keeps its state, Remove leaves the game, Bring along stays as it is', () => {
+    const { g, id } = ready()
+    const hurt = { ...g, villains: g.villains.map((v) => ({ ...v, play: { ...v.play, health: 41 } })) }
+    const [villain, group, challenge] = startPlan(hurt, id).leaving.map((l) => refKey(l.ref))
+    const next = start(hurt, id, (c) => ({ ...c, fates: { [villain!]: 'aside', [group!]: 'along', [challenge!]: 'remove' } }))
+    expect(next.villains).toEqual([])
+    expect(next.offTable.villains[0]).toMatchObject({ play: { health: 41 } })
+    expect(next.aside).toEqual([{ ref: villainRef(g), afterScene: 1 }])
+    expect(next.groups.map((x) => x.name)).toEqual(['Burglars', 'Grave Guard'])
+    expect(next.challenges.map((x) => x.name)).toEqual(['Furnace'])
+    expect(next.offTable.challenges).toEqual([])
+  })
+
+  it('brings in the planned items with their Hidden choices, editable at the last minute', () => {
+    const { g, id } = ready()
+    const coming = startPlan(g, id).coming
+    const guard = refKey(coming[0]!.ref)
+    const env = refKey(coming[2]!.ref)
+    const next = start(g, id, (c) => ({ ...c, hidden: { ...c.hidden, [guard]: true, [env]: false } }))
+    expect(next.groups.find((x) => x.name === 'Grave Guard')?.hidden).toBe(true)
+    expect(next.challenges[0]).toMatchObject({ name: 'Furnace', hidden: true })
+    expect(next.environment).toMatchObject({ name: 'Foundry Floor', hidden: false })
+    expect(next.offTable.groups).toEqual([])
+    expect(next.offTable.environments).toEqual([])
+  })
+
+  it('brings a villain back from set aside with the Health it left with, and out of set aside', () => {
+    let { g, id } = ready()
+    const ref = villainRef(g)
+    g = { ...g, villains: g.villains.map((v) => ({ ...v, play: { ...v.play, health: 41, mods: [{ id: 'm', label: 'Angry', value: 2 }], sceneAdvanced: true as const, reactionUsed: true } })) }
+    g = start(g, id)
+    const third = savePlannedScene(g, undefined, { ...draftOfNew(g), rows: [{ ref, startHidden: false, source: { kind: 'aside', afterScene: 1 } }] }, clock)
+    id = third.sceneId
+    const next = start(third.game, id)
+    expect(next.villains[0]).toMatchObject({ id: ref.id, hidden: false, play: { health: 41, reactionUsed: false } })
+    // It keeps its mods (it left with them), but it's a new scene for its once-per-scene Overcome.
+    expect(next.villains[0]!.play.mods).toHaveLength(1)
+    expect(next.villains[0]!.play.sceneAdvanced).toBeUndefined()
+    expect(next.aside).toEqual([])
+  })
+
+  it('keeps an item in the next scene on the table with its state, and its Hidden choice', () => {
+    let { g, id } = ready()
+    const ref = villainRef(g)
+    g = { ...g, villains: g.villains.map((v) => ({ ...v, play: { ...v.play, health: 20 } })), scenes: g.scenes.map((s) => (s.id === id ? { ...s, opposition: [...s.opposition, { ref, startHidden: true, source: { kind: 'library' as const } }] } : s)) }
+    expect(startPlan(g, id).leaving.map((l) => l.name)).not.toContain('Ironclad')
+    const next = start(g, id)
+    expect(next.villains[0]).toMatchObject({ id: ref.id, hidden: true, play: { health: 20 } })
+  })
+
+  it('defaults a group to Set aside when a later scene needs it', () => {
+    let { g, id } = ready()
+    g = savePlannedScene(g, undefined, { ...draftOfNew(g), rows: [{ ref: groupRef(g), startHidden: false, source: { kind: 'library' } }] }, clock).game
+    expect(startPlan(g, id).leaving.find((l) => l.ref.kind === 'group')?.fate).toBe('aside')
+    const next = start(g, id)
+    expect(next.offTable.groups.map((x) => x.name)).toEqual(['Burglars'])
+    // That later scene still has it.
+    expect(sceneChips(next, next.scenes.at(-1)!).map((c) => c.text)).toEqual(['Burglars ×3 (set aside)'])
+  })
+
+  describe('the environment', () => {
+    it('replaced: gone unless a later scene names it, and its groups become the GM’s', () => {
+      let { g, id } = ready()
+      g = { ...g, groups: g.groups.map((x) => ({ ...x, owner: { kind: 'environment' as const } })) }
+      const old = g.environment!
+      const [, group] = startPlan(g, id).leaving
+      const next = start(g, id, (c) => ({ ...c, fates: { ...c.fates, [refKey(group!.ref)]: 'along' } }))
+      expect(next.environment?.name).toBe('Foundry Floor')
+      expect(next.offTable.environments).toEqual([])
+      expect(next.groups[0]!.owner).toEqual({ kind: 'gm' })
+      const later = savePlannedScene(g, undefined, { ...draftOfNew(g), environment: { id: old.id, hidden: false } }, clock).game
+      expect(start(later, id).offTable.environments.map((e) => e.name)).toEqual(['Rooftop Heist'])
+    })
+
+    it('kept: stays, with twists reset, and its groups default to coming along', () => {
+      const t = setEnvironment(table(), { name: 'Rooftop', hidden: false, twists: [{ id: 't', zone: 'green', kind: 'minor', text: 'Gust', used: { round: 1 } }] }, clock)
+      const env = t.environment!
+      const owned = { ...t, groups: t.groups.map((x) => ({ ...x, owner: { kind: 'environment' as const } })) }
+      const { game, sceneId } = savePlannedScene(owned, undefined, { ...draftOfNew(owned), environment: { id: env.id, hidden: false } }, clock)
+      const plan = startPlan(game, sceneId)
+      expect(plan.replaced).toBeUndefined()
+      expect(plan.leaving.find((l) => l.ref.kind === 'group')?.fate).toBe('along')
+      const next = start(game, sceneId)
+      expect(next.environment!.id).toBe(env.id)
+      expect(next.environment!.twists![0]!.used).toBeUndefined()
+      expect(next.groups[0]!.owner).toEqual({ kind: 'environment' })
+      expect(start(game, sceneId, (c) => ({ ...c, resets: { ...c.resets, twists: false } })).environment!.twists![0]!.used).toEqual({ round: 1 })
+    })
+
+    it('with no environment planned: it has a fate like anything else', () => {
+      const t = setEnvironment(createGame(), { name: 'Rooftop', hidden: false }, clock)
+      const { game, sceneId } = savePlannedScene(t, undefined, draftOfNew(t), clock)
+      const key = refKey({ kind: 'environment', id: t.environment!.id })
+      expect(startPlan(game, sceneId).leaving.map((l) => [l.name, l.fate])).toEqual([['Rooftop', 'remove']])
+      expect(start(game, sceneId).environment).toBeUndefined()
+      expect(start(game, sceneId, (c) => ({ ...c, fates: { [key]: 'along' } })).environment?.name).toBe('Rooftop')
+      const aside = start(game, sceneId, (c) => ({ ...c, fates: { [key]: 'aside' } }))
+      expect(aside.environment).toBeUndefined()
+      expect(aside.offTable.environments.map((e) => e.name)).toEqual(['Rooftop'])
+      expect(aside.aside).toEqual([{ ref: { kind: 'environment', id: t.environment!.id }, afterScene: 1 }])
+    })
+
+    it('comes back from set aside', () => {
+      const env = newEnvironment({ name: 'Rooftop', hidden: false }, clock)
+      let g: Game = { ...createGame(), aside: [{ ref: { kind: 'environment', id: env.id } }], offTable: { ...emptyOffTable(), environments: [env] } }
+      const saved = savePlannedScene(g, undefined, { ...draftOfNew(g), environment: { id: env.id, hidden: false } }, clock)
+      g = start(saved.game, saved.sceneId)
+      expect(g.environment).toMatchObject({ id: env.id, hidden: false })
+      expect(g.aside).toEqual([])
+    })
+  })
+
+  describe('resets', () => {
+    function busy() {
+      const { g, id } = ready()
+      const mod = { id: 'm', label: 'Pumped', value: 2 }
+      const defense = { id: 'd', value: 3, from: 'x' }
+      const next: Game = {
+        ...g,
+        heroes: g.heroes.map((h) => ({ ...h, play: { ...h.play, health: 7, reactionUsed: true, mods: [mod], defenses: [defense], twists: [{ id: 't', kind: 'minor' as const, text: 'Hurt' }], minions: [{ id: 'mn', name: 'Drone', die: 'd6' as const, action: 'any' as const, mods: [mod], defenses: [defense] }] } })),
+        villains: g.villains.map((v) => ({ ...v, play: { ...v.play, reactionUsed: true, mods: [mod], defenses: [defense], sceneAdvanced: true as const } })),
+        groups: g.groups.map((x) => ({ ...x, members: x.members.map((m) => ({ ...m, mods: [mod], acted: true, defenses: [defense] })) })),
+      }
+      const keep = (c: StartChoices): StartChoices => ({ ...c, fates: Object.fromEntries(Object.keys(c.fates).map((k) => [k, 'along' as const])) })
+      return { g: next, id, keep }
+    }
+    const only = (r: Partial<SceneResets>) => (c: StartChoices): StartChoices => ({ ...c, resets: { round: false, mods: false, once: false, twists: false, ...r } })
+
+    it('Round and turn order: round 0, nobody acted, reactions ready, defenses gone; the rest stays', () => {
+      const { g, id, keep } = busy()
+      const next = start(g, id, (c) => only({ round: true })(keep(c)))
+      expect(next.round).toBe(0)
+      expect(next.turn.current).toBeUndefined()
+      expect(next.turn.acted).toEqual([])
+      expect(next.heroes[0]!.play).toMatchObject({ reactionUsed: false, mods: [{ id: 'm' }] })
+      expect(next.heroes[0]!.play.defenses).toBeUndefined()
+      expect(next.heroes[0]!.play.minions![0]!.defenses).toBeUndefined()
+      expect(next.villains[0]!.play).toMatchObject({ reactionUsed: false, sceneAdvanced: true })
+      expect(next.groups[0]!.members[0]).toMatchObject({ acted: false })
+      // In the order: the heroes and what's revealed.
+      expect(next.turn.order.map((o) => o.kind)).toEqual(['hero', 'villain', 'group', 'group'])
+    })
+
+    it('Round left alone: the round goes on, and whoever left leaves the order', () => {
+      const { g, id } = busy()
+      const next = start(g, id, only({}))
+      expect(next.round).toBe(3)
+      expect(next.turn.current?.kind).toBe('hero')
+      expect(next.heroes[0]!.play.reactionUsed).toBe(true)
+      expect(next.turn.order.some((o) => o.kind === 'villain')).toBe(false)
+    })
+
+    it('Bonuses and penalties: cleared from heroes, their minions, villains and members still here', () => {
+      const { g, id, keep } = busy()
+      const next = start(g, id, (c) => only({ mods: true })(keep(c)))
+      expect(next.heroes[0]!.play.mods).toEqual([])
+      expect(next.heroes[0]!.play.minions![0]!.mods).toEqual([])
+      expect(next.villains[0]!.play.mods).toEqual([])
+      expect(next.groups[0]!.members[0]!.mods).toEqual([])
+      expect(start(g, id, (c) => only({})(keep(c))).villains[0]!.play.mods).toHaveLength(1)
+    })
+
+    it('Bonuses and penalties: what arrives keeps the mods it was prepped with', () => {
+      const { g, id } = ready()
+      const prepped = { ...g, offTable: { ...g.offTable, groups: g.offTable.groups.map((x) => ({ ...x, members: x.members.map((m) => ({ ...m, mods: [{ id: 'p', label: 'Prep', value: 1 }] })) })) } }
+      expect(start(prepped, id).groups.find((x) => x.name === 'Grave Guard')!.members[0]!.mods).toHaveLength(1)
+    })
+
+    it('Once-per-scene uses: each villain’s tracker Overcome is ready again', () => {
+      const { g, id, keep } = busy()
+      expect(start(g, id, (c) => only({ once: true })(keep(c))).villains[0]!.play.sceneAdvanced).toBeUndefined()
+      expect(start(g, id, (c) => only({})(keep(c))).villains[0]!.play.sceneAdvanced).toBe(true)
+    })
+
+    it('the heroes stay, with their Health and twists, whatever is checked', () => {
+      const { g, id } = busy()
+      const next = start(g, id)
+      expect(next.heroes[0]!.play).toMatchObject({ health: 7, twists: [{ text: 'Hurt' }] })
+    })
+  })
+
+  it('refuses to start anything but a planned scene', () => {
+    const { g } = ready()
+    expect(startScene(g, g.currentSceneId, defaultChoices({ leaving: [], coming: [] }), clock)).toBe(g)
+    expect(startScene(g, 'nobody', defaultChoices({ leaving: [], coming: [] }), clock)).toBe(g)
+  })
+
+  it('previews what players will see, including what comes along', () => {
+    const { g, id } = ready()
+    const plan = startPlan(g, id)
+    const choices = defaultChoices(plan)
+    expect(playersWillSee(plan, choices)).toEqual({ seen: ['Grave Guard ×4'], hidden: 2 })
+    const group = refKey(plan.leaving[1]!.ref)
+    expect(playersWillSee(plan, { ...choices, fates: { ...choices.fates, [group]: 'along' } }).seen).toEqual(['Burglars ×3', 'Grave Guard ×4'])
+  })
+
+  it('previews a hidden item brought along as still hidden, and an environment never as opposition', () => {
+    const { g, id } = ready()
+    const plan = startPlan(g, id)
+    const choices = defaultChoices(plan)
+    const challenge = refKey(plan.leaving[2]!.ref)
+    expect(plan.leaving[2]).toMatchObject({ name: 'Catch the van', hidden: true })
+    expect(playersWillSee(plan, { ...choices, fates: { ...choices.fates, [challenge]: 'along' } })).toEqual({ seen: ['Grave Guard ×4'], hidden: 3 })
+    // And it does stay hidden.
+    const next = start(g, id, (c) => ({ ...c, fates: { ...c.fates, [challenge]: 'along' } }))
+    expect(next.challenges.find((x) => x.name === 'Catch the van')?.hidden).toBe(true)
+    const t = setEnvironment(createGame(), { name: 'Rooftop', hidden: false }, clock)
+    const saved = savePlannedScene(t, undefined, draftOfNew(t), clock)
+    const envPlan = startPlan(saved.game, saved.sceneId)
+    expect(playersWillSee(envPlan, { ...defaultChoices(envPlan), fates: { [refKey(envPlan.leaving[0]!.ref)]: 'along' } })).toEqual({ seen: [], hidden: 0 })
+  })
+
+  it('never sends the next scene, set aside items or their names to players after it starts', () => {
+    const { g, id } = ready()
+    let later = savePlannedScene(g, undefined, { ...draftOfNew(g), name: 'The secret lair', notes: 'Twist ending' }, clock).game
+    later = start(later, id)
+    for (const audience of ['player', 'observer'] as const) {
+      const view = project(later, audience)
+      const sent = JSON.stringify(view)
+      for (const secret of ['The secret lair', 'Twist ending', 'Furnace', 'Foundry Floor']) expect(sent).not.toContain(secret)
+      expect(view.scene.number).toBe(2)
+      expect(view.scene.total).toBeUndefined()
+      expect(tableViewProblem(view)).toBeUndefined()
+    }
+  })
+})
+
+describe('duplicating a game with scenes', () => {
+  it('copies every scene back to planned, the first one current, with fresh play state', () => {
+    const t = table()
+    const villain = villainRef(t)
+    const hurt: Game = { ...t, villains: t.villains.map((v) => ({ ...v, play: { ...v.play, health: 3 } })), challenges: t.challenges.map((c) => ({ ...c, steps: [true, false, false] })) }
+    const withEnv = setEnvironment(hurt, { name: 'Rooftop', hidden: false, twists: [{ id: 't', zone: 'green', kind: 'minor', text: 'x', used: { round: 1 } }] }, clock)
+    const named = { ...withEnv, scenes: withEnv.scenes.map((s) => ({ ...s, name: 'Bank job' })) }
+    const planned = savePlannedScene(named, undefined, { ...draftOfNew(named), name: 'Rooftop chase', rows: [] }, clock)
+    let g: Game = { ...planned.game, round: 4 }
+    g = startScene(g, planned.sceneId, { fates: { [refKey(villain)]: 'along', [refKey(groupRef(t))]: 'remove', [refKey(challengeRef(t))]: 'remove', [refKey({ kind: 'environment', id: g.environment!.id })]: 'remove' }, hidden: {}, resets: ALL_RESETS }, clock)
+    const copy = duplicateGame(g, { id: 'copy' })
+    expect(copy.scenes.map((s) => [s.name, s.state, s.position, s.summary])).toEqual([
+      ['Bank job', 'now', 0, undefined],
+      ['Rooftop chase', 'planned', 0, undefined],
+    ])
+    expect(copy.currentSceneId).toBe(copy.scenes[0]!.id)
+    expect(copy.round).toBe(0)
+    // Scene 1 had the villain, which came along and so still exists. What was removed is gone.
+    expect(copy.villains.map((v) => v.id)).toEqual([villain.id])
+    expect(copy.villains[0]!.play.health).toBeUndefined()
+    expect(copy.groups).toEqual([])
+    expect(copy.feed).toEqual([])
+    expect(copy.turn.order.map((o) => o.id)).toEqual([villain.id])
+  })
+
+  it('gives an environment’s group to the GM unless the copy opens on that environment’s scene', () => {
+    const owned = (g: Game): Game => ({ ...g, groups: g.groups.map((x) => ({ ...x, owner: { kind: 'environment' as const } })) })
+    // The copy opens on the current scene: the environment and its group are both there.
+    const here = duplicateGame(owned(setEnvironment(table(), { name: 'Rooftop', hidden: false }, clock)), { id: 'copy' })
+    expect(here.environment?.name).toBe('Rooftop')
+    expect(here.groups[0]!.owner).toEqual({ kind: 'environment' })
+    // The current scene isn't the first: its group is in a planned scene, and will act on its own.
+    const first = createGame()
+    const { game, sceneId } = savePlannedScene(first, undefined, { ...draftOfNew(first), name: 'Second' }, clock)
+    let later: Game = startScene(game, sceneId, defaultChoices(startPlan(game, sceneId)), clock)
+    later = owned(addGroup(setEnvironment(later, { name: 'Rooftop', hidden: false }, clock), { kind: 'minions', name: 'Burglars', die: 'd6', count: 2, hidden: false }, clock))
+    const copy = duplicateGame(later, { id: 'copy' })
+    expect(copy.environment).toBeUndefined()
+    expect(copy.groups).toEqual([])
+    expect(copy.offTable.groups[0]!.owner).toEqual({ kind: 'gm' })
+    expect(copy.scenes[1]).toMatchObject({ name: 'Second', state: 'planned', position: 0 })
+    expect(copy.scenes[1]!.opposition.map((r) => r.ref.id)).toEqual([copy.offTable.groups[0]!.id])
+    expect(copy.offTable.environments.map((e) => e.name)).toEqual(['Rooftop'])
+  })
+
+  it('resets groups, challenges and twists, and keeps a planned scene’s copies off the table', () => {
+    let g: Game = table()
+    g = setEnvironment(g, { name: 'Rooftop', hidden: true, twists: [{ id: 't', zone: 'green', kind: 'minor', text: 'x', used: { round: 1 } }] }, clock)
+    g = { ...g, challenges: g.challenges.map((c) => ({ ...c, steps: [true, false, false] })), groups: g.groups.map((x) => ({ ...x, members: x.members.map((m) => ({ ...m, acted: true, mods: [{ id: 'm', label: 'x', value: 1 }] })) })) }
+    g = savePlannedScene(g, undefined, draftAddGroup(draftOfNew(g), { kind: 'minions', name: 'Later', die: 'd6', count: 1, hidden: true }, { kind: 'quick' }, clock), clock).game
+    const copy = duplicateGame(g, { id: 'copy' })
+    expect(copy.challenges[0]!.steps).toEqual([false, false, false])
+    expect(copy.challenges[0]!.hidden).toBe(true)
+    expect(copy.groups[0]!.members[0]).toMatchObject({ acted: false, mods: [] })
+    expect(copy.environment).toMatchObject({ name: 'Rooftop', hidden: true })
+    expect(copy.environment!.twists![0]!.used).toBeUndefined()
+    expect(copy.offTable.groups.map((x) => x.name)).toEqual(['Later'])
   })
 })

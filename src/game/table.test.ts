@@ -4,7 +4,8 @@ import { addMod, emptyPlay, setHealth, setReactionUsed, type Clock } from '../pl
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import type { Villain } from '../villain/model'
-import { createGame, duplicateGame, gameDisplayName, heroCopy, sceneOnTable, villainCopy, type Game } from './model'
+import { duplicateGame } from './scenes'
+import { createGame, gameDisplayName, heroCopy, sceneOnTable, villainCopy, type Game } from './model'
 import { project, viewName } from './project'
 import {
   addChallenge,

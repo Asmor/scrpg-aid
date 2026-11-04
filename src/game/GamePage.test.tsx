@@ -1,6 +1,6 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { GameStoreContext } from '../app/game-store-context'
 import { SavedSearchStoreContext } from '../app/saved-search-context'
 import { StoreContext } from '../app/store-context'
@@ -13,7 +13,8 @@ import { MemoryVillainStore } from '../villain/store'
 import { GamePage } from './GamePage'
 import type { Hero } from '../hero/model'
 import type { Villain } from '../villain/model'
-import { createGame, currentScene, villainCopy, type Game } from './model'
+import { emptyPlay } from '../play/state'
+import { createGame, createScene, currentScene, heroCopy, villainCopy, type Game } from './model'
 import { MemoryGameStore } from './store'
 
 let n = 0
@@ -257,6 +258,90 @@ describe('the game table', () => {
     await menuItem('Actions for Ironclad', 'Remove from the game…')
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Remove Ironclad from the game?' })).getByRole('button', { name: 'Remove' }))
     await waitFor(async () => expect((await saved()).offTable.villains).toEqual([]))
+  })
+
+  it('starts the next scene: fates, Hidden, resets, a preview, the log line and Undo', async () => {
+    const { saved } = await setup((g, { hero }) => {
+      g.heroes.push({ ...heroCopy(hero, 'h1'), play: { ...emptyPlay(), mods: [{ id: 'm', label: 'Pumped', value: 2 }] } })
+      g.villains.push(villainCopy(adaptiveBruiser(), 'v1', false))
+      g.round = 3
+      g.turn = { order: [{ kind: 'hero', id: 'h1' }, { kind: 'villain', id: 'v1' }], acted: [{ kind: 'hero', id: 'h1' }], current: { kind: 'villain', id: 'v1' } }
+      g.scenes[0]!.name = 'Rooftop chase'
+      g.scenes.push({ ...createScene({ id: 's2', name: 'The Foundry' }), tracker: { green: 3, yellow: 5, red: 3 } })
+    })
+    await menuItem('Scene menu', 'Start the next scene: The Foundry…')
+    const dialog = within(screen.getByRole('dialog', { name: 'Start scene 2: The Foundry?' }))
+    expect(dialog.getByText('Scene 1, Rooftop chase, ends after round 3.')).toBeInTheDocument()
+    expect(dialog.getByRole('combobox', { name: 'What happens to Ironclad' })).toHaveValue('aside')
+    expect(dialog.getByText(/The heroes stay: Maya Reyes keep their Health/)).toBeInTheDocument()
+    expect(dialog.getByText('Prolonged · 3 / 5 / 3')).toBeInTheDocument()
+    expect(dialog.getByText('They get a toast: "New scene: The Foundry".')).toBeInTheDocument()
+    expect(dialog.getByText('nothing yet', { exact: false })).toBeInTheDocument()
+    await userEvent.selectOptions(dialog.getByRole('combobox', { name: 'What happens to Ironclad' }), 'along')
+    expect(dialog.getByText('Ironclad', { selector: 'div' , exact: false })).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('checkbox', { name: /Twist use/ }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Start scene 2' }))
+
+    expect(screen.getByRole('heading', { name: 'The Foundry' })).toBeInTheDocument()
+    expect(screen.getByText('Scene 2 of 2')).toBeInTheDocument()
+    expect(turns().getByRole('heading')).toHaveTextContent('Not started')
+    expect(log()).toHaveTextContent('Scene 2 began: The Foundry.')
+    await waitFor(async () => expect((await saved()).currentSceneId).toBe('s2'))
+    expect((await saved()).heroes[0]!.play.mods).toEqual([])
+    expect((await saved()).scenes[0]).toMatchObject({ state: 'done', summary: 'Ended after round 3.' })
+
+    // Undo puts the previous scene back exactly.
+    await userEvent.click(within(log()).getByRole('button', { name: 'Undo' }))
+    expect(screen.getByRole('heading', { name: 'Rooftop chase' })).toBeInTheDocument()
+    await waitFor(async () => expect((await saved()).currentSceneId).not.toBe('s2'))
+    const back = await saved()
+    expect(back).toMatchObject({ round: 3, scenes: [{ state: 'now' }, { state: 'planned' }] })
+    expect(back.heroes[0]!.play.mods).toHaveLength(1)
+    expect(within(log()).queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+  })
+
+  it('closes the Undo window after 30 seconds', async () => {
+    await setup((g) => {
+      g.scenes.push(createScene({ id: 's2', name: 'The Foundry' }))
+    })
+    await userEvent.click(screen.getByRole('tab', { name: 'Scenes' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Start The Foundry' }))
+    const spy = vi.spyOn(globalThis, 'setTimeout')
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Start scene 2: The Foundry?' })).getByRole('button', { name: 'Start scene 2' }))
+    expect(within(log()).getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+    const call = spy.mock.calls.find((c: unknown[]) => c[1] === 30_000)
+    spy.mockRestore()
+    expect(call).toBeDefined()
+    act(() => (call![0] as () => void)())
+    expect(within(log()).queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+  })
+
+  it('Save and start on a new scene when nothing is planned, and Edit first from the dialog', async () => {
+    const { saved } = await setup()
+    await menuItem('Scene menu', 'Plan the next scene…')
+    const dialog = within(screen.getByRole('dialog', { name: 'Plan scene 2' }))
+    await userEvent.clear(dialog.getByLabelText('Name'))
+    await userEvent.type(dialog.getByLabelText('Name'), 'The Foundry')
+    await userEvent.click(dialog.getByRole('button', { name: 'Save and start…' }))
+    const start = within(await screen.findByRole('dialog', { name: 'Start scene 2: The Foundry?' }))
+    await userEvent.click(start.getByRole('button', { name: 'Edit scene 2 first' }))
+    const again = within(screen.getByRole('dialog', { name: 'Plan scene 2' }))
+    expect(again.getByLabelText('Name')).toHaveValue('The Foundry')
+    await userEvent.click(again.getByRole('button', { name: 'Save and start…' }))
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Start scene 2: The Foundry?' })).getByRole('button', { name: 'Start scene 2' }))
+    await waitFor(async () => expect((await saved()).scenes[1]!.state).toBe('now'))
+  })
+
+  it('offers Save and start only on the next planned scene', async () => {
+    await setup((g) => {
+      g.scenes.push(createScene({ id: 's2', name: 'One' }), createScene({ id: 's3', name: 'Two' }))
+    })
+    await userEvent.click(screen.getByRole('tab', { name: 'Scenes' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Edit Two' }))
+    expect(within(screen.getByRole('dialog', { name: 'Plan scene 3' })).queryByRole('button', { name: 'Save and start…' })).not.toBeInTheDocument()
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Plan scene 3' })).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Edit One' }))
+    expect(within(screen.getByRole('dialog', { name: 'Plan scene 2' })).getByRole('button', { name: 'Save and start…' })).toBeInTheDocument()
   })
 
   it('lets a running villain advance the scene tracker once per scene (p. 154)', async () => {

@@ -136,6 +136,8 @@ export interface SceneEditorProps {
   /** `restart`: the tracker goes back to its first box (the current scene only). */
   onSave: (draft: SceneDraft, restart: boolean) => void
   onDelete?: () => void
+  /** Saves and opens the start dialog: on the next planned scene only. */
+  onSaveAndStart?: (draft: SceneDraft) => void
   onClose: () => void
 }
 
@@ -150,7 +152,7 @@ type EditorDialog =
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-export function SceneEditor({ game, target, clock, onSave, onDelete, onClose }: SceneEditorProps) {
+export function SceneEditor({ game, target, clock, onSave, onDelete, onSaveAndStart, onClose }: SceneEditorProps) {
   const id = useId()
   const current = target.kind === 'current'
   const [draft, setDraft] = useState<SceneDraft>(() => (current ? draftOfCurrent(game) : target.kind === 'planned' ? draftOfPlanned(game, target.sceneId) : draftOfNew(game)))
@@ -383,6 +385,11 @@ export function SceneEditor({ game, target, clock, onSave, onDelete, onClose }: 
         <button type="button" className="button button--primary" disabled={!valid} onClick={save}>
           Save
         </button>
+        {onSaveAndStart && (
+          <button type="button" className="button button--primary" disabled={!valid} onClick={() => onSaveAndStart(draft)}>
+            Save and start…
+          </button>
+        )}
       </div>
       {dialog?.kind === 'keepBox' && (
         <Modal title={`Keep the tracker at ${boxLabel(trackerFromCounts(draft.tracker), keptBox)}?`} onClose={() => setDialog(null)}>

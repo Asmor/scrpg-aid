@@ -82,6 +82,8 @@ export interface GmControls {
   setStep: (challenge: Challenge, index: number, done: boolean) => void
   /** Bottom sheets for menus (phones). */
   sheets: boolean
+  /** Undo for the scene just started. */
+  logUndo?: LogUndo
 }
 
 export function ZoneChip({ zone, label }: { zone: PlayZone; label?: string }) {
@@ -586,7 +588,13 @@ function ChallengeCard({ challenge, gm }: { challenge: Challenge; gm?: GmControl
 
 // ---- The log ----
 
-export function TableLog({ entries, now, gm }: { entries: readonly GameFeedEntry[]; now: Date; gm: boolean }) {
+/** Undo on the log line of a scene that just started (the GM's, for 30 seconds). */
+export interface LogUndo {
+  entryId: string
+  onUndo: () => void
+}
+
+export function TableLog({ entries, now, gm, undo }: { entries: readonly GameFeedEntry[]; now: Date; gm: boolean; undo?: LogUndo | undefined }) {
   const shown = gm ? entries : entries.filter((e) => !e.gmOnly)
   if (!shown.length) return <p className="sheet-empty">Nothing yet.</p>
   return (
@@ -599,6 +607,14 @@ export function TableLog({ entries, now, gm }: { entries: readonly GameFeedEntry
           <span>
             <strong>{e.by}:</strong> <DiceText text={e.text} />
             {e.gmOnly && <span className="gt-flag"> (only you see this)</span>}
+            {gm && undo?.entryId === e.id && (
+              <>
+                {' '}
+                <button type="button" className="button button--small" onClick={undo.onUndo}>
+                  Undo
+                </button>
+              </>
+            )}
             {e.details && (
               <ul>
                 {e.details.map((d, i) => (
@@ -683,7 +699,7 @@ export function TableCenter({ game, heroes, villains, now, gm, hideLog = false, 
       {!hideLog && (
         <section className="card gt-card" aria-labelledby="gt-log">
           <h2 id="gt-log">Table log</h2>
-          <TableLog entries={game.feed} now={now} gm={Boolean(gm)} />
+          <TableLog entries={game.feed} now={now} gm={Boolean(gm)} undo={gm?.logUndo} />
         </section>
       )}
     </div>
