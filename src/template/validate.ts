@@ -4,7 +4,7 @@
  */
 import { die } from '../hero/validate'
 import { groupActions } from '../game/validate'
-import { arrayOf, integer, nonEmptyString, object, oneOf, string, type Check } from '../shape'
+import { arrayOf, integer, nonEmptyString, object, oneOf, positiveInteger, string, type Check } from '../shape'
 import { ASPECT_COUNT, MAX_ATTACHED, MAX_GROUP_SIZE, MAX_STEPS, MAX_TWISTS } from './model'
 
 const base = { id: nonEmptyString, createdAt: string, updatedAt: string, tags: arrayOf(string), name: string }
@@ -12,7 +12,7 @@ const size: Check = (v, path) => integer(v, path) ?? ((v as number) < 1 || (v as
 const minion = { ...base, die, groupSize: size, actions: groupActions, notes: string }
 
 const minionShape = object(minion)
-const lieutenantShape = object({ ...minion, abilities: arrayOf(object({ name: string, type: oneOf('A', 'R', 'I'), text: string })) })
+const lieutenantShape = object({ ...minion, abilities: arrayOf(object({ name: string, type: oneOf('A', 'R', 'I'), text: string, 'saveBonus?': positiveInteger })) })
 const steps: Check = (v, path) => arrayOf(object({ label: string }))(v, path) ?? ((v as unknown[]).length > MAX_STEPS ? `${path} has more than ${MAX_STEPS} steps` : undefined)
 const challengeShape = object({ ...base, description: string, steps, done: string })
 

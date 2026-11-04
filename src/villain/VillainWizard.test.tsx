@@ -110,7 +110,8 @@ describe('the villain wizard shell', () => {
     expect(chip()).toHaveClass('type-chip--major')
     const mastery = rail().getByRole('link', { name: /Mastery/ })
     expect(mastery).not.toHaveClass('rail__item--skipped')
-    expect(mastery).toHaveTextContent('1')
+    // Not visited yet, so not started rather than showing its issue.
+    expect(mastery).not.toHaveTextContent('1')
     expect(step().getByRole('link', { name: 'Mastery →' })).toBeInTheDocument()
   })
 
@@ -121,6 +122,8 @@ describe('the villain wizard shell', () => {
     expect(preview.getByText('Major villain · Bully · Overlord')).toBeInTheDocument()
     expect(preview.getAllByRole('region').map((r) => r.getAttribute('aria-label')).filter((l) => l?.endsWith(' abilities'))).toEqual(['Bully abilities', 'Overlord abilities', 'Mook Squad abilities', 'Mastery abilities'])
     expect(preview.getByText('for 4 heroes')).toBeInTheDocument()
+    // Each ability names the power or quality it uses.
+    expect(readable(preview.getByRole('region', { name: 'Bully abilities' }))).toContain('Bust Their Heads · Strength')
   })
 
   it('finishes a draft, asking first when there are rule issues', async () => {
@@ -259,8 +262,13 @@ describe('step 3, Archetype', () => {
     }
     const f = adaptiveBruiser()
     f.archetype = { id: 'formidable', abilities: [] }
-    wizard(await storeWith(f), 'archetype')
+    const fu = wizard(await storeWith(f), 'archetype')
     expect(within(await screen.findByRole('list', { name: 'Status die by weakness' })).getAllByRole('listitem')).toHaveLength(3)
+    // Indomitable's card shows its die like any other: an icon, never "D8".
+    const card = (await screen.findAllByRole('radio')).map((r) => r.closest('label')!).find((l) => l.textContent?.startsWith('Indomitable'))!
+    expect(readable(card)).toContain('Status: d8, always.')
+    expect(card.textContent).not.toMatch(/D8/)
+    fu.unmount()
   })
 
   it('shows Legion’s fixed ability and its need for a minion maker until one is chosen, and the Creator note with Creator', async () => {
@@ -292,7 +300,7 @@ describe('the later steps', () => {
     const store = await storeWith(v)
     wizard(store, 'upgrades')
     const gives = within(await screen.findByRole('group', { name: 'Defense Shield gives' }))
-    await userEvent.selectOptions(gives.getAllByRole('combobox', { name: '[power]' })[0]!, 'Robotics (d10)')
+    await userEvent.selectOptions(gives.getAllByRole('combobox', { name: /^Power for / })[0]!, 'Robotics (d10)')
     await waitFor(async () => expect((await saved(store)).upgrades[0]!.abilities).toEqual([{ source: 'upgrade', name: 'Defense Shield', uses: [{ kind: 'power', id: 'robotics' }] }]))
   })
 
@@ -379,6 +387,15 @@ describe('step 6, Health', () => {
     expect(screen.getByText('Show the ranges for 45')).toBeInTheDocument()
   })
 
+  it('doesn’t repeat “upgrade” after an upgrade whose name ends in it', async () => {
+    const v = bullyOverlord()
+    v.upgrades.push({ id: 'power-upgrade', abilities: [] })
+    wizard(await storeWith(v), 'health', 'v2')
+    const rows = within(await screen.findByRole('table')).getAllByRole('row').map(readable)
+    expect(rows).toContain('Mook Squad upgrade+0')
+    expect(rows.find((r) => r.startsWith('Power Upgrade'))).toMatch(/^Power Upgrade\+\d+$/)
+  })
+
   it('shows the zones for a Health-zone status, and asks for the missing steps', async () => {
     const view = wizard(await storeWith(adaptiveBruiser()), 'health')
     expect(await screen.findByText("Bruiser's status follows its Health zone, so these ranges matter on the table.")).toBeInTheDocument()
@@ -412,7 +429,8 @@ describe('templates the villain comes with', () => {
     expect(vehicle).toMatchObject({ name: 'Siege Crawler', die: 'd12', tags: ['docks'], abilities: [{ name: 'Sturdy' }, { name: 'Escape Plan' }] })
     expect((await saved(store)).attached).toEqual([{ templateId: vehicle!.id, kind: 'lieutenant', role: 'vehicle' }])
     // The preview lists it.
-    expect(within(await screen.findByRole('region', { name: 'Comes with' })).getByText('Lieutenant · d12 · 2 abilities')).toBeInTheDocument()
+    const comesWith = within(await screen.findByRole('region', { name: 'Comes with' }))
+    expect(comesWith.getByRole('link', { name: 'Siege Crawler, d12 lieutenant (vehicle)' })).toHaveAttribute('href', `#/lieutenant/${vehicle!.id}`)
     // A change in the wizard updates the same template.
     view.goTo('upgrades')
     const name = await screen.findByRole('textbox', { name: 'Name' })
@@ -436,6 +454,66 @@ describe('templates the villain comes with', () => {
     await waitFor(async () => expect((await saved(store)).attached).toEqual([]))
     await userEvent.click(dialog.getByRole('button', { name: 'Delete' }))
     await waitFor(async () => expect((await templates.lieutenants.get('l1')).status).toBe('missing'))
+  })
+
+  it('offers the kept vehicle first when Villainous Vehicle is checked again, and attaches it as it is', async () => {
+    const v = withVehicle()
+    const templates = memoryTemplateStores()
+    const now = new Date()
+    await templates.lieutenants.save({ ...createLieutenantTemplate({ id: 'other' }), name: 'Gunship', die: 'd8', updatedAt: new Date(now.getTime() + 1000).toISOString() })
+    await templates.lieutenants.save({
+      ...createLieutenantTemplate({ id: 'l1' }),
+      name: 'Siege Crawler',
+      die: 'd12',
+      updatedAt: now.toISOString(),
+      abilities: [
+        { name: 'Sturdy', type: 'I', text: 'Custom text', saveBonus: 2 },
+        { name: 'Ram', type: 'A', text: 'A house ability.' },
+      ],
+    })
+    v.attached = [{ templateId: 'l1', kind: 'lieutenant', role: 'vehicle' }]
+    v.upgrades.push({ id: 'calming-aura', abilities: [] })
+    const store = await storeWith(v)
+    const view = wizard(store, 'upgrades', 'v1', new NewVillains(), templates)
+    const box = await screen.findByRole('checkbox', { name: /^Villainous Vehicle/ })
+    // Attached: no library choice.
+    expect(screen.queryByRole('combobox', { name: 'Use a lieutenant from your library' })).not.toBeInTheDocument()
+    await userEvent.click(box)
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Delete the vehicle too?' })).getByRole('button', { name: 'Keep' }))
+    await waitFor(async () => expect((await saved(store)).detachedVehicle).toBe('l1'))
+    await userEvent.click(screen.getByRole('checkbox', { name: /^Villainous Vehicle/ }))
+    const pick = await screen.findByRole('combobox', { name: 'Use a lieutenant from your library' })
+    await screen.findByRole('option', { name: /^Gunship/ })
+    expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(['Build a new one below', 'Siege Crawler · Lieutenant · d12 · 2 abilities (detached from this villain)', 'Gunship · Lieutenant · d8 · 0 abilities'])
+    await userEvent.selectOptions(pick, 'l1')
+    await waitFor(async () => expect((await saved(store)).attached).toEqual([{ templateId: 'l1', kind: 'lieutenant', role: 'vehicle' }]))
+    const after = await saved(store)
+    expect(after.detachedVehicle).toBeUndefined()
+    expect(after.upgrades.find((u) => u.id === 'villainous-vehicle')!.vehicle).toEqual({ name: 'Siege Crawler', die: 'd12', abilities: [{ source: 'vehicle', name: 'Sturdy' }] })
+    expect(screen.queryByRole('combobox', { name: 'Use a lieutenant from your library' })).not.toBeInTheDocument()
+    // Leaving the step leaves the chosen template as it was.
+    view.goTo('health')
+    await screen.findByRole('heading', { name: '6 · Health' })
+    const kept = await templates.lieutenants.get('l1')
+    expect(kept.status === 'found' && kept.doc.abilities.map((a) => a.text)).toEqual(['Custom text', 'A house ability.'])
+    expect((await templates.lieutenants.list()).docs).toHaveLength(2)
+  })
+
+  it('makes a new template for a new build after the old vehicle was kept', async () => {
+    const v = withVehicle()
+    const templates = memoryTemplateStores()
+    await templates.lieutenants.save({ ...createLieutenantTemplate({ id: 'l1' }), name: 'Siege Crawler', die: 'd12' })
+    v.attached = [{ templateId: 'l1', kind: 'lieutenant', role: 'vehicle' }]
+    v.upgrades.push({ id: 'calming-aura', abilities: [] })
+    const store = await storeWith(v)
+    const view = wizard(store, 'upgrades', 'v1', new NewVillains(), templates)
+    await userEvent.click(await screen.findByRole('checkbox', { name: /^Villainous Vehicle/ }))
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Delete the vehicle too?' })).getByRole('button', { name: 'Keep' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: /^Villainous Vehicle/ }))
+    await userEvent.type(await screen.findByRole('textbox', { name: 'Name' }), 'Gunship')
+    await userEvent.click(screen.getByRole('button', { name: /3 abilities/ }))
+    view.goTo('health')
+    await waitFor(async () => expect((await templates.lieutenants.list()).docs.map((d) => d.name).sort()).toEqual(['Gunship', 'Siege Crawler']))
   })
 
   it('attaches signature minions from the library, or a new one made in a dialog', async () => {
@@ -492,7 +570,7 @@ describe('Suggest 3', () => {
       // Shown in the list's own order.
       expect(names()).toEqual(['Ninja', 'Specialized', 'Tactician', 'Underpowered'])
       expect(reroll).toHaveFocus()
-      expect(screen.getByText('3 new suggestions: Underpowered, Tactician, Specialized.')).toBeInTheDocument()
+      expect(screen.getByText('3 new suggestions: Specialized, Tactician, Underpowered.')).toBeInTheDocument()
     } finally {
       random = () => 0
     }

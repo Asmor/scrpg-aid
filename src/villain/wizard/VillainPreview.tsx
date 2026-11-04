@@ -10,7 +10,9 @@ import { ABILITY_TYPE_LABEL } from '../../hero/labels'
 import type { Villain } from '../model'
 import { buildVillainSheet, villainIdentity, type VillainSheetAbility } from '../sheet'
 import { statusSummary } from '../status'
-import type { AttachedInfo } from './useAttached'
+import type { MouseEvent } from 'react'
+import { ComesWithList } from '../ComesWith'
+import type { AttachedInfo } from '../useAttached'
 
 function Group({ title, abilities, empty }: { title: string; abilities: readonly VillainSheetAbility[]; empty?: string }) {
   return (
@@ -23,6 +25,7 @@ function Group({ title, abilities, empty }: { title: string; abilities: readonly
               <span>
                 <AbilityIcons actions={a.effects} />
                 {a.name}
+                {a.traits.length > 0 && <span className="hint"> · {a.traits.join(', ')}</span>}
               </span>
               <span className="band__type">{ABILITY_TYPE_LABEL[a.type]}</span>
             </li>
@@ -37,7 +40,7 @@ function Group({ title, abilities, empty }: { title: string; abilities: readonly
   )
 }
 
-export function VillainPreview({ villain, comesWith }: { villain: Villain; comesWith?: readonly AttachedInfo[] | null }) {
+export function VillainPreview({ villain, comesWith, onFollow }: { villain: Villain; comesWith?: readonly AttachedInfo[] | null; onFollow?: (path: string) => (e: MouseEvent<HTMLAnchorElement>) => void }) {
   const sheet = buildVillainSheet(villain)
   const named = Boolean(villain.details.name.trim() || villain.details.alias.trim())
   const isFrom = (...sources: VillainSheetAbility['source'][]) => sheet.abilities.filter((a) => sources.includes(a.source) && !a.upgrade)
@@ -79,13 +82,7 @@ export function VillainPreview({ villain, comesWith }: { villain: Villain; comes
       {comesWith && comesWith.length > 0 && (
         <section className="sheet-preview__part" aria-label="Comes with">
           <h4>Comes with</h4>
-          <ul className="vw-comes-with">
-            {comesWith.map((a) => (
-              <li key={`${a.attachment.role}:${a.attachment.templateId}`} className={a.missing ? 'placeholder' : undefined}>
-                <strong>{a.name}</strong> <span className="hint">{a.line}</span>
-              </li>
-            ))}
-          </ul>
+          <ComesWithList items={comesWith} {...(onFollow ? { onFollow } : {})} />
         </section>
       )}
     </article>

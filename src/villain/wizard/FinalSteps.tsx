@@ -97,6 +97,12 @@ export function MasteryStep({ villain, update, suggest }: StepProps) {
 const signed = (n: number) => (n < 0 ? `−${-n}` : `+${n}`)
 const SOURCE: Record<HealthTerm['kind'], string | undefined> = { base: 'approach base', modifier: 'archetype', heroes: undefined, upgrade: 'upgrade' }
 
+/** The muted word after a term's name, left out when the name already ends in it ("Power Upgrade", not "Power Upgrade upgrade"). */
+function sourceTag(t: HealthTerm): string | undefined {
+  const tag = SOURCE[t.kind]
+  return tag && !t.label.toLowerCase().endsWith(tag) ? tag : undefined
+}
+
 /** One zone range per game color, each labelled. */
 function Ranges({ ranges }: { ranges: NonNullable<ReturnType<typeof villainZones>> }) {
   return (
@@ -157,7 +163,7 @@ export function HealthStep({ villain, update }: StepProps) {
                   ) : (
                     <>
                       {t.kind === 'base' || t.kind === 'modifier' ? t.label.replace(/ (base|modifier)$/, '') : t.label}
-                      {SOURCE[t.kind] && <span className="hint"> {SOURCE[t.kind]}</span>}
+                      {sourceTag(t) && <span className="hint"> {sourceTag(t)}</span>}
                     </>
                   )}
                 </td>

@@ -6,7 +6,7 @@
 import { useId } from 'react'
 import { AbilityChooser } from '../../editor/AbilityPicker'
 import { SectionIssues } from '../../editor/inline-issues'
-import { DieIcon } from '../../components/icons'
+import { DiceText, DieIcon } from '../../components/icons'
 import { ZONE_LABEL } from '../../hero/labels'
 import { villainApproachesById, villainArchetypes, villainArchetypesById } from '../../rules/villain-data'
 import type { VillainArchetype, VillainStatusRule } from '../../rules/villain-types'
@@ -42,7 +42,9 @@ export function StatusPanel({ rule }: { rule: VillainStatusRule }) {
       )}
       {rule.basis === 'healthZone' && (
         <>
-          <p>{statusSummary(rule)}</p>
+          <p>
+            <DiceText text={statusSummary(rule)} />
+          </p>
           {/* Game colors are right here: these are the villain's Health zones. */}
           <ul className="game-chips" aria-label="Status die by Health zone">
             {(['green', 'yellow', 'red'] as const).map((z) => (
@@ -61,7 +63,9 @@ export function StatusPanel({ rule }: { rule: VillainStatusRule }) {
       )}
       {rule.basis === 'weakness' && (
         <>
-          <p>{statusSummary(rule)}</p>
+          <p>
+            <DiceText text={statusSummary(rule)} />
+          </p>
           <ul className="vw-conditions" aria-label="Status die by weakness">
             {rule.tiers.map((t) => (
               <li key={t.condition}>
@@ -93,7 +97,8 @@ export function StatusPanel({ rule }: { rule: VillainStatusRule }) {
 /** The status summary without its leading "Status", for a card's "Status:" line: "Follows its Health zone." */
 function cardStatus(rule: VillainStatusRule): string {
   const text = statusSummary(rule).replace(/^Status:?\s+/, '')
-  return text.charAt(0).toUpperCase() + text.slice(1)
+  // A die stays lowercase ("d8, always."); anything else starts with a capital.
+  return /^d\d/.test(text) ? text : text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 function card(a: VillainArchetype): CardOption {
@@ -104,7 +109,7 @@ function card(a: VillainArchetype): CardOption {
     body: (
       <>
         <span className="vw-card__line">
-          <span className="hint">Status:</span> {cardStatus(a.status)}
+          <span className="hint">Status:</span> <DiceText text={cardStatus(a.status)} />
         </span>
         <span className="vw-card__line">
           <span className="hint">Health:</span> {signed(a.healthModifier)} · <span className="hint">Abilities:</span> choose {a.abilities.count}

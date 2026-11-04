@@ -5,7 +5,8 @@
  * where targets are picked after the dice are rolled.
  */
 import { useId, useRef, useState } from 'react'
-import { DieIcon } from '../components/icons'
+import { AbilityText, DieIcon } from '../components/icons'
+import { ABILITY_TYPE_LABEL } from '../hero/labels'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { PopoverMenu } from '../library/Popover'
@@ -147,6 +148,20 @@ export function RunningGroup({ game, group, actions, random }: { game: Game; gro
           )
         })}
       </ul>
+      {group.abilities && group.abilities.length > 0 && (
+        <ul className="gt-abilities" aria-label={`${group.name}'s abilities`}>
+          {group.abilities.map((a, i) => (
+            <li key={`${a.name}:${i}`} className="gt-ability">
+              <span className="gt-grow">
+                <strong>{a.name}</strong> <span className="gt-sub">{ABILITY_TYPE_LABEL[a.type]}</span>
+                {a.saveBonus ? <span className="gt-sub"> · added to its saves</span> : null}
+                <br />
+                <AbilityText text={a.text} />
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       {damaging && (
         <DamageDialog
           group={group}

@@ -62,6 +62,10 @@ export interface VillainSheetAbility {
   type: AbilityType
   /** The game text with its blanks filled in. */
   text: string
+  /** Added to each damage save's result (a vehicle's Sturdy). */
+  saveBonus?: number
+  /** The powers and qualities filling its trait slots, each once ("Strength"), for the wizard's preview. */
+  traits: string[]
   /** The actions its effects are, for the icons. */
   effects: Action[]
   /** What using it rolls and produces, for the game aid. */
@@ -293,6 +297,8 @@ export function buildVillainSheet(villain: Villain): VillainSheet {
     baseName: ability.name,
     type: ability.type,
     text: fillTextWith(label, ability.text, pick?.uses, pick?.blanks),
+    ...(ability.saveBonus ? { saveBonus: ability.saveBonus } : {}),
+    traits: [...new Set((pick?.uses ?? []).filter((u): u is TraitRef => Boolean(u)).map(label))],
     effects: actionsOf(ability, pick?.blanks),
     use: abilityUseOf(ability, pick),
     ...(upgrade ? { upgrade } : {}),

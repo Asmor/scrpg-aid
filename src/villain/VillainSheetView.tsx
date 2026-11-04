@@ -10,7 +10,9 @@ import type { ReactNode } from 'react'
 import { DieIcon } from '../components/icons'
 import { SheetAbilityRow } from '../components/HeroSheetView'
 import { CurrentHealthLine, HealthBlock } from '../components/SheetPreview'
+import { ComesWithList } from './ComesWith'
 import type { Villain } from './model'
+import type { AttachedInfo } from './useAttached'
 import { buildVillainSheet, healthBreakdown, villainIdentity, type VillainSheet, type VillainSheetAbility, type VillainTrait } from './sheet'
 import { statusRows, statusSummary } from './status'
 
@@ -203,13 +205,24 @@ export function VillainSheetTitle({ villain }: { villain: Villain }) {
   )
 }
 
-export function VillainSheetView({ villain, mode = 'sheet' }: { villain: Villain; mode?: 'sheet' | 'play' }) {
+/** `comesWith`: the templates attached to the villain, loaded from the library (none shown while it's null). */
+export function VillainSheetView({ villain, mode = 'sheet', comesWith }: { villain: Villain; mode?: 'sheet' | 'play'; comesWith?: readonly AttachedInfo[] | null }) {
   const sheet = buildVillainSheet(villain)
   return (
     <article className="hero-sheet" aria-label={`${sheet.name} villain sheet`}>
       {mode === 'sheet' && <About villain={villain} sheet={sheet} />}
       <Mechanics sheet={sheet} />
       <Abilities sheet={sheet} />
+      {comesWith && comesWith.length > 0 && (
+        <section className="sheet-section" aria-labelledby="sheet-comes-with-title">
+          <div className="sheet-section__head">
+            <h3 id="sheet-comes-with-title">Comes with</h3>
+          </div>
+          <div className="card sheet-card">
+            <ComesWithList items={comesWith} />
+          </div>
+        </section>
+      )}
     </article>
   )
 }

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createLieutenantTemplate, createMinionTemplate } from '../template/model'
 import { adaptiveBruiser } from '../test/villains'
-import { attachedAs, lieutenantLine, minionLine, setAttached, vehicleName, vehicleTemplate } from './attached'
+import { villainUpgradesById } from '../rules/villain-data'
+import { attachedAs, comesWithLabel, lieutenantLine, minionLine, setAttached, vehicleFromTemplate, vehicleName, vehicleTemplate } from './attached'
 
 const now = new Date('2026-11-04T12:00:00Z')
 
@@ -33,7 +34,7 @@ describe('the vehicle as a lieutenant template', () => {
     const t = vehicleTemplate(v, undefined, now)!
     expect(t).toMatchObject({ name: "Ironclad's vehicle", die: 'd10', groupSize: 1, actions: 'any', tags: ['docks'] })
     expect(t.abilities).toEqual([
-      { name: 'Sturdy', type: 'I', text: 'When rolling a damage save, add 2 to the result.' },
+      { name: 'Sturdy', type: 'I', text: 'When rolling a damage save, add 2 to the result.', saveBonus: 2 },
       { name: 'Reliable', type: 'I', text: expect.stringContaining('uses a Attack on its turn') },
     ])
     expect(lieutenantLine(t)).toBe('Lieutenant · d10 · 2 abilities')
@@ -44,6 +45,27 @@ describe('the vehicle as a lieutenant template', () => {
     v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { name: 'Siege Crawler', die: 'd12', abilities: [{ source: 'vehicle', name: 'Sturdy' }] } }]
     const existing = { ...createLieutenantTemplate({ id: 'l1', now }), name: 'Old', notes: 'Rusty', tags: ['prep'], groupSize: 2 }
     expect(vehicleTemplate(v, existing, now)).toMatchObject({ id: 'l1', name: 'Siege Crawler', die: 'd12', notes: 'Rusty', tags: ['prep'], groupSize: 2 })
+  })
+})
+
+describe('a vehicle from the library', () => {
+  it('fills the build from a lieutenant template: name, a die the upgrade offers, and its vehicle abilities', () => {
+    const upgrade = villainUpgradesById.get('villainous-vehicle')!
+    const t = { name: 'Gunship', die: 'd10' as const, abilities: [{ name: 'Reliable', type: 'I' as const, text: '' }, { name: 'Ram', type: 'A' as const, text: '' }] }
+    expect(vehicleFromTemplate(t, upgrade)).toEqual({ name: 'Gunship', die: 'd10', abilities: [{ source: 'vehicle', name: 'Reliable' }] })
+    expect(vehicleFromTemplate({ ...t, die: 'd6' }, upgrade)).not.toHaveProperty('die')
+  })
+
+  it('keeps abilities the GM added that aren’t vehicle abilities when the wizard updates it', () => {
+    const v = adaptiveBruiser()
+    v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { name: 'Gunship', die: 'd12', abilities: [{ source: 'vehicle', name: 'Sturdy' }] } }]
+    const existing = { ...createLieutenantTemplate({ id: 'l1', now }), abilities: [{ name: 'Escape Plan', type: 'R' as const, text: 'old' }, { name: 'Ram', type: 'A' as const, text: 'A house ability.' }] }
+    expect(vehicleTemplate(v, existing, now)!.abilities.map((a) => a.name)).toEqual(['Sturdy', 'Ram'])
+  })
+
+  it('reads as a "Comes with" line', () => {
+    expect(comesWithLabel('signature', 'Burglar', 'd6')).toBe('Burglar minions (signature)')
+    expect(comesWithLabel('vehicle', 'Siege Crawler', 'd10')).toBe('Siege Crawler, d10 lieutenant (vehicle)')
   })
 })
 

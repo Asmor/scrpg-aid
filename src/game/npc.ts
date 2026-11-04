@@ -86,11 +86,20 @@ export function verdictText(kind: NpcGroup['kind'], die: Die, result: SaveResult
   return kind === 'minions' ? `${head} · Already d4, nothing happens` : `${head} · Stays ${die}`
 }
 
+/**
+ * What a group's abilities add to each damage save (a vehicle's Sturdy, +2), as mods: always on,
+ * never used up, and labeled with the ability's name.
+ */
+export function groupSaveMods(group: Pick<NpcGroup, 'abilities'>): PlayMod[] {
+  return (group.abilities ?? []).flatMap((a, i) => (a.saveBonus ? [{ id: `ability:${i}`, label: a.name.trim() || 'Ability', value: a.saveBonus, persistent: true as const }] : []))
+}
+
 /** Rolls saves for these members against the same damage. */
 export function rollSaves(group: NpcGroup, memberIds: readonly string[], damage: number, random: Random, defenseIds: Readonly<Record<string, string>> = {}): MemberSave[] {
+  const extra = groupSaveMods(group)
   return memberIds.flatMap((id) => {
     const m = group.members.find((x) => x.id === id)
-    return m ? [rollSave(group.kind, m, damage, random, defenseIds[id])] : []
+    return m ? [rollSave(group.kind, m, damage, random, defenseIds[id], extra)] : []
   })
 }
 
@@ -115,15 +124,15 @@ export interface MemberSave {
   noDamage?: true
 }
 
-/** Rolls a member's save against a hit, after one of its defenses (ruling 65): the one chosen, or the default. */
-export function rollSave(kind: NpcGroup['kind'], member: Pick<NpcMember, 'id' | 'die' | 'mods' | 'defenses'>, incoming: number, random: Random, defenseId?: string): MemberSave {
+/** Rolls a member's save against a hit, after one of its defenses (ruling 65): the one chosen, or the default. `extra`: mods from its group's abilities ({@link groupSaveMods}). */
+export function rollSave(kind: NpcGroup['kind'], member: Pick<NpcMember, 'id' | 'die' | 'mods' | 'defenses'>, incoming: number, random: Random, defenseId?: string, extra: readonly PlayMod[] = []): MemberSave {
   const defense = pickDefense(defensesOf(member), incoming, defenseId)
   const damage = blockWith(incoming, defense).taken
   const base = { memberId: member.id, damage, incoming, ...(defense ? { defense } : {}) }
   if (damage === 0) return { ...base, result: { outcome: 'stay' }, noDamage: true }
   const outright = save(kind, member, damage, Number.POSITIVE_INFINITY)
   if (outright.noSave) return { ...base, result: outright }
-  const roll = rollWithMods(member.die, member.mods, random)
+  const roll = rollWithMods(member.die, [...member.mods, ...extra], random)
   return { ...base, roll, result: save(kind, member, damage, roll.total) }
 }
 

@@ -67,6 +67,17 @@ describe('an Attack with a target', () => {
     expect(ko.game.groups[0]!.members.map((m) => m.n)).toEqual([2])
   })
 
+  it("adds a lieutenant's save bonus (Sturdy) to its save, without using it up", () => {
+    const { g, c } = table()
+    const sturdy = { name: 'Sturdy', type: 'I' as const, text: 'When rolling a damage save, add 2 to the result.', saveBonus: 2 }
+    const withCrawler = addGroup(g, { kind: 'lieutenants', name: 'Siege Crawler', die: 'd10', count: 1, hidden: false, abilities: [sturdy] }, c)
+    const crawler = withCrawler.groups[1]!
+    // A 6 on its d10, plus 2: 8 against 7.
+    const hit = applyAttack(withCrawler, 'Maya Reyes', { kind: 'member', groupId: crawler.id, memberId: crawler.members[0]!.id }, 7, () => 0.5, c)
+    expect(hit.note).toBe('Siege Crawler 1 saved against 7 (rolled 8): stays d10.')
+    expect(hit.game.groups[1]!.members[0]!.mods).toEqual([])
+  })
+
   it('logs an attack on a hidden villain, or by a hidden attacker, for the GM only', () => {
     const { g, c, secret, jo } = table()
     expect(applyAttack(g, 'Maya Reyes', { kind: 'villain', id: secret.id }, 3, d6(1), c).game.feed[0]).toMatchObject({ gmOnly: true })

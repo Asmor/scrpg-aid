@@ -10,6 +10,7 @@ export const string: Check = (v, path) => (typeof v === 'string' ? undefined : `
 export const nonEmptyString: Check = (v, path) => (typeof v === 'string' && v !== '' ? undefined : `${path} is missing`)
 export const boolean: Check = (v, path) => (typeof v === 'boolean' ? undefined : `${path} should be true or false`)
 export const integer: Check = (v, path) => (Number.isInteger(v) ? undefined : `${path} should be a whole number`)
+export const positiveInteger: Check = (v, path) => integer(v, path) ?? ((v as number) < 1 ? `${path} should be at least 1` : undefined)
 export const oneOf =
   (...values: readonly unknown[]): Check =>
   (v, path) =>

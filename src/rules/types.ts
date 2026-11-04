@@ -66,6 +66,8 @@ export interface Ability {
   requires?: OptionRef
   /** A villain ability that adds minions or a lieutenant to the scene (ruling 66; Legion needs one). */
   makesMinions?: true
+  /** A villain ability that adds this to the result of each damage save (Sturdy, p. 236). */
+  saveBonus?: number
   /** Every ability in data/ has these; a player-written ability (a custom principle's) may not. */
   effects?: AbilityEffect[]
   pool?: AbilityPool

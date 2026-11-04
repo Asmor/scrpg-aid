@@ -14,10 +14,15 @@ describe('the villain wizard’s steps', () => {
     expect(villainStepNumber('nope')).toBe(0)
   })
 
-  it('mark a new draft: issues where something must be chosen, Mastery not needed', () => {
+  it('mark a new draft not started, though its steps have issues, with Mastery not needed', () => {
     const v = { ...createVillain(), status: 'draft' as const }
-    expect(marks(v)).toEqual({ concept: 'todo', approach: 'issues', archetype: 'issues', upgrades: 'todo', mastery: 'todo (skipped)', health: 'todo', details: 'todo' })
+    expect(marks(v)).toEqual({ concept: 'todo', approach: 'todo', archetype: 'todo', upgrades: 'todo', mastery: 'todo (skipped)', health: 'todo', details: 'todo' })
     expect(states(v)[1]!.issues.map((w) => w.code)).toEqual(['approach-missing'])
+  })
+
+  it('show a step’s issues on its mark once the GM has gone past it', () => {
+    const v = { ...createVillain(), status: 'draft' as const, furthestStep: 3 }
+    expect(marks(v)).toMatchObject({ approach: 'issues', archetype: 'todo' })
   })
 
   it('mark a finished minor villain done, with Mastery still not needed', () => {

@@ -1,13 +1,13 @@
 /**
- * The templates a villain comes with, loaded from the library for the wizard's preview and wells
- * (the villain wizard spec, sections 2 and 5): each attachment with its template's line, or
+ * The templates a villain comes with, loaded from the library for the wizard's preview and the
+ * villain's sheet (the villain wizard spec, sections 2 and 5): each attachment with its template's line, or
  * "Missing template" once it's deleted from the library.
  */
 import { useEffect, useState } from 'react'
-import { useOptionalTemplateStores } from '../../app/template-store-context'
-import { templateName, type LieutenantTemplate, type MinionTemplate } from '../../template/model'
-import { lieutenantLine, minionLine } from '../attached'
-import type { VillainAttachment } from '../model'
+import { useOptionalTemplateStores } from '../app/template-store-context'
+import { templateName, type LieutenantTemplate, type MinionTemplate } from '../template/model'
+import { comesWithLabel, lieutenantLine, minionLine } from './attached'
+import type { VillainAttachment } from './model'
 
 export interface AttachedInfo {
   attachment: VillainAttachment
@@ -15,6 +15,8 @@ export interface AttachedInfo {
   name: string
   /** "Lieutenant · d10 · 3 abilities", "Grave Guard · d8 · Attack or Hinder" */
   line: string
+  /** "Burglar minions (signature)", "Siege Crawler, d10 lieutenant (vehicle)"; "Missing template" once deleted. */
+  label: string
   missing: boolean
 }
 
@@ -29,10 +31,11 @@ export function useAttached(attached: readonly VillainAttachment[], reload = 0):
     Promise.all(
       (JSON.parse(key) as VillainAttachment[]).map(async (attachment): Promise<AttachedInfo> => {
         const result = attachment.kind === 'lieutenant' ? await stores.lieutenants.get(attachment.templateId) : await stores.minions.get(attachment.templateId)
-        if (result.status !== 'found') return { attachment, name: 'Missing template', line: `This ${attachment.kind} template was deleted from the library.`, missing: true }
+        if (result.status !== 'found') return { attachment, name: 'Missing template', line: `This ${attachment.kind} template was deleted from the library.`, label: 'Missing template', missing: true }
         const doc = result.doc
         const line = attachment.kind === 'lieutenant' ? lieutenantLine(doc as LieutenantTemplate) : minionLine(doc as MinionTemplate)
-        return { attachment, name: templateName(doc, attachment.kind), line, missing: false }
+        const name = templateName(doc, attachment.kind)
+        return { attachment, name, line, label: comesWithLabel(attachment.role, name, doc.die), missing: false }
       }),
     ).then(
       (infos) => current && setList(infos),

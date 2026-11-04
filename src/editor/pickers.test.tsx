@@ -201,8 +201,8 @@ describe('AbilityPicker', () => {
     render(<Abilities options={accident} />)
     expect(screen.getByText('Each uses a different power.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('checkbox', { name: /Area Alteration/ }))
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: '[Boost or Hinder]' }), 'Hinder')
-    const power = screen.getByRole('combobox', { name: '[power]' })
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /^Boost or Hinder for / }), 'Hinder')
+    const power = screen.getByRole('combobox', { name: /^Power for / })
     // Only the hero's powers, with their dice.
     expect([...power.querySelectorAll('option')].map((o) => o.textContent)).toEqual(['Choose…', 'Agility (d10)', 'Fire (d8)', 'Awareness (d8)', 'Speed (d12)', 'Flight (d6)'])
     await userEvent.selectOptions(power, 'Fire (d8)')
@@ -215,7 +215,7 @@ describe('AbilityPicker', () => {
       { source: 'powerSource.yellow', name: 'Area Alteration', blanks: { 'Boost or Hinder': 'Hinder' }, uses: [P('fire')], customName: 'Heat Wave' },
     ])
     await userEvent.clear(screen.getByLabelText('Your name for it (optional)'))
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: '[power]' }), 'Choose…')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /^Power for / }), 'Choose…')
     expect(output()).toEqual([{ source: 'powerSource.yellow', name: 'Area Alteration', blanks: { 'Boost or Hinder': 'Hinder' } }])
     await userEvent.click(screen.getByRole('checkbox', { name: /Area Alteration/ }))
     expect(output()).toEqual([])
@@ -224,9 +224,9 @@ describe('AbilityPicker', () => {
   it('fills trait slots in order', async () => {
     render(<Abilities options={[HARMONY]} />)
     await userEvent.click(screen.getByRole('checkbox', { name: /Harmony/ }))
-    expect(screen.getByRole('combobox', { name: '[power]' })).toBeDisabled()
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: '[quality]' }), 'Fitness (d10)')
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: '[power]' }), 'Speed (d12)')
+    expect(screen.getByRole('combobox', { name: /^Power for / })).toBeDisabled()
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /^Quality for / }), 'Fitness (d10)')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /^Power for / }), 'Speed (d12)')
     expect(output()).toEqual([{ source: 'powerSource.yellow', name: 'Harmony', uses: [Q('fitness'), P('speed')] }])
   })
 
@@ -234,12 +234,12 @@ describe('AbilityPicker', () => {
     const immunity = powerSourcesById.get('accident')!.greenAbilities!.options!.find((a) => a.name === 'Immunity')!
     render(<Abilities options={[EMBOLDEN, immunity]} />)
     await userEvent.click(screen.getByRole('checkbox', { name: /Embolden/ }))
-    const group = screen.getByRole('group', { name: '[choose two basic actions]' })
+    const group = screen.getByRole('group', { name: /^Choose two basic actions for / })
     await userEvent.click(within(group).getByRole('checkbox', { name: 'Attack' }))
     await userEvent.click(within(group).getByRole('checkbox', { name: 'Overcome' }))
     await userEvent.click(within(group).getByRole('checkbox', { name: 'Attack' }))
     await userEvent.click(screen.getByRole('checkbox', { name: /Immunity/ }))
-    await userEvent.type(screen.getByRole('textbox', { name: '[energy/element]' }), 'Fire')
+    await userEvent.type(screen.getByRole('textbox', { name: /^Energy\/element for / }), 'Fire')
     expect(output()).toEqual([
       { source: 'powerSource.yellow', name: 'Embolden', blanks: { 'choose two basic actions': ['Overcome'] } },
       { source: 'powerSource.yellow', name: 'Immunity', blanks: { 'energy/element': 'Fire' } },
@@ -248,7 +248,7 @@ describe('AbilityPicker', () => {
 
   it('keeps picks that aren’t on the list, so they can be removed, and choices that no longer fit', async () => {
     render(<Abilities options={accident} initial={[{ source: 'powerSource.yellow', name: 'Gone' }, { source: 'powerSource.yellow', name: 'Inflict', uses: [P('cold')] }]} />)
-    expect(screen.getByRole('combobox', { name: '[power]' })).toHaveDisplayValue("Cold (doesn't fit)")
+    expect(screen.getByRole('combobox', { name: /^Power for / })).toHaveDisplayValue("Cold (doesn't fit)")
     await userEvent.click(screen.getByRole('checkbox', { name: /Gone.*not on this list/ }))
     expect(output()).toEqual([{ source: 'powerSource.yellow', name: 'Inflict', uses: [P('cold')] }])
   })

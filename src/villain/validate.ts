@@ -42,6 +42,7 @@ export const villainShape = object({
   mastery: nullable(pick),
   heroCount,
   attached: arrayOf(object({ templateId: nonEmptyString, kind: oneOf('minion', 'lieutenant'), role: oneOf('signature', 'vehicle') })),
+  'detachedVehicle?': nonEmptyString,
   'suggest?': object({ 'approach?': arrayOf(nonEmptyString), 'archetype?': arrayOf(nonEmptyString), 'upgrades?': arrayOf(nonEmptyString), 'mastery?': arrayOf(nonEmptyString) }),
   'notes?': string,
 })

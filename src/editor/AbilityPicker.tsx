@@ -59,6 +59,8 @@ export interface SlotFilling {
 interface TraitSlotFieldProps {
   filling: SlotFilling
   slot: TraitSlot
+  /** The ability's name, for the slot's accessible name. */
+  ability: string
   limit?: SlotLimit
   value: TraitRef | undefined
   /** Until the slots before it are filled (see ../creation/picks.ts). */
@@ -66,14 +68,25 @@ interface TraitSlotFieldProps {
   onChange: (t: TraitRef | undefined) => void
 }
 
-function TraitSlotField({ filling, slot, limit, value, disabled, onChange }: TraitSlotFieldProps) {
+/** A slot's label: "Power" to see, "Power for Bust Their Heads" to a screen reader. */
+function SlotLabel({ slot, ability }: { slot: { label: string }; ability: string }) {
+  return (
+    <>
+      {slot.label.charAt(0).toUpperCase() + slot.label.slice(1)} <span className="visually-hidden">for {ability}</span>
+    </>
+  )
+}
+
+function TraitSlotField({ filling, slot, ability, limit, value, disabled, onChange }: TraitSlotFieldProps) {
   const id = useId()
   const candidates = filling.candidates(slot, limit)
   // Keep the current choice selectable even if it no longer fits (the checks warn about it).
   const offList = value && !candidates.some((c) => traitKey(c.trait) === traitKey(value))
   return (
     <label className="field" htmlFor={id}>
-      <span>[{slot.label}]</span>
+      <span>
+        <SlotLabel slot={slot} ability={ability} />
+      </span>
       <select id={id} disabled={disabled} value={value ? traitKey(value) : ''} onChange={(e) => onChange(e.target.value ? parseTraitKey(e.target.value) : undefined)}>
         <option value="">Choose…</option>
         {offList && <option value={traitKey(value)}>{filling.label(value)} (doesn't fit)</option>}
@@ -88,13 +101,15 @@ function TraitSlotField({ filling, slot, limit, value, disabled, onChange }: Tra
   )
 }
 
-function ChoiceSlotField({ slot, value, onChange }: { slot: ChoiceSlot; value: string | string[] | undefined; onChange: (v: string | string[]) => void }) {
+function ChoiceSlotField({ slot, ability, value, onChange }: { slot: ChoiceSlot; ability: string; value: string | string[] | undefined; onChange: (v: string | string[]) => void }) {
   const id = useId()
   const count = slot.count ?? 1
   if (!slot.options) {
     return (
       <label className="field" htmlFor={id}>
-        <span>[{slot.label}]</span>
+        <span>
+          <SlotLabel slot={slot} ability={ability} />
+        </span>
         <input id={id} type="text" value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value)} />
       </label>
     )
@@ -102,7 +117,9 @@ function ChoiceSlotField({ slot, value, onChange }: { slot: ChoiceSlot; value: s
   if (count === 1) {
     return (
       <label className="field" htmlFor={id}>
-        <span>[{slot.label}]</span>
+        <span>
+          <SlotLabel slot={slot} ability={ability} />
+        </span>
         <select id={id} value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value)}>
           <option value="">Choose…</option>
           {slot.options.map((o) => (
@@ -115,7 +132,9 @@ function ChoiceSlotField({ slot, value, onChange }: { slot: ChoiceSlot; value: s
   const chosen = Array.isArray(value) ? value : value ? [value] : []
   return (
     <fieldset className="ability-pick__multi">
-      <legend>[{slot.label}]</legend>
+      <legend>
+        <SlotLabel slot={slot} ability={ability} />
+      </legend>
       {slot.options.map((o) => (
         <label key={o} className="checkbox">
           <input type="checkbox" checked={chosen.includes(o)} onChange={(e) => onChange(e.target.checked ? [...chosen, o] : chosen.filter((c) => c !== o))} />
@@ -148,9 +167,9 @@ function PickFields<P extends EditablePick>({ filling, ability, pick, nameable, 
       {slots.map((slot, i) => {
         if (slot.type === 'trait') {
           const index = traitIndex++
-          return <TraitSlotField key={i} filling={filling} slot={slot} limit={index === limited ? slotLimit : undefined} value={pick.uses?.[index]} disabled={!canSetUse(pick, index)} onChange={(t) => onChange(setUse(pick, index, t))} />
+          return <TraitSlotField key={i} filling={filling} slot={slot} ability={ability.name} limit={index === limited ? slotLimit : undefined} value={pick.uses?.[index]} disabled={!canSetUse(pick, index)} onChange={(t) => onChange(setUse(pick, index, t))} />
         }
-        return <ChoiceSlotField key={i} slot={slot} value={pick.blanks?.[slot.label]} onChange={(v) => onChange(setBlank(pick, slot.label, v))} />
+        return <ChoiceSlotField key={i} slot={slot} ability={ability.name} value={pick.blanks?.[slot.label]} onChange={(v) => onChange(setBlank(pick, slot.label, v))} />
       })}
       {nameable && (
         <label className="field" htmlFor={`${id}-name`}>

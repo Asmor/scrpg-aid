@@ -1,7 +1,10 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { TemplateStoresContext } from '../app/template-store-context'
 import { VillainStoreContext } from '../app/villain-store-context'
+import { createLieutenantTemplate, createMinionTemplate } from '../template/model'
+import { memoryTemplateStores } from '../template/store'
 import { adaptiveBruiser, bullyOverlord } from '../test/villains'
 import { readable } from '../test/readable'
 import { createVillain, type Villain } from './model'
@@ -41,6 +44,31 @@ describe('the villain sheet', () => {
     expect(within(sheet).getByRole('region', { name: 'Bruiser abilities' })).toHaveTextContent('Lash Out')
     expect(within(sheet).getByRole('region', { name: 'Adaptive abilities' })).toHaveTextContent('Adapt and Thrive')
     expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument()
+  })
+
+  it('lists what the villain comes with, each linking to its template', async () => {
+    const templates = memoryTemplateStores()
+    await templates.minions.save({ ...createMinionTemplate({ id: 'm1' }), name: 'Burglar' })
+    await templates.lieutenants.save({ ...createLieutenantTemplate({ id: 'l1' }), name: 'Siege Crawler', die: 'd10' })
+    const store = await storeWith({
+      ...adaptiveBruiser(),
+      attached: [
+        { templateId: 'm1', kind: 'minion', role: 'signature' },
+        { templateId: 'l1', kind: 'lieutenant', role: 'vehicle' },
+        { templateId: 'gone', kind: 'minion', role: 'signature' },
+      ],
+    })
+    render(
+      <TemplateStoresContext.Provider value={templates}>
+        <VillainStoreContext.Provider value={store}>
+          <VillainPage id="v1" />
+        </VillainStoreContext.Provider>
+      </TemplateStoresContext.Provider>,
+    )
+    const section = within(await screen.findByRole('region', { name: 'Comes with' }))
+    expect(await section.findByRole('link', { name: 'Burglar minions (signature)' })).toHaveAttribute('href', '#/minion/m1')
+    expect(section.getByRole('link', { name: 'Siege Crawler, d10 lieutenant (vehicle)' })).toHaveAttribute('href', '#/lieutenant/l1')
+    expect(section.getByText('Missing template')).toBeInTheDocument()
   })
 
   it('shows the test villain’s status table, Health breakdown, and ability groups', async () => {

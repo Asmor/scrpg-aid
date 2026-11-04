@@ -139,6 +139,27 @@ describe('running a group', () => {
     ])
   })
 
+  it('lists a lieutenant’s abilities, and adds a save bonus like Sturdy’s to its saves', async () => {
+    const c = clock()
+    let game = createGame({ id: 'g' })
+    const abilities = [
+      { name: 'Distance Attack', type: 'I' as const, text: 'To attack this vehicle, the hero must make an Overcome action.' },
+      { name: 'Sturdy', type: 'I' as const, text: 'When rolling a damage save, add 2 to the result.', saveBonus: 2 },
+    ]
+    game = addGroup(game, { kind: 'lieutenants', name: 'Siege Crawler', die: 'd10', count: 1, hidden: false, abilities }, c)
+    const actions: GroupActions = { shrink: vi.fn(), remove: vi.fn(), addMod: vi.fn(), removeMod: vi.fn(), setActed: vi.fn(), applyRoll: vi.fn(), applySaves: vi.fn() }
+    render(<RunningGroup game={game} group={game.groups[0]!} actions={actions} random={() => 0.5} />)
+    const list = within(screen.getByRole('list', { name: "Siege Crawler's abilities" }))
+    expect(list.getAllByRole('listitem').map((li) => li.querySelector('strong')?.textContent)).toEqual(['Distance Attack', 'Sturdy'])
+    expect(list.getByText('When rolling a damage save, add 2 to the result.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Damage…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Damage to Siege Crawler 1' }))
+    await userEvent.type(dialog.getByLabelText('Damage'), '7')
+    await userEvent.click(dialog.getByRole('button', { name: 'Roll saves' }))
+    // A 6 on its d10, plus 2 for Sturdy: 8 against 7.
+    expect(dialog.getByRole('row', { name: /Siege Crawler/ })).toHaveTextContent('8 6 + 2 Sturdy against 7Saved')
+  })
+
   it("damages one member from its row, and Cancel discards the rolls", async () => {
     const { actions } = setup()
     await userEvent.click(screen.getByRole('button', { name: 'Damage Burglars 2' }))

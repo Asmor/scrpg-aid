@@ -38,6 +38,8 @@ export interface TemplateAbility {
   name: string
   type: 'A' | 'R' | 'I'
   text: string
+  /** Added to each damage save's result (a vehicle's Sturdy, from the rules data). */
+  saveBonus?: number
 }
 
 export interface LieutenantTemplate extends MinionTemplate {

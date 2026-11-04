@@ -112,6 +112,8 @@ export interface Villain {
   heroCount: number
   /** Templates that come with the villain, brought in with it. */
   attached: VillainAttachment[]
+  /** The vehicle template last detached (by unchecking Villainous Vehicle), offered first when it's checked again. */
+  detachedVehicle?: string
   /** Suggest 3 (unofficial): each step's 3 random ids while it's on. */
   suggest?: Partial<Record<SuggestStep, string[]>>
   notes?: string

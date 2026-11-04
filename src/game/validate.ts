@@ -2,7 +2,7 @@
  * Structural checks for a game read from storage or an imported file, which are untrusted.
  * Shape only, like ../hero/validate.ts.
  */
-import { arrayOf, boolean, integer, nonEmptyString, object, oneOf, string, type Check } from '../shape'
+import { arrayOf, boolean, integer, nonEmptyString, object, oneOf, positiveInteger, string, type Check } from '../shape'
 import { die, heroShape, playStateShape } from '../hero/validate'
 import { villainPlayShape, villainShape } from '../villain/validate'
 
@@ -44,6 +44,7 @@ const gameShape = object({
       hidden: boolean,
       owner: object({ kind: oneOf('gm', 'environment') }),
       actions: groupActions,
+      'abilities?': arrayOf(object({ name: string, type: oneOf('A', 'R', 'I'), text: string, 'saveBonus?': positiveInteger })),
       members: arrayOf(object({ id: nonEmptyString, n: integer, die, mods: arrayOf(mod), acted: boolean, 'defenses?': arrayOf(object({ id: nonEmptyString, value: integer, from: string })) })),
     }),
   ),

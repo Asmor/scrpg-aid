@@ -3,7 +3,7 @@
  * beside the heading; on, a dashed bar saying it's unofficial, with Re-roll and Show all N. The bar
  * is a status region; a re-roll keeps focus on Re-roll and announces the new suggestions.
  */
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SuggestStep } from '../model'
 import { drawSuggestions, rerollAnnouncement, SUGGEST_NOUN, type Random } from '../suggest'
 
@@ -48,6 +48,12 @@ export function SuggestButton({ step, suggest, all, picked }: Props) {
 /** The bar shown while Suggest 3 is on. */
 export function SuggestBar({ step, suggest, all, picked }: Props) {
   const [announced, setAnnounced] = useState('')
+  const rerollButton = useRef<HTMLButtonElement>(null)
+  // Focus goes back to Re-roll after each re-roll, once the new list has rendered (some browsers don't focus a clicked button at all).
+  const [rerolls, setRerolls] = useState(0)
+  useEffect(() => {
+    if (rerolls) rerollButton.current?.focus()
+  }, [rerolls])
   const ids = suggest.ids(step)
   if (!ids) return null
   const noun = SUGGEST_NOUN[step]
@@ -58,7 +64,9 @@ export function SuggestBar({ step, suggest, all, picked }: Props) {
       step === 'upgrades' ? picked : [],
     )
     suggest.set(step, next)
-    setAnnounced(rerollAnnouncement(next.map((id) => all.find((o) => o.id === id)?.name ?? id)))
+    // Named in the list's order, as the cards show them.
+    setAnnounced(rerollAnnouncement(all.filter((o) => next.includes(o.id)).map((o) => o.name)))
+    setRerolls((n) => n + 1)
   }
   return (
     <div className="vw-suggestbar" role="status">
@@ -68,7 +76,7 @@ export function SuggestBar({ step, suggest, all, picked }: Props) {
       </span>
       <span className="visually-hidden">{announced}</span>
       <span className="vw-suggestbar__actions">
-        <button type="button" className="button button--small" onClick={reroll}>
+        <button ref={rerollButton} type="button" className="button button--small" onClick={reroll}>
           Re-roll
         </button>
         <button type="button" className="button button--small" onClick={() => suggest.set(step, undefined)}>

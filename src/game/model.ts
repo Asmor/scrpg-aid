@@ -24,7 +24,7 @@ import { emptyPlay } from '../play/state'
 import type { FeedEntry } from '../session/types'
 import type { BasicAction, Die, Zone } from '../rules/types'
 import type { Villain, VillainPlayState } from '../villain/model'
-import type { EnvironmentAspect, EnvironmentTwist } from '../template/model'
+import type { EnvironmentAspect, EnvironmentTwist, TemplateAbility } from '../template/model'
 import { emptyVillainPlay } from '../villain/play'
 
 /** Anything with a turn-order entry. Ids are ids within the game: a hero's or villain's copy, a group, or the environment. */
@@ -111,6 +111,8 @@ export interface NpcGroup extends Visible {
   owner: GroupOwner
   /** The basic actions its members can take; quick add allows any. */
   actions: 'any' | BasicAction[]
+  /** A lieutenant template's abilities, copied in (docs/design/npcs/spec.md, the template table); the GM's only. */
+  abilities?: TemplateAbility[]
   members: NpcMember[]
 }
 
@@ -215,6 +217,8 @@ export const MAX_BOXES = 10
 /** The most members a quick-added group starts with, and the most steps a challenge has. */
 export const MAX_GROUP_SIZE = 20
 export const MAX_STEPS = 10
+/** The most abilities a lieutenant group carries onto the table. */
+export const MAX_ABILITIES = 20
 
 /** The tracker's boxes for these counts, Green first. */
 export function trackerFromCounts(counts: TrackerCounts): Zone[] {

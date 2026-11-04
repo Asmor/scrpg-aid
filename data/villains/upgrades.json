@@ -90,6 +90,7 @@
           "name": "Sturdy",
           "type": "I",
           "text": "When rolling a damage save, add 2 to the result.",
+          "saveBonus": 2,
           "effects": []
         },
         {

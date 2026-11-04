@@ -8,8 +8,8 @@
 import { useEffect, useId, useState } from 'react'
 import { useOptionalTemplateStores } from '../../app/template-store-context'
 import { NewMinionDialog } from '../../template/TemplateEditor'
-import type { MinionTemplate } from '../../template/model'
-import { attachedAs, MOOK_SQUAD, minionLine, setAttached, VILLAINOUS_VEHICLE } from '../attached'
+import type { LieutenantTemplate, MinionTemplate } from '../../template/model'
+import { attachedAs, lieutenantLine, MOOK_SQUAD, minionLine, setAttached, vehicleFromTemplate, VILLAINOUS_VEHICLE } from '../attached'
 import { abilityListField } from '../../creation/abilities'
 import { ROLEPLAYING_QUALITY } from '../../creation/traits'
 import { AbilityChooser } from '../../editor/AbilityPicker'
@@ -143,6 +143,58 @@ function SignatureWell({ villain, update }: { villain: Villain; update: VillainU
   )
 }
 
+/**
+ * "Use a lieutenant from your library", while no vehicle is attached: the lieutenant templates,
+ * the one last detached from this villain first, then the most recently changed. Choosing one
+ * attaches it and fills in the build from it.
+ */
+function LibraryVehicle({ villain, update, upgrade }: { villain: Villain; update: VillainUpdate; upgrade: VillainUpgrade }) {
+  const id = useId()
+  const stores = useOptionalTemplateStores()
+  const [lieutenants, setLieutenants] = useState<LieutenantTemplate[] | null>(null)
+  useEffect(() => {
+    if (!stores) return
+    let current = true
+    stores.lieutenants.list().then(
+      (r) => current && setLieutenants(r.docs),
+      () => current && setLieutenants([]),
+    )
+    return () => {
+      current = false
+    }
+  }, [stores])
+  if (!lieutenants?.length || attachedAs(villain, 'vehicle')) return null
+  const first = villain.detachedVehicle
+  const sorted = [...lieutenants].sort((a, b) => Number(b.id === first) - Number(a.id === first) || b.updatedAt.localeCompare(a.updatedAt))
+  return (
+    <label className="field" htmlFor={id}>
+      <span>Use a lieutenant from your library</span>
+      <select
+        id={id}
+        value=""
+        onChange={(e) => {
+          const t = lieutenants.find((l) => l.id === e.target.value)
+          if (!t) return
+          update((v) => {
+            setAttached(v, 'vehicle', t.id)
+            delete v.detachedVehicle
+            const c = v.upgrades.find((u) => u.id === upgrade.id)
+            if (c) c.vehicle = vehicleFromTemplate(t, upgrade)
+          })
+        }}
+      >
+        <option value="">Build a new one below</option>
+        {sorted.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name.trim() || 'Unnamed lieutenant'} · {lieutenantLine(t)}
+            {t.id === first ? ' (detached from this villain)' : ''}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 /** Villainous Vehicle's well: the vehicle built as a lieutenant, its name, die and abilities. */
 function VehicleWell({ villain, update, upgrade }: { villain: Villain; update: VillainUpdate; upgrade: VillainUpgrade }) {
   const nameId = useId()
@@ -158,6 +210,7 @@ function VehicleWell({ villain, update, upgrade }: { villain: Villain; update: V
     <>
       <p className="vw-well__title">Build the vehicle as a lieutenant</p>
       <p className="hint">Saved as a lieutenant template in your library and attached to {villainDisplayName(villain)}, like an environment's minions.</p>
+      <LibraryVehicle villain={villain} update={update} upgrade={upgrade} />
       <label className="field" htmlFor={nameId}>
         <span>Name</span>
         <input id={nameId} type="text" value={vehicle.name ?? ''} placeholder={`${villainDisplayName(villain)}'s vehicle`} onChange={(e) => setVehicle((v) => (v.name = e.target.value))} />
@@ -254,7 +307,11 @@ export function UpgradesStep({ villain, update, confirm, suggest }: StepProps) {
     const remove = (v: Villain) => {
       v.upgrades = v.upgrades.filter((c) => c.id !== upgrade.id)
       if (!v.upgrades.length) v.mastery = null
-      if (upgrade.id === VILLAINOUS_VEHICLE) setAttached(v, 'vehicle', undefined)
+      if (upgrade.id === VILLAINOUS_VEHICLE) {
+        setAttached(v, 'vehicle', undefined)
+        // Offered first if the upgrade is checked again (unless it's deleted).
+        if (vehicleId) v.detachedVehicle = vehicleId
+      }
       if (upgrade.id === MOOK_SQUAD) setAttached(v, 'signature', undefined)
     }
     const askDelete = async () => {

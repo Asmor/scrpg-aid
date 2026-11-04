@@ -12,6 +12,7 @@ import { IssueBanner, ModeSwitch } from '../components/CharacterHead'
 import { ExportMenu } from '../components/ExportMenu'
 import { buildVillainSheet, villainIdentity } from './sheet'
 import { VillainSheetView } from './VillainSheetView'
+import { useAttached } from './useAttached'
 import { SheetTags } from '../library/SheetTags'
 
 type State = { status: 'loading' } | VillainGetResult | { status: 'error'; message: string }
@@ -20,6 +21,7 @@ export function VillainPage({ id }: { id: string }) {
   const store = useVillainStore()
   const [state, setState] = useState<State>({ status: 'loading' })
   const [saveError, setSaveError] = useState<string | null>(null)
+  const comesWith = useAttached(state.status === 'found' ? state.villain.attached : [])
   // Tag changes save in order, so a quick second change can't land before the first.
   const saving = useRef(Promise.resolve())
 
@@ -91,7 +93,7 @@ export function VillainPage({ id }: { id: string }) {
         }}
         onOpenTag={(path) => void saving.current.then(() => navigate(path))}
       />
-      <VillainSheetView villain={villain} />
+      <VillainSheetView villain={villain} comesWith={comesWith} />
     </div>
   )
 }

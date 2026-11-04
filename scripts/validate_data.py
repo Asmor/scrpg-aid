@@ -188,6 +188,10 @@ def check_node(node, where, known, approaches, books, spans):
         check_pool_uses(node.get("effects"), node.get("pool"), where)
         if "makesMinions" in node and (node["makesMinions"] is not True or not where.startswith("villains/")):
             err(where, "'makesMinions' must be true, and only on villain abilities")
+        if "saveBonus" in node:
+            b = node["saveBonus"]
+            if not (isinstance(b, int) and not isinstance(b, bool) and b > 0) or not where.startswith("villains/"):
+                err(where, "'saveBonus' must be a positive whole number, and only on villain abilities")
         req = node.get("requires")
         if req is not None:
             if not (isinstance(req, dict) and len(REF_KEYS & req.keys()) == 1):

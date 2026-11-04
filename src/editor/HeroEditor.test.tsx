@@ -376,7 +376,7 @@ describe('HeroEditor', () => {
 
     await userEvent.click(screen.getByRole('checkbox', { name: /Modification Wave/ }))
     await userEvent.click(screen.getByRole('checkbox', { name: /Sever Link/ }))
-    const [first, second] = screen.getAllByRole('combobox', { name: '[power]' })
+    const [first, second] = screen.getAllByRole('combobox', { name: /^Power for / })
     await userEvent.selectOptions(first!, 'Flight (d10)')
     await userEvent.selectOptions(second!, 'Teleportation (d8)')
 
@@ -408,7 +408,7 @@ describe('HeroEditor', () => {
     renderEditor(store, 'power-source')
     const green = await screen.findByRole('group', { name: 'Green abilities: choose 1' })
     await userEvent.click(within(green).getByRole('checkbox', { name: /Immunity/ }))
-    await userEvent.type(within(green).getByRole('textbox', { name: '[energy/element]' }), 'Fire')
+    await userEvent.type(within(green).getByRole('textbox', { name: /^Energy\/element for / }), 'Fire')
     await waitFor(async () =>
       expect((await saved(store)).powerSource?.abilities).toEqual([
         { source: 'powerSource.yellow', name: 'Inflict', uses: [{ kind: 'power', id: 'fire' }] },
@@ -480,12 +480,12 @@ describe('HeroEditor', () => {
 
     const green = screen.getByRole('group', { name: 'Green abilities: choose 2' })
     await userEvent.click(within(green).getByRole('checkbox', { name: /Always on the Move/ }))
-    await userEvent.selectOptions(within(green).getByRole('combobox', { name: '[power/quality]' }), 'Speed (d12)')
+    await userEvent.selectOptions(within(green).getByRole('combobox', { name: /^Power\/quality for / }), 'Speed (d12)')
     await userEvent.click(within(green).getByRole('checkbox', { name: /Non-stop Assault/ }))
-    await userEvent.selectOptions(within(green).getByRole('combobox', { name: '[quality]' }), 'Alertness (d8)')
+    await userEvent.selectOptions(within(green).getByRole('combobox', { name: /^Quality for / }), 'Alertness (d8)')
     const yellow = screen.getByRole('group', { name: 'Yellow abilities: choose 1' })
     await userEvent.click(within(yellow).getByRole('checkbox', { name: /Speedy Analysis/ }))
-    await userEvent.selectOptions(within(yellow).getByRole('combobox', { name: '[power]' }), 'Flight (d6)')
+    await userEvent.selectOptions(within(yellow).getByRole('combobox', { name: /^Power for / }), 'Flight (d6)')
     await userEvent.selectOptions(screen.getByLabelText('Principle of Expertise'), 'Principle of the Gearhead')
 
     expect(await screen.findByText('No rule issues in this step.')).toBeInTheDocument()
@@ -766,7 +766,7 @@ describe('HeroEditor', () => {
     // Past d12 the die stays put (ruling 40), and the option says so.
     expect(within(within(rows).getByRole('combobox', { name: 'Raise 1 size (2)' })).getByRole('option', { name: 'Speed d12 → d12 (already the largest)' })).toBeEnabled()
     expect(within(rows).getByText(/^Not in this mode:/)).toHaveTextContent('Not in this mode: Agility, Awareness, Speed, Flight')
-    await userEvent.selectOptions(within(card).getByRole('combobox', { name: '[power]' }), 'Fire (d10)')
+    await userEvent.selectOptions(within(card).getByRole('combobox', { name: /^Power for / }), 'Fire (d10)')
 
     const powerless = screen.getByRole('group', { name: 'Powerless mode' })
     await userEvent.click(within(powerless).getByRole('checkbox', { name: 'Take a Powerless mode' }))
@@ -859,7 +859,7 @@ describe('HeroEditor', () => {
     await userEvent.type(screen.getByRole('textbox', { name: 'Roleplaying quality (d8)' }), 'Old Money')
     const out = screen.getByRole('group', { name: 'Out ability' })
     expect(within(out).queryByLabelText('Your name for it (optional)')).not.toBeInTheDocument()
-    await userEvent.selectOptions(within(out).getByRole('combobox', { name: '[quality]' }), 'Fitness (d10)')
+    await userEvent.selectOptions(within(out).getByRole('combobox', { name: /^Quality for / }), 'Fitness (d10)')
     expect(await screen.findByText('No rule issues in this step.')).toBeInTheDocument()
     await waitFor(async () => {
       const hero = await saved(store)
@@ -887,7 +887,7 @@ describe('HeroEditor', () => {
     await userEvent.click(within(heroic).getByRole('radio', { name: /Natural Leader/ }))
     await userEvent.click(within(heroic).getByRole('radio', { name: /Heroic form \(Natural Leader\)/ }))
     const out = screen.getByRole('group', { name: 'Out ability (heroic form)' })
-    await userEvent.selectOptions(within(out).getByRole('combobox', { name: '[quality]' }), 'Alertness (d8)')
+    await userEvent.selectOptions(within(out).getByRole('combobox', { name: /^Quality for / }), 'Alertness (d8)')
     await waitFor(async () =>
       expect((await saved(store)).archetype?.divided).toMatchObject({ heroicPersonality: { id: 'natural-leader', bonus: [], outUses: [Q('alertness')] }, outFrom: 'heroic' }),
     )
@@ -920,7 +920,7 @@ describe('HeroEditor', () => {
     const athletic = screen.getByRole('group', { name: 'Athletic power Red abilities' })
     await userEvent.click(within(athletic).getByRole('checkbox', { name: /Paragon Feat/ }))
     // Only Athletic powers are offered; Fire isn't one.
-    const power = within(athletic).getByRole('combobox', { name: '[power]' })
+    const power = within(athletic).getByRole('combobox', { name: /^Power for / })
     expect(within(power).getByRole('option', { name: 'Agility (d10)' })).toBeInTheDocument()
     expect(within(power).queryByRole('option', { name: 'Fire (d8)' })).not.toBeInTheDocument()
     await userEvent.selectOptions(power, 'Agility (d10)')
@@ -1010,7 +1010,7 @@ describe('HeroEditor', () => {
       renderEditor(store, 'retcon')
       await userEvent.click(await screen.findByRole('radio', { name: /Change which power or quality/ }))
       await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Ability' }), 'Inflict')
-      await userEvent.selectOptions(within(screen.getByRole('group', { name: 'What Inflict uses now' })).getByRole('combobox', { name: '[power]' }), 'Agility (d10)')
+      await userEvent.selectOptions(within(screen.getByRole('group', { name: 'What Inflict uses now' })).getByRole('combobox', { name: /^Power for / }), 'Agility (d10)')
       await waitFor(async () =>
         expect(await savedRetcon(store)).toEqual({ id: 'change-ability-trait', kind: 'changeAbilityTrait', ability: { source: 'powerSource.yellow', name: 'Inflict' }, uses: [P('agility')] }),
       )
@@ -1179,7 +1179,7 @@ describe('HeroEditor', () => {
     await userEvent.selectOptions(screen.getByLabelText('Swap this ability'), 'Inflict')
     await userEvent.selectOptions(screen.getByLabelText('For this one'), 'Reflexive Burst')
     // It starts from the same power.
-    expect(within(screen.getByRole('group', { name: 'Fill in Reflexive Burst' })).getByRole('combobox', { name: '[power]' })).toHaveDisplayValue('Fire (d8)')
+    expect(within(screen.getByRole('group', { name: 'Fill in Reflexive Burst' })).getByRole('combobox', { name: /^Power for / })).toHaveDisplayValue('Fire (d8)')
     await userEvent.click(screen.getByRole('button', { name: 'Add this change' }))
     await waitFor(async () =>
       expect((await saved(store)).advancement?.changes).toEqual([

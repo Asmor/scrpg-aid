@@ -44,12 +44,18 @@ export interface VillainStepState {
   skipped: boolean
 }
 
-/** Every step's issues and mark. A step with issues shows them whatever else is filled in. */
+/**
+ * Every step's issues and mark. A step's issues show on its mark once it has a choice in it or
+ * the GM has gone past it; until then it's "not started", as in the hero wizard. The issues
+ * themselves are always listed (in the step, and when finishing).
+ */
 export function villainStepStates(villain: Villain, warnings: readonly VillainWarning[]): VillainStepState[] {
   const major = isMajorVillain(villain)
   return VILLAIN_STEPS.map((step, i) => {
     const issues = warnings.filter((w) => w.step === step.id)
-    const mark: StepMark = issues.length > 0 ? 'issues' : STARTED[step.id](villain) ? 'done' : 'todo'
+    const started = STARTED[step.id](villain)
+    const left = reached(villain) > i + 1
+    const mark: StepMark = issues.length > 0 && (started || left) ? 'issues' : started ? 'done' : 'todo'
     return { id: step.id, label: step.label, index: i + 1, issues, mark, skipped: step.id === 'mastery' && !major && issues.length === 0 }
   })
 }

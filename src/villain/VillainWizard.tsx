@@ -31,7 +31,7 @@ import { useTick } from '../play/useTick'
 import { findBook } from '../rules/books'
 import { attachedAs, setAttached, VILLAINOUS_VEHICLE, vehicleTemplate } from './attached'
 import { createVillain, isVillainDraft, villainDisplayName, type Villain } from './model'
-import { useAttached } from './wizard/useAttached'
+import { useAttached } from './useAttached'
 import type { SuggestState } from './wizard/SuggestBar'
 import { cryptoRandom, type Random } from './suggest'
 import type { SuggestStep } from './model'
@@ -171,6 +171,23 @@ export function VillainWizard({ id, step: stepId, random = cryptoRandom }: { id:
   /** Saves the vehicle as its lieutenant template (new, or the attached one updated) when it has changed. */
   // The template made for the vehicle in this visit, so a second save before the villain catches up updates it rather than making another.
   const madeVehicle = useRef<string | null>(null)
+  // When the vehicle's attachment changes in the wizard: detached, a later build is a new template;
+  // a library lieutenant chosen in its place counts as saved as it is.
+  const vehicleId = loaded ? attachedAs(loaded, 'vehicle')?.templateId : undefined
+  const lastVehicleId = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    const before = lastVehicleId.current
+    lastVehicleId.current = vehicleId
+    if (!ready || before === vehicleId) return
+    if (!vehicleId) {
+      madeVehicle.current = null
+      vehicleSaved.current = null
+    } else if (vehicleId !== madeVehicle.current && loaded) {
+      vehicleSaved.current = vehicleKey(loaded)
+    }
+    // Only when the attachment changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleId, ready])
   const saveVehicle = async (v: Villain): Promise<void> => {
     if (!templates) return
     const attached = attachedAs(v, 'vehicle') ?? (madeVehicle.current ? { templateId: madeVehicle.current } : undefined)
@@ -500,7 +517,7 @@ export function VillainWizard({ id, step: stepId, random = cryptoRandom }: { id:
                 Hide
               </button>
             </div>
-            <VillainPreview villain={villain} comesWith={comesWith} />
+            <VillainPreview villain={villain} comesWith={comesWith} onFollow={leave} />
           </aside>
         )}
       </div>
@@ -521,7 +538,7 @@ export function VillainWizard({ id, step: stepId, random = cryptoRandom }: { id:
       )}
       {previewOpen && !wide && (
         <Modal title="Sheet preview" variant={phone ? 'sheet' : 'drawer'} onClose={() => setPreviewOpen(false)}>
-          <VillainPreview villain={villain} comesWith={comesWith} />
+          <VillainPreview villain={villain} comesWith={comesWith} onFollow={leave} />
         </Modal>
       )}
       {asking && (

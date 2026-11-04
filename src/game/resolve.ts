@@ -16,7 +16,7 @@ import type { BasicAction } from '../rules/types'
 import { villainDisplayName } from '../villain/model'
 import type { TableTarget } from './actions'
 import type { Game } from './model'
-import { applySave, heroMinionSave, memberSaveText, rollSave, usedUp, ACTION_NAME, type GroupRollRow, type Random } from './npc'
+import { applySave, groupSaveMods, heroMinionSave, memberSaveText, rollSave, usedUp, ACTION_NAME, type GroupRollRow, type Random } from './npc'
 import { defend, hitCharacter } from './hits'
 import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, memberName, withLog } from './table'
 
@@ -87,7 +87,7 @@ export function applyAttack(game: Game, by: string, to: TableTarget, amount: num
   const group = game.groups.find((g) => g.id === to.groupId)!
   const member = group.members.find((m) => m.id === to.memberId)!
   const logged = withLog(game, [line(clock, author, `${by} attacked ${name}: ${amount} damage.`, gmOnly || group.hidden)])
-  const s = rollSave(group.kind, member, amount, random, defenseId)
+  const s = rollSave(group.kind, member, amount, random, defenseId, groupSaveMods(group))
   return { game: applySave(logged, group.id, s, clock), note: memberSaveText(name, group.kind, member.die, s) }
 }
 

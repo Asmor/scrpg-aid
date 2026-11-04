@@ -16,8 +16,9 @@ import { blockWith, clearDefenses, defensesOf, defenseText, pickDefense, removeD
 import { buildSheet } from '../creation/sheet'
 import { FEED_LIMIT } from '../session/types'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
+import type { TemplateAbility } from '../template/model'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
-import { heroCopy, MAX_BOXES, MAX_GROUP_SIZE, MAX_STEPS, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type HeroInGame, type NpcGroup, type PendingHit, type PlayersSee, type TrackerCounts, type VillainInGame } from './model'
+import { heroCopy, MAX_ABILITIES, MAX_BOXES, MAX_GROUP_SIZE, MAX_STEPS, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type HeroInGame, type NpcGroup, type PendingHit, type PlayersSee, type TrackerCounts, type VillainInGame } from './model'
 import { reconcile, reconcileVillain } from './reconcile'
 
 export const GM = 'GM'
@@ -229,13 +230,14 @@ export function addVillain(game: Game, villain: Villain, clock: Clock, hidden = 
 const GROUP_WORD = { minions: ['minion', 'minions'], lieutenants: ['lieutenant', 'lieutenants'] } as const
 
 /** Quick add, or a template brought in (docs/design/npcs/spec.md, section 3): a group whose members all start with the same die. */
-export function addGroup(game: Game, group: { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean; actions?: NpcGroup['actions']; templateId?: string; owner?: NpcGroup['owner'] }, clock: Clock): Game {
+export function addGroup(game: Game, group: { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean; actions?: NpcGroup['actions']; templateId?: string; owner?: NpcGroup['owner']; abilities?: readonly TemplateAbility[] }, clock: Clock): Game {
   if (!Number.isInteger(group.count) || group.count < 1 || group.count > MAX_GROUP_SIZE) return game
   // Clamped to what the table view carries (../session/protocol.ts): a template's text has no limits of its own.
   const name = group.name.trim().slice(0, MAX_NAME) || (group.kind === 'minions' ? 'Minions' : 'Lieutenants')
   const members = Array.from({ length: group.count }, (_, i) => ({ id: clock.newId(), n: i + 1, die: group.die, mods: [], acted: false }))
   const actions = group.actions === undefined || group.actions === 'any' ? 'any' : [...group.actions]
-  const added: NpcGroup = { id: clock.newId(), ...(group.templateId ? { templateId: group.templateId } : {}), kind: group.kind, name, hidden: group.hidden, owner: group.owner ?? { kind: 'gm' }, actions, members }
+  const abilities = (group.abilities ?? []).slice(0, MAX_ABILITIES).map((a) => ({ name: a.name.trim().slice(0, MAX_NAME), type: a.type, text: a.text.slice(0, MAX_TEXT), ...(a.saveBonus ? { saveBonus: a.saveBonus } : {}) }))
+  const added: NpcGroup = { id: clock.newId(), ...(group.templateId ? { templateId: group.templateId } : {}), kind: group.kind, name, hidden: group.hidden, owner: group.owner ?? { kind: 'gm' }, actions, ...(abilities.length ? { abilities } : {}), members }
   const word = GROUP_WORD[group.kind][group.count === 1 ? 0 : 1]
   const text = `The GM added ${name} (${group.count} ${group.die} ${word})${group.hidden ? ', hidden from players' : ''}.`
   return log(syncTurnOrder({ ...game, groups: [...game.groups, added] }), clock, text, { gmOnly: group.hidden })

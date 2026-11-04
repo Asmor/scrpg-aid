@@ -82,6 +82,13 @@ function environmentForPlayers(env: EnvironmentOnTable): EnvironmentOnTable {
   return { id: env.id, name: env.name, hidden: env.hidden, ...(env.description ? { description: env.description } : {}) }
 }
 
+/** A group without its abilities. */
+function withoutAbilities(group: NpcGroup): NpcGroup {
+  const copy = { ...group }
+  delete copy.abilities
+  return copy
+}
+
 /** The game as `audience` sees it. */
 export function project(game: Game, audience: Audience): TableView {
   const gm = audience === 'gm'
@@ -105,7 +112,8 @@ export function project(game: Game, audience: Audience): TableView {
       ...(player ? { player: { name: player.name, ...(player.since ? { since: player.since } : {}) } } : {}),
     })),
     villains: shown(game.villains).map((v) => villainFor(v, audience)),
-    groups: shown(game.groups),
+    // A lieutenant's abilities are the GM's notes, like a hidden villain's sheet.
+    groups: gm ? shown(game.groups) : shown(game.groups).map(withoutAbilities),
     challenges: shown(game.challenges),
     ...(game.pendingHits?.length ? { pendingHits: gm ? game.pendingHits : game.pendingHits.map(({ gmOnly, ...h }) => (gmOnly ? { ...h, by: 'Someone unseen' } : h)) } : {}),
     feed: gm ? game.feed : game.feed.filter((e) => !e.gmOnly),

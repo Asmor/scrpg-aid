@@ -81,6 +81,15 @@ describe('project', () => {
     })
   })
 
+  it("keeps a lieutenant's abilities for the GM", () => {
+    const c = clock()
+    const abilities = [{ name: 'Sturdy', type: 'I' as const, text: 'Add 2 to damage saves.', saveBonus: 2 }]
+    const g = addGroup(createGame({ id: 'g' }), { kind: 'lieutenants', name: 'Siege Crawler', die: 'd10', count: 1, hidden: false, abilities }, c)
+    expect(project(g, 'gm').groups[0]!.abilities).toEqual(abilities)
+    expect(project(g, 'player').groups[0]).not.toHaveProperty('abilities')
+    expect(tableViewProblem(project(g, 'player'))).toBeUndefined()
+  })
+
   it('drops hidden actors from the turn order, and who is acting when they are', () => {
     const c = clock()
     let game = secretive()

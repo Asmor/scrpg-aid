@@ -7,9 +7,10 @@ import type { NpcGroup } from '../game/model'
 import type { Die } from '../rules/types'
 import { createChallengeTemplate, createLieutenantTemplate, createMinionTemplate, type ChallengeTemplate, type LieutenantTemplate, type MinionTemplate } from './model'
 
-/** A group from a minion or lieutenant template: its name, die, kind and actions, with as many members as asked. */
+/** A group from a minion or lieutenant template: its name, die, kind and actions (and a lieutenant's abilities), with as many members as asked. */
 export function groupFromTemplate(t: MinionTemplate | LieutenantTemplate, kind: NpcGroup['kind'], count: number, hidden: boolean) {
-  return { kind, name: t.name, die: t.die, count, hidden, actions: t.actions, templateId: t.id }
+  const abilities = 'abilities' in t && t.abilities.length ? { abilities: t.abilities } : {}
+  return { kind, name: t.name, die: t.die, count, hidden, actions: t.actions, templateId: t.id, ...abilities }
 }
 
 /** A challenge from a template: its steps, their labels, what it is and what happens when it's done. */
