@@ -4,7 +4,7 @@ import { addMod, emptyPlay, setHealth, setReactionUsed, type Clock } from '../pl
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import type { Villain } from '../villain/model'
-import { createGame, duplicateGame, gameDisplayName, heroCopy, villainCopy, type Game } from './model'
+import { createGame, duplicateGame, gameDisplayName, heroCopy, sceneOnTable, villainCopy, type Game } from './model'
 import { project, viewName } from './project'
 import {
   addChallenge,
@@ -40,7 +40,6 @@ import {
   startRound,
   stepsText,
   syncTurnOrder,
-  trackerCounts,
   turnStrip,
   updateSheet,
   waiting,
@@ -80,10 +79,11 @@ function table(c = clock()) {
 }
 
 describe('a new game', () => {
-  it('starts with 3 green, 3 yellow and 2 red boxes at the first box, before round 1', () => {
+  it('starts with one current scene on the Standard tracker (2 / 4 / 2), at the first box, before round 1', () => {
     const game = createGame()
-    expect(game.scene.tracker).toEqual(['green', 'green', 'green', 'yellow', 'yellow', 'yellow', 'red', 'red'])
-    expect(game.scene.position).toBe(0)
+    expect(sceneOnTable(game).tracker).toEqual(['green', 'green', 'yellow', 'yellow', 'yellow', 'yellow', 'red', 'red'])
+    expect(sceneOnTable(game)).toMatchObject({ position: 0, number: 1, total: 1 })
+    expect(game.scenes.map((s) => s.state)).toEqual(['now'])
     expect(game.round).toBe(0)
     expect(gameDisplayName(game)).toBe('Unnamed game')
   })
@@ -127,30 +127,29 @@ describe('a new game', () => {
 
 describe('the scene tracker', () => {
   it('names boxes by zone and counts them', () => {
-    const tracker = createGame().scene.tracker
+    const { tracker } = sceneOnTable(createGame())
     expect(boxLabel(tracker, 0)).toBe('Green 1')
-    expect(boxLabel(tracker, 3)).toBe('Yellow 1')
+    expect(boxLabel(tracker, 2)).toBe('Yellow 1')
     expect(boxLabel(tracker, 7)).toBe('Red 2')
-    expect(trackerCounts(tracker)).toEqual({ green: 3, yellow: 3, red: 2 })
   })
 
   it('gives the scene zone from the current box', () => {
     const c = clock()
     let game = createGame()
-    expect(sceneZone(game)).toBe('green')
-    game = setTrackerPosition(game, 4, c)
-    expect(sceneZone(game)).toBe('yellow')
+    expect(sceneZone({ scene: sceneOnTable(game) })).toBe('green')
+    game = setTrackerPosition(game, 3, c)
+    expect(sceneZone({ scene: sceneOnTable(game) })).toBe('yellow')
     expect(last(game).text).toBe('The GM moved the scene tracker to Yellow 2.')
   })
 
   it('advances one box, and says when it has run out', () => {
     const c = clock()
-    let game = setTrackerPosition(createGame(), 2, c)
+    let game = setTrackerPosition(createGame(), 1, c)
     game = advanceTracker(game, c)
-    expect(game.scene.position).toBe(3)
+    expect(sceneOnTable(game).position).toBe(2)
     expect(last(game).text).toBe('The scene tracker moved to Yellow 1.')
     game = advanceTracker(setTrackerPosition(game, 7, c), c)
-    expect(game.scene.position).toBe(7)
+    expect(sceneOnTable(game).position).toBe(7)
     expect(last(game).text).toBe('The scene tracker has run out.')
   })
 
@@ -164,10 +163,10 @@ describe('the scene tracker', () => {
     const c = clock()
     let game = setTrackerPosition(createGame(), 6, c)
     game = setupScene(game, { name: ' The Foundry ', counts: { green: 2, yellow: 1, red: 1 }, reset: false }, c)
-    expect(game.scene).toEqual({ name: 'The Foundry', tracker: ['green', 'green', 'yellow', 'red'], position: 3 })
+    expect(sceneOnTable(game)).toMatchObject({ name: 'The Foundry', tracker: ['green', 'green', 'yellow', 'red'], position: 3 })
     expect(texts(game)).toContain('The scene is now The Foundry.')
     game = setupScene(game, { name: 'The Foundry', counts: { green: 2, yellow: 1, red: 1 }, reset: true }, c)
-    expect(game.scene.position).toBe(0)
+    expect(sceneOnTable(game).position).toBe(0)
     expect(last(game).text).toBe('The scene tracker is at Green 1.')
   })
 
@@ -289,14 +288,14 @@ describe('the turn order', () => {
   it('advances the scene tracker when the environment’s turn starts', () => {
     const { game, c, envId } = table()
     let g = startRound(game, { kind: 'hero', id: 'h1' }, c)
-    expect(g.scene.position).toBe(0)
+    expect(sceneOnTable(g).position).toBe(0)
     g = handOff(g, { kind: 'environment', id: envId }, c)
-    expect(g.scene.position).toBe(1)
+    expect(sceneOnTable(g).position).toBe(1)
     expect(texts(g).slice(-2)).toEqual(['Maya Reyes handed off to Collapsing Foundry.', 'The scene tracker moved to Green 2.'])
     // Starting a round with the environment advances it too.
     const fresh = table()
     const r = startRound(fresh.game, { kind: 'environment', id: fresh.envId }, fresh.c)
-    expect(r.scene.position).toBe(1)
+    expect(sceneOnTable(r).position).toBe(1)
   })
 
   it('shows acted actors in the order they acted, then the current one, then the rest', () => {
@@ -352,7 +351,7 @@ describe('the turn order', () => {
       let g = startRound(game, { kind: 'hero', id: 'h1' }, c)
       g = setCurrent(g, { kind: 'environment', id: envId }, c)
       expect(g.turn.current).toEqual({ kind: 'environment', id: envId })
-      expect(g.scene.position).toBe(0)
+      expect(sceneOnTable(g).position).toBe(0)
       expect(last(g).text).toBe('The GM set Collapsing Foundry as acting now.')
     })
 
@@ -417,9 +416,9 @@ describe('heroes and villains in play', () => {
     const c = clock()
     const { game } = table()
     const yellow = setTrackerPosition(game, 3, c)
-    expect(heroPlayInScene(yellow, emptyPlay()).sceneZone).toBe('yellow')
-    expect(heroPlayInScene(game, { ...emptyPlay(), sceneZone: 'red' }).sceneZone).toBeUndefined()
-    const solo = { ...yellow, solo: { kind: 'hero' as const, sourceId: 'hero-a' } }
+    expect(heroPlayInScene({ scene: sceneOnTable(yellow) }, emptyPlay()).sceneZone).toBe('yellow')
+    expect(heroPlayInScene({ scene: sceneOnTable(game) }, { ...emptyPlay(), sceneZone: 'red' }).sceneZone).toBeUndefined()
+    const solo = { scene: sceneOnTable(yellow), solo: { kind: 'hero' as const, sourceId: 'hero-a' } }
     expect(heroPlayInScene(solo, { ...emptyPlay(), sceneZone: 'red' }).sceneZone).toBe('red')
   })
 

@@ -14,7 +14,7 @@ import { usePopover } from '../library/popover-state'
 import { modName, type PlayZone } from '../play/state'
 import { formatFull, formatWhen } from '../play/time'
 import type { Die } from '../rules/types'
-import { sceneDisplayName, type ActorRef, type Challenge, type Game, type GameFeedEntry, type NpcGroup, type PlayersSee } from './model'
+import { sceneDisplayName, type ActorRef, type Challenge, type GameFeedEntry, type HasTracker, type NpcGroup, type PlayersSee } from './model'
 import { actedText, actorKey, boxLabel, groupSummary, memberLabel, memberName, roundOver, sameActor, sceneZone, stepsText, turnStrip, waiting, type ItemRef } from './table'
 import { heroOnTableName, viewHidden, viewName, type TableView } from './project'
 import { Modal } from '../components/Modal'
@@ -167,7 +167,7 @@ function PlayersSeeMenu({ villain, gm }: { villain: VillainView; gm: GmControls 
 // ---- The scene ----
 
 /** The scene tracker: buttons for the GM, an image for everyone else (and on the Games page). */
-export function Tracker({ game, gm }: { game: Pick<Game, 'scene'>; gm?: GmControls }) {
+export function Tracker({ game, gm }: { game: HasTracker; gm?: GmControls }) {
   const { tracker, position } = game.scene
   if (!gm) {
     return (
@@ -200,7 +200,10 @@ function SceneCard({ game, gm }: { game: Pick<TableView, 'scene' | 'environment'
   return (
     <section className="card gt-card gt-scene" aria-labelledby="gt-scene">
       <div>
-        <div className="gt-label">Scene</div>
+        <div className="gt-label">
+          Scene {game.scene.number}
+          {game.scene.total !== undefined && ` of ${game.scene.total}`}
+        </div>
         <h2 id="gt-scene" className={game.scene.name.trim() ? 'gt-scene__name' : 'gt-scene__name placeholder'}>
           {sceneDisplayName(game)}
         </h2>
@@ -240,7 +243,7 @@ function SceneCard({ game, gm }: { game: Pick<TableView, 'scene' | 'environment'
       <p className="gt-sub gt-scene__hint">
         Advances when the environment takes its turn.{gm && ' Click a box to correct it.'}
       </p>
-      {gm && <MenuButton label="Scene setup" items={gm.sceneMenu} sheets={gm.sheets} />}
+      {gm && <MenuButton label="Scene menu" items={gm.sceneMenu} sheets={gm.sheets} />}
     </section>
   )
 }

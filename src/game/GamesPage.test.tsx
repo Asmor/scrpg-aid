@@ -23,6 +23,8 @@ vi.mock('../transfer/download', () => ({ downloadFile: vi.fn() }))
 
 let n = 0
 const clock = { now: new Date(), newId: () => `id${++n}` }
+/** A game with its scene named. */
+const named = (g: Game, name: string): Game => ({ ...g, scenes: g.scenes.map((s) => ({ ...s, name })) })
 
 async function setup(games: Game[], sessionStorage = memoryStorage(), joined: JoinedGame[] = []) {
   const store = new MemoryGameStore()
@@ -51,7 +53,7 @@ function friday(): JoinedGame {
   const c = clock
   const duality = { ...completeHero(), id: 'duality', details: { ...completeHero().details, name: 'Duality' } }
   const jo = { ...completeHero(), id: 'jo', details: { ...completeHero().details, name: 'Jo' } }
-  let g: Game = { ...createGame({ id: 'fri' }), name: 'Friday game', scene: { name: 'The Docks', tracker: createGame().scene.tracker, position: 0 } }
+  let g: Game = named({ ...createGame({ id: 'fri' }), name: 'Friday game' }, 'The Docks')
   g = addHero(g, duality, c, { clientId: 'me', name: 'Alex' })
   g = addHero(g, jo, c, { clientId: 'other', name: 'Priya' })
   g = addVillain(g, { ...adaptiveBruiser(), id: 'secret', details: { ...adaptiveBruiser().details, name: 'Secret Boss' } }, c, true)
@@ -70,7 +72,7 @@ function hosting(gameId: string) {
 function thursday(): Game {
   const maya = { ...completeHero(), id: 'maya' }
   maya.details.name = 'Maya Reyes'
-  let g: Game = { ...createGame({ id: 'thu' }), name: 'Thursday game', tags: ['campaign'], scene: { name: 'The Foundry', tracker: createGame().scene.tracker, position: 0 } }
+  let g: Game = named({ ...createGame({ id: 'thu' }), name: 'Thursday game', tags: ['campaign'] }, 'The Foundry')
   g = addHero(g, maya, clock)
   g = addVillain(g, adaptiveBruiser(), clock, false)
   g = addGroup(g, { kind: 'minions', name: 'Scrap drones', die: 'd6', count: 2, hidden: true }, clock)
@@ -107,7 +109,7 @@ describe('the Games page', () => {
     expect(thu.getByText('Not hosting')).toBeInTheDocument()
     expect(thu.getByText('The Foundry')).toBeInTheDocument()
     expect(thu.getByText('· Round 1 · Maya Reyes is acting')).toBeInTheDocument()
-    expect(thu.getByRole('img', { name: 'Scene tracker at Green 3 of 8' })).toBeInTheDocument()
+    expect(thu.getByRole('img', { name: 'Scene tracker at Yellow 1 of 8' })).toBeInTheDocument()
     expect(thu.getByText('Maya Reyes')).toBeInTheDocument()
     expect(thu.getByText("GM's hero")).toBeInTheDocument()
     expect(thu.getByText('Ironclad, Scrap drones, Crucible')).toBeInTheDocument()

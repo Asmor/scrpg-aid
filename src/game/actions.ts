@@ -20,7 +20,7 @@ import { addMod, addTwist, currentHealth, effectiveZone, MAX_HERO_POINTS, noteGi
 import type { BasicAction } from '../rules/types'
 import { applyAttack, giveMod, protect, targetHidden, targetName } from './resolve'
 import { defend } from './hits'
-import type { ActorRef, Game, HeroInGame } from './model'
+import { sceneOnTable, type ActorRef, type Game, type HeroInGame } from './model'
 import { changeHeroPlay, findHero, handOff, heroPlayInScene, isHidden, itemName, resolveHit, roundOver, sameActor, startRound, waiting } from './table'
 
 export type ModInput = Omit<PlayMod, 'id'>
@@ -97,7 +97,7 @@ const refuse = (reason: string): ActionResult => ({ ok: false, reason })
 /** The hero's play state as the rules see it in this game (with the scene's zone). */
 function inScene(game: Game, hero: HeroInGame) {
   const sheet = buildSheet(hero.sheet)
-  const play = heroPlayInScene(game, hero.play)
+  const play = heroPlayInScene({ scene: sceneOnTable(game), ...(game.solo ? { solo: game.solo } : {}) }, hero.play)
   return { sheet, play, zone: effectiveZone(sheet, play) }
 }
 

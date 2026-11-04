@@ -22,7 +22,8 @@ afterEach(() => {
 async function setup(hash: string, saved?: (s: ReturnType<typeof localSessionStore>) => void) {
   const net = fakeNetwork()
   const games = new MemoryGameStore()
-  await games.save({ ...createGame({ id: 'g', name: 'Thursday game' }), scene: { name: 'The Foundry', tracker: ['green', 'yellow', 'red'], position: 0 } })
+  const created = createGame({ id: 'g', name: 'Thursday game' })
+  await games.save({ ...created, scenes: created.scenes.map((s) => ({ ...s, name: 'The Foundry', tracker: { green: 1, yellow: 1, red: 1 } })) })
   const host = new HostSession(net.connect, { room: ROOM, gameId: 'g', gm: 'Sam', removed: [] }, games, clock)
   const storage = memoryStorage()
   saved?.(localSessionStore(storage))
@@ -45,7 +46,7 @@ describe('watching a game', () => {
     expect(storage.getItem('scrpg.session.screenName')).toBe('"Living room TV"')
 
     // The GM's changes show up; the GM leaving shows in the footer.
-    act(() => host.apply((g) => ({ ...g, scene: { ...g.scene, name: 'The Crucible' } })))
+    act(() => host.apply((g) => ({ ...g, scenes: g.scenes.map((s) => ({ ...s, name: 'The Crucible' })) })))
     await act(() => net.settle())
     expect(await screen.findByRole('heading', { name: 'The Crucible' })).toBeInTheDocument()
     host.leave()

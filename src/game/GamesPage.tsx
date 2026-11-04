@@ -36,7 +36,7 @@ import { useTick } from '../play/useTick'
 import type { ThemePreference } from '../theme/theme'
 import { downloadFile } from '../transfer/download'
 import { gameFileName, gameJson } from '../transfer/files'
-import { createGame, duplicateGame, gameDisplayName, isListedGame, sceneDisplayName, type Game } from './model'
+import { createGame, currentScene, duplicateGame, gameDisplayName, isListedGame, sceneName, sceneOnTable, type Game } from './model'
 import { oppositionText, sceneLine } from './summary'
 import { MenuButton, Tracker } from './TableCenter'
 
@@ -64,10 +64,10 @@ function GameCard({ game, now, actions, hosting }: { game: Game; now: Date; acti
       </div>
       <div>
         <div className="gt-row">
-          <strong>{sceneDisplayName(game)}</strong>
+          <strong>{sceneName(currentScene(game))}</strong>
           <span className="gt-sub">· {sceneLine(game)}</span>
         </div>
-        <Tracker game={game} />
+        <Tracker game={{ scene: sceneOnTable(game) }} />
       </div>
       <div>
         <div className="gt-label">Heroes</div>

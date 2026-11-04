@@ -1,0 +1,7 @@
+{
+  "trackers": [
+    { "id": "standard", "name": "Standard", "book": "core-rules", "pageUnknown": true, "counts": { "green": 2, "yellow": 4, "red": 2 } },
+    { "id": "prolonged", "name": "Prolonged", "book": "core-rules", "pageUnknown": true, "counts": { "green": 3, "yellow": 5, "red": 3 } },
+    { "id": "epic", "name": "Epic", "book": "core-rules", "pageUnknown": true, "counts": { "green": 1, "yellow": 3, "red": 4 } }
+  ]
+}

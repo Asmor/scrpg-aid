@@ -198,8 +198,8 @@ describe('the environment on the table', () => {
 
   it('sets the aspects of a quick-added environment', async () => {
     const { saved } = await setup()
-    await userEvent.click(screen.getByRole('button', { name: 'Scene setup' }))
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Set environment…' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Scene menu' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Environment…' }))
     const dialog = within(screen.getByRole('dialog', { name: 'Set environment' }))
     await userEvent.type(dialog.getByLabelText('Name'), 'Docks')
     await userEvent.click(dialog.getByRole('button', { name: 'Set environment' }))

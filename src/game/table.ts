@@ -18,8 +18,9 @@ import { FEED_LIMIT } from '../session/types'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
 import type { TemplateAbility } from '../template/model'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
-import { heroCopy, MAX_ABILITIES, MAX_BOXES, MAX_GROUP_SIZE, MAX_STEPS, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type HeroInGame, type NpcGroup, type PendingHit, type PlayersSee, type TrackerCounts, type VillainInGame } from './model'
+import { heroCopy, MAX_ABILITIES, MAX_GROUP_SIZE, MAX_STEPS, sceneOnTable, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type HasTracker, type HeroInGame, type NpcGroup, type OppositionRef, type PendingHit, type PlayersSee, type Scene, type SceneOnTable, type TrackerCounts, type VillainInGame } from './model'
 import { reconcile, reconcileVillain } from './reconcile'
+import { validCounts } from './validate'
 
 export const GM = 'GM'
 
@@ -54,13 +55,12 @@ export function shareHistory(game: Game, by: string, entries: readonly { id: str
 // ---- The scene and its tracker ----
 
 /** The current box's zone (Green if the tracker has no boxes). */
-export function sceneZone(game: Pick<Game, 'scene'>): Zone {
-  return game.scene.tracker[game.scene.position] ?? 'green'
+export function sceneZone(view: HasTracker): Zone {
+  return view.scene.tracker[view.scene.position] ?? 'green'
 }
 
-/** How many boxes of each zone the tracker has. */
-export function trackerCounts(tracker: readonly Zone[]): TrackerCounts {
-  return { green: tracker.filter((z) => z === 'green').length, yellow: tracker.filter((z) => z === 'yellow').length, red: tracker.filter((z) => z === 'red').length }
+function changeCurrentScene(game: Game, change: (scene: Scene) => Scene): Game {
+  return { ...game, scenes: game.scenes.map((s) => (s.id === game.currentSceneId ? change(s) : s)) }
 }
 
 /** A box's name: "Green 3" for the third green box. */
@@ -72,41 +72,37 @@ export function boxLabel(tracker: readonly Zone[], index: number): string {
 
 /** The GM moves the tracker to a box (correcting it). */
 export function setTrackerPosition(game: Game, position: number, clock: Clock): Game {
-  if (!Number.isInteger(position) || position < 0 || position >= game.scene.tracker.length || position === game.scene.position) return game
-  return log({ ...game, scene: { ...game.scene, position } }, clock, `The GM moved the scene tracker to ${boxLabel(game.scene.tracker, position)}.`)
+  const { tracker, position: at } = sceneOnTable(game)
+  if (!Number.isInteger(position) || position < 0 || position >= tracker.length || position === at) return game
+  return log(changeCurrentScene(game, (s) => ({ ...s, position })), clock, `The GM moved the scene tracker to ${boxLabel(tracker, position)}.`)
 }
 
 /** Advances the tracker one box (the environment's turn); on the last box it stays and the log says so. */
 export function advanceTracker(game: Game, clock: Clock): Game {
-  const next = game.scene.position + 1
-  if (next >= game.scene.tracker.length) return log(game, clock, 'The scene tracker has run out.')
-  return log({ ...game, scene: { ...game.scene, position: next } }, clock, `The scene tracker moved to ${boxLabel(game.scene.tracker, next)}.`)
+  const { tracker, position } = sceneOnTable(game)
+  const next = position + 1
+  if (next >= tracker.length) return log(game, clock, 'The scene tracker has run out.')
+  return log(changeCurrentScene(game, (s) => ({ ...s, position: next })), clock, `The scene tracker moved to ${boxLabel(tracker, next)}.`)
 }
 
-/** Whether box counts are allowed: each 0–MAX_BOXES, and at least one box. */
-export function validCounts(counts: TrackerCounts): boolean {
-  const all = [counts.green, counts.yellow, counts.red]
-  return all.every((n) => Number.isInteger(n) && n >= 0 && n <= MAX_BOXES) && all.some((n) => n > 0)
-}
-
-/** Scene setup: the scene's name and the box counts, and optionally back to the first box. */
+/** The current scene's name and box counts, and optionally back to the first box. Its position stays, clamped to the new length. */
 export function setupScene(game: Game, setup: { name: string; counts: TrackerCounts; reset: boolean }, clock: Clock): Game {
   if (!validCounts(setup.counts)) return game
+  const before: SceneOnTable = sceneOnTable(game)
   const tracker = trackerFromCounts(setup.counts)
-  const position = setup.reset ? 0 : Math.min(game.scene.position, tracker.length - 1)
-  const name = setup.name.trim()
-  const scene = { name, tracker, position }
+  const position = setup.reset ? 0 : Math.min(before.position, tracker.length - 1)
+  const name = setup.name.trim().slice(0, MAX_NAME)
   const lines: string[] = []
-  if (name !== game.scene.name) lines.push(name ? `The scene is now ${name}.` : 'The scene has no name now.')
-  if (tracker.join() !== game.scene.tracker.join()) lines.push(`The scene tracker now has ${setup.counts.green} green, ${setup.counts.yellow} yellow and ${setup.counts.red} red ${tracker.length === 1 ? 'box' : 'boxes'}.`)
-  if (position !== game.scene.position || (lines.length && setup.reset)) lines.push(`The scene tracker is at ${boxLabel(tracker, position)}.`)
-  return withLog({ ...game, scene }, lines.map((text) => line(clock, text)))
+  if (name !== before.name) lines.push(name ? `The scene is now ${name}.` : 'The scene has no name now.')
+  if (tracker.join() !== before.tracker.join()) lines.push(`The scene tracker now has ${setup.counts.green} green, ${setup.counts.yellow} yellow and ${setup.counts.red} red ${tracker.length === 1 ? 'box' : 'boxes'}.`)
+  if (position !== before.position || (lines.length && setup.reset)) lines.push(`The scene tracker is at ${boxLabel(tracker, position)}.`)
+  return withLog(changeCurrentScene(game, (s) => ({ ...s, name, tracker: { ...setup.counts }, position })), lines.map((text) => line(clock, text)))
 }
 
 // ---- What's on the table ----
 
 /** Something the GM can hide: an opposition item or the environment. */
-export type ItemRef = { kind: 'villain' | 'group' | 'challenge' | 'environment'; id: string }
+export type ItemRef = OppositionRef
 
 export const findHero = (game: Pick<Game, 'heroes'>, id: string) => game.heroes.find((h) => h.id === id)
 export const findVillain = (game: Pick<Game, 'villains'>, id: string) => game.villains.find((v) => v.id === id)
@@ -202,8 +198,8 @@ export function syncTurnOrder(game: Game): Game {
 }
 
 /** The game's copy of a library document, if it has one (one copy per game). */
-export function copyOf(game: Pick<Game, 'heroes' | 'villains'>, kind: 'hero' | 'villain', sourceId: string): HeroInGame | VillainInGame | undefined {
-  return kind === 'hero' ? game.heroes.find((h) => h.sourceId === sourceId) : game.villains.find((v) => v.sourceId === sourceId)
+export function copyOf(game: Pick<Game, 'heroes' | 'villains' | 'offTable'>, kind: 'hero' | 'villain', sourceId: string): HeroInGame | VillainInGame | undefined {
+  return kind === 'hero' ? game.heroes.find((h) => h.sourceId === sourceId) : (game.villains.find((v) => v.sourceId === sourceId) ?? game.offTable.villains.find((v) => v.sourceId === sourceId))
 }
 
 /** Copies a hero into the game with fresh play state: one of the GM's own, or (Phase 2) a joining player's. */
@@ -267,13 +263,30 @@ export function addChallenge(game: Game, challenge: { name: string; steps: numbe
  * table view carries (../session/protocol.ts).
  */
 export function setEnvironment(game: Game, environment: Omit<EnvironmentOnTable, 'id'>, clock: Clock): Game {
+  return placeEnvironment(game, newEnvironment(environment, clock), clock)
+}
+
+/** An environment copy: its name and description clamped to what the table view carries. */
+export function newEnvironment(environment: Omit<EnvironmentOnTable, 'id'>, clock: Clock): EnvironmentOnTable {
   const name = environment.name.trim().slice(0, MAX_NAME) || 'Environment'
   const description = environment.description?.trim().slice(0, MAX_TEXT)
   const { description: _, ...rest } = environment
+  return { ...rest, id: clock.newId(), name, ...(description ? { description } : {}) }
+}
+
+/**
+ * Puts an environment on the table (it may be waiting off the table). The one it replaces goes
+ * off the table if a planned scene still names it, or out of the game if not.
+ */
+export function placeEnvironment(game: Game, environment: EnvironmentOnTable, clock: Clock): Game {
+  const old = game.environment
   // The old environment's groups stay on the table as the GM's, each with its own turn.
-  const groups = game.environment ? game.groups.map((g) => (g.owner.kind === 'environment' ? { ...g, owner: { kind: 'gm' as const } } : g)) : game.groups
-  const replaced = { ...game, groups, environment: { ...rest, id: clock.newId(), name, ...(description ? { description } : {}) } }
-  return log(syncTurnOrder(replaced), clock, `The environment is now ${name}${environment.hidden ? ', hidden from players' : ''}.`, { gmOnly: environment.hidden })
+  const groups = old ? game.groups.map((g) => (g.owner.kind === 'environment' ? { ...g, owner: { kind: 'gm' as const } } : g)) : game.groups
+  const keepOld = old && old.id !== environment.id && game.scenes.some((s) => s.state === 'planned' && s.environmentId === old.id)
+  const others = game.offTable.environments.filter((e) => e.id !== environment.id)
+  const offTable = { ...game.offTable, environments: keepOld ? [...others, old] : others }
+  const replaced = { ...game, groups, offTable, environment }
+  return log(syncTurnOrder(replaced), clock, `The environment is now ${environment.name}${environment.hidden ? ', hidden from players' : ''}.`, { gmOnly: environment.hidden })
 }
 
 /** Removes an item or a hero from the table (and from the turn order). */
@@ -405,7 +418,7 @@ export function updateSheet(game: Game, ref: { kind: 'hero'; id: string; sheet: 
  * A hero's play state with this game's scene zone, which raises their zone (p. 14; heroes only,
  * ruling 64). A solo game has no tracker: the Play page's own scene control sets it.
  */
-export function heroPlayInScene(game: Pick<Game, 'scene' | 'solo'>, play: PlayState): PlayState {
+export function heroPlayInScene(game: HasTracker & { solo?: unknown }, play: PlayState): PlayState {
   if (game.solo) return play
   const zone = sceneZone(game)
   const { sceneZone: _, ...rest } = play

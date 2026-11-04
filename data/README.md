@@ -24,12 +24,14 @@ Mechanical content extracted from *Sentinel Comics: The Roleplaying Game — Cor
 | `villains/health.json` | Villain Health formula and zone chart (p. 239) |
 | `minions/minions.json` | Minion and lieutenant creation guidelines, scene difficulty (p. 186, 204–207) |
 | `environments/environments.json` | Environment creation, twist strength guidelines, challenges (p. 157, 189–199, 240–245) |
+| `scenes/trackers.json` | Scene tracker presets: name and box counts per zone. Counts come from the scenes design spec; each entry has `pageUnknown: true` until its printed page is filled in |
 
 Pre-made heroes, villains, minions, and environments (Chapter 7, adventure issues, and examples) are intentionally **not** included.
 
 ## Conventions
 
 - **Page references:** every object with a `page`, `pages`, or `chartPage` also has a `book`, an id from `books.json` (currently always `"core-rules"`). Page numbers are the numbers printed in that book, so players can look things up in a physical copy. (For the Core Rules PDF, the PDF page index is the printed page + 8.) The Markdown documents in `rules/` cite Core Rules pages.
+- **Unknown pages:** `scenes/trackers.json` is the only file allowed `pageUnknown: true` in place of a `page`. It's an open item, not a convention to copy.
 - **Ids** are kebab-case and unique within their list. Cross-references use these ids.
 - **Dice** are strings: `"d4"`, `"d6"`, `"d8"`, `"d10"`, `"d12"`.
 - **Option references** use one key: `{ "power": id }`, `{ "quality": id }`, `{ "powerCategory": id }`, or `{ "qualityCategory": id }`. Ids come from `heroes/powers-qualities.json`.

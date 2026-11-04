@@ -14,7 +14,7 @@ const maya = (): Hero => ({ ...completeHero(), id: 'maya-src', details: { ...com
 
 function game(): Game {
   let g = createGame({ id: 'g', name: 'Thursday game' })
-  g = { ...g, scene: { ...g.scene, name: 'The Foundry' } }
+  g = { ...g, scenes: g.scenes.map((s) => ({ ...s, name: 'The Foundry' })) }
   g = addHero(g, maya(), clock(), { clientId: 'c1', name: 'Alex', since: '2026-11-03T21:00:00Z' })
   g = addVillain(g, { ...adaptiveBruiser(), id: 'gravelord' }, clock())
   const villain = g.villains[0]!

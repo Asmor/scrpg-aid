@@ -17,7 +17,7 @@ import { PLAY_ZONE_LABEL } from '../hero/labels'
 import type { BasicAction, Die } from '../rules/types'
 import { ASPECT_COUNT, type EnvironmentAspect, type EnvironmentTwist } from '../template/model'
 import { aspectName, attachedGroup, twistTitle, type EnvironmentRoll } from './environment'
-import { MAX_GROUP_SIZE, type ActorRef, type EnvironmentOnTable, type Game, type TableTwist } from './model'
+import { MAX_GROUP_SIZE, sceneOnTable, type ActorRef, type EnvironmentOnTable, type Game, type TableTwist } from './model'
 import { boxLabel, itemName, roundOver, sameActor, sceneZone, waiting, type ItemRef } from './table'
 import { MenuButton } from './TableCenter'
 
@@ -171,7 +171,7 @@ export function RunningEnvironment({ game, env, actions, sheets, random }: { gam
   const attached = env.attached ?? []
   const [counts, setCounts] = useState<number[]>(() => attached.map((a) => a.groupSize))
   const aspects = env.aspects ?? []
-  const zone = sceneZone(game)
+  const zone = sceneZone({ scene: sceneOnTable(game) })
   const me: ActorRef = { kind: 'environment', id: env.id }
   const itsTurn = sameActor(game.turn.current, me)
   const groups = game.groups.filter((g) => g.owner.kind === 'environment')
@@ -180,7 +180,7 @@ export function RunningEnvironment({ game, env, actions, sheets, random }: { gam
     <div className="gt-env">
       <p className="gt-sub">
         Environment · the scene is {PLAY_ZONE_LABEL[zone]}
-        {itsTurn && ` · the tracker just moved to ${boxLabel(game.scene.tracker, game.scene.position)}`}
+        {itsTurn && ` · the tracker just moved to ${boxLabel(sceneOnTable(game).tracker, sceneOnTable(game).position)}`}
       </p>
       <div className="gt-row">
         <span className="gt-grow" />

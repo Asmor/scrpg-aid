@@ -14,7 +14,7 @@ const clock = () => ({ now: new Date('2026-11-03T21:00:00Z'), newId: () => `id${
 
 function game(sceneName = 'The Foundry'): Game {
   let g = createGame({ id: 'g1', name: 'Thursday game' })
-  g = { ...g, scene: { ...g.scene, name: sceneName } }
+  g = { ...g, scenes: g.scenes.map((s) => ({ ...s, name: sceneName })) }
   g = addGroup(g, { kind: 'minions', name: 'Secret drones', die: 'd6', count: 2, hidden: true }, clock())
   return setNotes(g, 'The crucible is a trap.')
 }

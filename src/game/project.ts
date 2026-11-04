@@ -4,7 +4,7 @@
  * and observers their **projection**, made here. Pure.
  *
  * Privacy is decided here, never left to the UI: a hidden item, a hidden actor, the GM's notes,
- * sheet update requests, GM-only log lines, a villain's sheet and status die, and whatever "What
+ * planned scenes and set aside items (they're off the table, so never copied here), sheet update requests, GM-only log lines, a villain's sheet and status die, and whatever "What
  * players see" holds back are simply not in a projection.
  *
  * The GM's own table renders from the same shape (`project(game, 'gm')`), hidden items and all,
@@ -17,7 +17,7 @@ import { villainSummary } from '../villain/play'
 import type { PlayMod, PlayTwist } from '../hero/model'
 import type { PlayZone } from '../play/state'
 import type { Die } from '../rules/types'
-import type { ActorRef, Challenge, EnvironmentOnTable, Game, GameFeedEntry, NpcGroup, PendingHit, PlayersSee } from './model'
+import { sceneOnTable, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type NpcGroup, type PendingHit, type PlayersSee, type SceneOnTable } from './model'
 import { groupLabel, isHidden, sameActor } from './table'
 
 export type Audience = 'gm' | 'player' | 'observer'
@@ -52,7 +52,8 @@ export interface VillainOnTable {
 export interface TableView {
   id: string
   name: string
-  scene: Game['scene']
+  /** The current scene. Planned scenes, set aside items and scene notes are in no view but the GM's own game. */
+  scene: SceneOnTable
   environment?: EnvironmentOnTable
   round: number
   turn: Game['turn']
@@ -95,10 +96,12 @@ export function project(game: Game, audience: Audience): TableView {
   const shown = <T extends { hidden: boolean }>(items: readonly T[]) => (gm ? [...items] : items.filter((i) => !i.hidden))
   const visibleActor = (ref: ActorRef) => gm || !isHidden(game, ref)
   const current = game.turn.current && visibleActor(game.turn.current) ? game.turn.current : undefined
+  const { total, ...scene } = sceneOnTable(game)
   return {
     id: game.id,
     name: game.name,
-    scene: game.scene,
+    // "Scene 3 of 4" is the GM's: how many are planned is private.
+    scene: gm && total !== undefined ? { ...scene, total } : scene,
     ...(game.environment && (gm || !game.environment.hidden) ? { environment: gm ? game.environment : environmentForPlayers(game.environment) } : {}),
     round: game.round,
     turn: {

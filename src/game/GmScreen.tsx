@@ -1,6 +1,6 @@
 /**
  * The GM screen: the GM's side panel (docs/design/game-table/spec.md, section 7). Quick add,
- * Running (the villain or group the GM is working), and the Bring in and Notes tabs.
+ * Running (the villain or group the GM is working), and the Bring in, Scenes and Notes tabs.
  */
 import { useEffect, useId, useState } from 'react'
 import { useStore } from '../app/store-context'
@@ -29,6 +29,7 @@ import { RunningEnvironment, type EnvironmentActions } from './RunningEnvironmen
 import { RunningGroup, type GroupActions } from './RunningGroup'
 import { targetId } from './roll-targets'
 import { gmTable, targetOptions } from './target-options'
+import { ScenesTab, type SceneActions } from './ScenesTab'
 import { ZoneChip } from './TableCenter'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -49,8 +50,11 @@ type VillainChange = (fn: (play: VillainPlayState, clock: Clock) => VillainPlayS
 /** What a villain's roll does to others at the table: each target's id (./roll-targets.ts), and the damage, defense or mod. */
 export type VillainAttacks = (results: ({ kind: 'attack' | 'defend'; to: string; amount: number } | { kind: 'mod'; to: string; mod: Omit<PlayMod, 'id'> })[]) => void
 
+/** The tabs under Running. */
+export type GmTab = 'bring' | 'scenes' | 'notes'
+
 /** The villain's copy in this game: its sheet and its play state here. */
-function RunningVillain({ game, copy, change, attack, random }: { game: Game; copy: VillainInGame; change: VillainChange; attack: VillainAttacks; random?: () => number }) {
+function RunningVillain({ game, copy, change, attack, advance, random }: { game: Game; copy: VillainInGame; change: VillainChange; attack: VillainAttacks; advance: () => void; random?: () => number }) {
   const { sheet: villain, play } = copy
   const id = useId()
   const [amount, setAmount] = useState('')
@@ -177,6 +181,9 @@ function RunningVillain({ game, copy, change, attack, random }: { game: Game; co
           </button>
         </form>
       )}
+      <button type="button" className="button button--small" disabled={Boolean(play.sceneAdvanced) || out} onClick={advance}>
+        {play.sceneAdvanced ? 'Scene tracker advanced (once per scene)' : 'Advance the scene tracker (once per scene)'}
+      </button>
       <ul className="gt-abilities" aria-label="Abilities">
         {[...sheet.abilities, ...(sheet.mastery ? [sheet.mastery] : [])].map((a, i) => {
           const usable = a.type !== 'I' || (a.use.pool !== undefined && a.use.effects.length > 0)
@@ -401,10 +408,14 @@ export type QuickAddKind = 'minions' | 'lieutenants' | 'challenge'
 interface GmScreenProps {
   game: Game
   quickAdd: (kind: QuickAddKind) => void
-  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange; attack: VillainAttacks } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'environment'; env: EnvironmentOnTable; actions: EnvironmentActions } | { kind: 'missing' }
+  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange; attack: VillainAttacks; advance: () => void } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'environment'; env: EnvironmentOnTable; actions: EnvironmentActions } | { kind: 'missing' }
   stopRunning: () => void
   bring: BringIn
   setNotes: (notes: string) => void
+  /** Which tab is showing: the page opens Scenes from the scene card's menu. */
+  tab: GmTab
+  setTab: (tab: GmTab) => void
+  scenes: SceneActions
   /** Players' sheet update requests, shown at the top while there are any (section 8). */
   requests?: { heroId: string; name: string; summary: string }[]
   onReview?: (heroId: string) => void
@@ -413,9 +424,8 @@ interface GmScreenProps {
   sheets?: boolean
 }
 
-export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes, requests = [], onReview, random, sheets = false }: GmScreenProps) {
+export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes, tab, setTab, scenes, requests = [], onReview, random, sheets = false }: GmScreenProps) {
   const id = useId()
-  const [tab, setTab] = useState<'bring' | 'notes'>('bring')
   const runningName = running?.kind === 'villain' ? villainDisplayName(running.villain.sheet) : running?.kind === 'group' ? running.group.name : running?.kind === 'environment' ? running.env.name : ''
   return (
     <aside className="gt-side" aria-label="GM screen">
@@ -472,7 +482,7 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
             </button>
           </div>
           {running.kind === 'villain' ? (
-            <RunningVillain key={running.villain.id} game={game} copy={running.villain} change={running.change} attack={running.attack} random={random} />
+            <RunningVillain key={running.villain.id} game={game} copy={running.villain} change={running.change} attack={running.attack} advance={running.advance} random={random} />
           ) : running.kind === 'environment' ? (
             <RunningEnvironment key={running.env.id} game={game} env={running.env} actions={running.actions} sheets={sheets} random={random} />
           ) : (
@@ -481,10 +491,13 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
         </section>
       )}
 
-      <section className="card" aria-label="Library and notes">
+      <section className="card" aria-label="Library, scenes and notes">
         <div className="gt-tabs" role="tablist" aria-label="GM screen">
           <button type="button" role="tab" id={`${id}-tab-bring`} aria-controls={`${id}-panel`} aria-selected={tab === 'bring'} className={tab === 'bring' ? 'gt-tabs__on' : undefined} onClick={() => setTab('bring')}>
             Bring in
+          </button>
+          <button type="button" role="tab" id={`${id}-tab-scenes`} aria-controls={`${id}-panel`} aria-selected={tab === 'scenes'} className={tab === 'scenes' ? 'gt-tabs__on' : undefined} onClick={() => setTab('scenes')}>
+            Scenes
           </button>
           <button type="button" role="tab" id={`${id}-tab-notes`} aria-controls={`${id}-panel`} aria-selected={tab === 'notes'} className={tab === 'notes' ? 'gt-tabs__on' : undefined} onClick={() => setTab('notes')}>
             Notes
@@ -493,6 +506,8 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
         <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-tab-${tab}`}>
           {tab === 'bring' ? (
             <BringInTab bring={bring} />
+          ) : tab === 'scenes' ? (
+            <ScenesTab game={game} actions={scenes} />
           ) : (
             <div className="gt-tab">
               <label className="field" htmlFor={`${id}-notes`}>

@@ -20,17 +20,19 @@ import { formatAgoInline } from '../library/when'
 import type { Clock } from '../play/state'
 import { useTick } from '../play/useTick'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
-import { recalculateHealth, villainHealth } from '../villain/play'
+import { advanceScene, recalculateHealth, villainHealth } from '../villain/play'
 import { BringInVillainDialog, RecalculateHealthDialog } from './VillainDialogs'
-import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, SceneSetupDialog, TwistDialog, UpdateDialog } from './dialogs'
-import { GmScreen, type QuickAddKind, type VillainAttacks } from './GmScreen'
+import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, TwistDialog, UpdateDialog } from './dialogs'
+import { GmScreen, type GmTab, type QuickAddKind, type VillainAttacks } from './GmScreen'
 import type { GroupActions } from './RunningGroup'
 import { applySaves } from './npc'
 import { applyAttack, applyGroupRoll, giveMod, protect } from './resolve'
 import { parseTarget } from './roll-targets'
 import { applyHeroChange, type HeroChange } from './hero-changes'
-import { gameDisplayName, sceneDisplayName, type ActorRef, type Game, type HeroInGame, type VillainInGame } from './model'
+import { currentScene, gameDisplayName, sceneName, sceneOnTable, type ActorRef, type Game, type HeroInGame, type VillainInGame } from './model'
 import { healthLine, reconcile, reconcileVillain } from './reconcile'
+import { SceneEditor } from './SceneEditor'
+import { saveCurrentScene } from './scenes'
 import { sheetDiff } from './sheet-diff'
 import { TableCenter, TableLog, ZoneChip, type GmControls, type HeroView, type VillainView } from './TableCenter'
 import { useDocMap } from './useDocMap'
@@ -110,6 +112,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   // The turn last seen: when it becomes the environment's turn (or the game opens on it), its panel opens (npcs spec, section 6).
   const [seenTurn, setSeenTurn] = useState<string | null>(null)
   const [tab, setTab] = useState<'table' | 'gm' | 'log'>('table')
+  const [gmTab, setGmTab] = useState<GmTab>('bring')
   const [announce, setAnnounce] = useState('')
   const [hostError, setHostError] = useState<string | null>(null)
   // Quick add's "Save to library" failing (the item is still on the table).
@@ -160,7 +163,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   }
   const connected = hosted?.connected ?? new Set<string>()
   const players = game.heroes.filter((h) => h.player)
-  const zone = T.sceneZone(game)
+  const zone = T.sceneZone({ scene: sceneOnTable(game) })
 
   /** A GM change to a hero's copy in this game, in its history and the log. */
   const changeHero = (heroId: string, change: HeroChange) => apply((g) => T.changeHeroPlay(g, heroId, (p, sheet) => applyHeroChange(p, buildSheet(sheet), change, clock()), clock()))
@@ -193,7 +196,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   // ---- What the cards show ----
 
   const table = project(game, 'gm')
-  const heroes: HeroView[] = game.heroes.map((h) => heroView(h, game, { disconnected: Boolean(h.player && !connected.has(h.player.clientId)), syncRequested: game.pendingSyncs.some((r) => r.heroId === h.id), waiting: (game.pendingHits ?? []).filter((x) => x.heroId === h.id), chooser: T.defenseChooser(h) }))
+  const heroes: HeroView[] = game.heroes.map((h) => heroView(h, { scene: table.scene }, { disconnected: Boolean(h.player && !connected.has(h.player.clientId)), syncRequested: game.pendingSyncs.some((r) => r.heroId === h.id), waiting: (game.pendingHits ?? []).filter((x) => x.heroId === h.id), chooser: T.defenseChooser(h) }))
   const villains: VillainView[] = table.villains.map(villainView)
 
   // ---- The GM's controls ----
@@ -209,8 +212,15 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const gm: GmControls = {
     setPosition: (i) => apply((g) => T.setTrackerPosition(g, i, clock())),
     sceneMenu: [
-      { label: 'Scene setup…', onSelect: () => setDialog({ kind: 'scene' }) },
-      { label: 'Set environment…', onSelect: () => setDialog({ kind: 'environment' }) },
+      { label: 'Edit this scene…', onSelect: () => setDialog({ kind: 'scene' }) },
+      {
+        label: 'Plan scenes',
+        onSelect: () => {
+          setGmTab('scenes')
+          if (phone) setTab('gm')
+        },
+      },
+      { label: 'Environment…', onSelect: () => setDialog({ kind: 'environment' }) },
       ...(env && !env.hidden ? [{ label: 'Hide the environment from players', onSelect: () => hide({ kind: 'environment', id: env.id }) }] : []),
       ...(env ? [{ label: 'Remove the environment…', danger: true, onSelect: () => setDialog({ kind: 'removeItem', ref: { kind: 'environment', id: env.id }, name: env.name }) }] : []),
     ],
@@ -295,6 +305,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         kind: 'villain' as const,
         villain: runningVillain,
         change: (fn: (p: VillainPlayState, c: Clock) => VillainPlayState) => changeVillain(runningVillain.id, fn),
+        advance: () => apply((g) => T.advanceTracker(T.changeVillainPlay(g, runningVillain.id, (p) => advanceScene(p, clock()), clock()), clock())),
         attack: ((results) =>
           apply((g) =>
             results.reduce((x, a) => {
@@ -365,6 +376,9 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       stopRunning={() => setRunning(null)}
       bring={bring}
       setNotes={(notes) => apply((g) => T.setNotes(g, notes))}
+      tab={gmTab}
+      setTab={setGmTab}
+      scenes={{ edit: () => setDialog({ kind: 'scene' }) }}
       requests={game.pendingSyncs.flatMap((r) => {
         const copy = T.findHero(game, r.heroId)
         if (!copy) return []
@@ -380,7 +394,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   )
   const center = <TableCenter game={table} heroes={heroes} villains={villains} now={now} gm={gm} hideLog={phone} />
   const saveError = editor.saveError
-  const details = `${game.round > 0 ? `Round ${game.round}` : 'Not started'} · ${sceneDisplayName(game)}`
+  const details = `${game.round > 0 ? `Round ${game.round}` : 'Not started'} · ${sceneName(currentScene(game))}`
 
   return (
     <PopoverGroup>
@@ -514,7 +528,17 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           />
         ))}
       {dialog?.kind === 'environment' && <EnvironmentDialog {...(env ? { current: env.name } : {})} onSet={(e) => apply((g) => T.setEnvironment(g, e, clock()))} onClose={() => setDialog(null)} />}
-      {dialog?.kind === 'scene' && <SceneSetupDialog game={game} onSave={(setup) => apply((g) => T.setupScene(g, setup, clock()))} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'scene' && (
+        <SceneEditor
+          game={game}
+          clock={clock}
+          onSave={(draft, restart) => {
+            setDialog(null)
+            apply((g) => saveCurrentScene(g, draft, restart, clock()))
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog?.kind === 'heroHealth' && <HealthDialog name={dialog.hero.name} health={dialog.hero.health ?? 0} {...(dialog.hero.maxHealth !== undefined ? { maxHealth: dialog.hero.maxHealth } : {})} onSet={(value) => changeHero(dialog.hero.ref.id, { kind: 'health', value })} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'heroMod' && <ModDialog title={`Give ${dialog.hero.name} a bonus or penalty`} onAdd={(mod) => changeHero(dialog.hero.ref.id, { kind: 'mod', mod })} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'heroTwist' && <TwistDialog name={dialog.hero.name} onAdd={(twist) => changeHero(dialog.hero.ref.id, { kind: 'twist', twist })} onClose={() => setDialog(null)} />}

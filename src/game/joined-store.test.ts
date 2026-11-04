@@ -23,7 +23,7 @@ describe('joined games on a player’s device', () => {
   it('reads back what it saves, and refuses damaged or other-version records', () => {
     const one = joined()
     expect(parseSavedJoined(joinedToSaved(one))).toEqual({ ok: true, doc: one })
-    expect(parseSavedJoined({ v: 2, joined: joined() }).ok).toBe(false)
+    expect(parseSavedJoined({ v: 3, joined: joined() }).ok).toBe(false)
     expect(parseSavedJoined({ v: 1, joined: { ...joined(), table: { ...joined().table, heroes: 'x' } } }).ok).toBe(false)
     expect(parseSavedJoined(null).ok).toBe(false)
   })

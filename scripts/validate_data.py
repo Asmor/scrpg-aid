@@ -67,6 +67,7 @@ PAGE_SPANS = {
     "villains/health.json": {"core-rules": (239, 239)},
     "minions/minions.json": {"core-rules": (186, 207)},
     "environments/environments.json": {"core-rules": (157, 245)},
+    "scenes/trackers.json": {"core-rules": (1, MAX_PAGE)},
 }
 
 errors = []
@@ -246,7 +247,7 @@ def check_node(node, where, known, approaches, books, spans):
                 v = node["pages"]
                 if not (isinstance(v, list) and v and all(isinstance(p, int) and lo <= p <= hi for p in v)):
                     err(where, f"pages {v!r} outside this file's span {lo}-{hi} for '{book}'")
-    elif "book" in keys:
+    elif "book" in keys and not (where.startswith("scenes/trackers.json") and node.get("pageUnknown") is True):
         err(where, "'book' without a page reference")
 
     # Category and approach references.
@@ -529,6 +530,31 @@ def check_villains(docs):
         check_ranges(items(vh, "ranges", "villains/health.json"), "villains/health.json")
 
 
+def check_scenes(docs):
+    """Scene tracker presets: counts per zone, and a page (or the explicit pageUnknown marker)."""
+    entries = items(docs.get("scenes/trackers.json"), "trackers", "scenes/trackers.json")
+    seen = set()
+    ids = set()
+    for t in entries:
+        where = f"scenes/trackers.json[{t.get('id', '?')}]"
+        require(t, ["id", "name", "counts", "book"], where)
+        if t.get("id") in ids:
+            err("scenes/trackers.json", f"duplicate id '{t.get('id')}'")
+        ids.add(t.get("id"))
+        if "page" not in t and t.get("pageUnknown") is not True:
+            err(where, "needs a page, or pageUnknown: true until the page is known")
+        counts = t.get("counts")
+        if not isinstance(counts, dict) or set(counts) != ZONES or not all(is_int(n) and 0 <= n <= 10 for n in counts.values()):
+            err(where, "counts should be green, yellow and red, each 0 to 10")
+            continue
+        if sum(counts.values()) < 1:
+            err(where, "a tracker needs at least one box")
+        key = tuple(counts[z] for z in ("green", "yellow", "red"))
+        if key in seen:
+            err(where, "another preset has the same counts")
+        seen.add(key)
+
+
 def main():
     files = sorted(p.relative_to(DATA).as_posix() for p in DATA.rglob("*.json"))
     docs = {rel: load(rel) for rel in files}
@@ -572,6 +598,7 @@ def main():
 
     check_heroes(docs)
     check_villains(docs)
+    check_scenes(docs)
     report(len(files))
 
 

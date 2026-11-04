@@ -6,13 +6,13 @@ import { buildSheet } from '../creation/sheet'
 import { heroDisplayName } from '../hero/model'
 import { formDice } from '../play/forms'
 import { currentHealth, effectiveZone, statusDieFor } from '../play/state'
-import type { Game, HeroInGame } from './model'
+import type { HasTracker, HeroInGame } from './model'
 import type { HeroOnTable, VillainOnTable } from './project'
 import { heroPlayInScene } from './table'
 import type { HeroView, VillainView } from './TableCenter'
 
 /** A hero's card: from the game's copy, with the scene's zone. */
-export function heroView(h: HeroInGame | HeroOnTable, game: Pick<Game, 'scene' | 'solo'>, extra: { disconnected?: boolean; syncRequested?: boolean; waiting?: readonly { id: string; by: string; amount: number }[]; chooser?: string } = {}): HeroView {
+export function heroView(h: HeroInGame | HeroOnTable, game: HasTracker, extra: { disconnected?: boolean; syncRequested?: boolean; waiting?: readonly { id: string; by: string; amount: number }[]; chooser?: string } = {}): HeroView {
   const sheet = buildSheet(h.sheet)
   const play = heroPlayInScene(game, h.play)
   const zone = effectiveZone(sheet, play)

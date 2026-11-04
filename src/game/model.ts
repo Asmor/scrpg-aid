@@ -1,8 +1,13 @@
 /**
  * The game document (docs/design/game-table/spec.md, sections 1–3): one table's state, owned by
- * the GM and the single source of truth for everything in play. It holds the scene and its
- * tracker, the turn order, everything on the table, sheet update requests, the GM's private
+ * the GM and the single source of truth for everything in play. It holds its scenes and their
+ * trackers, the turn order, everything on the table, sheet update requests, the GM's private
  * notes, and the table log.
+ *
+ * A game is a list of scenes (docs/design/scenes/spec.md), one of them current. `villains`,
+ * `groups`, `challenges` and `environment` are what's on the table now. Copies waiting for a
+ * planned scene or set aside for later are in `offTable`, GM-only, so nothing that reads the
+ * table can show them and a projection (./project.ts) can't send them.
  *
  * Every hero and villain on the table is a copy: the sheet copied from the library when it came
  * in, plus its play state. Damage stays in this game; the library document and other games never
@@ -22,6 +27,7 @@ import type { Defense } from '../play/defense'
 import { newId, type Hero, type PlayMod, type PlayState } from '../hero/model'
 import { emptyPlay } from '../play/state'
 import type { FeedEntry } from '../session/types'
+import { DEFAULT_TRACKER, type TrackerCounts } from '../rules/trackers'
 import type { BasicAction, Die, Zone } from '../rules/types'
 import type { Villain, VillainPlayState } from '../villain/model'
 import type { EnvironmentAspect, EnvironmentTwist, TemplateAbility } from '../template/model'
@@ -165,6 +171,59 @@ export interface GameFeedEntry extends FeedEntry {
   gmOnly?: true
 }
 
+/** An opposition item or environment, wherever it is in the game. */
+export interface OppositionRef {
+  kind: 'villain' | 'group' | 'challenge' | 'environment'
+  id: string
+}
+
+/** Where an item in a scene came from: the tag on its planning row, and what removing it does. */
+export type SceneItemSource = { kind: 'library' } | { kind: 'quick' } | { kind: 'tag'; tag: string } | { kind: 'aside'; afterScene?: number }
+
+/** An opposition item in a scene. `startHidden` is its Hidden checkbox. */
+export interface SceneItem {
+  ref: OppositionRef
+  startHidden: boolean
+  source: SceneItemSource
+}
+
+/** One scene. Its number is its place in the game's list. */
+export interface Scene {
+  id: string
+  name: string
+  tracker: TrackerCounts
+  /** The index of the current box, used while it's the current scene (a done scene keeps where it ended). */
+  position: number
+  /** A planned scene's environment; it can be the one on the table now, which then stays. The current scene's is `game.environment`. */
+  environmentId?: string
+  environmentHidden?: boolean
+  /**
+   * A planned scene's opposition. For the current scene, the table decides what's there and this
+   * only remembers each item's source; for a done scene, it's what Duplicate brings back.
+   * References may be out of date (the item was removed since): anything reading them skips those.
+   */
+  opposition: SceneItem[]
+  /** Private to the GM. */
+  notes: string
+  state: 'planned' | 'now' | 'done'
+  /** A done scene's one-line summary. */
+  summary?: string
+}
+
+/** Something set aside at the end of a scene, for a later one. */
+export interface AsideEntry {
+  ref: OppositionRef
+  afterScene?: number
+}
+
+/** Copies not on the table: in a planned scene, or set aside. The GM's only. */
+export interface OffTable {
+  villains: VillainInGame[]
+  groups: NpcGroup[]
+  challenges: Challenge[]
+  environments: EnvironmentOnTable[]
+}
+
 export interface Game {
   id: string
   createdAt: string
@@ -174,13 +233,13 @@ export interface Game {
   name: string
   /** Set for a character's solo game (standalone Play). */
   solo?: { kind: 'hero' | 'villain'; sourceId: string }
-  scene: {
-    name: string
-    /** The box layout, e.g. green×3, yellow×3, red×2. */
-    tracker: Zone[]
-    /** The index of the current box. */
-    position: number
-  }
+  /** Every scene in order: done, then the current one, then planned. Exactly one is current. */
+  scenes: Scene[]
+  currentSceneId: string
+  /** Set aside, kept in the game for a later scene (the copies are in `offTable`); the GM's only. */
+  aside: AsideEntry[]
+  offTable: OffTable
+  /** The environment on the table. */
   environment?: EnvironmentOnTable
   /** 0 before the first round starts. */
   round: number
@@ -207,11 +266,8 @@ export interface Game {
   feed: GameFeedEntry[]
 }
 
-/** How many boxes of each zone a tracker has. */
-export type TrackerCounts = Record<Zone, number>
+export type { TrackerCounts }
 
-/** A new game's tracker: 3 green, 3 yellow and 2 red boxes. */
-export const DEFAULT_TRACKER: TrackerCounts = { green: 3, yellow: 3, red: 2 }
 /** The most boxes of one zone. */
 export const MAX_BOXES = 10
 /** The most members a quick-added group starts with, and the most steps a challenge has. */
@@ -225,16 +281,58 @@ export function trackerFromCounts(counts: TrackerCounts): Zone[] {
   return (['green', 'yellow', 'red'] as const).flatMap((z) => Array.from({ length: counts[z] }, () => z))
 }
 
-/** Creates a new game at the first box of the default tracker. `now` and `id` are injectable for tests. */
+/** A new scene with the default tracker, at its first box. */
+export function createScene(options: { name?: string; state?: Scene['state']; id?: string } = {}): Scene {
+  return { id: options.id ?? newId(), name: options.name ?? '', tracker: { ...DEFAULT_TRACKER }, position: 0, opposition: [], notes: '', state: options.state ?? 'planned' }
+}
+
+export const emptyOffTable = (): OffTable => ({ villains: [], groups: [], challenges: [], environments: [] })
+
+/** The scene that's on the table. */
+export function currentScene(game: Pick<Game, 'scenes' | 'currentSceneId'>): Scene {
+  return game.scenes.find((s) => s.id === game.currentSceneId) ?? game.scenes[0]!
+}
+
+/** A scene's number: its place in the list, from 1. */
+export const sceneNumber = (game: Pick<Game, 'scenes'>, sceneId: string) => game.scenes.findIndex((s) => s.id === sceneId) + 1
+
+/** The current scene as the table draws it. `total`, how many scenes there are, is the GM's only: the plan is private. */
+export interface SceneOnTable {
+  name: string
+  /** The box layout, e.g. green×2, yellow×4, red×2. */
+  tracker: Zone[]
+  /** The index of the current box. */
+  position: number
+  /** "Scene 3". */
+  number: number
+  total?: number
+}
+
+/** Anything showing a tracker: the current box and its zone. */
+export interface HasTracker {
+  scene: Pick<SceneOnTable, 'tracker' | 'position'>
+}
+
+/** The current scene, for the table. */
+export function sceneOnTable(game: Pick<Game, 'scenes' | 'currentSceneId'>): SceneOnTable {
+  const scene = currentScene(game)
+  return { name: scene.name, tracker: trackerFromCounts(scene.tracker), position: scene.position, number: sceneNumber(game, scene.id), total: game.scenes.length }
+}
+
+/** Creates a new game at the first box of its first scene's tracker. `now` and `id` are injectable for tests. */
 export function createGame(options: { id?: string; now?: Date; name?: string } = {}): Game {
   const timestamp = (options.now ?? new Date()).toISOString()
+  const first = createScene({ state: 'now' })
   return {
     id: options.id ?? newId(),
     createdAt: timestamp,
     updatedAt: timestamp,
     tags: [],
     name: options.name ?? '',
-    scene: { name: '', tracker: trackerFromCounts(DEFAULT_TRACKER), position: 0 },
+    scenes: [first],
+    currentSceneId: first.id,
+    aside: [],
+    offTable: emptyOffTable(),
     round: 0,
     turn: { order: [], acted: [] },
     heroes: [],
@@ -267,10 +365,13 @@ export function gameDisplayName(game: Pick<Game, 'name'>): string {
   return game.name.trim() || 'Unnamed game'
 }
 
-/** The name to show for the scene. */
-export function sceneDisplayName(game: Pick<Game, 'scene'>): string {
-  return game.scene.name.trim() || 'Unnamed scene'
+/** The name to show for a scene. */
+export function sceneName(scene: Pick<Scene, 'name'>): string {
+  return scene.name.trim() || 'Unnamed scene'
 }
+
+/** The name to show for what's on the table in a view. */
+export const sceneDisplayName = (view: { scene: Pick<Scene, 'name'> }) => sceneName(view.scene)
 
 /**
  * A fresh copy of the setup to save as a new game (the Games page's Duplicate): a new id,
@@ -291,7 +392,7 @@ export function duplicateGame(game: Game, options: { id?: string; now?: Date } =
     createdAt: timestamp,
     updatedAt: timestamp,
     name: `${gameDisplayName(copy)} (copy)`,
-    scene: { ...copy.scene, position: 0 },
+    scenes: copy.scenes.map((s) => ({ ...s, position: s.id === copy.currentSceneId ? 0 : s.position })),
     round: 0,
     turn: { order, acted: [] },
     heroes,

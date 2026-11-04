@@ -7819,3 +7819,201 @@ ol.vw-conditions li {
   align-items: center;
   gap: 0.5rem;
 }
+
+/* ---- Scenes (docs/design/scenes/spec.md) ---- */
+
+.modal--wide {
+  width: min(100%, 52rem);
+}
+
+@media (max-width: 759px) {
+  .modal-backdrop--wide {
+    padding: 0;
+  }
+
+  /* A long form fills the phone's screen. */
+  .modal--wide {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    border: 0;
+  }
+}
+
+.gt-scenes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gt-scene-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.625rem;
+  padding: 0.625rem 0.75rem;
+}
+
+.gt-scene-row--done {
+  opacity: 0.7;
+}
+
+.gt-scene-row--now {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent-soft, var(--ui-surface));
+}
+
+.gt-scene-row__number {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  color: var(--ui-muted);
+}
+
+.gt-scene-row__name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.125rem;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.gt-scene-pill--now {
+  border-color: var(--ui-accent);
+  color: var(--ui-accent);
+}
+
+.gt-scene-pill--planned {
+  border-color: var(--ui-text);
+  color: var(--ui-text);
+}
+
+.gt-tracker--inline {
+  display: inline-flex;
+  margin-top: 0;
+}
+
+.gt-box--small {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 0.1875rem;
+  border-width: 1px;
+}
+
+.gt-box--small.gt-box--now {
+  background-image: none;
+  box-shadow: 0 0 0 1px var(--ui-bg);
+}
+
+.gt-scene-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gt-scene-chip {
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  padding: 0.0625rem 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.gt-scene-chip--hidden {
+  border-style: dashed;
+  color: var(--ui-muted);
+}
+
+.gt-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.gt-editor__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gt-editor__section h3 {
+  margin: 0;
+}
+
+.gt-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 759px) {
+  .gt-presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.gt-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.625rem;
+  padding: 0.5rem 0.625rem;
+  cursor: pointer;
+}
+
+.gt-preset--on {
+  border-color: var(--ui-accent);
+  box-shadow: inset 0 0 0 1px var(--ui-accent);
+}
+
+.gt-preset:focus-within {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+.gt-steppers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gt-stepper-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gt-zone-label {
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.gt-opp {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gt-opp-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.gt-opp-row--hidden {
+  border-style: dashed;
+}

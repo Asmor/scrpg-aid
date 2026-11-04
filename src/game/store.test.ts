@@ -40,8 +40,12 @@ describe('the saved game format', () => {
   it('rejects malformed games', () => {
     const g = createGame({ id: 'g' })
     expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, round: -1 } }).ok).toBe(false)
-    expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, scene: { ...g.scene, tracker: [] } } })).toEqual({ ok: false, error: 'game.scene.tracker has no boxes' })
-    expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, scene: { ...g.scene, position: 8 } } })).toEqual({ ok: false, error: 'game.scene.position is past the last box' })
+    const scene = g.scenes[0]!
+    expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, scenes: [{ ...scene, tracker: { green: 0, yellow: 0, red: 0 } }] } })).toEqual({ ok: false, error: `scene ${scene.id} has box counts out of range` })
+    expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, scenes: [{ ...scene, position: 8 }] } })).toEqual({ ok: false, error: `scene ${scene.id}'s position is past the last box` })
+    expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, scenes: [{ ...scene, state: 'done' }] } }).ok).toBe(false)
+    expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, currentSceneId: 'other' } }).ok).toBe(false)
+    expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, scenes: [scene, { ...scene, state: 'planned' }] } })).toEqual({ ok: false, error: 'game.scenes has two scenes with one id' })
     // A copy must hold a whole sheet and well-formed play state.
     const withHero = addHero(g, { ...completeHero(), id: 'hero' }, clock)
     const h = withHero.heroes[0]!
@@ -57,22 +61,8 @@ describe('the saved game format', () => {
     expect(parseSavedGameJson('nope')).toEqual({ ok: false, error: 'not valid JSON' })
   })
 
-  it('reads a version 1 game: its linked heroes and villains leave the table, everything else stays', () => {
-    let g = addGroup(createGame({ id: 'g' }), { kind: 'minions', name: 'Drones', die: 'd6', count: 2, hidden: false }, clock)
-    const groupRef = { kind: 'group', id: g.groups[0]!.id }
-    const v1 = {
-      ...g,
-      heroes: [{ id: 'h', source: { kind: 'local', heroId: 'hero' } }],
-      villains: [{ villainId: 'v1', hidden: false, playersSee: 'status' }],
-      pendingSyncs: undefined,
-      turn: { order: [{ kind: 'hero', id: 'h' }, { kind: 'villain', id: 'v1' }, groupRef], acted: [{ kind: 'hero', id: 'h' }], current: { kind: 'villain', id: 'v1' } },
-    }
-    const result = parseSavedGame({ format: 'scrpg-game', version: 1, game: v1 })
-    expect(result).toMatchObject({ ok: true, migratedFrom: 1 })
-    if (!result.ok) return
-    expect(result.game).toMatchObject({ heroes: [], villains: [], pendingSyncs: [], groups: g.groups, turn: { order: [groupRef], acted: [] } })
-    expect(result.game.turn.current).toBeUndefined()
-    g = result.game
-    expect(g.feed).toEqual(v1.feed)
+  it('does not read an older version: there are no real saves to carry forward', () => {
+    const g = createGame({ id: 'g' })
+    expect(parseSavedGame({ format: 'scrpg-game', version: 2, game: g })).toEqual({ ok: false, error: 'no migration from format 2' })
   })
 })

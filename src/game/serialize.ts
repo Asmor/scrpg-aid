@@ -6,12 +6,10 @@ import { gameProblem } from './validate'
 
 export const GAME_FORMAT = 'scrpg-game'
 /**
- * Version 2 made heroes and villains on the table copies holding their sheet and play state
- * (docs/design/game-table/spec.md, section 1), and added `pendingSyncs`. A version 1 game's
- * heroes and villains were links to library documents; there's no migrating their play state,
- * so they leave the table, and everything else stays.
+ * Version 3 made a game a list of scenes (docs/design/scenes/spec.md). There are no real saves
+ * yet, so older versions aren't carried forward: they read as unreadable.
  */
-export const GAME_VERSION = 2
+export const GAME_VERSION = 3
 
 export interface SavedGame {
   format: typeof GAME_FORMAT
@@ -20,21 +18,7 @@ export interface SavedGame {
 }
 
 /** Migrations keyed by the version they upgrade from. */
-export const GAME_MIGRATIONS: Readonly<Record<number, Migration>> = {
-  1: (game) => {
-    type Ref = { kind?: unknown }
-    const turn = (game.turn ?? {}) as { order?: Ref[]; acted?: Ref[]; current?: Ref }
-    const kept = (ref: Ref) => ref.kind !== 'hero' && ref.kind !== 'villain'
-    const { current, ...rest } = turn
-    return {
-      ...game,
-      heroes: [],
-      villains: [],
-      pendingSyncs: [],
-      turn: { ...rest, order: (turn.order ?? []).filter(kept), acted: (turn.acted ?? []).filter(kept), ...(current && kept(current) ? { current } : {}) },
-    }
-  },
-}
+export const GAME_MIGRATIONS: Readonly<Record<number, Migration>> = {}
 
 export type GameParseResult = { ok: true; game: Game; migratedFrom?: number } | { ok: false; error: string }
 

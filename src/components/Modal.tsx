@@ -18,10 +18,12 @@ interface ModalProps {
   onClose: () => void
   /** What gets focus when it opens, instead of the title (a dialog whose first choice is the point of it). */
   initialFocus?: RefObject<HTMLElement | null>
+  /** A wider dialog that fills a phone's screen, for a long form. */
+  wide?: boolean
   children: ReactNode
 }
 
-export function Modal({ title, hideTitle = false, variant = 'dialog', onClose, initialFocus, children }: ModalProps) {
+export function Modal({ title, hideTitle = false, variant = 'dialog', onClose, initialFocus, wide = false, children }: ModalProps) {
   const titleId = useId()
   const panel = useRef<HTMLDivElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
@@ -69,8 +71,8 @@ export function Modal({ title, hideTitle = false, variant = 'dialog', onClose, i
     }
   }, [])
   return (
-    <div className={`modal-backdrop modal-backdrop--${variant}`} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`modal modal--${variant}`} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={panel}>
+    <div className={`modal-backdrop modal-backdrop--${variant}${wide ? ' modal-backdrop--wide' : ''}`} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className={`modal modal--${variant}${wide ? ' modal--wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={panel}>
         {variant === 'sheet' && <div className="modal__grab" aria-hidden="true" />}
         <div className="modal__head">
           <h2 id={titleId} ref={heading} tabIndex={-1} className={hideTitle ? 'visually-hidden' : undefined}>

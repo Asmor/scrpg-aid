@@ -1,5 +1,5 @@
 /**
- * The game table's small dialogs: quick add, the environment, scene setup, the GM's hero
+ * The game table's small dialogs: quick add, the environment, the GM's hero
  * changes, a member's mod, fixing the turn order, and Update from library. Each is a Modal (focus in, and back out).
  */
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
@@ -8,8 +8,8 @@ import type { PlayMod, PlayTwist } from '../hero/model'
 import { ModForm } from '../play/ModForm'
 import { DICE } from '../rules/dice'
 import type { Die } from '../rules/types'
-import { MAX_BOXES, MAX_GROUP_SIZE, MAX_STEPS, type ActorRef, type Game, type NpcGroup, type TrackerCounts } from './model'
-import { actorKey, sameActor, trackerCounts, validCounts } from './table'
+import { MAX_GROUP_SIZE, MAX_STEPS, type ActorRef, type Game, type NpcGroup } from './model'
+import { actorKey, sameActor } from './table'
 import type { DiffSection } from './sheet-diff'
 
 function Actions({ submit, onCancel, disabled = false }: { submit: string; onCancel: () => void; disabled?: boolean }) {
@@ -135,31 +135,14 @@ export function EnvironmentDialog({ current, onSet, onClose }: { current?: strin
   )
 }
 
-export function SceneSetupDialog({ game, onSave, onClose }: { game: Game; onSave: (setup: { name: string; counts: TrackerCounts; reset: boolean }) => void; onClose: () => void }) {
-  const start = trackerCounts(game.scene.tracker)
-  const [name, setName] = useState(game.scene.name)
-  const [counts, setCounts] = useState({ green: String(start.green), yellow: String(start.yellow), red: String(start.red) })
-  const [reset, setReset] = useState(false)
-  const parsed = { green: whole(counts.green, 0, MAX_BOXES), yellow: whole(counts.yellow, 0, MAX_BOXES), red: whole(counts.red, 0, MAX_BOXES) }
-  const valid = parsed.green !== undefined && parsed.yellow !== undefined && parsed.red !== undefined && validCounts(parsed as TrackerCounts)
+/** Asks for a name: a quick environment in the scene editor. */
+export function NameDialog({ title, label, placeholder, submit, onSubmit, onClose }: { title: string; label: string; placeholder?: string; submit: string; onSubmit: (name: string) => void; onClose: () => void }) {
+  const [name, setName] = useState('')
   return (
-    <Modal title="Scene setup" onClose={onClose}>
-      <form className="gt-form" onSubmit={submitWith(() => valid && (onSave({ name, counts: parsed as TrackerCounts, reset }), onClose()))}>
-        <Field label="Scene name">{(id) => <input id={id} type="text" value={name} onChange={(e) => setName(e.target.value)} />}</Field>
-        <fieldset className="gt-form__counts">
-          <legend>Boxes on the scene tracker</legend>
-          {(['green', 'yellow', 'red'] as const).map((z) => (
-            <Field key={z} label={z === 'green' ? 'Green' : z === 'yellow' ? 'Yellow' : 'Red'}>
-              {(id) => <input id={id} type="number" inputMode="numeric" min={0} max={MAX_BOXES} value={counts[z]} onChange={(e) => setCounts({ ...counts, [z]: e.target.value })} />}
-            </Field>
-          ))}
-        </fieldset>
-        {!valid && <p className="error">Each zone takes 0 to {MAX_BOXES} boxes, and the tracker needs at least one.</p>}
-        <label className="checkbox">
-          <input type="checkbox" checked={reset} onChange={(e) => setReset(e.target.checked)} />
-          Reset to the first box
-        </label>
-        <Actions submit="Save" onCancel={onClose} disabled={!valid} />
+    <Modal title={title} onClose={onClose}>
+      <form className="gt-form" onSubmit={submitWith(() => (onSubmit(name), onClose()))}>
+        <Field label={label}>{(id) => <input id={id} type="text" value={name} {...(placeholder ? { placeholder } : {})} onChange={(e) => setName(e.target.value)} />}</Field>
+        <Actions submit={submit} onCancel={onClose} />
       </form>
     </Modal>
   )

@@ -13,7 +13,7 @@ import { MemoryVillainStore } from '../villain/store'
 import { GamePage } from './GamePage'
 import type { Hero } from '../hero/model'
 import type { Villain } from '../villain/model'
-import { createGame, villainCopy, type Game } from './model'
+import { createGame, currentScene, villainCopy, type Game } from './model'
 import { MemoryGameStore } from './store'
 
 let n = 0
@@ -107,20 +107,67 @@ describe('the game table', () => {
     await userEvent.click(within(tracker).getByRole('button', { name: 'Yellow 1' }))
     expect(within(tracker).getByRole('button', { name: 'Yellow 1, current' })).toBeInTheDocument()
     expect(log()).toHaveTextContent('The GM moved the scene tracker to Yellow 1.')
-    await waitFor(async () => expect((await saved()).scene.position).toBe(3))
+    await waitFor(async () => expect(currentScene(await saved()).position).toBe(2))
   })
 
-  it('sets up the scene: name and box counts', async () => {
+  it('edits the current scene: name, tracker preset, custom counts and keeping the box', async () => {
     const { saved } = await setup()
-    await menuItem('Scene setup', 'Scene setup…')
-    const dialog = within(screen.getByRole('dialog', { name: 'Scene setup' }))
-    await userEvent.type(dialog.getByLabelText('Scene name'), 'The Foundry')
-    await userEvent.clear(dialog.getByLabelText('Red'))
-    await userEvent.type(dialog.getByLabelText('Red'), '1')
+    await userEvent.click(within(screen.getByRole('group', { name: 'Scene tracker' })).getByRole('button', { name: 'Yellow 1' }))
+    expect(screen.getByText('Scene 1 of 1')).toBeInTheDocument()
+    await menuItem('Scene menu', 'Edit this scene…')
+    const dialog = within(screen.getByRole('dialog', { name: 'Edit scene 1' }))
+    await userEvent.type(dialog.getByLabelText('Name'), 'The Foundry')
+    expect(dialog.getByRole('radio', { name: /Standard/ })).toBeChecked()
+    await userEvent.click(dialog.getByRole('radio', { name: /Prolonged/ }))
+    expect(dialog.getByText('11 boxes · starts at the first')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('radio', { name: /Custom/ }))
+    // Custom starts from the last preset chosen.
+    await userEvent.click(dialog.getByRole('button', { name: 'Fewer red boxes' }))
     await userEvent.click(dialog.getByRole('button', { name: 'Save' }))
+    const ask = within(screen.getByRole('dialog', { name: 'Keep the tracker at Green 3?' }))
+    await userEvent.click(ask.getByRole('button', { name: 'Keep' }))
     expect(screen.getByRole('heading', { name: 'The Foundry' })).toBeInTheDocument()
-    expect(within(screen.getByRole('group', { name: 'Scene tracker' })).getAllByRole('button')).toHaveLength(7)
-    await waitFor(async () => expect((await saved()).scene).toMatchObject({ name: 'The Foundry', tracker: ['green', 'green', 'green', 'yellow', 'yellow', 'yellow', 'red'] }))
+    expect(within(screen.getByRole('group', { name: 'Scene tracker' })).getAllByRole('button')).toHaveLength(10)
+    await waitFor(async () => expect(currentScene(await saved())).toMatchObject({ name: 'The Foundry', tracker: { green: 3, yellow: 5, red: 2 }, position: 2 }))
+  })
+
+  it('edits the current scene: a custom tracker needs a box, and starting over goes to the first', async () => {
+    const { saved } = await setup()
+    await userEvent.click(within(screen.getByRole('group', { name: 'Scene tracker' })).getByRole('button', { name: 'Yellow 1' }))
+    await menuItem('Scene menu', 'Edit this scene…')
+    const dialog = within(screen.getByRole('dialog', { name: 'Edit scene 1' }))
+    await userEvent.click(dialog.getByRole('radio', { name: /Custom/ }))
+    for (const zone of ['green', 'green', 'yellow', 'yellow', 'yellow', 'yellow', 'red', 'red']) await userEvent.click(dialog.getByRole('button', { name: `Fewer ${zone} boxes` }))
+    expect(dialog.getByRole('alert')).toHaveTextContent('A tracker needs at least one box.')
+    expect(dialog.getByRole('button', { name: 'Save' })).toBeDisabled()
+    await userEvent.click(dialog.getByRole('button', { name: 'More red boxes' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Save' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Keep the tracker at Red 1?' })).getByRole('button', { name: 'Start over at the first box' }))
+    await waitFor(async () => expect(currentScene(await saved())).toMatchObject({ tracker: { green: 0, yellow: 0, red: 1 }, position: 0 }))
+  })
+
+  it('shows the Scenes tab with the current scene, from the tab and from the scene card', async () => {
+    await setup()
+    await menuItem('Scene menu', 'Plan scenes')
+    const row = screen.getByRole('article', { name: 'Scene 1: Unnamed scene' })
+    expect(row).toHaveTextContent('Now')
+    expect(row).toHaveTextContent('Standard · Green 1')
+    expect(row).toHaveTextContent('No environment · not started')
+    await userEvent.click(within(row).getByRole('button', { name: 'Edit Unnamed scene' }))
+    expect(screen.getByRole('dialog', { name: 'Edit scene 1' })).toBeInTheDocument()
+  })
+
+  it('lets a running villain advance the scene tracker once per scene (p. 154)', async () => {
+    const { savedVillain, saved } = await setup()
+    await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Ironclad' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Bring in Ironclad' })).getByRole('button', { name: 'Bring in' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Run Ironclad' }))
+    const panel = within(screen.getByRole('region', { name: 'Ironclad' }))
+    await userEvent.click(panel.getByRole('button', { name: 'Advance the scene tracker (once per scene)' }))
+    expect(panel.getByRole('button', { name: 'Scene tracker advanced (once per scene)' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Green 2, current' })).toBeInTheDocument()
+    await waitFor(async () => expect((await savedVillain()).play.sceneAdvanced).toBe(true))
+    expect(currentScene(await saved()).position).toBe(1)
   })
 
   it('asks how many heroes a villain faces, and recalculates its Health later keeping its damage', async () => {
@@ -177,7 +224,7 @@ describe('the game table', () => {
 
   it('shows a hero’s copy with its Health, and the scene zone raises its zone', async () => {
     const { savedHero, libraryHero } = await setup((g) => {
-      g.scene.position = 4
+      g.scenes[0]!.position = 4
     })
     await bringIn('Maya Reyes')
     const card = screen.getByRole('article', { name: 'Maya Reyes' })
@@ -195,7 +242,7 @@ describe('the game table', () => {
     await bringIn('Maya Reyes')
     await bringIn('Ironclad')
     await userEvent.click(within(screen.getByRole('article', { name: 'Ironclad' })).getByRole('button', { name: 'Reveal' }))
-    await menuItem('Scene setup', 'Set environment…')
+    await menuItem('Scene menu', 'Environment…')
     const envDialog = within(screen.getByRole('dialog', { name: 'Set environment' }))
     await userEvent.type(envDialog.getByLabelText('Name'), 'Collapsing Foundry')
     await userEvent.click(envDialog.getByLabelText('Hidden from players until revealed'))
@@ -230,7 +277,7 @@ describe('the game table', () => {
     const ask = within(await screen.findByRole('dialog', { name: 'Who starts round 2?' }))
     await userEvent.click(ask.getByRole('button', { name: 'Collapsing Foundry' }))
     expect(turns().getByRole('heading')).toHaveTextContent('Round 2')
-    expect(screen.getByRole('button', { name: 'Green 3, current' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Yellow 1, current' })).toBeInTheDocument()
     await waitFor(async () => expect((await saved()).round).toBe(2))
   })
 
