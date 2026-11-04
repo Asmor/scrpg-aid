@@ -72,20 +72,21 @@ export function giveMod(game: Game, to: TableTarget, mod: Omit<PlayMod, 'id'>, f
  * (GM-only when `gmOnly`, or when the target is hidden). One of the target's defenses blocks what
  * it can first (ruling 65): `defenseId`, or the default. Returns the game and, for a member or a
  * hero's minion, its save's line (the player's toast).
+ * Its lines are by `author` (a group member's are by its group), `by` by default.
  */
-export function applyAttack(game: Game, by: string, to: TableTarget, amount: number, random: Random, clock: Clock, gmOnly = false, defenseId?: string): { game: Game; note?: string } {
+export function applyAttack(game: Game, by: string, to: TableTarget, amount: number, random: Random, clock: Clock, gmOnly = false, defenseId?: string, author = by): { game: Game; note?: string } {
   const name = targetName(game, to)
   if (!name) return { game }
-  if (to.kind === 'hero' || to.kind === 'villain') return { game: hitCharacter(game, by, to, amount, clock, gmOnly, defenseId) }
+  if (to.kind === 'hero' || to.kind === 'villain') return { game: hitCharacter(game, by, to, amount, clock, gmOnly, defenseId, author) }
   if (to.kind === 'heroMinion') {
-    const logged = withLog(game, [line(clock, by, `${by} attacked ${name}: ${amount} damage.`, gmOnly)])
+    const logged = withLog(game, [line(clock, author, `${by} attacked ${name}: ${amount} damage.`, gmOnly)])
     const saved = heroMinionSave(logged, to.heroId, to.minionId, amount, random, clock)
     if (!saved) return { game }
-    return { game: withLog(saved.game, [line(clock, by, saved.text, gmOnly)]), note: saved.text }
+    return { game: withLog(saved.game, [line(clock, author, saved.text, gmOnly)]), note: saved.text }
   }
   const group = game.groups.find((g) => g.id === to.groupId)!
   const member = group.members.find((m) => m.id === to.memberId)!
-  const logged = withLog(game, [line(clock, by, `${by} attacked ${name}: ${amount} damage.`, gmOnly || group.hidden)])
+  const logged = withLog(game, [line(clock, author, `${by} attacked ${name}: ${amount} damage.`, gmOnly || group.hidden)])
   const s = rollSave(group.kind, member, amount, random, defenseId)
   return { game: applySave(logged, group.id, s, clock), note: memberSaveText(name, group.kind, member.die, s) }
 }
@@ -144,7 +145,8 @@ export function applyGroupRoll(game: Game, groupId: string, action: BasicAction,
     }
     switch (action) {
       case 'attack':
-        next = applyAttack(next, name, target, amount, random, clock, gmOnly).game
+        // Logged by the group, as its other lines are: "Burglar: Burglar 4 attacked…".
+        next = applyAttack(next, name, target, amount, random, clock, gmOnly, undefined, group.name).game
         break
       case 'hinder':
       case 'boost': {

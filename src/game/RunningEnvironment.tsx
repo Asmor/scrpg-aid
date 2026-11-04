@@ -180,7 +180,7 @@ export function RunningEnvironment({ game, env, actions, sheets, random }: { gam
     <div className="gt-env">
       <p className="gt-sub">
         Environment · the scene is {PLAY_ZONE_LABEL[zone]}
-        {itsTurn && ` · the tracker is at ${boxLabel(game.scene.tracker, game.scene.position)}`}
+        {itsTurn && ` · the tracker just moved to ${boxLabel(game.scene.tracker, game.scene.position)}`}
       </p>
       <div className="gt-row">
         <span className="gt-grow" />

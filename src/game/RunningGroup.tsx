@@ -17,7 +17,7 @@ import { defaultDefense, defenseText, defensesOf } from '../play/defense'
 import type { BasicAction } from '../rules/types'
 import type { Game, NpcGroup, NpcMember } from './model'
 import { ACTION_NAME, actionsText, groupActionList, rollMath, rollMembers, rollSaves, verdictText, type GroupRollRow, type MemberSave, type Random } from './npc'
-import { actedText, memberLabel, memberName, readyMembers } from './table'
+import { actedText, memberName, readyMembers } from './table'
 import { parseTarget } from './roll-targets'
 import { gmTable, polarity, targetOptions, toggleLabel, type TargetActor } from './target-options'
 import { ShowOtherSide, TargetOptions } from '../play/TargetPicker'
@@ -114,7 +114,7 @@ export function RunningGroup({ game, group, actions, random }: { game: Game; gro
             <li key={m.id} className={m.acted ? 'gt-member--acted' : undefined}>
               <div className="gt-row">
                 <DieIcon die={m.die} />
-                <strong>{memberLabel(group, m.n)}</strong>
+                <strong>{name}</strong>
                 <span className="gt-grow" />
                 <span className={m.acted ? 'gt-pill' : 'gt-pill gt-pill--live'}>{m.acted ? 'Acted' : 'Ready'}</span>
                 <button type="button" className="button button--small" aria-label={`Roll ${name}`} disabled={m.acted} onClick={() => roll([m.id])}>
@@ -198,7 +198,8 @@ export function GroupRollDialog({ game, group, action, rows, onCancel, onApply }
     const m = member(memberId)
     return m ? memberName(group, m.n) : 'A member'
   }
-  const title = rows.length === 1 ? `${name(rows[0]!.memberId)} rolls ${ACTION_NAME[action]}` : `${rows.length} ${group.name} roll ${ACTION_NAME[action]}`
+  // "Burglar ×4 roll Attack": the group's name isn't pluralized, since names don't pluralize reliably.
+  const title = rows.length === 1 ? `${name(rows[0]!.memberId)} rolls ${ACTION_NAME[action]}` : `${group.name} ×${rows.length} roll ${ACTION_NAME[action]}`
   const verb = { attack: 'deals each result as damage to its target', hinder: 'gives each target a penalty sized by its result', boost: 'gives each target a bonus sized by its result', defend: 'records each Defend for its target', overcome: 'logs each result' }[action]
   return (
     <Modal title={title} variant={phone ? 'sheet' : 'dialog'} onClose={onCancel} {...(hasTargets ? { initialFocus: first } : {})}>
@@ -223,6 +224,7 @@ export function GroupRollDialog({ game, group, action, rows, onCancel, onApply }
               <span className="gt-sub">Same target for all</span>
               <select
                 id={`${id}-all`}
+                aria-label="Same target for all"
                 ref={first}
                 value={all}
                 onChange={(e) => {
@@ -318,7 +320,7 @@ export function DamageDialog({ group, start, random, onCancel, onApply }: { grou
           }}
         >
           <label className="field" htmlFor={`${id}-damage`}>
-            <span>Damage to each</span>
+            <span>{single ? 'Damage' : 'Damage to each'}</span>
             <input id={`${id}-damage`} type="number" inputMode="numeric" min={0} value={damage} onChange={(e) => setDamage(e.target.value)} />
           </label>
           {!single && (

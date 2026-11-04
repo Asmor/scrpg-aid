@@ -79,6 +79,8 @@ describe('applying a group roll', () => {
     expect(health(g)).toBe(before - 4)
     expect(texts(g)).toContain('Burglars 1 attacked Maya Reyes: 4 damage.')
     expect(texts(g)).toContain('Burglars 2 took Attack: 3, with no target.')
+    // Every line is by the group, so the log never reads "Burglars 1: Burglars 1 attacked…".
+    expect(new Set(g.feed.slice(game.feed.length).filter((e) => e.text.startsWith('Burglars')).map((e) => e.by))).toEqual(new Set(['Burglars']))
     expect(g.groups[0]!.members.map((m) => m.acted)).toEqual([true, true, false])
   })
 

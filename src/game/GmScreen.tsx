@@ -237,9 +237,11 @@ function RunningVillain({ game, copy, change, attack, random }: { game: Game; co
 
 /** What Bring in needs to know about the table. */
 export interface BringIn {
-  /** Whether the item is on the table: absent, shown, hidden, or there with a library sheet that has changed since (its Update). */
-  /** Where a library item is on the table: absent, on it, or hidden. */
-  placeOf: (item: LibraryItem) => 'absent' | 'shown' | 'hidden' | 'changed'
+  /**
+   * Where a library item is on the table: absent, shown, hidden, there with a library sheet that
+   * has changed since (its Update), or a template already used here, which can come in again.
+   */
+  placeOf: (item: LibraryItem) => 'absent' | 'shown' | 'hidden' | 'changed' | 'again'
   /** Brings in a copy; a minion or lieutenant template with `count` members (its usual group size by default). */
   bringIn: (item: LibraryItem, count?: number) => void
   /** Opens Update from library for an item whose copy differs. */
@@ -354,15 +356,15 @@ function BringInTab({ bring }: { bring: BringIn }) {
                     onChange={(e) => setCounts((c) => ({ ...c, [`${i.type.key}:${i.doc.id}`]: e.target.value }))}
                   />
                 )}
-                {place === 'absent' ? (
+                {place === 'absent' || place === 'again' ? (
                   <button
                     type="button"
                     className="button button--small"
-                    aria-label={`Bring in ${i.row.name}`}
+                    aria-label={`${place === 'again' ? 'Add another' : 'Bring in'} ${i.row.name}`}
                     disabled={countOf(i) === null}
                     onClick={() => bring.bringIn(i, countOf(i) ?? undefined)}
                   >
-                    Bring in
+                    {place === 'again' ? 'Add another' : 'Bring in'}
                   </button>
                 ) : place === 'changed' ? (
                   <span className="gt-row">

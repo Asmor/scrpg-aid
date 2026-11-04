@@ -4,8 +4,8 @@ import { addMinion } from '../play/minions'
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { createGame } from './model'
-import { project } from './project'
-import { addGroup, addHero, addVillain, changeHeroPlay, setEnvironment } from './table'
+import { project, viewName } from './project'
+import { addGroup, addHero, addVillain, changeHeroPlay, itemName, setEnvironment } from './table'
 import { allOptions, gmTable, polarity, soloTable, targetOptions, toggleLabel, viewTable, type TargetActor, type TargetList } from './target-options'
 
 function clock(): Clock {
@@ -134,6 +134,21 @@ describe('choosing targets', () => {
       ])
       // The whole group ("Same target for all"), too.
       expect(targetOptions({ kind: 'group', id: drones.id }, 'boost', gmTable(g)).sideless).toBe(true)
+    })
+
+    it('tells an environment group from a GM group with the same name, in lists and the turn order', () => {
+      const t = withEnvironment()
+      const c = clock()
+      const g = addGroup(t.g, { kind: 'minions', name: 'Drones', die: 'd6', count: 1, hidden: false }, c)
+      const gmDrones = g.groups.at(-1)!
+      const list = targetOptions({ kind: 'hero', id: t.maya }, 'attack', gmTable(g))
+      expect(sections(list)).toEqual([['Rooftop Heist', ['Drones 1 (Rooftop Heist)', 'Drones 2 (Rooftop Heist)']]])
+      expect(list.likely.map((o) => o.name)).toContain('Drones 1')
+      expect(itemName(g, { kind: 'group', id: t.drones.id })).toBe('Drones (Rooftop Heist)')
+      expect(itemName(g, { kind: 'group', id: gmDrones.id })).toBe('Drones')
+      expect(viewName(project(g, 'player'), { kind: 'group', id: t.drones.id }, () => '')).toBe('Drones (Rooftop Heist)')
+      // No clash: just the name.
+      expect(itemName(t.g, { kind: 'group', id: t.drones.id })).toBe('Drones')
     })
 
     it("names the section for a player's view, which has no hidden groups", () => {

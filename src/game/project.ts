@@ -18,7 +18,7 @@ import type { PlayMod, PlayTwist } from '../hero/model'
 import type { PlayZone } from '../play/state'
 import type { Die } from '../rules/types'
 import type { ActorRef, Challenge, EnvironmentOnTable, Game, GameFeedEntry, NpcGroup, PendingHit, PlayersSee } from './model'
-import { isHidden, sameActor } from './table'
+import { groupLabel, isHidden, sameActor } from './table'
 
 export type Audience = 'gm' | 'player' | 'observer'
 
@@ -125,8 +125,10 @@ export function viewName(view: Pick<TableView, 'heroes' | 'villains' | 'groups' 
     }
     case 'villain':
       return view.villains.find((v) => v.id === ref.id)?.name ?? 'A villain'
-    case 'group':
-      return view.groups.find((g) => g.id === ref.id)?.name ?? 'A group'
+    case 'group': {
+      const group = view.groups.find((g) => g.id === ref.id)
+      return group ? groupLabel(view.groups, group, view.environment?.name) : 'A group'
+    }
     case 'environment':
       return view.environment?.name ?? 'The environment'
   }

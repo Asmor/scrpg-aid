@@ -137,6 +137,19 @@ export function heroLabel(heroes: readonly Pick<HeroInGame, 'id' | 'sheet' | 'pl
   return clash ? `${name} · ${hero.player ? hero.player.name || 'A player' : "GM's hero"}` : name
 }
 
+/**
+ * A group's name at the table. When an environment's group shares its name with another group,
+ * the environment's name follows it ("Burglar (Rooftop Heist)"), so the turn order and target
+ * lists can tell them apart.
+ */
+export const groupLabel = (groups: readonly Pick<NpcGroup, 'id' | 'name' | 'owner'>[], group: Pick<NpcGroup, 'id' | 'name' | 'owner'>, environment: string | undefined) => group.name + groupSuffix(groups, group, environment)
+
+/** What tells a group apart from another of the same name: " (Rooftop Heist)" for the environment's, or nothing. */
+export function groupSuffix(groups: readonly Pick<NpcGroup, 'id' | 'name' | 'owner'>[], group: Pick<NpcGroup, 'id' | 'name' | 'owner'>, environment: string | undefined): string {
+  const clash = group.owner.kind === 'environment' && groups.some((g) => g.id !== group.id && g.name === group.name)
+  return clash ? ` (${environment || 'Environment'})` : ''
+}
+
 /** An item's or actor's name. */
 export function itemName(game: Game, ref: ItemRef | ActorRef): string {
   switch (ref.kind) {
@@ -148,8 +161,10 @@ export function itemName(game: Game, ref: ItemRef | ActorRef): string {
       const villain = findVillain(game, ref.id)
       return villain ? villainDisplayName(villain.sheet) : 'A villain'
     }
-    case 'group':
-      return findGroup(game, ref.id)?.name ?? 'A group'
+    case 'group': {
+      const group = findGroup(game, ref.id)
+      return group ? groupLabel(game.groups, group, game.environment?.name) : 'A group'
+    }
     case 'environment':
       return game.environment?.name ?? 'The environment'
     case 'challenge':

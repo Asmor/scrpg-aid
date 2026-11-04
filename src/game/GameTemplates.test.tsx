@@ -108,8 +108,10 @@ describe('the GM screen and templates', () => {
     await userEvent.click(within(card).getByRole('checkbox', { name: 'Reach the control room' }))
     await userEvent.click(within(card).getByRole('checkbox', { name: 'Step 2' }))
     expect(card).toHaveTextContent('The crucible cools.')
-    // Templates can come in again.
-    expect(gmScreen().getByRole('button', { name: 'Bring in Burglar' })).toBeEnabled()
+    // Templates can come in again: "Add another", still asking how many.
+    expect(gmScreen().getByRole('button', { name: 'Add another Burglar' })).toHaveTextContent('Add another')
+    expect(gmScreen().getByRole('button', { name: 'Add another Shut down the crucible' })).toBeEnabled()
+    expect(gmScreen().getByRole('spinbutton', { name: 'How many Burglar' })).toBeInTheDocument()
   })
 
   it('saves a quick-added group to the library as a template when asked', async () => {
@@ -190,7 +192,7 @@ describe('the environment on the table', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Start round 1' }))
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Rooftop Heist' }))
     const panel = within(await gmScreen().findByRole('region', { name: 'Rooftop Heist' }))
-    expect(panel.getByText(/the tracker is at Green 2/)).toBeInTheDocument()
+    expect(panel.getByText(/the tracker just moved to Green 2/)).toBeInTheDocument()
   })
 
   it('sets the aspects of a quick-added environment', async () => {

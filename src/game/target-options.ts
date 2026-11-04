@@ -23,7 +23,7 @@ import type { TableTarget } from './actions'
 import type { Game } from './model'
 import type { TableView } from './project'
 import { targetId } from './roll-targets'
-import { memberName } from './table'
+import { groupSuffix, memberName } from './table'
 
 /**
  * Who is choosing: a hero, a hero's minion, a villain, a group's member, a whole group ("Same
@@ -36,7 +36,7 @@ export type TargetActor = TableTarget | { kind: 'group'; id: string } | { kind: 
 export interface TargetTable {
   heroes: readonly { id: string; name: string; minions: readonly { id: string; name: string }[] }[]
   villains: readonly { id: string; name: string }[]
-  groups: readonly { id: string; name: string; owner?: { kind: string }; members: readonly { id: string; n: number }[] }[]
+  groups: readonly { id: string; name: string; owner?: { kind: 'gm' | 'environment' }; members: readonly { id: string; n: number }[] }[]
   /** The environment's name, for its groups' section ("Rooftop Heist"). */
   environment?: string
 }
@@ -80,6 +80,7 @@ export function toggleLabel(polarities: readonly Polarity[]): string | undefined
 }
 
 const isEnvGroup = (g: { owner?: { kind: string } }) => g.owner?.kind === 'environment'
+const withOwner = <G extends TargetTable['groups'][number]>(g: G) => ({ ...g, owner: g.owner ?? { kind: 'gm' as const } })
 
 /** The actor's side, or none for the environment and its groups. */
 function sideOf(actor: TargetActor, table: TargetTable): Side | undefined {
@@ -91,13 +92,14 @@ function sideOf(actor: TargetActor, table: TargetTable): Side | undefined {
 }
 
 /** Members of these groups, labeled for this actor: "(you)", "(same group)", its own group first. */
-function memberOptions(groups: TargetTable['groups'], actor: TargetActor): TargetOption[] {
+function memberOptions(table: TargetTable, groups: TargetTable['groups'], actor: TargetActor): TargetOption[] {
   const ownGroup = actor.kind === 'member' ? actor.groupId : actor.kind === 'group' ? actor.id : undefined
   return [...groups]
     .sort((a, b) => Number(b.id === ownGroup) - Number(a.id === ownGroup))
     .flatMap((g) =>
       g.members.map((m) => {
-        const name = memberName(g, m.n)
+        // "Burglar 1 (Rooftop Heist)" when an environment's group shares a GM group's name.
+        const name = memberName(g, m.n) + groupSuffix(table.groups.map(withOwner), withOwner(g), table.environment)
         const you = actor.kind === 'member' && actor.groupId === g.id && actor.memberId === m.id
         return { id: targetId({ kind: 'member', groupId: g.id, memberId: m.id }), name: you ? `${name} (you)` : g.id === ownGroup ? `${name} (same group)` : name }
       }),
@@ -106,7 +108,7 @@ function memberOptions(groups: TargetTable['groups'], actor: TargetActor): Targe
 
 /** The environment's groups' section, if it has any members on the table. */
 function environmentSection(table: TargetTable, actor: TargetActor): { label: string; options: TargetOption[] }[] {
-  const options = memberOptions(table.groups.filter(isEnvGroup), actor)
+  const options = memberOptions(table, table.groups.filter(isEnvGroup), actor)
   return options.length ? [{ label: table.environment || 'Environment', options }] : []
 }
 
@@ -127,7 +129,7 @@ function sideOptions(table: TargetTable, side: Side, actor: TargetActor): Target
   const villains = [...table.villains].sort((a, b) => Number(actor.kind === 'villain' && b.id === actor.id) - Number(actor.kind === 'villain' && a.id === actor.id))
   return [
     ...villains.map((v) => ({ id: targetId({ kind: 'villain', id: v.id }), name: actor.kind === 'villain' && actor.id === v.id ? `${v.name} (you)` : v.name })),
-    ...memberOptions(table.groups.filter((g) => !isEnvGroup(g)), actor),
+    ...memberOptions(table, table.groups.filter((g) => !isEnvGroup(g)), actor),
   ]
 }
 

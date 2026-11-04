@@ -323,6 +323,9 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     placeOf: (item: LibraryItem) => {
       // An environment is on the table once (another one replaces it); other templates can come in again and again.
       if (item.type.key === 'environment') return game.environment?.templateId === item.doc.id ? (game.environment.hidden ? ('hidden' as const) : ('shown' as const)) : ('absent' as const)
+      // A template already used here can be added again: "Add another".
+      if (item.type.key === 'minion' || item.type.key === 'lieutenant') return game.groups.some((g) => g.templateId === item.doc.id && g.kind === (item.type.key === 'minion' ? 'minions' : 'lieutenants')) ? ('again' as const) : ('absent' as const)
+      if (item.type.key === 'challenge') return game.challenges.some((c) => c.templateId === item.doc.id) ? ('again' as const) : ('absent' as const)
       if (item.type.key !== 'hero' && item.type.key !== 'villain') return 'absent' as const
       const kind = item.type.key === 'hero' ? 'hero' : 'villain'
       const copy = T.copyOf(game, kind, item.doc.id)

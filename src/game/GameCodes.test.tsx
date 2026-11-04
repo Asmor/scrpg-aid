@@ -104,12 +104,26 @@ describe('joining with an old code', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
     act(() => fireEvent.click(button))
     expect(screen.getByRole('button', { name: 'Looking for game WXYZ-2345…' })).toBeDisabled()
+    expect(screen.getByRole('status')).toHaveTextContent(`Looking for game WXYZ-2345… This can take up to ${JOIN_WAIT / 1000} seconds.`)
     await settle()
     act(() => vi.advanceTimersByTime(JOIN_WAIT))
     expect(screen.getByRole('alert')).toHaveTextContent("No game is using this code right now. The GM may have changed it, or isn't hosting yet. Check the code with your GM.")
     expect(screen.getByLabelText('Game code')).toHaveAccessibleDescription(/No game is using this code/)
     expect(window.location.hash).toBe('#/join/WXYZ-2345')
     expect(screen.getByRole('button', { name: 'Join with Maya Reyes' })).toBeEnabled()
+  })
+})
+
+describe('joining with a code typed in', () => {
+  it('puts the code typed in the address, so a reload tries that one', async () => {
+    await setup(`#/join/WXYZ-2345`)
+    await userEvent.type(screen.getByLabelText('Your name (everyone at the table sees it)'), 'Alex')
+    const field = screen.getByLabelText('Game code')
+    await userEvent.clear(field)
+    await userEvent.type(field, 'PBYQ-7V83')
+    await userEvent.click(await screen.findByRole('button', { name: 'Join with Maya Reyes' }))
+    expect(window.location.hash).toBe('#/join/PBYQ-7V83')
+    expect(screen.getByRole('button', { name: 'Looking for game PBYQ-7V83…' })).toBeDisabled()
   })
 })
 

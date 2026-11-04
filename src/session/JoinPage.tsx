@@ -9,7 +9,7 @@
  * (docs/design/game-table/game-table-spec-addendum-game-codes.md).
  */
 import { useEffect, useId, useRef, useState } from 'react'
-import { gamesPath, listPath, navigate, tablePath } from '../app/route'
+import { gamesPath, joinPath, listPath, navigate, tablePath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { heroDisplayName, isDraft, type Hero } from '../hero/model'
 import { normalizeRoomCode } from './code'
@@ -65,12 +65,17 @@ export function JoinPage({ room: given }: { room?: string }) {
 
   // Joining: waiting for the GM's device to answer, and why it didn't.
   const [joining, setJoining] = useState<string | null>(null)
+  const joinStarted = useRef(0)
   const [error, setError] = useState<string | null>(null)
   const status = playing?.status
   const leaveGame = useRef(session.leaveGame)
   useEffect(() => {
     leaveGame.current = session.leaveGame
   })
+  // When Join was pressed (this runs before the timer below).
+  useEffect(() => {
+    if (joining) joinStarted.current = Date.now()
+  }, [joining])
   useEffect(() => {
     if (!joining) return
     if (status === 'live') return navigate(tablePath(joining))
@@ -81,7 +86,8 @@ export function JoinPage({ room: given }: { room?: string }) {
     }
     if (status === 'refused') return fail(refusedText(playing?.refused ?? 'removed', 'this game'))
     if (status === 'offline') return fail(NO_GAME)
-    const timer = setTimeout(() => fail(NO_GAME), JOIN_WAIT)
+    // JOIN_WAIT from when Join was pressed: a status change on the way doesn't restart it.
+    const timer = setTimeout(() => fail(NO_GAME), Math.max(0, JOIN_WAIT - (Date.now() - joinStarted.current)))
     return () => clearTimeout(timer)
   }, [joining, status, playing?.refused])
 
@@ -116,6 +122,8 @@ export function JoinPage({ room: given }: { room?: string }) {
           setError(null)
           session.joinGame({ room: code, name: name.trim(), hero })
           setJoining(code)
+          // The address follows the code typed, so a reload tries that one (no hashchange, so the page stays).
+          if (window.location.hash !== joinPath(code)) window.history.replaceState(window.history.state, '', joinPath(code))
         }}
       >
         <label className="field" htmlFor={`${formId}-room`}>
@@ -168,6 +176,11 @@ export function JoinPage({ room: given }: { room?: string }) {
         <button type="submit" className="button button--primary" disabled={!code || !hero || !name.trim() || Boolean(joining)}>
           {joining ? `Looking for game ${joining}…` : hero ? `${heroSince ? 'Rejoin' : 'Join'} with ${heroDisplayName(hero)}` : 'Join'}
         </button>
+        {joining && (
+          <p className="hint" role="status">
+            Looking for game {joining}… This can take up to {JOIN_WAIT / 1000} seconds.
+          </p>
+        )}
       </form>
     </div>
   )
