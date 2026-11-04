@@ -5061,29 +5061,30 @@ span.tag-chip__name {
 /* The table */
 
 .library-table-wrap {
-  /* Positioned, so hidden labels inside are clipped with the table instead of widening the page. */
-  position: relative;
-  overflow-x: auto;
   border: 1px solid var(--ui-border);
   border-radius: 0.75rem;
   background: var(--ui-surface);
 }
 
+/* The condensed four-column table (docs/design/library/spec.md, section 4): it fits from 760 px
+   up, and rows grow taller instead of the table scrolling sideways. */
 .library-table {
   width: 100%;
-  min-width: 1040px;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
 .library-table th,
 .library-table td {
-  padding: 0.625rem 0.5rem;
-  vertical-align: middle;
+  padding: 0.75rem 0.625rem;
+  vertical-align: top;
   text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .library-table th {
+  padding-block: 0.625rem;
+  vertical-align: bottom;
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--ui-muted);
@@ -5093,48 +5094,40 @@ span.tag-chip__name {
   border-top: 1px solid var(--ui-border);
 }
 
-.library-table th:nth-child(1) {
-  width: 44px;
-}
-
-.library-table th:nth-child(2) {
-  width: 18%;
-}
-
-.library-table th:nth-child(3) {
-  width: 80px;
-}
-
-.library-table th:nth-child(4) {
-  width: 18%;
-}
-
-.library-table th:nth-child(5) {
-  width: 150px;
-}
-
-.library-table th:nth-child(7) {
-  width: 110px;
-}
-
-.library-table th:nth-child(8) {
-  width: 128px;
-}
-
 .library-table__select {
+  width: 44px;
   text-align: center !important;
+}
+
+.library-table__item {
+  width: 53%;
+}
+
+.library-table__when {
+  width: 170px;
+  text-align: right !important;
+}
+
+.library-table__dot {
+  margin: 0 0.375rem;
 }
 
 .library-row--selected {
   background: var(--ui-accent-soft);
 }
 
-.library-table__type,
-.library-table__when {
+.library-table__name .library-name {
+  font-size: 1rem;
+}
+
+.library-type {
   font-size: 0.875rem;
 }
 
-.library-table__when {
+.library-when {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
   color: var(--ui-muted);
 }
 
@@ -5186,10 +5179,11 @@ span.tag-chip__name {
 }
 
 .library-details {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: 0.875rem;
   color: var(--ui-muted);
 }
@@ -5202,16 +5196,8 @@ span.tag-chip__name {
 }
 
 .library-games {
-  display: flex;
-  flex-direction: column;
+  margin-bottom: 0.375rem;
   font-size: 0.875rem;
-  min-width: 0;
-}
-
-.library-games a {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .phone-row__games {

@@ -52,12 +52,18 @@ export interface RowInfo {
   draft: boolean
   /** The Details column: "Speedster · Accident", or a draft's step. */
   details: string
-  /** A die shown as an icon before the details (a minion's or lieutenant's starting die). */
+  /** A die shown as an icon before the details on phones (a minion's or lieutenant's starting die). */
   detailsDie?: Die
+  /**
+   * The kind shown after the type on desktop, "Villain (Major)" or "Minion (d8)"
+   * (docs/design/library/spec.md, section 4, the spec's kindLabel). Unset when the type has none.
+   */
+  kind?: string
   /** Rule issues, linking to where they can be fixed. */
   issues?: { count: number; href: string }
   openHref: string
-  primary: { label: 'Play' | 'Continue' | 'Edit'; href: string }
+  /** Play, or Continue for a draft; templates have none (docs/design/library/spec.md, section 4). */
+  primary?: { label: 'Play' | 'Continue'; href: string }
   editHref: string
 }
 
@@ -169,6 +175,7 @@ export const villainType: LibraryType<Villain> = {
       named,
       draft: false,
       details: kind ? `${kind} · ${sheet.major ? 'Major' : 'Minor'}` : '',
+      kind: sheet.major ? 'Major' : 'Minor',
       ...(first ? { issues: { count: sheet.warnings.length, href: villainEditPath(villain.id, first.step) } } : {}),
       openHref: villainPath(villain.id),
       primary: { label: 'Play', href: villainPlayPath(villain.id) },

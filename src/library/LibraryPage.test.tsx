@@ -90,7 +90,8 @@ const rowNames = () =>
     .slice(1)
     .map((r) => r.querySelector('.library-name')?.textContent)
     .filter(Boolean)
-const row = (name: string) => within(within(table()).getByRole('link', { name }).closest('tr')!)
+const rowElement = (name: string) => within(table()).getByRole('link', { name }).closest('tr')!
+const row = (name: string) => within(rowElement(name))
 const loaded = () => screen.findByRole('table', { name: 'Library' })
 
 beforeEach(() => vi.mocked(downloadFile).mockClear())
@@ -115,8 +116,11 @@ describe('the library table', () => {
     expect(row('Gravelord').getByRole('link', { name: 'Thursday game' })).toBeInTheDocument()
     // A game joined as a player opens its table.
     expect(row('Paradigm').getByRole('link', { name: 'Saturday game' })).toHaveAttribute('href', '#/table/WXYZ-2345')
-    expect(row('Rust Hound').getByText('—')).toBeInTheDocument()
-    expect(screen.getByRole('columnheader', { name: 'In games' })).toBeInTheDocument()
+    expect(maya.getByText('Thursday game').closest('.library-games')).toHaveTextContent(/^In Thursday game$/)
+    // Nothing shows when the item is in no game.
+    expect(row('Rust Hound').queryByText(/^In /)).not.toBeInTheDocument()
+    expect(rowElement('Rust Hound').querySelector('.library-games')).toBeNull()
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['', 'Name·Type·Details', 'In games · Tags', 'Changed'])
     expect(maya.getByRole('link', { name: 'Play Maya Reyes' })).toHaveAttribute('href', '#/hero/maya/play')
     expect(maya.getByText('Yesterday')).toBeInTheDocument()
 
@@ -124,10 +128,15 @@ describe('the library table', () => {
     expect(draft.getByText('Draft')).toHaveClass('draft-badge')
     expect(draft.getByRole('link', { name: 'Unnamed hero' })).toHaveClass('library-name--unnamed')
     expect(draft.getByText('Step 2 of 8 · Power source')).toBeInTheDocument()
-    expect(draft.getByText('—')).toBeInTheDocument()
+    expect(rowElement('Unnamed hero').querySelector('.library-games')).toBeNull()
     expect(draft.getByRole('link', { name: 'Continue Unnamed hero' })).toHaveAttribute('href', '#/hero/d/edit/power-source')
 
     expect(row('Gravelord').getByText('Adaptive Bruiser · Minor')).toBeInTheDocument()
+    // Details clamp to two lines, with the full text in title.
+    expect(row('Gravelord').getByText('Adaptive Bruiser · Minor')).toHaveAttribute('title', 'Adaptive Bruiser · Minor')
+    // The kind follows the type: "Villain (Minor)"; heroes and drafts have none.
+    expect(row('Gravelord').getByText('Villain').closest('.library-type')).toHaveTextContent('Villain (Minor)')
+    expect(maya.getByText('Hero').closest('.library-type')).toHaveTextContent(/^Hero$/)
     expect(row('Gravelord').getByRole('link', { name: 'Gravelord' })).toHaveAttribute('href', '#/villain/g')
   })
 
@@ -153,8 +162,15 @@ describe('the library table', () => {
     expect(header('Name')).toHaveAttribute('aria-sort', 'descending')
     expect(rowNames()[0]).toBe('Unnamed hero')
     await userEvent.click(screen.getByRole('button', { name: 'Type' }))
+    // Name and Type share a header cell, which carries aria-sort for whichever is active.
+    expect(header('Type')).toHaveAttribute('aria-sort', 'ascending')
     // Ties keep the order they were in (Name, descending).
     expect(rowNames().slice(0, 3)).toEqual(['Unnamed hero', 'Paradigm', 'Maya Reyes'])
+    await userEvent.click(screen.getByRole('button', { name: 'Type' }))
+    expect(header('Type')).toHaveAttribute('aria-sort', 'descending')
+    await userEvent.click(screen.getByRole('button', { name: 'Changed' }))
+    expect(header('Name')).toHaveAttribute('aria-sort', 'none')
+    expect(header('Changed')).toHaveAttribute('aria-sort', 'descending')
   })
 
   it('opens the ⋯ menu with Open, Edit, Duplicate, Export, Send… and Delete…', async () => {

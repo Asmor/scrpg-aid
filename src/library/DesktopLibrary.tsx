@@ -3,7 +3,6 @@
  * the rail of views, the title row with New, the filter bar (or the selection bar while rows
  * are checked), the table, and the footer.
  */
-import { DieIcon } from '../components/icons'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { GameLink, LibraryModel } from './LibraryPage'
 import { PopoverDialog, PopoverMenu } from './Popover'
@@ -34,19 +33,21 @@ export const SearchIcon = () => (
   </svg>
 )
 
-/** The In games column: the games holding a copy, as links, one per line, up to two then "+N more"; "—" when none. */
-export function InGamesCell({ games }: { games: readonly GameLink[] }) {
-  if (!games.length) return <span className="muted">—</span>
+/** "In Thursday game, One-shot": the games holding a copy, as links, up to two then "+N more"; nothing when none. */
+export function InGamesLine({ games }: { games: readonly GameLink[] }) {
+  if (!games.length) return null
   const shown = games.slice(0, 2)
   return (
-    <span className="library-games">
-      {shown.map((g) => (
-        <a key={g.id} href={g.href} title={g.name}>
-          {g.name}
-        </a>
+    <div className="library-games">
+      <span className="muted">In </span>
+      {shown.map((g, i) => (
+        <span key={g.id}>
+          {i > 0 && <span className="muted">, </span>}
+          <a href={g.href}>{g.name}</a>
+        </span>
       ))}
-      {games.length > 2 && <span className="muted">+{games.length - 2} more</span>}
-    </span>
+      {games.length > 2 && <span className="muted"> +{games.length - 2} more</span>}
+    </div>
   )
 }
 
@@ -359,23 +360,32 @@ function SelectionBar({ model }: { model: LibraryModel }) {
   )
 }
 
-function SortHeader({ model, label, sortKey }: { model: LibraryModel; label: string; sortKey: SortKey }) {
+function SortButton({ model, label, sortKey }: { model: LibraryModel; label: string; sortKey: SortKey }) {
   const { sort, setSort } = model.view
   const on = sort.key === sortKey
   return (
-    <th scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button type="button" className={on ? 'sort-button sort-button--on' : 'sort-button'} onClick={() => setSort(nextSort(sort, sortKey))}>
-        {label}
-        {on && (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
-            <path d={sort.dir === 'asc' ? 'M12 19V5M6 11l6-6 6 6' : 'M12 5v14M6 13l6 6 6-6'} />
-          </svg>
-        )}
-      </button>
-    </th>
+    <button type="button" className={on ? 'sort-button sort-button--on' : 'sort-button'} onClick={() => setSort(nextSort(sort, sortKey))}>
+      {label}
+      {on && (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+          <path d={sort.dir === 'asc' ? 'M12 19V5M6 11l6-6 6 6' : 'M12 5v14M6 13l6 6 6-6'} />
+        </svg>
+      )}
+    </button>
   )
 }
 
+/** The header cell's aria-sort: the direction when one of its keys is the active sort. */
+function ariaSort(model: LibraryModel, keys: readonly SortKey[]) {
+  const { sort } = model.view
+  return keys.includes(sort.key) ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'
+}
+
+/**
+ * The condensed four-column table (docs/design/library/spec.md, section 4): select; name, type
+ * and details; in games and tags; changed with the actions. Rows grow taller instead of the
+ * table scrolling sideways.
+ */
 function LibraryTable({ model }: { model: LibraryModel }) {
   const { rows, selected, setSelected, query, setQuery } = model.view
   const all = useRef<HTMLInputElement>(null)
@@ -397,14 +407,22 @@ function LibraryTable({ model }: { model: LibraryModel }) {
             <th scope="col" className="library-table__select">
               <input ref={all} type="checkbox" aria-label="Select all shown" checked={rows.length > 0 && selected.size === rows.length} disabled={rows.length === 0} onChange={() => setSelected(selected.size === rows.length ? new Set() : new Set(rows.map((r) => r.key)))} />
             </th>
-            <SortHeader model={model} label="Name" sortKey="name" />
-            <SortHeader model={model} label="Type" sortKey="type" />
-            <th scope="col">Details</th>
-            <th scope="col">In games</th>
-            <th scope="col">Tags</th>
-            <SortHeader model={model} label="Changed" sortKey="changed" />
-            <th scope="col">
-              <span className="visually-hidden">Actions</span>
+            <th scope="col" className="library-table__item" aria-sort={ariaSort(model, ['name', 'type'])}>
+              <SortButton model={model} label="Name" sortKey="name" />
+              <span className="library-table__dot" aria-hidden="true">
+                ·
+              </span>
+              <SortButton model={model} label="Type" sortKey="type" />
+              <span className="library-table__dot" aria-hidden="true">
+                ·
+              </span>
+              <span>Details</span>
+            </th>
+            <th scope="col" className="library-table__meta">
+              In games · Tags
+            </th>
+            <th scope="col" className="library-table__when" aria-sort={ariaSort(model, ['changed'])}>
+              <SortButton model={model} label="Changed" sortKey="changed" />
             </th>
           </tr>
         </thead>
@@ -418,23 +436,26 @@ function LibraryTable({ model }: { model: LibraryModel }) {
                   <input type="checkbox" aria-label={`Select ${info.name}`} checked={on} onChange={() => toggle(r.key)} />
                 </td>
                 <td>
-                  <NameCell row={info} />
-                </td>
-                <td className="library-table__type">{r.item.type.label}</td>
-                <td className="library-table__details">
-                  <span className="library-details" title={info.details}>
-                    {info.detailsDie && <DieIcon die={info.detailsDie} size="inline" />} {info.details}
-                  </span>
+                  <div className="library-table__name">
+                    <NameCell row={info} />
+                  </div>
+                  <div className="library-type">
+                    {r.item.type.label}
+                    {info.kind && <span className="muted"> ({info.kind})</span>}
+                  </div>
+                  {info.details && (
+                    <div className="library-details" title={info.details}>
+                      {info.details}
+                    </div>
+                  )}
                   {info.issues && (
                     <a className="library-issues" href={info.issues.href}>
                       {issuesText(info.issues.count)}
                     </a>
                   )}
                 </td>
-                <td className="library-table__games">
-                  <InGamesCell games={model.inGames(r.item)} />
-                </td>
                 <td>
+                  <InGamesLine games={model.inGames(r.item)} />
                   <ItemTags
                     tags={r.item.doc.tags}
                     itemName={info.name}
@@ -446,15 +467,15 @@ function LibraryTable({ model }: { model: LibraryModel }) {
                   />
                 </td>
                 <td className="library-table__when">
-                  <time dateTime={r.item.doc.updatedAt} title={formatFull(r.item.doc.updatedAt)}>
+                  <time className="library-when" dateTime={r.item.doc.updatedAt} title={formatFull(r.item.doc.updatedAt)}>
                     {formatAgo(r.item.doc.updatedAt, model.now)}
                   </time>
-                </td>
-                <td>
                   <span className="library-actions">
-                    <a className="button button--small" href={info.primary.href} aria-label={`${info.primary.label} ${info.name}`}>
-                      {info.primary.label}
-                    </a>
+                    {info.primary && (
+                      <a className="button button--small" href={info.primary.href} aria-label={`${info.primary.label} ${info.name}`}>
+                        {info.primary.label}
+                      </a>
+                    )}
                     <RowMenu model={model} row={r} />
                   </span>
                 </td>
@@ -463,7 +484,7 @@ function LibraryTable({ model }: { model: LibraryModel }) {
           })}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={8}>
+              <td colSpan={4}>
                 <NoMatches model={model} />
               </td>
             </tr>

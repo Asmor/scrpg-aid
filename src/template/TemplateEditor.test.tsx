@@ -32,7 +32,7 @@ const saved = async <T,>(get: () => Promise<{ status: string; doc?: T }>) => {
 }
 
 describe('the template library rows', () => {
-  it('list minions, lieutenants and challenges with their details, Edit, and the games using them', async () => {
+  it('list minions, lieutenants and challenges with their kind and details, no primary action, and the games using them', async () => {
     await setup('#/', async (t, games) => {
       await t.minions.save({ ...createMinionTemplate({ id: 'm' }), name: 'Burglar', die: 'd8', actions: ['attack', 'hinder'] })
       await t.lieutenants.save({ ...createLieutenantTemplate({ id: 'l' }), name: 'Static Choir', die: 'd10', abilities: [{ name: 'a', type: 'A', text: '' }, { name: 'b', type: 'R', text: '' }] })
@@ -45,11 +45,16 @@ describe('the template library rows', () => {
     const table = await screen.findByRole('table', { name: 'Library' })
     const row = (name: string) => within(within(table).getByRole('link', { name }).closest('tr')!)
     expect(row('Burglar').getByText(/Attack or Hinder · groups of 4/)).toBeInTheDocument()
-    expect(row('Burglar').getByRole('img', { name: 'd8' })).toBeInTheDocument()
+    // The die is the kind, after the type: "Minion (d8)".
+    expect(row('Burglar').getByText('Minion').closest('.library-type')).toHaveTextContent('Minion (d8)')
+    expect(row('Static Choir').getByText('Lieutenant').closest('.library-type')).toHaveTextContent('Lieutenant (d10)')
+    expect(row('Rooftop Heist').getByText('Environment').closest('.library-type')).toHaveTextContent(/^Environment$/)
     expect(row('Static Choir').getByText('2 abilities')).toBeInTheDocument()
     expect(row('Shut down the crucible').getByText('3 steps')).toBeInTheDocument()
     expect(row('Rooftop Heist').getByText('3 aspects · 1 twist · 1 attached')).toBeInTheDocument()
-    expect(row('Burglar').getByRole('link', { name: 'Edit Burglar' })).toHaveAttribute('href', '#/minion/m')
+    // Templates have no primary action; the name opens the editor.
+    expect(row('Burglar').queryByRole('link', { name: 'Edit Burglar' })).not.toBeInTheDocument()
+    expect(row('Burglar').getByRole('link', { name: 'Burglar' })).toHaveAttribute('href', '#/minion/m')
     expect(row('Burglar').getByText('Thursday game')).toBeInTheDocument()
     expect(row('Static Choir').queryByText('Thursday game')).not.toBeInTheDocument()
   })

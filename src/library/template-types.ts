@@ -1,6 +1,6 @@
 /**
  * The NPC templates as library types (docs/design/npcs/spec.md, section 2): minions,
- * lieutenants, challenges and environments. They hold no play state, so the primary action is Edit, and the
+ * lieutenants, challenges and environments. They hold no play state, so they have no primary action, and the
  * In games column lists games holding something made from them.
  */
 import { templatePath } from '../app/route'
@@ -25,7 +25,7 @@ interface TemplateTypeSpec<D> {
   store: (stores: TemplateStores) => DocStore<D>
   envelope: DocEnvelope<D>
   create: () => D
-  details: (doc: D) => Pick<RowInfo, 'details' | 'detailsDie'>
+  details: (doc: D) => Pick<RowInfo, 'details' | 'detailsDie' | 'kind'>
 }
 
 function templateType<D extends TemplateBase>(spec: TemplateTypeSpec<D>): LibraryType<D> {
@@ -45,7 +45,7 @@ function templateType<D extends TemplateBase>(spec: TemplateTypeSpec<D>): Librar
     },
     row(doc) {
       const href = templatePath(spec.kind, doc.id)
-      return { name: templateName(doc, spec.kind), named: Boolean(doc.name.trim()), draft: false, ...spec.details(doc), openHref: href, primary: { label: 'Edit', href }, editHref: href }
+      return { name: templateName(doc, spec.kind), named: Boolean(doc.name.trim()), draft: false, ...spec.details(doc), openHref: href, editHref: href }
     },
     duplicate: (doc) => duplicateTemplate(doc),
     exportFile: (doc) => ({ name: fileName(doc, spec.kind), text: templateJson(spec.envelope, doc) }),
@@ -67,7 +67,7 @@ export const minionTemplateType = templateType<MinionTemplate>({
   envelope: minionTemplateEnvelope,
   create: () => createMinionTemplate(),
   // "[d8] Attack or Hinder · groups of 4"
-  details: (m) => ({ detailsDie: m.die, details: `${actionsText(m)} · groups of ${m.groupSize}` }),
+  details: (m) => ({ detailsDie: m.die, kind: m.die, details: `${actionsText(m)} · groups of ${m.groupSize}` }),
 })
 
 export const lieutenantTemplateType = templateType<LieutenantTemplate>({
@@ -79,7 +79,7 @@ export const lieutenantTemplateType = templateType<LieutenantTemplate>({
   envelope: lieutenantTemplateEnvelope,
   create: () => createLieutenantTemplate(),
   // "[d10] 2 abilities"
-  details: (l) => ({ detailsDie: l.die, details: plural(l.abilities.length, 'ability', 'abilities') }),
+  details: (l) => ({ detailsDie: l.die, kind: l.die, details: plural(l.abilities.length, 'ability', 'abilities') }),
 })
 
 export const challengeTemplateType = templateType<ChallengeTemplate>({

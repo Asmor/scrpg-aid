@@ -167,9 +167,11 @@ function PhoneRow({ model, row, selecting }: { model: LibraryModel; row: Row; se
         </div>
       </div>
       <div className="phone-row__actions">
-        <a className="button" href={info.primary.href} aria-label={`${info.primary.label} ${info.name}`}>
-          {info.primary.label}
-        </a>
+        {info.primary && (
+          <a className="button" href={info.primary.href} aria-label={`${info.primary.label} ${info.name}`}>
+            {info.primary.label}
+          </a>
+        )}
         <RowMenu model={model} row={row} onSelect={() => setSelected(new Set([...selected, row.key]))} />
       </div>
     </li>
