@@ -217,33 +217,51 @@ export function addHero(game: Game, hero: Hero, clock: Clock, player?: HeroInGam
 export function addVillain(game: Game, villain: Villain, clock: Clock, hidden = true, heroCount?: number): Game {
   if (copyOf(game, 'villain', villain.id)) return game
   const name = villainDisplayName(villain)
-  const copy = villainCopy(villain, clock.newId(), hidden)
-  if (heroCount !== undefined && Number.isInteger(heroCount) && heroCount >= 1) copy.play = { ...copy.play, heroCount }
+  const copy = newVillainCopy(villain, hidden, heroCount, clock)
   const added = { ...game, villains: [...game.villains, copy] }
   return log(syncTurnOrder(added), clock, hidden ? `The GM brought in ${name}, hidden from players.` : `${name} joined the table.`, { gmOnly: hidden })
 }
 
+/** A villain's copy with fresh play state, its Health worked out for `heroCount` heroes if given. */
+export function newVillainCopy(villain: Villain, hidden: boolean, heroCount: number | undefined, clock: Clock): VillainInGame {
+  const copy = villainCopy(villain, clock.newId(), hidden)
+  return heroCount !== undefined && Number.isInteger(heroCount) && heroCount >= 1 ? { ...copy, play: { ...copy.play, heroCount } } : copy
+}
+
 const GROUP_WORD = { minions: ['minion', 'minions'], lieutenants: ['lieutenant', 'lieutenants'] } as const
 
-/** Quick add, or a template brought in (docs/design/npcs/spec.md, section 3): a group whose members all start with the same die. */
-export function addGroup(game: Game, group: { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean; actions?: NpcGroup['actions']; templateId?: string; owner?: NpcGroup['owner']; abilities?: readonly TemplateAbility[] }, clock: Clock): Game {
-  if (!Number.isInteger(group.count) || group.count < 1 || group.count > MAX_GROUP_SIZE) return game
+/** What a group is made from: quick add, or a template. */
+export type GroupSpec = { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean; actions?: NpcGroup['actions']; templateId?: string; owner?: NpcGroup['owner']; abilities?: readonly TemplateAbility[] }
+
+/** A new group whose members all start with the same die; undefined if the count is out of range. */
+export function newGroup(group: GroupSpec, clock: Clock): NpcGroup | undefined {
+  if (!Number.isInteger(group.count) || group.count < 1 || group.count > MAX_GROUP_SIZE) return undefined
   // Clamped to what the table view carries (../session/protocol.ts): a template's text has no limits of its own.
   const name = group.name.trim().slice(0, MAX_NAME) || (group.kind === 'minions' ? 'Minions' : 'Lieutenants')
   const members = Array.from({ length: group.count }, (_, i) => ({ id: clock.newId(), n: i + 1, die: group.die, mods: [], acted: false }))
   const actions = group.actions === undefined || group.actions === 'any' ? 'any' : [...group.actions]
   const abilities = (group.abilities ?? []).slice(0, MAX_ABILITIES).map((a) => ({ name: a.name.trim().slice(0, MAX_NAME), type: a.type, text: a.text.slice(0, MAX_TEXT), ...(a.saveBonus ? { saveBonus: a.saveBonus } : {}) }))
-  const added: NpcGroup = { id: clock.newId(), ...(group.templateId ? { templateId: group.templateId } : {}), kind: group.kind, name, hidden: group.hidden, owner: group.owner ?? { kind: 'gm' }, actions, ...(abilities.length ? { abilities } : {}), members }
+  return { id: clock.newId(), ...(group.templateId ? { templateId: group.templateId } : {}), kind: group.kind, name, hidden: group.hidden, owner: group.owner ?? { kind: 'gm' }, actions, ...(abilities.length ? { abilities } : {}), members }
+}
+
+/** Quick add, or a template brought in (docs/design/npcs/spec.md, section 3): a group on the table. */
+export function addGroup(game: Game, group: GroupSpec, clock: Clock): Game {
+  const added = newGroup(group, clock)
+  if (!added) return game
   const word = GROUP_WORD[group.kind][group.count === 1 ? 0 : 1]
-  const text = `The GM added ${name} (${group.count} ${group.die} ${word})${group.hidden ? ', hidden from players' : ''}.`
+  const text = `The GM added ${added.name} (${group.count} ${group.die} ${word})${group.hidden ? ', hidden from players' : ''}.`
   return log(syncTurnOrder({ ...game, groups: [...game.groups, added] }), clock, text, { gmOnly: group.hidden })
 }
 
-export function addChallenge(game: Game, challenge: { name: string; steps: number; hidden: boolean; labels?: readonly string[]; description?: string; whenDone?: string; templateId?: string }, clock: Clock): Game {
-  if (!Number.isInteger(challenge.steps) || challenge.steps < 1 || challenge.steps > MAX_STEPS) return game
+/** What a challenge is made from: quick add, or a template. */
+export type ChallengeSpec = { name: string; steps: number; hidden: boolean; labels?: readonly string[]; description?: string; whenDone?: string; templateId?: string }
+
+/** A new challenge; undefined if the number of steps is out of range. */
+export function newChallenge(challenge: ChallengeSpec, clock: Clock): Challenge | undefined {
+  if (!Number.isInteger(challenge.steps) || challenge.steps < 1 || challenge.steps > MAX_STEPS) return undefined
   const name = challenge.name.trim().slice(0, MAX_NAME) || 'Challenge'
   const labels = (challenge.labels ?? []).slice(0, challenge.steps).map((l) => l.trim().slice(0, MAX_NAME))
-  const added: Challenge = {
+  return {
     id: clock.newId(),
     ...(challenge.templateId ? { templateId: challenge.templateId } : {}),
     name,
@@ -253,7 +271,12 @@ export function addChallenge(game: Game, challenge: { name: string; steps: numbe
     ...(challenge.description?.trim() ? { description: challenge.description.trim().slice(0, MAX_TEXT) } : {}),
     ...(challenge.whenDone?.trim() ? { whenDone: challenge.whenDone.trim().slice(0, MAX_TEXT) } : {}),
   }
-  return log({ ...game, challenges: [...game.challenges, added] }, clock, `The GM added the challenge ${name}${challenge.hidden ? ', hidden from players' : ''}.`, { gmOnly: challenge.hidden })
+}
+
+export function addChallenge(game: Game, challenge: ChallengeSpec, clock: Clock): Game {
+  const added = newChallenge(challenge, clock)
+  if (!added) return game
+  return log({ ...game, challenges: [...game.challenges, added] }, clock, `The GM added the challenge ${added.name}${challenge.hidden ? ', hidden from players' : ''}.`, { gmOnly: challenge.hidden })
 }
 
 /**

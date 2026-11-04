@@ -157,6 +157,108 @@ describe('the game table', () => {
     expect(screen.getByRole('dialog', { name: 'Edit scene 1' })).toBeInTheDocument()
   })
 
+  it('plans a scene: tracker, quick add, library, by tag, then edits, reorders and deletes it, nothing reaching the table', async () => {
+    const { saved, libraryVillain } = await setup()
+    await menuItem('Scene menu', 'Plan the next scene…')
+    let dialog = within(screen.getByRole('dialog', { name: 'Plan scene 2' }))
+    expect(dialog.getByText('Players see nothing here until you start it.')).toBeInTheDocument()
+    expect(dialog.getByLabelText('Name')).toHaveValue('Scene 2')
+    await userEvent.click(dialog.getByRole('radio', { name: /Epic/ }))
+    // Quick add.
+    await userEvent.click(dialog.getByRole('button', { name: '+ Minion' }))
+    const quick = within(screen.getByRole('dialog', { name: 'Add minions' }))
+    await userEvent.type(quick.getByLabelText('Name'), 'Grave Guard')
+    await userEvent.click(quick.getByRole('button', { name: 'Add to scene' }))
+    // From the library: the same villain dialog as Bring in.
+    await userEvent.click(dialog.getByRole('button', { name: 'From library…' }))
+    await userEvent.click(await within(screen.getByRole('dialog', { name: 'Add from your library' })).findByRole('button', { name: 'Add Ironclad' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Bring in Ironclad' })).getByRole('button', { name: 'Bring in' }))
+    expect(within(await screen.findByRole('dialog', { name: 'Add from your library' })).getByText('In this scene')).toBeInTheDocument()
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Add from your library' })).getByRole('button', { name: 'Done' }))
+    dialog = within(screen.getByRole('dialog', { name: 'Plan scene 2' }))
+    expect(dialog.getByText('2 in the opposition · 2 start hidden')).toBeInTheDocument()
+    expect(dialog.getByText('Quick added')).toBeInTheDocument()
+    expect(dialog.getByText('From library')).toBeInTheDocument()
+    await userEvent.click(dialog.getAllByRole('checkbox', { name: 'Starts hidden' })[0]!)
+    await userEvent.click(dialog.getByRole('button', { name: 'Save' }))
+
+    // On the tab; nothing on the table.
+    await menuItem('Scene menu', 'Plan scenes')
+    const row = screen.getByRole('article', { name: 'Scene 2: Scene 2' })
+    expect(row).toHaveTextContent('Next')
+    expect(row).toHaveTextContent('Epic · 1 / 3 / 4')
+    expect(row).toHaveTextContent('Grave Guard ×3')
+    expect(screen.getByText('Scene 1 of 2')).toBeInTheDocument()
+    await waitFor(async () => expect((await saved()).offTable.villains).toMatchObject([{ sourceId: (await libraryVillain()).id }]))
+    expect((await saved()).villains).toEqual([])
+
+    // Editing it keeps what it holds.
+    await userEvent.click(within(row).getByRole('button', { name: 'Edit Scene 2' }))
+    dialog = within(screen.getByRole('dialog', { name: 'Plan scene 2' }))
+    expect(dialog.getByRole('radio', { name: /Epic/ })).toBeChecked()
+    await userEvent.click(dialog.getByRole('button', { name: 'Delete scene…' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Delete scene 2?' })).getByRole('button', { name: 'Delete' }))
+    await waitFor(async () => expect((await saved()).scenes).toHaveLength(1))
+    expect((await saved()).offTable.villains).toEqual([])
+  })
+
+  it('adds everything with a tag, hidden; heroes are not offered', async () => {
+    await setup()
+    await menuItem('Scene menu', 'Plan the next scene…')
+    const dialog = within(screen.getByRole('dialog', { name: 'Plan scene 2' }))
+    const select = await dialog.findByRole('option', { name: 'scene-3 (1)' })
+    await userEvent.selectOptions(dialog.getByRole('combobox', { name: 'Add everything tagged' }), select)
+    await userEvent.click(within(dialog.getByRole('combobox', { name: 'Add everything tagged' }).parentElement!).getByRole('button', { name: 'Add' }))
+    expect(dialog.getByText('Tagged scene-3')).toBeInTheDocument()
+    expect(dialog.getByText('1 in the opposition · 1 start hidden')).toBeInTheDocument()
+  })
+
+  it('reorders planned scenes with the keyboard, announcing politely; duplicates from the menu', async () => {
+    const { saved } = await setup()
+    await userEvent.click(screen.getByRole('tab', { name: 'Scenes' }))
+    await userEvent.click(screen.getByRole('button', { name: '+ Plan a scene' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Plan scene 2' })).getByRole('button', { name: 'Save' }))
+    await menuItem('More for Scene 2', 'Duplicate')
+    const handle = screen.getByRole('button', { name: 'Move Scene 2 (copy)' })
+    handle.focus()
+    await userEvent.keyboard(' ')
+    expect(screen.getByText(/picked up/)).toBeInTheDocument()
+    await userEvent.keyboard('{ArrowUp}')
+    expect(screen.getByText('Scene 2 (copy) moved to scene 2.')).toBeInTheDocument()
+    // Not past the current scene.
+    await userEvent.keyboard('{ArrowUp} ')
+    await waitFor(async () => expect((await saved()).scenes.map((s) => s.name)).toEqual(['', 'Scene 2 (copy)', 'Scene 2']))
+    expect(screen.getByText('Scene 2 (copy) dropped at scene 2.')).toBeInTheDocument()
+  })
+
+  it('shows what is set aside, adds it to a scene or the table, and removes it', async () => {
+    const { saved } = await setup((g) => {
+      const v = villainCopy(adaptiveBruiser(), 'v1', true)
+      g.offTable.villains.push(v)
+      g.aside.push({ ref: { kind: 'villain', id: 'v1' }, afterScene: 1 })
+      g.scenes[0]!.summary = undefined
+    })
+    await userEvent.click(screen.getByRole('tab', { name: 'Scenes' }))
+    expect(screen.getByText(/^Ironclad ·/)).toBeInTheDocument()
+    // Bring in says it's set aside, and brings the same copy.
+    await userEvent.click(screen.getByRole('tab', { name: 'Bring in' }))
+    expect(await gmScreen().findByText('Set aside')).toBeInTheDocument()
+    await userEvent.click(gmScreen().getByRole('button', { name: 'Bring in Ironclad now' }))
+    await waitFor(async () => expect((await saved()).villains).toMatchObject([{ id: 'v1', hidden: true }]))
+    expect((await saved()).aside).toEqual([])
+  })
+
+  it('removes something set aside after a confirm, from its chip', async () => {
+    const { saved } = await setup((g) => {
+      g.offTable.villains.push(villainCopy(adaptiveBruiser(), 'v1', true))
+      g.aside.push({ ref: { kind: 'villain', id: 'v1' } })
+    })
+    await userEvent.click(screen.getByRole('tab', { name: 'Scenes' }))
+    await menuItem('Actions for Ironclad', 'Remove from the game…')
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Remove Ironclad from the game?' })).getByRole('button', { name: 'Remove' }))
+    await waitFor(async () => expect((await saved()).offTable.villains).toEqual([]))
+  })
+
   it('lets a running villain advance the scene tracker once per scene (p. 154)', async () => {
     const { savedVillain, saved } = await setup()
     await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Ironclad' }))

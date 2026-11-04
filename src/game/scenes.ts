@@ -6,11 +6,13 @@
  * The editor works on a draft, so Cancel leaves the game as it was. Library items are copied into
  * the draft's `copies` as they're added, and reach the game on Save.
  */
-import { countsText, trackerName, type TrackerCounts } from '../rules/trackers'
+import { countsText, DEFAULT_TRACKER, trackerName, type TrackerCounts } from '../rules/trackers'
+import { MAX_NAME } from '../session/protocol'
 import type { Clock } from '../play/state'
-import { villainDisplayName } from '../villain/model'
-import { currentScene, emptyOffTable, sceneName, sceneNumber, trackerFromCounts, type Challenge, type EnvironmentOnTable, type Game, type NpcGroup, type OffTable, type OppositionRef, type Scene, type SceneItem, type SceneItemSource, type VillainInGame } from './model'
-import { boxLabel, placeEnvironment, removeFromTable, setHidden, setupScene, syncTurnOrder, withLog } from './table'
+import { villainDisplayName, type Villain } from '../villain/model'
+import { villainSummary } from '../villain/play'
+import { createScene, currentScene, emptyOffTable, sceneName, sceneNumber, trackerFromCounts, type Challenge, type EnvironmentOnTable, type Game, type NpcGroup, type OffTable, type OppositionRef, type Scene, type SceneItem, type SceneItemSource, type VillainInGame } from './model'
+import { boxLabel, newChallenge, newGroup, newVillainCopy, placeEnvironment, removeFromTable, setHidden, setupScene, syncTurnOrder, withLog, type ChallengeSpec, type GroupSpec } from './table'
 
 export const refKey = (ref: OppositionRef) => `${ref.kind}:${ref.id}`
 export const sameRef = (a: OppositionRef, b: OppositionRef) => a.kind === b.kind && a.id === b.id
@@ -256,4 +258,208 @@ export function saveCurrentScene(game: Game, draft: SceneDraft, restart: boolean
   }
   const saved = { ...next, scenes: next.scenes.map((s) => (s.id === next.currentSceneId ? { ...s, notes: draft.notes, opposition: draft.rows } : s)) }
   return gcOffTable(saved)
+}
+
+/** The next planned scene's draft: "Scene 3" on the Standard tracker. */
+export function draftOfNew(game: Game): SceneDraft {
+  return { name: `Scene ${game.scenes.length + 1}`, tracker: { ...DEFAULT_TRACKER }, rows: [], notes: '', copies: emptyOffTable() }
+}
+
+/** A planned scene's draft. An environment with its Hidden choice, and rows for what's still in the game. */
+export function draftOfPlanned(game: Game, sceneId: string): SceneDraft {
+  const scene = game.scenes.find((s) => s.id === sceneId)
+  if (!scene) return draftOfNew(game)
+  const env = scene.environmentId && findItem(game, { kind: 'environment', id: scene.environmentId }) ? { environment: { id: scene.environmentId, hidden: scene.environmentHidden ?? true } } : {}
+  return { name: scene.name, tracker: { ...scene.tracker }, ...env, rows: scene.opposition.filter((i) => findItem(game, i.ref)), notes: scene.notes, copies: emptyOffTable() }
+}
+
+/** The id of a villain's copy already in the game or the draft, if any: there's one copy per game. */
+function villainCopyId(game: Game, draft: SceneDraft, sourceId: string): string | undefined {
+  return [...game.villains, ...game.offTable.villains, ...draft.copies.villains].find((v) => v.sourceId === sourceId)?.id
+}
+
+const withRow = (draft: SceneDraft, row: SceneItem): SceneDraft => (draft.rows.some((r) => sameRef(r.ref, row.ref)) ? draft : { ...draft, rows: [...draft.rows, row] })
+
+/** Adds a villain: the copy this game already has, keeping its Health, or a new one. */
+export function draftAddVillain(game: Game, draft: SceneDraft, villain: Villain, options: { heroCount?: number; source: SceneItemSource; hidden: boolean }, clock: Clock): SceneDraft {
+  const known = villainCopyId(game, draft, villain.id)
+  if (known) return withRow(draft, { ref: { kind: 'villain', id: known }, startHidden: options.hidden, source: options.source })
+  const copy = newVillainCopy(villain, options.hidden, options.heroCount, clock)
+  return withRow({ ...draft, copies: { ...draft.copies, villains: [...draft.copies.villains, copy] } }, { ref: { kind: 'villain', id: copy.id }, startHidden: options.hidden, source: options.source })
+}
+
+export function draftAddGroup(draft: SceneDraft, group: GroupSpec, source: SceneItemSource, clock: Clock): SceneDraft {
+  const made = newGroup(group, clock)
+  return made ? withRow({ ...draft, copies: { ...draft.copies, groups: [...draft.copies.groups, made] } }, { ref: { kind: 'group', id: made.id }, startHidden: group.hidden, source }) : draft
+}
+
+export function draftAddChallenge(draft: SceneDraft, challenge: ChallengeSpec, source: SceneItemSource, clock: Clock): SceneDraft {
+  const made = newChallenge(challenge, clock)
+  return made ? withRow({ ...draft, copies: { ...draft.copies, challenges: [...draft.copies.challenges, made] } }, { ref: { kind: 'challenge', id: made.id }, startHidden: challenge.hidden, source }) : draft
+}
+
+/** Uses a newly made environment copy for the scene. A previous new copy the draft isn't using any more goes. */
+export function draftSetEnvironment(draft: SceneDraft, environment: EnvironmentOnTable): SceneDraft {
+  const environments = [...draft.copies.environments.filter((e) => e.id !== draft.environment?.id), environment]
+  return { ...draft, copies: { ...draft.copies, environments }, environment: { id: environment.id, hidden: environment.hidden } }
+}
+
+/** Saves a planned scene, or a new one at the end of the list when there's no `sceneId`. Returns the scene's id too. */
+export function savePlannedScene(game: Game, sceneId: string | undefined, draft: SceneDraft, clock: Clock): { game: Game; sceneId: string } {
+  const before = sceneId ? game.scenes.find((s) => s.id === sceneId) : undefined
+  const base = before ?? createScene({ id: clock.newId() })
+  const { environmentId: _, environmentHidden: __, ...rest } = base
+  const scene: Scene = {
+    ...rest,
+    name: draft.name.trim().slice(0, MAX_NAME),
+    tracker: { ...draft.tracker },
+    ...(draft.environment ? { environmentId: draft.environment.id, environmentHidden: draft.environment.hidden } : {}),
+    opposition: draft.rows,
+    notes: draft.notes,
+  }
+  const scenes = before ? game.scenes.map((s) => (s.id === scene.id ? scene : s)) : [...game.scenes, scene]
+  return { game: gcOffTable({ ...withCopies(game, draft.copies), scenes }), sceneId: scene.id }
+}
+
+// ---- The list of scenes ----
+
+/** Moves a planned scene to a place in the list; it stays among the planned scenes. */
+export function moveScene(game: Game, sceneId: string, toIndex: number): Game {
+  const from = game.scenes.findIndex((s) => s.id === sceneId)
+  const first = game.scenes.findIndex((s) => s.state === 'planned')
+  if (from < 0 || game.scenes[from]!.state !== 'planned') return game
+  const to = Math.max(first, Math.min(toIndex, game.scenes.length - 1))
+  if (to === from) return game
+  const scenes = [...game.scenes]
+  const [moved] = scenes.splice(from, 1)
+  scenes.splice(to, 0, moved!)
+  return { ...game, scenes }
+}
+
+/**
+ * A copy of a planned scene right after it, with fresh copies of its groups and challenges. A
+ * villain has one copy per game, and what's set aside stays one thing, so those are shared.
+ */
+export function duplicateScene(game: Game, sceneId: string, clock: Clock): Game {
+  const index = game.scenes.findIndex((s) => s.id === sceneId)
+  const scene = game.scenes[index]
+  if (!scene || scene.state !== 'planned') return game
+  const copies = emptyOffTable()
+  const opposition = scene.opposition.flatMap((row): SceneItem[] => {
+    const item = findItem(game, row.ref)
+    if (!item) return []
+    if (row.ref.kind === 'group' && row.source.kind !== 'aside') {
+      const id = clock.newId()
+      copies.groups.push({ ...(item as NpcGroup), id, members: (item as NpcGroup).members.map((m) => ({ ...m, id: clock.newId() })) })
+      return [{ ...row, ref: { kind: 'group', id } }]
+    }
+    if (row.ref.kind === 'challenge' && row.source.kind !== 'aside') {
+      const id = clock.newId()
+      copies.challenges.push({ ...(item as Challenge), id })
+      return [{ ...row, ref: { kind: 'challenge', id } }]
+    }
+    return [row]
+  })
+  const copy: Scene = { ...scene, id: clock.newId(), name: `${sceneName(scene)} (copy)`.slice(0, MAX_NAME), opposition }
+  return { ...withCopies(game, copies), scenes: [...game.scenes.slice(0, index + 1), copy, ...game.scenes.slice(index + 1)] }
+}
+
+/** Deletes a planned scene. What only it held goes too; what's set aside stays set aside. */
+export function deleteScene(game: Game, sceneId: string): Game {
+  const scene = game.scenes.find((s) => s.id === sceneId)
+  if (!scene || scene.state !== 'planned') return game
+  return gcOffTable({ ...game, scenes: game.scenes.filter((s) => s.id !== sceneId) })
+}
+
+/** A done scene's summary and notes, the only things about it that still change. */
+export function setSceneRecord(game: Game, sceneId: string, record: { summary: string; notes: string }): Game {
+  return { ...game, scenes: game.scenes.map((s) => (s.id === sceneId && s.state === 'done' ? { ...s, summary: record.summary, notes: record.notes } : s)) }
+}
+
+// ---- Set aside ----
+
+export interface AsideChip {
+  ref: OppositionRef
+  afterScene?: number
+  /** "Ironclad · 41 / 75", "Bank guards · 3". */
+  text: string
+  name: string
+}
+
+/** What's set aside, each with its Health or count. */
+export function asideChips(game: Game): AsideChip[] {
+  return game.aside.flatMap((entry) => {
+    const item = findIn(game.offTable, entry.ref)
+    if (!item) return []
+    const base = { ref: entry.ref, ...(entry.afterScene ? { afterScene: entry.afterScene } : {}) }
+    if (entry.ref.kind === 'villain') {
+      const copy = item as VillainInGame
+      const { name, health, maxHealth } = villainSummary(copy.sheet, copy.play)
+      return [{ ...base, name, text: health !== undefined ? `${name} · ${health} / ${maxHealth}` : name }]
+    }
+    if (entry.ref.kind === 'group') {
+      const group = item as NpcGroup
+      return [{ ...base, name: group.name, text: `${group.name} · ${group.members.length}` }]
+    }
+    const named = item as Challenge | EnvironmentOnTable
+    return [{ ...base, name: named.name, text: named.name }]
+  })
+}
+
+/** Adds something set aside to a planned scene (it stays set aside until it reaches the table), or brings it on now, hidden. */
+export function addAsideTo(game: Game, ref: OppositionRef, sceneId: string, clock: Clock): Game {
+  const entry = game.aside.find((a) => sameRef(a.ref, ref))
+  if (!entry) return game
+  const source: SceneItemSource = { kind: 'aside', ...(entry.afterScene ? { afterScene: entry.afterScene } : {}) }
+  if (sceneId === game.currentSceneId) {
+    if (ref.kind === 'environment') {
+      const coming = findIn(game.offTable, ref) as EnvironmentOnTable | undefined
+      if (!coming) return game
+      return placeEnvironment({ ...game, aside: game.aside.filter((a) => a !== entry) }, { ...coming, hidden: true }, clock)
+    }
+    const moved = moveToTable(game, ref, true, clock)
+    return { ...moved, scenes: moved.scenes.map((s) => (s.id === sceneId ? { ...s, opposition: [...s.opposition.filter((i) => !sameRef(i.ref, ref)), { ref, startHidden: true, source }] } : s)) }
+  }
+  return {
+    ...game,
+    scenes: game.scenes.map((s) => {
+      if (s.id !== sceneId || s.state !== 'planned') return s
+      if (ref.kind === 'environment') return { ...s, environmentId: ref.id, environmentHidden: true }
+      return s.opposition.some((i) => sameRef(i.ref, ref)) ? s : { ...s, opposition: [...s.opposition, { ref, startHidden: false, source }] }
+    }),
+  }
+}
+
+/** Removes something set aside from the game, and from any scene planning on it. */
+export function removeAside(game: Game, ref: OppositionRef, clock: Clock): Game {
+  const item = findIn(game.offTable, ref)
+  if (!item) return game
+  const scenes = game.scenes.map((s) => {
+    if (s.state !== 'planned') return s
+    const opposition = s.opposition.filter((i) => !sameRef(i.ref, ref))
+    if (ref.kind === 'environment' && s.environmentId === ref.id) {
+      const { environmentId: _, environmentHidden: __, ...rest } = s
+      return { ...rest, opposition }
+    }
+    return { ...s, opposition }
+  })
+  const without = gcOffTable({ ...game, scenes, aside: game.aside.filter((a) => !sameRef(a.ref, ref)) })
+  return withLog(without, [logLine(clock, `${ref.kind === 'group' ? (item as NpcGroup).name : itemTitle(item, ref)} left the game.`, true)])
+}
+
+// ---- What the Bring in tab says ----
+
+/** Where a library item's copy is waiting: "Planned for scene 3", "Set aside", or nothing. */
+export function waitingNote(game: Game, kind: string, sourceId: string): string | undefined {
+  const matches = (ref: OppositionRef): boolean => {
+    const item = findIn(game.offTable, ref)
+    if (!item) return false
+    if (kind === 'villain') return ref.kind === 'villain' && (item as VillainInGame).sourceId === sourceId
+    if (kind === 'minion' || kind === 'lieutenant') return ref.kind === 'group' && (item as NpcGroup).templateId === sourceId && (item as NpcGroup).kind === (kind === 'minion' ? 'minions' : 'lieutenants')
+    if (kind === 'challenge') return ref.kind === 'challenge' && (item as Challenge).templateId === sourceId
+    return kind === 'environment' && ref.kind === 'environment' && (item as EnvironmentOnTable).templateId === sourceId
+  }
+  const scene = game.scenes.find((s) => s.state === 'planned' && (s.opposition.some((i) => matches(i.ref)) || (s.environmentId !== undefined && matches({ kind: 'environment', id: s.environmentId }))))
+  if (scene) return `Planned for scene ${sceneNumber(game, scene.id)}`
+  return game.aside.some((a) => matches(a.ref)) ? 'Set aside' : undefined
 }

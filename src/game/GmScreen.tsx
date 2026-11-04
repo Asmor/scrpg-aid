@@ -2,26 +2,23 @@
  * The GM screen: the GM's side panel (docs/design/game-table/spec.md, section 7). Quick add,
  * Running (the villain or group the GM is working), and the Bring in, Scenes and Notes tabs.
  */
-import { useEffect, useId, useState } from 'react'
-import { useStore } from '../app/store-context'
-import { useOptionalSavedSearchStore } from '../app/saved-search-context'
-import { useVillainStore } from '../app/villain-store-context'
+import { useId, useState } from 'react'
 import { villainPath } from '../app/route'
 import { ActionIcon, DieIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL } from '../hero/labels'
-import { isDraft, type PlayMod } from '../hero/model'
-import { heroType, villainType, toItem, type LibraryItem, type LibraryStores } from '../library/registry'
+import type { PlayMod } from '../hero/model'
+import type { LibraryItem } from '../library/registry'
 import { TEMPLATE_TYPES } from '../library/template-types'
-import { useOptionalTemplateStores } from '../app/template-store-context'
 import { MAX_GROUP_SIZE, type MinionTemplate } from '../template/model'
 import { filterItems, matches, type LibraryQuery } from '../library/query'
+import { useLibraryItems } from './useLibraryItems'
 import type { SavedSearch } from '../library/saved-searches'
 import { ModForm } from '../play/ModForm'
 import { confirmRoll, effectAmount } from '../play/roll'
 import { addDefense, defenseText, removeDefense } from '../play/defense'
 import { RollDialog, type RollSubject } from '../play/RollDialog'
 import { addMod, addTwist, currentHealth, describeMod, modName, removeMod, removeTwist, setHealth, setReactionUsed, type Clock } from '../play/state'
-import { isVillainDraft, villainDisplayName, type VillainPlayState } from '../villain/model'
+import { villainDisplayName, type VillainPlayState } from '../villain/model'
 import { villainHealth, villainStatusDie, villainZone } from '../villain/play'
 import { buildVillainSheet, villainTraits } from '../villain/sheet'
 import type { EnvironmentOnTable, Game, NpcGroup, VillainInGame } from './model'
@@ -31,8 +28,6 @@ import { targetId } from './roll-targets'
 import { gmTable, targetOptions } from './target-options'
 import { ScenesTab, type SceneActions } from './ScenesTab'
 import { ZoneChip } from './TableCenter'
-
-const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 function LockIcon() {
   return (
@@ -246,9 +241,10 @@ function RunningVillain({ game, copy, change, attack, advance, random }: { game:
 export interface BringIn {
   /**
    * Where a library item is on the table: absent, shown, hidden, there with a library sheet that
-   * has changed since (its Update), or a template already used here, which can come in again.
+   * has changed since (its Update), a template already used here, which can come in again, a villain
+   * whose copy is waiting off the table, or already in the scene being planned.
    */
-  placeOf: (item: LibraryItem) => 'absent' | 'shown' | 'hidden' | 'changed' | 'again'
+  placeOf: (item: LibraryItem) => 'absent' | 'shown' | 'hidden' | 'changed' | 'again' | 'waiting' | 'added'
   /**
    * Brings in a copy; a minion or lieutenant template with `count` members (its usual group size by
    * default). A villain first asks how many heroes and what it comes with, unless `quick`.
@@ -256,47 +252,33 @@ export interface BringIn {
   bringIn: (item: LibraryItem, count?: number, quick?: boolean) => void
   /** Opens Update from library for an item whose copy differs. */
   update: (item: LibraryItem) => void
+  /** A tag on the row: "Planned for scene 3". */
+  note?: (item: LibraryItem) => string | undefined
+  /** Which library types to list (planning a scene has no heroes); all of them without it. */
+  only?: (typeKey: string) => boolean
+  /** The button's word, "Bring in" without it. */
+  verb?: string
 }
 
 type Source = { kind: 'all' } | { kind: 'type'; key: string } | { kind: 'search'; search: SavedSearch }
 
-function BringInTab({ bring }: { bring: BringIn }) {
+/** The Bring in list: from the GM screen for the table, or in a modal for a planned scene. */
+export function BringInTab({ bring }: { bring: BringIn }) {
   const id = useId()
-  const heroes = useStore()
-  const villains = useVillainStore()
-  const searchStore = useOptionalSavedSearchStore()
-  const templates = useOptionalTemplateStores()
-  const [items, setItems] = useState<LibraryItem[] | null>(null)
+  const { items: allItems, searches, error } = useLibraryItems()
+  const items = allItems && (bring.only ? allItems.filter((i) => bring.only!(i.type.key)) : allItems)
   // How many members each minion or lieutenant template brings in, by item key.
   const [counts, setCounts] = useState<Record<string, string>>({})
-  const [searches, setSearches] = useState<SavedSearch[]>([])
-  const [error, setError] = useState<string | null>(null)
   const [source, setSource] = useState('all')
   const [text, setText] = useState('')
-  useEffect(() => {
-    let current = true
-    // The template types only read their own stores.
-    const stores = { heroes, villains, ...(templates ? { templates } : {}) } as unknown as LibraryStores
-    Promise.all([heroes.list(), villains.list(), searchStore ? searchStore.list() : Promise.resolve({ searches: [] as SavedSearch[] }), Promise.all(TEMPLATE_TYPES.map(async (t) => ({ t, list: await t.list(stores) })))]).then(
-      ([h, v, s, lists]) => {
-        if (!current) return
-        // Drafts aren't ready to play.
-        setItems([...h.heroes.filter((x) => !isDraft(x)).map((x) => toItem(heroType as never, x)), ...v.villains.filter((x) => !isVillainDraft(x)).map((x) => toItem(villainType as never, x)), ...lists.flatMap(({ t, list }) => list.docs.map((d) => toItem(t, d)))])
-        setSearches(s.searches)
-      },
-      (e: unknown) => current && setError(errorText(e)),
-    )
-    return () => {
-      current = false
-    }
-  }, [heroes, villains, searchStore, templates])
-  const sources: { value: string; label: string; source: Source }[] = [
+  const allSources: { value: string; label: string; source: Source }[] = [
     { value: 'all', label: 'All', source: { kind: 'all' } },
     ...searches.map((s) => ({ value: `search:${s.id}`, label: `${s.name} (saved search)`, source: { kind: 'search' as const, search: s } })),
     { value: 'type:hero', label: 'All heroes', source: { kind: 'type', key: 'hero' } },
     { value: 'type:villain', label: 'All villains', source: { kind: 'type', key: 'villain' } },
     ...TEMPLATE_TYPES.map((t) => ({ value: `type:${t.key}`, label: `All ${t.plural.toLowerCase()}`, source: { kind: 'type' as const, key: t.key } })),
   ]
+  const sources = allSources.filter((s) => !bring.only || s.source.kind !== 'type' || bring.only(s.source.key))
   const chosen = sources.find((s) => s.value === source)?.source ?? { kind: 'all' }
   const query: LibraryQuery = chosen.kind === 'search' ? chosen.search.query : { text: '', types: chosen.kind === 'type' ? [chosen.key] : [], tags: [] }
   /** The count typed for a group template (undefined for anything else); null when it isn't 1–20. */
@@ -315,6 +297,7 @@ function BringInTab({ bring }: { bring: BringIn }) {
   ).map((f) => f.item)
   // Only villains: heroes come in one at a time, as themselves, and templates as many times as wanted.
   const rest = shown.filter((i) => i.type.key === 'villain' && bring.placeOf(i) === 'absent')
+  const verb = bring.verb ?? 'Bring in'
   return (
     <div className="gt-tab">
       <label className="field" htmlFor={`${id}-source`}>
@@ -341,6 +324,7 @@ function BringInTab({ bring }: { bring: BringIn }) {
         <ul className="gt-lib" aria-label="Library">
           {shown.map((i) => {
             const place = bring.placeOf(i)
+            const note = bring.note?.(i)
             return (
               <li key={`${i.type.key}:${i.doc.id}`} className="gt-row">
                 <span className="gt-grow">
@@ -352,6 +336,7 @@ function BringInTab({ bring }: { bring: BringIn }) {
                         {t}
                       </span>
                     ))}
+                    {note && <span className="tag tag--strong">{note}</span>}
                   </span>
                 </span>
                 {(i.type.key === 'minion' || i.type.key === 'lieutenant') && (
@@ -370,11 +355,15 @@ function BringInTab({ bring }: { bring: BringIn }) {
                   <button
                     type="button"
                     className="button button--small"
-                    aria-label={`${place === 'again' ? 'Add another' : 'Bring in'} ${i.row.name}`}
+                    aria-label={`${place === 'again' ? 'Add another' : verb} ${i.row.name}`}
                     disabled={countOf(i) === null}
                     onClick={() => bring.bringIn(i, countOf(i) ?? undefined)}
                   >
-                    {place === 'again' ? 'Add another' : 'Bring in'}
+                    {place === 'again' ? 'Add another' : verb}
+                  </button>
+                ) : place === 'waiting' ? (
+                  <button type="button" className="button button--small" aria-label={`Bring in ${i.row.name} now`} onClick={() => bring.bringIn(i)}>
+                    Bring in now
                   </button>
                 ) : place === 'changed' ? (
                   <span className="gt-row">
@@ -384,7 +373,7 @@ function BringInTab({ bring }: { bring: BringIn }) {
                     </button>
                   </span>
                 ) : (
-                  <span className="gt-sub">{place === 'hidden' ? 'Hidden' : 'On the table'}</span>
+                  <span className="gt-sub">{place === 'added' ? 'In this scene' : place === 'hidden' ? 'Hidden' : 'On the table'}</span>
                 )}
               </li>
             )
@@ -393,10 +382,10 @@ function BringInTab({ bring }: { bring: BringIn }) {
       )}
       {rest.length > 0 && (
         <button type="button" className="button" onClick={() => rest.forEach((i) => bring.bringIn(i, undefined, true))}>
-          Bring in the rest ({rest.length}), hidden
+          {verb} the rest ({rest.length}), hidden
         </button>
       )}
-      <p className="hint">Everything is copied into this game, so damage never touches your library or other games. Templates (minions, lieutenants, challenges and environments) start fresh each time they're brought in. Villains arrive hidden from players.</p>
+      {!bring.only && <p className="hint">Everything is copied into this game, so damage never touches your library or other games. Templates (minions, lieutenants, challenges and environments) start fresh each time they're brought in. Villains arrive hidden from players.</p>}
     </div>
   )
 }
@@ -507,7 +496,7 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
           {tab === 'bring' ? (
             <BringInTab bring={bring} />
           ) : tab === 'scenes' ? (
-            <ScenesTab game={game} actions={scenes} />
+            <ScenesTab game={game} actions={scenes} sheets={sheets} />
           ) : (
             <div className="gt-tab">
               <label className="field" htmlFor={`${id}-notes`}>

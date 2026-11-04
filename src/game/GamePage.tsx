@@ -22,17 +22,17 @@ import { useTick } from '../play/useTick'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
 import { advanceScene, recalculateHealth, villainHealth } from '../villain/play'
 import { BringInVillainDialog, RecalculateHealthDialog } from './VillainDialogs'
-import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, TwistDialog, UpdateDialog } from './dialogs'
+import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, SceneRecordDialog, TwistDialog, UpdateDialog } from './dialogs'
 import { GmScreen, type GmTab, type QuickAddKind, type VillainAttacks } from './GmScreen'
 import type { GroupActions } from './RunningGroup'
 import { applySaves } from './npc'
 import { applyAttack, applyGroupRoll, giveMod, protect } from './resolve'
 import { parseTarget } from './roll-targets'
 import { applyHeroChange, type HeroChange } from './hero-changes'
-import { currentScene, gameDisplayName, sceneName, sceneOnTable, type ActorRef, type Game, type HeroInGame, type VillainInGame } from './model'
+import { currentScene, gameDisplayName, sceneName, sceneNumber, sceneOnTable, type ActorRef, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
 import { healthLine, reconcile, reconcileVillain } from './reconcile'
-import { SceneEditor } from './SceneEditor'
-import { saveCurrentScene } from './scenes'
+import { SceneEditor, type EditorTarget } from './SceneEditor'
+import { addAsideTo, deleteScene, duplicateScene, moveScene, moveToTable, removeAside, saveCurrentScene, savePlannedScene, setSceneRecord, waitingNote } from './scenes'
 import { sheetDiff } from './sheet-diff'
 import { TableCenter, TableLog, ZoneChip, type GmControls, type HeroView, type VillainView } from './TableCenter'
 import { useDocMap } from './useDocMap'
@@ -47,8 +47,9 @@ import { newRoomCode } from '../session/code'
 import * as T from './table'
 import { useOptionalTemplateStores } from '../app/template-store-context'
 import type { DocStore } from '../store/doc-store'
-import type { ChallengeTemplate, EnvironmentTemplate, LieutenantTemplate, MinionTemplate } from '../template/model'
-import { addAttached, environmentBasicAction, environmentFromTemplate, logEnvironmentRoll, resetTwists, rollAspects, setAspects, setTwistUsed, type FoundAttached } from './environment'
+import type { ChallengeTemplate, EnvironmentTemplate, MinionTemplate } from '../template/model'
+import { addAttached, environmentBasicAction, environmentFromTemplate, logEnvironmentRoll, resetTwists, rollAspects, setAspects, setTwistUsed } from './environment'
+import { foundAttached } from './useLibraryItems'
 import type { EnvironmentActions } from './RunningEnvironment'
 import { challengeFromTemplate, groupFromTemplate, templateFromChallenge, templateFromGroup } from '../template/to-table'
 
@@ -57,7 +58,10 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 type Dialog =
   | { kind: 'quick'; which: QuickAddKind }
   | { kind: 'environment' }
-  | { kind: 'scene' }
+  | { kind: 'scene'; target: EditorTarget }
+  | { kind: 'sceneRecord'; sceneId: string }
+  | { kind: 'sceneDelete'; sceneId: string; number: number }
+  | { kind: 'asideRemove'; ref: OppositionRef; name: string }
   | { kind: 'heroHealth' | 'heroMod' | 'heroTwist' | 'heroRemove'; hero: HeroView }
   | { kind: 'removeItem'; ref: T.ItemRef; name: string }
   | { kind: 'memberMod'; groupId: string; memberId: string; name: string }
@@ -212,7 +216,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const gm: GmControls = {
     setPosition: (i) => apply((g) => T.setTrackerPosition(g, i, clock())),
     sceneMenu: [
-      { label: 'Edit this scene…', onSelect: () => setDialog({ kind: 'scene' }) },
+      { label: 'Edit this scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'current' } }) },
+      ...(game.scenes.some((s) => s.state === 'planned') ? [] : [{ label: 'Plan the next scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'new' } }) }]),
       {
         label: 'Plan scenes',
         onSelect: () => {
@@ -326,16 +331,15 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
 
   /** An environment template comes in with copies of its attached templates, as the library has them now (a deleted one is left out). */
   const bringInEnvironment = async (t: EnvironmentTemplate) => {
-    const found: FoundAttached[] = []
-    for (const a of t.attached) {
-      const store = a.kind === 'minion' ? templates?.minions : templates?.lieutenants
-      const result = await store?.get(a.templateId).catch(() => undefined)
-      if (result?.status === 'found') found.push(a.kind === 'minion' ? { kind: 'minion', doc: result.doc as MinionTemplate } : { kind: 'lieutenant', doc: result.doc as LieutenantTemplate })
-    }
+    const found = await foundAttached(t, templates)
     apply((g) => T.setEnvironment(g, environmentFromTemplate(t, found), clock()))
   }
+  /** A villain's copy waiting off the table (there's one per game): it comes on as itself, keeping its Health. */
+  const waitingCopy = (item: LibraryItem) => (item.type.key === 'villain' ? game.offTable.villains.find((v) => v.sourceId === item.doc.id) : undefined)
   const bring = {
+    note: (item: LibraryItem) => waitingNote(game, item.type.key, item.doc.id),
     placeOf: (item: LibraryItem) => {
+      if (waitingCopy(item)) return 'waiting' as const
       // An environment is on the table once (another one replaces it); other templates can come in again and again.
       if (item.type.key === 'environment') return game.environment?.templateId === item.doc.id ? (game.environment.hidden ? ('hidden' as const) : ('shown' as const)) : ('absent' as const)
       // A template already used here can be added again: "Add another".
@@ -349,6 +353,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       return 'hidden' in copy && copy.hidden ? ('hidden' as const) : ('shown' as const)
     },
     bringIn: (item: LibraryItem, count?: number, quick = false) => {
+      const waiting = waitingCopy(item)
+      if (waiting) return apply((g) => moveToTable(g, { kind: 'villain', id: waiting.id }, true, clock()))
       // Everything is copied into this game: damage never touches the library or other games.
       if (item.type.key === 'hero') apply((g) => T.addHero(g, item.doc as unknown as Hero, clock()))
       // A villain asks how many heroes are at the table, and what it comes with (the villain wizard spec, section 7); "the rest" come in for this table's heroes, alone.
@@ -378,7 +384,16 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       setNotes={(notes) => apply((g) => T.setNotes(g, notes))}
       tab={gmTab}
       setTab={setGmTab}
-      scenes={{ edit: () => setDialog({ kind: 'scene' }) }}
+      scenes={{
+        edit: (sceneId) => setDialog({ kind: 'scene', target: sceneId === game.currentSceneId ? { kind: 'current' } : { kind: 'planned', sceneId } }),
+        plan: () => setDialog({ kind: 'scene', target: { kind: 'new' } }),
+        move: (sceneId, to) => apply((g) => moveScene(g, sceneId, to)),
+        duplicate: (sceneId) => apply((g) => duplicateScene(g, sceneId, clock())),
+        remove: (sceneId) => setDialog({ kind: 'sceneDelete', sceneId, number: sceneNumber(game, sceneId) }),
+        record: (sceneId) => setDialog({ kind: 'sceneRecord', sceneId }),
+        addAside: (ref, sceneId) => apply((g) => addAsideTo(g, ref, sceneId, clock())),
+        removeAside: (chip) => setDialog({ kind: 'asideRemove', ref: chip.ref, name: chip.name }),
+      }}
       requests={game.pendingSyncs.flatMap((r) => {
         const copy = T.findHero(game, r.heroId)
         if (!copy) return []
@@ -531,14 +546,33 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       {dialog?.kind === 'scene' && (
         <SceneEditor
           game={game}
+          target={dialog.target}
           clock={clock}
           onSave={(draft, restart) => {
+            const { target } = dialog
             setDialog(null)
-            apply((g) => saveCurrentScene(g, draft, restart, clock()))
+            apply((g) => (target.kind === 'current' ? saveCurrentScene(g, draft, restart, clock()) : savePlannedScene(g, target.kind === 'planned' ? target.sceneId : undefined, draft, clock()).game))
           }}
+          {...(dialog.target.kind === 'planned'
+            ? {
+                onDelete: () => {
+                  const { target } = dialog
+                  setDialog(null)
+                  if (target.kind === 'planned') apply((g) => deleteScene(g, target.sceneId))
+                },
+              }
+            : {})}
           onClose={() => setDialog(null)}
         />
       )}
+      {dialog?.kind === 'sceneRecord' &&
+        (() => {
+          const scene = game.scenes.find((s) => s.id === dialog.sceneId)
+          if (!scene) return null
+          return <SceneRecordDialog title={`Scene ${sceneNumber(game, scene.id)}: ${sceneName(scene)}`} summary={scene.summary ?? ''} notes={scene.notes} onSave={(record) => apply((g) => setSceneRecord(g, scene.id, record))} onClose={() => setDialog(null)} />
+        })()}
+      {dialog?.kind === 'sceneDelete' && <ConfirmDialog title={`Delete scene ${dialog.number}?`} text="The scene goes, with anything only it was holding. Anything set aside stays set aside." confirm="Delete" onConfirm={() => apply((g) => deleteScene(g, dialog.sceneId))} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'asideRemove' && <ConfirmDialog title={`Remove ${dialog.name} from the game?`} text="This game's copy goes, with its damage, and any scene planning on it loses it. Your library doesn't change." confirm="Remove" onConfirm={() => apply((g) => removeAside(g, dialog.ref, clock()))} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'heroHealth' && <HealthDialog name={dialog.hero.name} health={dialog.hero.health ?? 0} {...(dialog.hero.maxHealth !== undefined ? { maxHealth: dialog.hero.maxHealth } : {})} onSet={(value) => changeHero(dialog.hero.ref.id, { kind: 'health', value })} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'heroMod' && <ModDialog title={`Give ${dialog.hero.name} a bonus or penalty`} onAdd={(mod) => changeHero(dialog.hero.ref.id, { kind: 'mod', mod })} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'heroTwist' && <TwistDialog name={dialog.hero.name} onAdd={(twist) => changeHero(dialog.hero.ref.id, { kind: 'twist', twist })} onClose={() => setDialog(null)} />}

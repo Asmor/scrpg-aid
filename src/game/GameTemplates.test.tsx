@@ -142,6 +142,31 @@ describe('the GM screen and templates', () => {
   })
 })
 
+describe('templates in a planned scene', () => {
+  it('copies an environment and a group off the table, and Bring in says where they are', async () => {
+    const { saved } = await setup()
+    await userEvent.click(screen.getByRole('tab', { name: 'Scenes' }))
+    await userEvent.click(screen.getByRole('button', { name: '+ Plan a scene' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Plan scene 2' }))
+    await userEvent.selectOptions(dialog.getByRole('combobox', { name: 'Environment' }), 'Choose from library…')
+    await userEvent.click(await within(screen.getByRole('dialog', { name: 'Choose an environment' })).findByRole('button', { name: 'Use Rooftop Heist' }))
+    await within(dialog.getByRole('combobox', { name: 'Environment' })).findByRole('option', { name: 'Rooftop Heist (from your library)' })
+    expect(dialog.getByRole('checkbox', { name: 'Starts hidden' })).toBeChecked()
+    await userEvent.click(dialog.getByRole('button', { name: 'From library…' }))
+    const library = within(screen.getByRole('dialog', { name: 'Add from your library' }))
+    await userEvent.click(await library.findByRole('button', { name: 'Add Burglar' }))
+    await userEvent.click(library.getByRole('button', { name: 'Done' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Save' }))
+    await waitFor(async () => expect((await saved()).offTable.environments).toMatchObject([{ templateId: 'heist', hidden: true }]))
+    expect((await saved()).environment).toBeUndefined()
+    expect((await saved()).offTable.groups).toMatchObject([{ templateId: 'burglar', hidden: true }])
+    expect(screen.getByRole('article', { name: 'Scene 2: Scene 2' })).toHaveTextContent('Rooftop Heist · 1 in the opposition, 1 start hidden')
+    await userEvent.click(screen.getByRole('tab', { name: 'Bring in' }))
+    const row = (await screen.findByText('Burglar')).closest('li')!
+    expect(row).toHaveTextContent('Planned for scene 2')
+  })
+})
+
 describe('the environment on the table', () => {
   it('comes in from its template; its Running panel rolls its dice, marks twists and adds its minions', async () => {
     const { saved } = await setup()

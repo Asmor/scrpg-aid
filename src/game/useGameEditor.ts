@@ -111,10 +111,10 @@ function holds(game: Game, kind: HeldKind, sourceId: string): boolean {
       return Boolean(copyOf(game, kind, sourceId))
     case 'minion':
     case 'lieutenant':
-      return game.groups.some((g) => g.templateId === sourceId && g.kind === (kind === 'minion' ? 'minions' : 'lieutenants'))
+      return [...game.groups, ...game.offTable.groups].some((g) => g.templateId === sourceId && g.kind === (kind === 'minion' ? 'minions' : 'lieutenants'))
     case 'challenge':
-      return game.challenges.some((c) => c.templateId === sourceId)
+      return [...game.challenges, ...game.offTable.challenges].some((c) => c.templateId === sourceId)
     case 'environment':
-      return game.environment?.templateId === sourceId
+      return game.environment?.templateId === sourceId || game.offTable.environments.some((e) => e.templateId === sourceId)
   }
 }

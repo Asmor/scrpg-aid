@@ -66,7 +66,7 @@ function SaveBox({ value, onChange }: { value: boolean; onChange: (v: boolean) =
 }
 
 /** + Minion or + Lieutenant: one group whose members all have the same die. */
-export function AddGroupDialog({ kind, onAdd, onClose, canSave = false }: { kind: NpcGroup['kind']; onAdd: (group: { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean }, save: boolean) => void; onClose: () => void; canSave?: boolean }) {
+export function AddGroupDialog({ kind, onAdd, onClose, canSave = false, submit = 'Add to table' }: { kind: NpcGroup['kind']; onAdd: (group: { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean }, save: boolean) => void; onClose: () => void; canSave?: boolean; submit?: string }) {
   const [save, setSave] = useState(false)
   const [name, setName] = useState('')
   const [die, setDie] = useState<Die>(kind === 'minions' ? 'd6' : 'd8')
@@ -94,13 +94,13 @@ export function AddGroupDialog({ kind, onAdd, onClose, canSave = false }: { kind
         {n === undefined && <p className="error">How many should be 1 to {MAX_GROUP_SIZE}.</p>}
         <HiddenBox value={hidden} onChange={setHidden} />
         {canSave && <SaveBox value={save} onChange={setSave} />}
-        <Actions submit="Add to table" onCancel={onClose} disabled={n === undefined} />
+        <Actions submit={submit} onCancel={onClose} disabled={n === undefined} />
       </form>
     </Modal>
   )
 }
 
-export function AddChallengeDialog({ onAdd, onClose, canSave = false }: { onAdd: (challenge: { name: string; steps: number; hidden: boolean }, save: boolean) => void; onClose: () => void; canSave?: boolean }) {
+export function AddChallengeDialog({ onAdd, onClose, canSave = false, submit = 'Add to table' }: { onAdd: (challenge: { name: string; steps: number; hidden: boolean }, save: boolean) => void; onClose: () => void; canSave?: boolean; submit?: string }) {
   const [save, setSave] = useState(false)
   const [name, setName] = useState('')
   const [steps, setSteps] = useState('3')
@@ -114,7 +114,7 @@ export function AddChallengeDialog({ onAdd, onClose, canSave = false }: { onAdd:
         {n === undefined && <p className="error">Steps should be 1 to {MAX_STEPS}.</p>}
         <HiddenBox value={hidden} onChange={setHidden} />
         {canSave && <SaveBox value={save} onChange={setSave} />}
-        <Actions submit="Add to table" onCancel={onClose} disabled={n === undefined} />
+        <Actions submit={submit} onCancel={onClose} disabled={n === undefined} />
       </form>
     </Modal>
   )
@@ -143,6 +143,21 @@ export function NameDialog({ title, label, placeholder, submit, onSubmit, onClos
       <form className="gt-form" onSubmit={submitWith(() => (onSubmit(name), onClose()))}>
         <Field label={label}>{(id) => <input id={id} type="text" value={name} {...(placeholder ? { placeholder } : {})} onChange={(e) => setName(e.target.value)} />}</Field>
         <Actions submit={submit} onCancel={onClose} />
+      </form>
+    </Modal>
+  )
+}
+
+/** A done scene: its summary and notes are all that still change. */
+export function SceneRecordDialog({ title, summary, notes, onSave, onClose }: { title: string; summary: string; notes: string; onSave: (record: { summary: string; notes: string }) => void; onClose: () => void }) {
+  const [text, setText] = useState(summary)
+  const [note, setNote] = useState(notes)
+  return (
+    <Modal title={title} onClose={onClose}>
+      <form className="gt-form" onSubmit={submitWith(() => (onSave({ summary: text, notes: note }), onClose()))}>
+        <Field label="Summary">{(id) => <input id={id} type="text" value={text} onChange={(e) => setText(e.target.value)} />}</Field>
+        <Field label="Notes · only you">{(id) => <textarea id={id} rows={3} value={note} onChange={(e) => setNote(e.target.value)} />}</Field>
+        <Actions submit="Save" onCancel={onClose} />
       </form>
     </Modal>
   )

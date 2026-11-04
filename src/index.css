@@ -8017,3 +8017,50 @@ ol.vw-conditions li {
 .gt-opp-row--hidden {
   border-style: dashed;
 }
+
+.gt-scene-handle {
+  border: 0;
+  background: transparent;
+  color: var(--ui-muted);
+  font: inherit;
+  min-width: 2rem;
+  min-height: 2rem;
+  cursor: grab;
+}
+
+.gt-scene-row--lifted {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+}
+
+.gt-scene-chip--aside {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.gt-scene-chip--add {
+  background: transparent;
+  color: var(--ui-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  min-height: 2rem;
+  cursor: pointer;
+}
+
+.gt-aside {
+  border: 1px solid var(--ui-border);
+  border-radius: 0.625rem;
+  padding: 0.625rem 0.75rem;
+}
+
+.gt-editor__adds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gt-editor__delete {
+  margin-right: auto;
+}
