@@ -81,6 +81,10 @@ interface RollDialogProps {
    * hero and their minions). By default every result picks a target, likely side first.
    */
   pickTargets?: 'all' | 'mods'
+  /** Dice rolled as they are, in place of picking a power and a quality (the environment dice). */
+  fixedPool?: readonly { label: string; die: Die }[]
+  /** A basic action picks Min, Mid or Max once the dice are rolled (the environment's; a hero's uses Mid). */
+  chooseUse?: boolean
   /** What the status die is called in the roll; by default its zone's ("Green status"). A villain's is just "Status". */
   statusLabel?: string
   onClose: () => void
@@ -133,7 +137,7 @@ function modMade(action: Action, total: number): string | undefined {
   return action === 'boost' ? `a +${size} bonus` : `a −${size} penalty`
 }
 
-export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, creates = [], minionForms = [], targetsFor, selfId = '', pickTargets = 'all', statusLabel, onClose, random }: RollDialogProps) {
+export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, creates = [], minionForms = [], targetsFor, selfId = '', pickTargets = 'all', fixedPool, chooseUse = false, statusLabel, onClose, random }: RollDialogProps) {
   const titleId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const use = subject.kind === 'ability' ? subject.use : undefined
@@ -149,15 +153,17 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
   const named = firstNamed && choices[firstNamed.kind].find((t) => t.trait.id === firstNamed.id)
   const statusDie = zone && zone !== 'out' ? dice.statusDice?.[zone] : undefined
   const statusName = statusLabel ?? (zone ? `${ZONE_LABEL[zone]} status` : 'Status')
-  const pool = poolDice({ use, picked, named, status: statusDie && zone ? { label: statusName, die: statusDie } : undefined, redStatus: dice.statusDice?.red })
+  const pool = fixedPool ? [...fixedPool] : poolDice({ use, picked, named, status: statusDie && zone ? { label: statusName, die: statusDie } : undefined, redStatus: dice.statusDice?.red })
   const single = Boolean(use?.pool)
   // Every slot needs a die before rolling.
-  const ready = pool.length > 0 && (single || picked.every(Boolean))
+  const ready = pool.length > 0 && (single || Boolean(fixedPool) || picked.every(Boolean))
   const actions = BASIC_ACTIONS.filter((a) => !dice.cannot.includes(a))
 
   // Effects: an ability's, or the basic action chosen.
   const [basicAction, setBasicAction] = useState<Action>(() => (subject.kind === 'basic' && subject.action) || actions[0] || 'attack')
-  const effects = use ? use.effects : [{ actions: [basicAction], use: 'mid' as EffectUse }]
+  // A basic action uses Mid, unless it picks its die after the roll.
+  const [basicUse, setBasicUse] = useState<EffectUse>('mid')
+  const effects = use ? use.effects : [{ actions: [basicAction], use: chooseUse ? basicUse : ('mid' as EffectUse) }]
   const [plans, setPlans] = useState<EffectPlan[]>(() => defaultPlans(effects))
   const shownPlans = use ? plans : defaultPlans(effects)
   const setPlan = (i: number, change: Partial<EffectPlan>) => setPlans((ps) => ps.map((p, j) => (j === i ? { ...p, ...change } : p)))
@@ -397,7 +403,14 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
                       )}
                     </Field>
                   )}
-                  {single ? (
+                  {fixedPool ? (
+                    fixedPool.map((d, i) => (
+                      <div key={i} className="roll-pick" role="group" aria-label={d.label}>
+                        <span className="roll-pick__label">{d.label}</span>
+                        <DieIcon die={d.die} />
+                      </div>
+                    ))
+                  ) : single ? (
                     <div className="roll-pick" role="group" aria-label="Single die">
                       <span className="roll-pick__label">Single die</span>
                       <span>{pool[0]?.label ?? 'None'}</span>
@@ -582,6 +595,19 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
                   })()}
                 </ul>
                 {hasDoubles(rolled) && <p className="hint">Doubles!</p>}
+                {chooseUse && subject.kind === 'basic' && (
+                  <Field label="Use">
+                    {(id) => (
+                      <select id={id} value={basicUse} onChange={(e) => setBasicUse(e.target.value as EffectUse)}>
+                        {(['min', 'mid', 'max'] as const).map((u) => (
+                          <option key={u} value={u}>
+                            {USE_LABEL[u]}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </Field>
+                )}
                 {active.length === 0 && creates.length === 0 ? (
                   <p>No effects with this roll.</p>
                 ) : (
@@ -821,8 +847,9 @@ function ModOffer({
   const [persistent, setPersistent] = useState(p)
   const [exclusive, setExclusive] = useState(x)
   const [to, setTo] = useState<string | null>(null)
-  // A bonus starts on the roller; a penalty on the first opponent, if there is one. Either stays listed.
-  const fallback = value > 0 ? selfId : (list?.([]).likely[0]?.id ?? selfId)
+  // A bonus starts on the roller (or the first ally, for a roller who can't hold one); a penalty on the first opponent, if there is one. Either stays listed.
+  const first = list?.([]).likely[0]?.id
+  const fallback = value > 0 ? selfId || first || '' : (first ?? selfId)
   const listed = list ? list([to ?? fallback]) : undefined
   // With nobody but the roller to give it to (solo, no minions), there's no For choice.
   const options = listed && allOptions(listed).some((o) => o.id !== selfId) ? listed : undefined

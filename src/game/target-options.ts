@@ -21,8 +21,12 @@ import type { TableView } from './project'
 import { targetId } from './roll-targets'
 import { memberName } from './table'
 
-/** Who is choosing: a hero, a hero's minion, a villain, a group's member, or a whole group ("Same target for all"). */
-export type TargetActor = TableTarget | { kind: 'group'; id: string }
+/**
+ * Who is choosing: a hero, a hero's minion, a villain, a group's member, a whole group ("Same
+ * target for all"), or the environment (its basic actions). The environment is on the
+ * opposition's side, but isn't a target itself: it has no Health, mods or defenses.
+ */
+export type TargetActor = TableTarget | { kind: 'group'; id: string } | { kind: 'environment' }
 
 /** The table as a picker sees it: the GM sees everything, players only what's revealed. */
 export interface TargetTable {

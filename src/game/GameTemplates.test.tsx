@@ -169,6 +169,20 @@ describe('the environment on the table', () => {
     expect(gmScreen().queryByRole('button', { name: 'Bring in Rooftop Heist' })).not.toBeInTheDocument()
   })
 
+  it('takes a basic action with its dice, through the roll dialog, and logs it', async () => {
+    await setup()
+    await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Rooftop Heist' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Run Rooftop Heist' }))
+    const panel = within(gmScreen().getByRole('region', { name: 'Rooftop Heist' }))
+    await userEvent.click(panel.getByRole('button', { name: 'Overcome with the environment dice' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Basic action' }))
+    expect(dialog.getByRole('group', { name: 'Night Security' })).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
+    expect(await screen.findByText(/^Rooftop Heist used the environment dice: /)).toBeInTheDocument()
+  })
+
   it("opens its panel when the environment's turn starts", async () => {
     await setup()
     await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Rooftop Heist' }))

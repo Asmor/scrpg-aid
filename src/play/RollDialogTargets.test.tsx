@@ -125,3 +125,43 @@ describe('targets at a table', () => {
     expect(onConfirm.mock.calls[0]![1]).toEqual([{ mod: expect.objectContaining({ value: expect.any(Number) }) }])
   })
 })
+
+describe('a roll with fixed dice (the environment)', () => {
+  it('rolls its dice as they are, and picks Min, Mid or Max after the roll', async () => {
+    const onConfirm = vi.fn()
+    render(
+      <RollDialog
+        subject={{ kind: 'basic', action: 'attack' }}
+        dice={{ powers: [], qualities: [], slots: ['power', 'quality'], cannot: [], known: [] }}
+        zone={undefined}
+        mods={[]}
+        fixedPool={[
+          { label: 'Slick Tiles', die: 'd10' },
+          { label: 'Howling Wind', die: 'd6' },
+          { label: 'Night Security', die: 'd8' },
+        ]}
+        chooseUse
+        targetsFor={(effect, opts) => targetOptions({ kind: 'environment' }, effect, TABLE, opts)}
+        onConfirm={onConfirm}
+        onClose={() => {}}
+        random={() => 0.5}
+      />,
+    )
+    const dialog = within(screen.getByRole('dialog', { name: 'Basic action' }))
+    expect(dialog.getByRole('group', { name: 'Howling Wind' })).toBeInTheDocument()
+    expect(dialog.queryByLabelText('Power')).not.toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
+    // 0.5 rolls 6 on a d10, 4 on a d6, 5 on a d8: Mid is 5.
+    const use = dialog.getByLabelText('Use')
+    expect(use).toHaveValue('mid')
+    await userEvent.selectOptions(use, 'Max')
+    await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
+    // The environment's Attack lists the heroes' side first.
+    const target = dialog.getByLabelText('Target')
+    expect(optionTexts(target)).toEqual(['Maya', 'Jo', "Rat (Jo's minion)", 'No target'])
+    await userEvent.selectOptions(target, 'Jo')
+    await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
+    expect(onConfirm.mock.calls[0]![0].results).toMatchObject([{ action: 'attack', use: 'max', total: 6 }])
+    expect(onConfirm.mock.calls[0]![4]).toEqual([{ result: 0, to: 'hero:h2' }])
+  })
+})

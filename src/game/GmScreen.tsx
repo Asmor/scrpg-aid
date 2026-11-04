@@ -469,7 +469,7 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
           {running.kind === 'villain' ? (
             <RunningVillain key={running.villain.id} game={game} copy={running.villain} change={running.change} attack={running.attack} random={random} />
           ) : running.kind === 'environment' ? (
-            <RunningEnvironment key={running.env.id} game={game} env={running.env} actions={running.actions} sheets={sheets} />
+            <RunningEnvironment key={running.env.id} game={game} env={running.env} actions={running.actions} sheets={sheets} random={random} />
           ) : (
             <RunningGroup key={running.group.id} game={game} group={running.group} actions={running.actions} random={random} />
           )}

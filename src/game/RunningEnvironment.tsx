@@ -5,11 +5,16 @@
  * Hand off. All of it is the GM's alone.
  */
 import { useId, useRef, useState, type KeyboardEvent } from 'react'
-import { DieIcon } from '../components/icons'
+import { ActionIcon, DieIcon } from '../components/icons'
+import { ACTION_LABEL } from '../creation/effects'
+import type { FormDice } from '../play/forms'
+import { RollDialog, type FollowUpMod, type TargetChoice } from '../play/RollDialog'
+import type { RollRecord } from '../play/roll'
+import { gmTable, targetOptions } from './target-options'
 import { DiePicker } from '../components/DiePicker'
 import { Modal } from '../components/Modal'
 import { PLAY_ZONE_LABEL } from '../hero/labels'
-import type { Die } from '../rules/types'
+import type { BasicAction, Die } from '../rules/types'
 import { ASPECT_COUNT, type EnvironmentAspect, type EnvironmentTwist } from '../template/model'
 import { aspectName, attachedGroup, twistTitle, type EnvironmentRoll } from './environment'
 import { MAX_GROUP_SIZE, type ActorRef, type EnvironmentOnTable, type Game, type TableTwist } from './model'
@@ -25,7 +30,13 @@ export interface EnvironmentActions {
   addAttached: (index: number, count: number) => void
   run: (ref: ItemRef) => void
   handOff: (to: ActorRef) => void
+  /** A basic action with the environment dice, confirmed in the roll dialog: its results, and who they go to. */
+  basicAction: (record: RollRecord, followUps: readonly FollowUpMod[], choices: readonly TargetChoice[]) => void
 }
+
+const BASIC: readonly BasicAction[] = ['attack', 'defend', 'boost', 'hinder', 'overcome']
+/** The roll dialog's dice for the environment: no powers or qualities, only its fixed pool. */
+const NO_TRAITS: FormDice = { powers: [], qualities: [], slots: ['power', 'quality'], cannot: [], known: [] }
 
 const ZONES: readonly EnvironmentTwist['zone'][] = ['green', 'yellow', 'red']
 const ZONE_WORD: Record<EnvironmentTwist['zone'], string> = { green: 'Green', yellow: 'Yellow', red: 'Red' }
@@ -153,9 +164,10 @@ function Stepper({ value, name, onChange }: { value: number; name: string; onCha
   )
 }
 
-export function RunningEnvironment({ game, env, actions, sheets }: { game: Game; env: EnvironmentOnTable; actions: EnvironmentActions; sheets: boolean }) {
+export function RunningEnvironment({ game, env, actions, sheets, random }: { game: Game; env: EnvironmentOnTable; actions: EnvironmentActions; sheets: boolean; random?: () => number }) {
   const [rolled, setRolled] = useState<EnvironmentRoll | null>(null)
   const [settingAspects, setSettingAspects] = useState(false)
+  const [acting, setActing] = useState<BasicAction | null>(null)
   const attached = env.attached ?? []
   const [counts, setCounts] = useState<number[]>(() => attached.map((a) => a.groupSize))
   const aspects = env.aspects ?? []
@@ -206,6 +218,15 @@ export function RunningEnvironment({ game, env, actions, sheets }: { game: Game;
             ))}
           </ul>
         )}
+        <div className="gt-row" role="group" aria-label="Basic action with these dice">
+          <span className="gt-sub">Basic action with these dice:</span>
+          {BASIC.map((a) => (
+            <button key={a} type="button" className="button button--small" disabled={aspects.length !== ASPECT_COUNT} aria-label={`${ACTION_LABEL[a]} with the environment dice`} onClick={() => setActing(a)}>
+              <ActionIcon action={a} decorative />
+              {ACTION_LABEL[a]}
+            </button>
+          ))}
+        </div>
         <div role="status" aria-label="Environment roll">
           {rolled && (
             <div className="gt-env-roll">
@@ -269,6 +290,20 @@ export function RunningEnvironment({ game, env, actions, sheets }: { game: Game;
           <span className="gt-grow" />
           {roundOver(game) ? <p className="gt-sub">Everyone has acted: start the next round from the turn order.</p> : <MenuButton label="Hand off to" text={`Hand off for ${env.name}`} items={handItems} sheets={sheets} />}
         </div>
+      )}
+      {acting && (
+        <RollDialog
+          subject={{ kind: 'basic', action: acting }}
+          dice={NO_TRAITS}
+          zone={undefined}
+          mods={[]}
+          fixedPool={aspects.map((a, i) => ({ label: aspectName(a, i), die: a.die }))}
+          chooseUse
+          targetsFor={(effect, opts) => targetOptions({ kind: 'environment' }, effect, gmTable(game), opts)}
+          onClose={() => setActing(null)}
+          onConfirm={(record, followUps, _form, _made, choices = []) => actions.basicAction(record, followUps, choices)}
+          random={random}
+        />
       )}
       {settingAspects && (
         <AspectsDialog

@@ -45,7 +45,7 @@ import * as T from './table'
 import { useOptionalTemplateStores } from '../app/template-store-context'
 import type { DocStore } from '../store/doc-store'
 import type { ChallengeTemplate, EnvironmentTemplate, LieutenantTemplate, MinionTemplate } from '../template/model'
-import { addAttached, environmentFromTemplate, logEnvironmentRoll, resetTwists, rollAspects, setAspects, setTwistUsed, type FoundAttached } from './environment'
+import { addAttached, environmentBasicAction, environmentFromTemplate, logEnvironmentRoll, resetTwists, rollAspects, setAspects, setTwistUsed, type FoundAttached } from './environment'
 import type { EnvironmentActions } from './RunningEnvironment'
 import { challengeFromTemplate, groupFromTemplate, templateFromChallenge, templateFromGroup } from '../template/to-table'
 
@@ -275,6 +275,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     addAttached: (index, count) => apply((g) => addAttached(g, index, count, clock())),
     run: (ref) => setRunning(ref),
     handOff: (to) => turn((g) => T.handOff(g, to, clock())),
+    basicAction: (record, followUps, choices) => apply((g) => environmentBasicAction(g, record, followUps, choices, random ?? Math.random, clock())),
   }
   const groupActions = (groupId: string): GroupActions => ({
     shrink: (memberId) => apply((g) => T.shrinkMember(g, groupId, memberId, clock())),

@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest'
 import type { Clock } from '../play/state'
 import { tableViewProblem } from '../session/protocol'
 import { createEnvironmentTemplate, createLieutenantTemplate, createMinionTemplate, type EnvironmentTemplate } from '../template/model'
-import { addAttached, attachedGroup, environmentFromTemplate, logEnvironmentRoll, resetTwists, rollAspects, setAspects, setTwistUsed, twistTitle } from './environment'
+import { addAttached, attachedGroup, environmentBasicAction, environmentFromTemplate, logEnvironmentRoll, resetTwists, rollAspects, setAspects, setTwistUsed, twistTitle } from './environment'
 import { createGame, type Game } from './model'
 import { project } from './project'
-import { addGroup, setEnvironment, startRound, syncTurnOrder } from './table'
+import { addGroup, addHero, setEnvironment, startRound, syncTurnOrder } from './table'
+import { completeHero } from '../test/heroes'
+import { buildSheet } from '../creation/sheet'
+import { currentHealth } from '../play/state'
+import type { RollRecord } from '../play/roll'
+import { targetOptions, gmTable } from './target-options'
 
 function clock(): Clock {
   let n = 0
@@ -150,5 +155,54 @@ describe('an environment template on the table', () => {
     next = { ...next, groups: next.groups.map((x) => ({ ...x, members: x.members.map((m) => ({ ...m, acted: true })) })) }
     next = startRound(syncTurnOrder(next), { kind: 'environment', id: next.environment!.id }, c)
     expect(next.groups[0]!.members.every((m) => !m.acted)).toBe(true)
+  })
+})
+
+describe("the environment's basic actions", () => {
+  const record = (action: 'attack' | 'hinder' | 'defend' | 'overcome', total: number): RollRecord => ({
+    title: 'Took a basic action:',
+    rolled: [{ label: 'Slick Tiles', die: 'd10', value: total }],
+    results: [{ action, use: 'max', base: total, mods: [], total }],
+    manual: false,
+  })
+
+  function withHero() {
+    const { g, c } = table()
+    const next = addAttached(addHero(g, { ...completeHero(), details: { ...completeHero().details, name: 'Maya Reyes' } }, c), 0, 1, c)
+    return { g: next, c, maya: next.heroes[0]!.id, drone: next.groups[0]! }
+  }
+  const health = (g: Game) => currentHealth(buildSheet(g.heroes[0]!.sheet), g.heroes[0]!.play)!
+
+  it('logs the roll and attacks a hero, GM-only while the environment is hidden', () => {
+    const { g, c, maya } = withHero()
+    const next = environmentBasicAction(g, record('attack', 6), [], [{ result: 0, to: `hero:${maya}` }], dice(), c)
+    expect(health(next)).toBe(health(g) - 6)
+    const lines = next.feed.slice(g.feed.length)
+    expect(lines.map((l) => [l.text, l.gmOnly])).toEqual([
+      ['Rooftop Heist used the environment dice: Deal 6 (Max) damage.', true],
+      ['Rooftop Heist attacked Maya Reyes: 6 damage.', true],
+      // The hero's own history, as with any hit.
+      [expect.stringMatching(/^Lost 6 HP/), undefined],
+    ])
+  })
+
+  it("gives a Hinder's penalty, a Defend, and logs an Overcome", () => {
+    const { g, c, maya, drone } = withHero()
+    const shown = { ...g, environment: { ...g.environment!, hidden: false } }
+    let next = environmentBasicAction(shown, record('hinder', 5), [{ mod: { label: 'Slick', value: -2 }, to: `hero:${maya}` }], [], dice(), c)
+    expect(next.heroes[0]!.play.mods).toMatchObject([{ label: 'Slick', value: -2 }])
+    next = environmentBasicAction(next, record('defend', 4), [], [{ result: 0, to: `member:${drone.id}:${drone.members[0]!.id}` }], dice(), c)
+    expect(next.groups[0]!.members[0]!.defenses).toMatchObject([{ value: 4, from: 'Rooftop Heist' }])
+    next = environmentBasicAction(next, record('overcome', 6), [], [], dice(), c)
+    expect(next.feed.at(-1)).toMatchObject({ text: 'Rooftop Heist used the environment dice: Overcome 6 (Success with a minor twist).' })
+    expect(next.feed.at(-1)).not.toHaveProperty('gmOnly')
+    // No environment: nothing happens.
+    expect(environmentBasicAction(createGame({ id: 'x' }), record('attack', 3), [], [], dice(), c).feed).toEqual([])
+  })
+
+  it('picks heroes first for its Attack, and its own side for Boost', () => {
+    const { g } = withHero()
+    expect(targetOptions({ kind: 'environment' }, 'attack', gmTable(g)).likely.map((o) => o.name)).toEqual(['Maya Reyes'])
+    expect(targetOptions({ kind: 'environment' }, 'boost', gmTable(g)).likely.map((o) => o.name)).toEqual(['Security drones 1'])
   })
 })

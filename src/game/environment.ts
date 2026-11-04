@@ -15,6 +15,10 @@ import { ASPECT_COUNT, type EnvironmentAspect, type EnvironmentTemplate, type Li
 import type { Clock } from '../play/state'
 import { MAX_GROUP_SIZE, type AttachedOnTable, type EnvironmentOnTable, type Game, type NpcGroup, type TableTwist } from './model'
 import { addGroup, GM, withLog } from './table'
+import { describeEffect, effectAmount, overcomeOutcome, type RollRecord } from '../play/roll'
+import type { ModInput } from './actions'
+import { applyAttack, giveMod, protect } from './resolve'
+import { parseTarget } from './roll-targets'
 
 type Random = () => number
 
@@ -132,4 +136,33 @@ export function addAttached(game: Game, index: number, count: number, clock: Clo
   const added = Array.from({ length: room }, (_, i) => ({ id: clock.newId(), n: start + i + 1, die: a.die, mods: [], acted: false }))
   const next = { ...game, groups: game.groups.map((g) => (g.id === existing.id ? { ...g, members: [...g.members, ...added] } : g)) }
   return withLog(next, [{ id: clock.newId(), at: clock.now.toISOString(), by: GM, text: `The GM added ${room} more to ${existing.name}.`, ...(existing.hidden ? { gmOnly: true as const } : {}) }])
+}
+
+/**
+ * A basic action with the environment dice (spec section 6), as the roll dialog confirmed it: the
+ * roll is logged ("Rooftop Heist used the environment dice: Deal 6 (Max) damage."), then each
+ * result goes to its target: an Attack takes Health or rolls a save, a Defend gives a defense,
+ * and a Boost's or Hinder's mod goes to whoever it was given to. The environment itself holds
+ * none of these, so results without a target only show in the log. A hidden environment's lines
+ * are the GM's.
+ */
+export function environmentBasicAction(game: Game, record: RollRecord, followUps: readonly { mod: ModInput; to?: string }[], choices: readonly { result: number; to: string }[], random: Random, clock: Clock): Game {
+  const env = game.environment
+  if (!env) return game
+  const by = env.name
+  const gmOnly = env.hidden
+  const said = record.results.map((r) => (r.action === 'overcome' && r.total !== undefined ? `Overcome ${r.total} (${overcomeOutcome(r.total)}).` : describeEffect(r))).join(' ')
+  let next = withLog(game, [{ id: clock.newId(), at: clock.now.toISOString(), by, text: `${by} used the environment dice: ${said}`, ...(gmOnly ? { gmOnly: true as const } : {}) }])
+  for (const c of choices) {
+    const r = record.results[c.result]
+    const to = c.to ? parseTarget(c.to) : undefined
+    if (!r || r.total === undefined || !to) continue
+    if (r.action === 'attack') next = applyAttack(next, by, to, effectAmount(r.total), random, clock, gmOnly).game
+    else if (r.action === 'defend') next = protect(next, by, to, effectAmount(r.total), clock, gmOnly)
+  }
+  for (const f of followUps) {
+    const to = f.to ? parseTarget(f.to) : undefined
+    if (to) next = giveMod(next, to, f.mod, by, clock, !gmOnly)
+  }
+  return next
 }
