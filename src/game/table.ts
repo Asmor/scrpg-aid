@@ -212,11 +212,17 @@ export function addHero(game: Game, hero: Hero, clock: Clock, player?: HeroInGam
   return log(syncTurnOrder(added), clock, `${heroDisplayName(hero)} joined the table.`)
 }
 
-/** Copies a villain into the game with fresh play state (hidden unless said otherwise). */
-export function addVillain(game: Game, villain: Villain, clock: Clock, hidden = true): Game {
+/**
+ * Copies a villain into the game with fresh play state (hidden unless said otherwise). `heroCount`
+ * is the number of heroes its Health is worked out for at this table (the villain wizard spec,
+ * section 7); the copy keeps it.
+ */
+export function addVillain(game: Game, villain: Villain, clock: Clock, hidden = true, heroCount?: number): Game {
   if (copyOf(game, 'villain', villain.id)) return game
   const name = villainDisplayName(villain)
-  const added = { ...game, villains: [...game.villains, villainCopy(villain, clock.newId(), hidden)] }
+  const copy = villainCopy(villain, clock.newId(), hidden)
+  if (heroCount !== undefined && Number.isInteger(heroCount) && heroCount >= 1) copy.play = { ...copy.play, heroCount }
+  const added = { ...game, villains: [...game.villains, copy] }
   return log(syncTurnOrder(added), clock, hidden ? `The GM brought in ${name}, hidden from players.` : `${name} joined the table.`, { gmOnly: hidden })
 }
 

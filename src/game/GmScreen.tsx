@@ -242,8 +242,11 @@ export interface BringIn {
    * has changed since (its Update), or a template already used here, which can come in again.
    */
   placeOf: (item: LibraryItem) => 'absent' | 'shown' | 'hidden' | 'changed' | 'again'
-  /** Brings in a copy; a minion or lieutenant template with `count` members (its usual group size by default). */
-  bringIn: (item: LibraryItem, count?: number) => void
+  /**
+   * Brings in a copy; a minion or lieutenant template with `count` members (its usual group size by
+   * default). A villain first asks how many heroes and what it comes with, unless `quick`.
+   */
+  bringIn: (item: LibraryItem, count?: number, quick?: boolean) => void
   /** Opens Update from library for an item whose copy differs. */
   update: (item: LibraryItem) => void
 }
@@ -382,7 +385,7 @@ function BringInTab({ bring }: { bring: BringIn }) {
         </ul>
       )}
       {rest.length > 0 && (
-        <button type="button" className="button" onClick={() => rest.forEach((i) => bring.bringIn(i))}>
+        <button type="button" className="button" onClick={() => rest.forEach((i) => bring.bringIn(i, undefined, true))}>
           Bring in the rest ({rest.length}), hidden
         </button>
       )}

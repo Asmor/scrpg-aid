@@ -20,7 +20,8 @@ import { formatAgoInline } from '../library/when'
 import type { Clock } from '../play/state'
 import { useTick } from '../play/useTick'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
-import { villainHealth } from '../villain/play'
+import { recalculateHealth, villainHealth } from '../villain/play'
+import { BringInVillainDialog, RecalculateHealthDialog } from './VillainDialogs'
 import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, SceneSetupDialog, TwistDialog, UpdateDialog } from './dialogs'
 import { GmScreen, type QuickAddKind, type VillainAttacks } from './GmScreen'
 import type { GroupActions } from './RunningGroup'
@@ -63,6 +64,8 @@ type Dialog =
   | { kind: 'review'; heroId: string }
   | { kind: 'startHosting' }
   | { kind: 'invite' }
+  | { kind: 'bringVillain'; villain: Villain }
+  | { kind: 'recalculate'; villainId: string }
 
 const defaultClock = (): Clock => ({ now: new Date(), newId: () => newId() })
 const noSave = async () => {}
@@ -245,6 +248,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         const newer = copy && libraryChange('villain', copy)
         return newer ? [{ label: `Library sheet changed ${formatAgoInline(newer.updatedAt, now)}`, note: true as const, onSelect: () => {} }, { label: 'Update from library…', onSelect: () => setDialog({ kind: 'update', ref: { kind: 'villain', id: ref.id }, sheet: newer }) }] : []
       })(),
+      ...(ref.kind === 'villain' ? [{ label: 'Recalculate Health…', onSelect: () => setDialog({ kind: 'recalculate', villainId: ref.id }) }] : []),
       ...(hidden ? [{ label: 'Reveal', onSelect: () => reveal(ref) }] : ref.kind === 'villain' ? [] : [{ label: 'Hide from players', onSelect: () => hide(ref) }]),
       { label: 'Remove from the game…', danger: true, onSelect: () => setDialog({ kind: 'removeItem', ref, name: nameOf(ref) }) },
     ],
@@ -333,10 +337,12 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       if (!(copy as HeroInGame).player && sheetDiff(copy.sheet, item.doc as unknown as Hero | Villain).length) return 'changed' as const
       return 'hidden' in copy && copy.hidden ? ('hidden' as const) : ('shown' as const)
     },
-    bringIn: (item: LibraryItem, count?: number) => {
+    bringIn: (item: LibraryItem, count?: number, quick = false) => {
       // Everything is copied into this game: damage never touches the library or other games.
       if (item.type.key === 'hero') apply((g) => T.addHero(g, item.doc as unknown as Hero, clock()))
-      else if (item.type.key === 'villain') apply((g) => T.addVillain(g, item.doc as unknown as Villain, clock()))
+      // A villain asks how many heroes are at the table, and what it comes with (the villain wizard spec, section 7); "the rest" come in for this table's heroes, alone.
+      else if (item.type.key === 'villain' && quick) apply((g) => T.addVillain(g, item.doc as unknown as Villain, clock(), true, Math.max(1, g.heroes.length)))
+      else if (item.type.key === 'villain') setDialog({ kind: 'bringVillain', villain: item.doc as unknown as Villain })
       // A template brings in a fresh copy each time, hidden like everything else.
       else if (item.type.key === 'minion' || item.type.key === 'lieutenant') {
         const t = item.doc as unknown as MinionTemplate
@@ -526,6 +532,35 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           onClose={() => setDialog(null)}
         />
       )}
+      {dialog?.kind === 'bringVillain' && (
+        <BringInVillainDialog
+          villain={dialog.villain}
+          heroes={game.heroes.length}
+          onClose={() => setDialog(null)}
+          onBring={(heroCount, picks) => {
+            const villain = dialog.villain
+            setDialog(null)
+            // Its minions and lieutenants come in as the GM's groups, hidden like the villain.
+            apply((g) => picks.reduce((x, p) => T.addGroup(x, groupFromTemplate(p.template, p.attachment.kind === 'minion' ? 'minions' : 'lieutenants', p.count, true), clock()), T.addVillain(g, villain, clock(), true, heroCount)))
+          }}
+        />
+      )}
+      {dialog?.kind === 'recalculate' &&
+        (() => {
+          const copy = T.findVillain(game, dialog.villainId)
+          if (!copy) return null
+          return (
+            <RecalculateHealthDialog
+              villain={copy.sheet}
+              heroes={copy.play.heroCount ?? copy.sheet.heroCount}
+              onClose={() => setDialog(null)}
+              onApply={(n) => {
+                setDialog(null)
+                changeVillain(copy.id, (p, c) => recalculateHealth(copy.sheet, p, n, c))
+              }}
+            />
+          )
+        })()}
       {dialog?.kind === 'removeItem' && (
         <ConfirmDialog
           title={`Remove ${dialog.name} from the game?`}

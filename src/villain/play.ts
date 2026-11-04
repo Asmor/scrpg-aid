@@ -63,6 +63,20 @@ export function setSceneHeroes(play: VillainPlayState, count: number | undefined
   return noted(count === undefined ? rest : { ...rest, heroCount: count }, clock, count === undefined ? 'Back to the heroes it was built for.' : `${count} ${count === 1 ? 'hero' : 'heroes'} in this scene.`)
 }
 
+/**
+ * Recalculate Health (the villain wizard spec, section 7): the villain's max Health for `count`
+ * heroes, keeping the damage it has taken. Its current Health moves by as much as its max does,
+ * so a villain at full Health stays at full.
+ */
+export function recalculateHealth(villain: Villain, play: VillainPlayState, count: number, clock: Clock): VillainPlayState {
+  if (!Number.isInteger(count) || count < 1 || count === (play.heroCount ?? villain.heroCount)) return play
+  const before = villainHealth(villain, play).maxHealth
+  const next = setSceneHeroes(play, count, clock)
+  const after = villainHealth(villain, next).maxHealth
+  if (play.health === undefined || before === undefined || after === undefined) return next
+  return { ...next, health: play.health + (after - before) }
+}
+
 export function setStatusCount(play: VillainPlayState, count: number, clock: Clock): VillainPlayState {
   const n = Math.max(0, Math.round(count))
   return n === (play.statusCount ?? 0) ? play : noted({ ...play, statusCount: n }, clock, `Status count is now ${n}.`)

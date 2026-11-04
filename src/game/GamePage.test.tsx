@@ -75,6 +75,9 @@ const log = () => screen.getByRole('region', { name: 'Table log' })
 
 async function bringIn(name: string) {
   await userEvent.click(await gmScreen().findByRole('button', { name: `Bring in ${name}` }))
+  // A villain asks how many heroes are at the table first.
+  const dialog = screen.queryByRole('dialog', { name: `Bring in ${name}` })
+  if (dialog) await userEvent.click(within(dialog).getByRole('button', { name: 'Bring in' }))
 }
 
 async function menuItem(button: string | RegExp, item: string | RegExp) {
@@ -118,6 +121,30 @@ describe('the game table', () => {
     expect(screen.getByRole('heading', { name: 'The Foundry' })).toBeInTheDocument()
     expect(within(screen.getByRole('group', { name: 'Scene tracker' })).getAllByRole('button')).toHaveLength(7)
     await waitFor(async () => expect((await saved()).scene).toMatchObject({ name: 'The Foundry', tracker: ['green', 'green', 'green', 'yellow', 'yellow', 'yellow', 'red'] }))
+  })
+
+  it('asks how many heroes a villain faces, and recalculates its Health later keeping its damage', async () => {
+    const { savedVillain } = await setup()
+    await bringIn('Maya Reyes')
+    await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Ironclad' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Bring in Ironclad' }))
+    // The game's one hero, by default.
+    expect(dialog.getByRole('group', { name: 'Heroes at this table:' })).toHaveTextContent('1')
+    expect(dialog.getByText('Max Health 40')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'More heroes' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'More heroes' }))
+    expect(dialog.getByText('Max Health 50')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Bring in' }))
+    await waitFor(async () => expect((await savedVillain()).play.heroCount).toBe(3))
+    await userEvent.click(screen.getByRole('button', { name: 'Run Ironclad' }))
+    await userEvent.click(within(screen.getByRole('region', { name: 'Ironclad' })).getByRole('button', { name: 'Lose 1 Health' }))
+    await waitFor(async () => expect((await savedVillain()).play.health).toBe(49))
+    await menuItem('More for Ironclad', 'Recalculate Health…')
+    const recalc = within(screen.getByRole('dialog', { name: 'Recalculate Health' }))
+    await userEvent.click(recalc.getByRole('button', { name: 'More heroes' }))
+    expect(recalc.getByText('Max Health 55')).toBeInTheDocument()
+    await userEvent.click(recalc.getByRole('button', { name: 'Recalculate' }))
+    await waitFor(async () => expect((await savedVillain()).play).toMatchObject({ heroCount: 4, health: 54 }))
   })
 
   it('leaves draft villains out of Bring in', async () => {
@@ -268,9 +295,10 @@ describe('the game table', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Run Ironclad' }))
     const running = within(screen.getByRole('region', { name: 'Ironclad' }))
     await userEvent.click(running.getByRole('button', { name: 'Lose 1 Health' }))
-    expect(screen.getByRole('article', { name: 'Ironclad' })).toHaveTextContent('54 / 55')
-    expect(log()).toHaveTextContent('Ironclad: Lost 1 HP (55 → 54).')
-    await waitFor(async () => expect((await savedVillain()).play.health).toBe(54))
+    // No heroes at the table yet, so it came in sized for one: 15 + 20 + 5.
+    expect(screen.getByRole('article', { name: 'Ironclad' })).toHaveTextContent('39 / 40')
+    expect(log()).toHaveTextContent('Ironclad: Lost 1 HP (40 → 39).')
+    await waitFor(async () => expect((await savedVillain()).play.health).toBe(39))
     // Damage stays in this game.
     expect(await libraryVillain()).not.toHaveProperty('play')
     expect(running.getByRole('link', { name: "Open this villain's sheet" })).toHaveAttribute('href', '#/villain/v1')

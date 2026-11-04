@@ -12,6 +12,7 @@ import { createChallengeTemplate, createEnvironmentTemplate, createMinionTemplat
 import { memoryTemplateStores } from '../template/store'
 import { challengeFromTemplate, groupFromTemplate } from '../template/to-table'
 import { MemoryVillainStore } from '../villain/store'
+import { bullyOverlord } from '../test/villains'
 import { GamePage } from './GamePage'
 import { createGame } from './model'
 import { MemoryGameStore } from './store'
@@ -50,7 +51,7 @@ describe('templates on the table', () => {
   })
 })
 
-async function setup() {
+async function setup(villains = new MemoryVillainStore()) {
   const games = new MemoryGameStore()
   const templates = memoryTemplateStores()
   await templates.minions.save(burglar())
@@ -69,7 +70,7 @@ async function setup() {
   await games.save(createGame({ id: 'g1', name: 'Thursday game' }))
   render(
     <StoreContext.Provider value={new MemoryHeroStore()}>
-      <VillainStoreContext.Provider value={new MemoryVillainStore()}>
+      <VillainStoreContext.Provider value={villains}>
         <GameStoreContext.Provider value={games}>
           <SavedSearchStoreContext.Provider value={new MemorySavedSearchStore()}>
             <TemplateStoresContext.Provider value={templates}>
@@ -212,5 +213,45 @@ describe('the environment on the table', () => {
     await userEvent.click(aspects.getByRole('button', { name: 'Save aspects' }))
     await waitFor(async () => expect((await saved()).environment!.aspects).toEqual([{ name: 'Fog', die: 'd6' }, { name: '', die: 'd8' }, { name: '', die: 'd8' }]))
     expect(panel.getByRole('button', { name: 'Roll environment dice' })).toBeEnabled()
+  })
+})
+
+describe('a villain’s attached templates', () => {
+  it('come in with it, checked, signature minions one per hero, as hidden GM groups', async () => {
+    const villains = new MemoryVillainStore()
+    const v = bullyOverlord()
+    v.attached = [
+      { templateId: 'burglar', kind: 'minion', role: 'signature' },
+      { templateId: 'gone', kind: 'lieutenant', role: 'vehicle' },
+    ]
+    await villains.save(v)
+    const { saved } = await setup(villains)
+    await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Test Villain' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Bring in Test Villain' }))
+    const comes = within(await dialog.findByRole('group', { name: 'Comes with Test Villain' }))
+    expect(comes.getByRole('checkbox', { name: /Burglar/ })).toBeChecked()
+    expect(comes.getByText(/Missing template/)).toBeInTheDocument()
+    // No heroes at the table: one hero, so one burglar; more heroes, more burglars.
+    expect(comes.getByRole('group', { name: 'How many Burglar' })).toHaveTextContent('1')
+    await userEvent.click(dialog.getByRole('button', { name: 'More heroes' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'More heroes' }))
+    expect(comes.getByRole('group', { name: 'How many Burglar' })).toHaveTextContent('3')
+    await userEvent.click(dialog.getByRole('button', { name: 'Bring in' }))
+    await waitFor(async () => expect((await saved()).villains).toHaveLength(1))
+    const game = await saved()
+    expect(game.villains[0]!.play.heroCount).toBe(3)
+    expect(game.groups.map((g) => [g.name, g.templateId, g.members.length, g.hidden, g.owner])).toEqual([['Burglar', 'burglar', 3, true, { kind: 'gm' }]])
+  })
+
+  it('can be left behind', async () => {
+    const villains = new MemoryVillainStore()
+    await villains.save({ ...bullyOverlord(), attached: [{ templateId: 'burglar', kind: 'minion', role: 'signature' }] })
+    const { saved } = await setup(villains)
+    await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Test Villain' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Bring in Test Villain' }))
+    await userEvent.click(await dialog.findByRole('checkbox', { name: /Burglar/ }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Bring in' }))
+    await waitFor(async () => expect((await saved()).villains).toHaveLength(1))
+    expect((await saved()).groups).toEqual([])
   })
 })

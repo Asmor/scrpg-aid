@@ -7797,3 +7797,10 @@ ol.vw-conditions li {
   width: 18px;
   height: 18px;
 }
+
+.vw-comes {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
