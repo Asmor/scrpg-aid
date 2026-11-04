@@ -31,7 +31,8 @@ import { continueVillainStep, VILLAIN_STEP_COUNT, VILLAIN_STEPS, villainStepNumb
 import { ApproachStep } from './wizard/ApproachStep'
 import { ArchetypeStep } from './wizard/ArchetypeStep'
 import type { Confirm, StepProps } from './wizard/choices'
-import { ConceptStep, DetailsStep, HealthStep, MasteryStep, UpgradesStep } from './wizard/LaterSteps'
+import { ConceptStep, DetailsStep, HealthStep, MasteryStep } from './wizard/FinalSteps'
+import { UpgradesStep } from './wizard/UpgradesStep'
 import { VillainEditSummary } from './wizard/VillainEditSummary'
 import { VillainPreview } from './wizard/VillainPreview'
 
@@ -51,9 +52,9 @@ const STEP_VIEWS: Record<VillainStepId, StepView> = {
   concept: { purpose: 'Who the villain is and what they want. All optional.', ref: book(208), render: (p) => <ConceptStep {...p} /> },
   approach: { purpose: 'How the villain pursues its goals. It sets the dice, base Health and the abilities to choose from.', ref: book(208, 219), render: (p) => <ApproachStep {...p} /> },
   archetype: { purpose: 'How the villain fights. It sets how the status die works, adds to Health, and offers abilities. Villains can always use all their abilities.', ref: book(220, 234), render: (p) => <ArchetypeStep {...p} /> },
-  upgrades: { purpose: 'Optional. Each upgrade makes the villain a match for about one more hero. Any upgrade makes it a major villain.', ref: book(235, 238), render: (p) => <UpgradesStep {...p} /> },
+  upgrades: { purpose: 'Optional. Each upgrade adds Health and makes the villain a match for about one more hero. With none, the villain is a minor villain; with any, a major villain who also gets a mastery.', ref: book(235, 238), render: (p) => <UpgradesStep {...p} /> },
   mastery: { purpose: 'A major villain takes one villainous mastery.', ref: book(238), render: (p) => <MasteryStep {...p} /> },
-  health: { purpose: 'How much the villain can take. Each game works it out again for its own table.', ref: book(239), render: (p) => <HealthStep {...p} /> },
+  health: { purpose: 'Nothing to choose here. Health comes from the earlier steps and the number of heroes it faces.', ref: book(239), render: (p) => <HealthStep {...p} /> },
   details: { purpose: 'Appearance, costume, mannerisms, motivation and ties to the heroes.', ref: book(208), render: (p) => <DetailsStep {...p} /> },
 }
 

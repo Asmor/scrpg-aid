@@ -86,6 +86,9 @@ export type VillainDetails = Record<VillainDetailField, string>
 
 /** How many heroes a villain is built to face unless the GM says otherwise. */
 export const DEFAULT_HERO_COUNT = 4
+/** The wizard's hero-count stepper runs from 1 to 8 (the villain wizard spec, step 6); a game may set more. */
+export const MIN_HEROES = 1
+export const MAX_HEROES = 8
 
 export interface Villain {
   id: string

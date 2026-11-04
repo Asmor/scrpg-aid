@@ -86,12 +86,16 @@ describe('the villain wizard shell', () => {
     viewport(1440)
     const store = await storeWith({ ...adaptiveBruiser(), status: 'draft', furthestStep: 4 })
     wizard(store, 'upgrades')
-    expect(await screen.findByText('Minor villain')).toBeInTheDocument()
+    const chip = () => document.querySelector('.wizard__title .type-chip')!
+    await screen.findByRole('heading', { name: '4 · Upgrades' })
+    expect(chip()).toHaveTextContent('Minor villain')
+    expect(chip()).toHaveAttribute('aria-live', 'polite')
     expect(rail().getByRole('link', { name: /Mastery Not needed/ })).toHaveClass('rail__item--skipped')
     expect(screen.getByText('Built for 4 heroes. Each game recalculates Health for its own table.')).toBeInTheDocument()
     expect(step().getByRole('link', { name: 'Health →' })).toHaveAttribute('href', '#/villain/v1/edit/health')
     await userEvent.click(screen.getByRole('checkbox', { name: /^Mook Squad/ }))
-    expect(screen.getByText('Major villain')).toHaveClass('type-chip--major')
+    expect(chip()).toHaveTextContent('Major villain')
+    expect(chip()).toHaveClass('type-chip--major')
     const mastery = rail().getByRole('link', { name: /Mastery/ })
     expect(mastery).not.toHaveClass('rail__item--skipped')
     expect(mastery).toHaveTextContent('1')
@@ -270,21 +274,6 @@ describe('step 3, Archetype', () => {
 })
 
 describe('the later steps', () => {
-  it('ignores a hero count that isn’t a whole number of 1 or more, and says so', async () => {
-    const store = await storeWith(adaptiveBruiser())
-    wizard(store, 'health')
-    const count = await screen.findByLabelText("Number of heroes it's built to face")
-    for (const typed of ['', '0', '-1']) {
-      await userEvent.clear(count)
-      if (typed) await userEvent.type(count, typed)
-      expect(count).toHaveAttribute('aria-invalid', 'true')
-    }
-    expect((await saved(store)).heroCount).toBe(4)
-    await userEvent.clear(count)
-    await userEvent.type(count, '3')
-    await waitFor(async () => expect((await saved(store)).heroCount).toBe(3))
-  })
-
   it('fills in an upgrade ability’s blank', async () => {
     const v = adaptiveBruiser()
     v.upgrades = [{ id: 'defense-shield', abilities: [] }]
@@ -293,5 +282,98 @@ describe('the later steps', () => {
     const gives = within(await screen.findByRole('group', { name: 'Defense Shield gives' }))
     await userEvent.selectOptions(gives.getAllByRole('combobox', { name: '[power]' })[0]!, 'Robotics (d10)')
     await waitFor(async () => expect((await saved(store)).upgrades[0]!.abilities).toEqual([{ source: 'upgrade', name: 'Defense Shield', uses: [{ kind: 'power', id: 'robotics' }] }]))
+  })
+
+  it('adds Health and a type in the totals bar, and asks before removing the last upgrade', async () => {
+    const store = await storeWith(bullyOverlord())
+    wizard(store, 'upgrades', 'v2')
+    const totals = await screen.findByRole('group', { name: 'Totals' })
+    expect(totals).toHaveTextContent('1 upgrade+0 HealthMajor villainChoose a mastery next.')
+    await userEvent.click(screen.getByRole('checkbox', { name: /^Calming Aura/ }))
+    expect(totals).toHaveTextContent('2 upgrades+10 Health')
+    await userEvent.click(screen.getByRole('checkbox', { name: /^Calming Aura/ }))
+    await userEvent.click(screen.getByRole('checkbox', { name: /^Mook Squad/ }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Remove the last upgrade?' }))
+    expect(dialog.getByText('Test Villain becomes a minor villain and loses Master of Conquest.')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Remove it' }))
+    await waitFor(async () => expect(await saved(store, 'v2')).toMatchObject({ upgrades: [], mastery: null }))
+    expect(totals).toHaveTextContent('No mastery needed.')
+  })
+
+  it('shows Power Upgrade’s dice before and after, and asks for an archetype ability for a d12', async () => {
+    const v = adaptiveBruiser()
+    v.approach!.traits[0] = { trait: { kind: 'power', id: 'robotics' }, die: 'd12' }
+    v.upgrades = [{ id: 'power-upgrade', abilities: [] }]
+    v.mastery = { source: 'mastery', name: 'Master of Annihilation' }
+    const store = await storeWith(v)
+    wizard(store, 'upgrades')
+    const dice = await screen.findByRole('list', { name: 'Power Upgrade dice' })
+    expect(within(dice).getAllByRole('listitem').map(readable)).toEqual(['Robotics d12 →to d12 (already the largest)', 'Power Suit d8 →to d10', 'Strength d8 →to d10', 'Agility d6 →to d8'])
+    const extra = within(screen.getByRole('group', { name: /^Extra Bruiser abilities: Choose 1 · 0 chosen/ }))
+    // The archetype's own picks aren't offered again.
+    expect(extra.queryByRole('checkbox', { name: /^Lash Out/ })).not.toBeInTheDocument()
+    await userEvent.click(extra.getByRole('checkbox', { name: /^Feel No Pain/ }))
+    await waitFor(async () => expect((await saved(store)).upgrades[0]!.extra).toEqual([{ source: 'archetype', name: 'Feel No Pain' }]))
+  })
+
+  it('builds the vehicle: a die with its ability count, and that many abilities', async () => {
+    const v = adaptiveBruiser()
+    v.upgrades = [{ id: 'villainous-vehicle', abilities: [] }]
+    v.mastery = { source: 'mastery', name: 'Master of Annihilation' }
+    const store = await storeWith(v)
+    wizard(store, 'upgrades')
+    await userEvent.type(await screen.findByRole('textbox', { name: 'Name' }), 'Siege Crawler')
+    await userEvent.click(screen.getByRole('button', { name: 'd12 2 abilities' }))
+    const abilities = within(screen.getByRole('group', { name: /^Vehicle abilities: Choose 2/ }))
+    await userEvent.click(abilities.getByRole('checkbox', { name: /^Sturdy/ }))
+    expect(screen.getByRole('group', { name: /^Vehicle abilities/ })).toHaveTextContent('Choose 2 of the Villainous Vehicle abilities; you have 1.')
+    await userEvent.click(abilities.getByRole('checkbox', { name: /^Escape Plan/ }))
+    await waitFor(async () => expect((await saved(store)).upgrades[0]!.vehicle).toEqual({ name: 'Siege Crawler', die: 'd12', abilities: [{ source: 'vehicle', name: 'Sturdy' }, { source: 'vehicle', name: 'Escape Plan' }] }))
+  })
+})
+
+describe('step 5, Mastery', () => {
+  it('says a minor villain doesn’t take one, and a major one must', async () => {
+    const minor = wizard(await storeWith(adaptiveBruiser()), 'mastery')
+    expect(await screen.findByText(/A minor villain doesn't take a mastery\./)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Add an upgrade in step 4' })).toHaveAttribute('href', '#/villain/v1/edit/upgrades')
+    minor.unmount()
+    const v = bullyOverlord()
+    v.mastery = null
+    const store = await storeWith(v)
+    wizard(store, 'mastery', 'v2')
+    const list = await screen.findByRole('radiogroup', { name: 'Villainous mastery' })
+    expect(list).toHaveAttribute('aria-invalid', 'true')
+    expect(list).toHaveTextContent('Choose a mastery (a major villain has one).')
+    await userEvent.click(within(list).getByRole('radio', { name: /^Master of Mysticism/ }))
+    await waitFor(async () => expect((await saved(store, 'v2')).mastery).toEqual({ source: 'mastery', name: 'Master of Mysticism' }))
+  })
+})
+
+describe('step 6, Health', () => {
+  it('steps the hero count from 1 to 8 and lists every term of the formula', async () => {
+    const store = await storeWith(bullyOverlord())
+    wizard(store, 'health', 'v2')
+    const sum = await screen.findByRole('table')
+    expect(within(sum).getAllByRole('row').map(readable)).toEqual(['Bully approach base25', 'Overlord archetype+15', '5 × 4 heroes+20', 'Mook Squad upgrade+0', 'Total60'])
+    await userEvent.click(screen.getByRole('button', { name: 'More heroes' }))
+    expect(within(sum).getByText('5 × 5 heroes')).toBeInTheDocument()
+    await waitFor(async () => expect((await saved(store, 'v2')).heroCount).toBe(5))
+    for (let i = 0; i < 6; i++) await userEvent.click(screen.getByRole('button', { name: 'Fewer heroes' }))
+    expect(screen.getByRole('button', { name: 'Fewer heroes' })).toBeDisabled()
+    await waitFor(async () => expect((await saved(store, 'v2')).heroCount).toBe(1))
+    // Overlord's status doesn't follow Health: the zones are behind a disclosure.
+    expect(screen.getByText("Overlord's status doesn't follow Health, so the zones are only for reference.")).toBeInTheDocument()
+    expect(screen.getByText('Show the ranges for 45')).toBeInTheDocument()
+  })
+
+  it('shows the zones for a Health-zone status, and asks for the missing steps', async () => {
+    const view = wizard(await storeWith(adaptiveBruiser()), 'health')
+    expect(await screen.findByText("Bruiser's status follows its Health zone, so these ranges matter on the table.")).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Health zones' })).getAllByRole('listitem').map((li) => li.className)).toEqual(['zone-green', 'zone-yellow', 'zone-red'])
+    view.unmount()
+    wizard(await storeWith(createVillain({ id: 'v1' })), 'health')
+    expect(await screen.findByText('Choose an approach in step 2')).toBeInTheDocument()
+    expect(screen.getByText('Choose an archetype in step 3')).toBeInTheDocument()
   })
 })
