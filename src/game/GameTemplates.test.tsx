@@ -8,7 +8,7 @@ import { TemplateStoresContext } from '../app/template-store-context'
 import { VillainStoreContext } from '../app/villain-store-context'
 import { MemoryHeroStore } from '../hero/store'
 import { MemorySavedSearchStore } from '../library/saved-searches'
-import { createChallengeTemplate, createMinionTemplate } from '../template/model'
+import { createChallengeTemplate, createEnvironmentTemplate, createMinionTemplate } from '../template/model'
 import { memoryTemplateStores } from '../template/store'
 import { challengeFromTemplate, groupFromTemplate } from '../template/to-table'
 import { MemoryVillainStore } from '../villain/store'
@@ -55,6 +55,17 @@ async function setup() {
   const templates = memoryTemplateStores()
   await templates.minions.save(burglar())
   await templates.challenges.save(crucible())
+  await templates.environments.save({
+    ...createEnvironmentTemplate({ id: 'heist' }),
+    name: 'Rooftop Heist',
+    description: 'Slick tiles and a long drop.',
+    aspects: [{ name: 'Slick Tiles', die: 'd10' }, { name: 'Howling Wind', die: 'd6' }, { name: 'Night Security', die: 'd8' }],
+    twists: [
+      { id: 't1', zone: 'green', kind: 'minor', text: 'A gust.' },
+      { id: 't2', zone: 'yellow', kind: 'major', name: 'Floodlights', text: 'Everyone is seen.' },
+    ],
+    attached: [{ kind: 'minion', templateId: 'burglar' }],
+  })
   await games.save(createGame({ id: 'g1', name: 'Thursday game' }))
   render(
     <StoreContext.Provider value={new MemoryHeroStore()}>
@@ -125,5 +136,65 @@ describe('the GM screen and templates', () => {
     // Only the second was saved: the library holds it and the template it started with.
     const names = async () => (await templates.challenges.list()).docs.map((d) => `${d.name} (${d.steps.length})`).sort()
     await waitFor(async () => expect(await names()).toEqual(['Shut down the crucible (2)', 'Vent it (3)']))
+  })
+})
+
+describe('the environment on the table', () => {
+  it('comes in from its template; its Running panel rolls its dice, marks twists and adds its minions', async () => {
+    const { saved } = await setup()
+    await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Rooftop Heist' }))
+    await waitFor(async () => expect((await saved()).environment).toMatchObject({ templateId: 'heist', hidden: true, attached: [{ name: 'Burglar', groupSize: 4 }] }))
+    expect(gmScreen().getByText('Hidden')).toBeInTheDocument()
+    expect(screen.getByText('Slick tiles and a long drop.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Run Rooftop Heist' }))
+    const panel = within(gmScreen().getByRole('region', { name: 'Rooftop Heist' }))
+    // 0.5 rolls just over the middle of each die: 6 on a d10, 4 on a d6, 5 on a d8.
+    await userEvent.click(panel.getByRole('button', { name: 'Roll environment dice' }))
+    const roll = panel.getByRole('status', { name: 'Environment roll' })
+    expect(roll).toHaveTextContent('Min4Howling WindMid5Night SecurityMax6Slick Tiles')
+    // Twists open on the scene's zone (Green, at the start).
+    expect(panel.getByRole('tab', { name: 'GREEN · NOW' })).toHaveAttribute('aria-selected', 'true')
+    await userEvent.click(panel.getByRole('tab', { name: 'YELLOW' }))
+    await userEvent.click(panel.getByRole('button', { name: 'Mark used: Floodlights' }))
+    expect(panel.getByRole('button', { name: 'Used: Floodlights' })).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(async () => expect((await saved()).environment!.twists![1]!.used).toEqual({ round: 0 }))
+    // Its minions: two, revealed, owned by the environment.
+    await userEvent.click(panel.getByRole('button', { name: 'Fewer Burglar to add' }))
+    await userEvent.click(panel.getByRole('button', { name: 'Fewer Burglar to add' }))
+    await userEvent.click(panel.getByRole('button', { name: 'Add Burglar' }))
+    await waitFor(async () => expect((await saved()).groups.map((g) => [g.name, g.members.length, g.hidden, g.owner.kind])).toEqual([['Burglar', 2, false, 'environment']]))
+    expect(screen.getByRole('article', { name: 'Burglar' })).toHaveTextContent('Minions · Rooftop Heist')
+    expect(panel.getByText('minions · 2 on the table')).toBeInTheDocument()
+    // Bringing it in again does nothing: it's already on the table.
+    expect(gmScreen().queryByRole('button', { name: 'Bring in Rooftop Heist' })).not.toBeInTheDocument()
+  })
+
+  it("opens its panel when the environment's turn starts", async () => {
+    await setup()
+    await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Rooftop Heist' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Reveal' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Start round 1' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Rooftop Heist' }))
+    const panel = within(await gmScreen().findByRole('region', { name: 'Rooftop Heist' }))
+    expect(panel.getByText(/the tracker is at Green 2/)).toBeInTheDocument()
+  })
+
+  it('sets the aspects of a quick-added environment', async () => {
+    const { saved } = await setup()
+    await userEvent.click(screen.getByRole('button', { name: 'Scene setup' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Set environment…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Set environment' }))
+    await userEvent.type(dialog.getByLabelText('Name'), 'Docks')
+    await userEvent.click(dialog.getByRole('button', { name: 'Set environment' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Run Docks' }))
+    const panel = within(gmScreen().getByRole('region', { name: 'Docks' }))
+    expect(panel.getByRole('button', { name: 'Roll environment dice' })).toBeDisabled()
+    await userEvent.click(panel.getByRole('button', { name: 'Set aspects…' }))
+    const aspects = within(screen.getByRole('dialog', { name: 'Aspects' }))
+    await userEvent.type(aspects.getByLabelText('Aspect 1'), 'Fog')
+    await userEvent.click(within(aspects.getByRole('group', { name: 'Aspect 1 die' })).getByRole('radio', { name: 'd6' }))
+    await userEvent.click(aspects.getByRole('button', { name: 'Save aspects' }))
+    await waitFor(async () => expect((await saved()).environment!.aspects).toEqual([{ name: 'Fog', die: 'd6' }, { name: '', die: 'd8' }, { name: '', die: 'd8' }]))
+    expect(panel.getByRole('button', { name: 'Roll environment dice' })).toBeEnabled()
   })
 })

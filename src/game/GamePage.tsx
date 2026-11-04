@@ -44,7 +44,9 @@ import { newRoomCode } from '../session/code'
 import * as T from './table'
 import { useOptionalTemplateStores } from '../app/template-store-context'
 import type { DocStore } from '../store/doc-store'
-import type { ChallengeTemplate, MinionTemplate } from '../template/model'
+import type { ChallengeTemplate, EnvironmentTemplate, LieutenantTemplate, MinionTemplate } from '../template/model'
+import { addAttached, environmentFromTemplate, logEnvironmentRoll, resetTwists, rollAspects, setAspects, setTwistUsed, type FoundAttached } from './environment'
+import type { EnvironmentActions } from './RunningEnvironment'
 import { challengeFromTemplate, groupFromTemplate, templateFromChallenge, templateFromGroup } from '../template/to-table'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -102,6 +104,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const now = useTick()
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [running, setRunning] = useState<T.ItemRef | null>(null)
+  // The turn last seen: when it becomes the environment's turn (or the game opens on it), its panel opens (npcs spec, section 6).
+  const [seenTurn, setSeenTurn] = useState<string | null>(null)
   const [tab, setTab] = useState<'table' | 'gm' | 'log'>('table')
   const [announce, setAnnounce] = useState('')
   const [hostError, setHostError] = useState<string | null>(null)
@@ -138,6 +142,15 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   }
 
   const apply = host ? (fn: (g: Game) => Game) => host.apply(fn) : editor.apply
+  const turnKey = `${game.round}:${game.turn.current ? T.actorKey(game.turn.current) : ''}`
+  if (turnKey !== seenTurn) {
+    setSeenTurn(turnKey)
+    const current = game.turn.current
+    if (current?.kind === 'environment' && game.round > 0) {
+      setRunning({ kind: 'environment', id: current.id })
+      if (phone) setTab('gm')
+    }
+  }
   const startHosting = (name: string) => {
     setHostError(null)
     void session.hostGame(game.id, name).then((why) => why && setHostError(why))
@@ -249,6 +262,20 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
 
   const runningGroup = running?.kind === 'group' ? game.groups.find((g) => g.id === running.id) : undefined
   const runningVillain = running?.kind === 'villain' ? T.findVillain(game, running.id) : undefined
+  const runningEnv = running?.kind === 'environment' && game.environment?.id === running.id ? game.environment : undefined
+  const environmentActions: EnvironmentActions = {
+    roll: () => {
+      const roll = rollAspects(game.environment?.aspects ?? [], random ?? Math.random)
+      if (roll) apply((g) => logEnvironmentRoll(g, roll, clock()))
+      return roll
+    },
+    setTwistUsed: (twistId, used) => apply((g) => setTwistUsed(g, twistId, used, clock())),
+    resetTwists: () => apply((g) => resetTwists(g, clock())),
+    setAspects: (aspects) => apply((g) => setAspects(g, aspects, clock())),
+    addAttached: (index, count) => apply((g) => addAttached(g, index, count, clock())),
+    run: (ref) => setRunning(ref),
+    handOff: (to) => turn((g) => T.handOff(g, to, clock())),
+  }
   const groupActions = (groupId: string): GroupActions => ({
     shrink: (memberId) => apply((g) => T.shrinkMember(g, groupId, memberId, clock())),
     remove: (memberId) => apply((g) => T.removeMember(g, groupId, memberId, clock())),
@@ -275,11 +302,26 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
             }, g),
           )) satisfies VillainAttacks,
       }
-    : runningGroup ? { kind: 'group' as const, group: runningGroup, actions: groupActions(runningGroup.id) } : undefined
+    : runningGroup
+      ? { kind: 'group' as const, group: runningGroup, actions: groupActions(runningGroup.id) }
+      : runningEnv
+        ? { kind: 'environment' as const, env: runningEnv, actions: environmentActions }
+        : undefined
 
+  /** An environment template comes in with copies of its attached templates, as the library has them now (a deleted one is left out). */
+  const bringInEnvironment = async (t: EnvironmentTemplate) => {
+    const found: FoundAttached[] = []
+    for (const a of t.attached) {
+      const store = a.kind === 'minion' ? templates?.minions : templates?.lieutenants
+      const result = await store?.get(a.templateId).catch(() => undefined)
+      if (result?.status === 'found') found.push(a.kind === 'minion' ? { kind: 'minion', doc: result.doc as MinionTemplate } : { kind: 'lieutenant', doc: result.doc as LieutenantTemplate })
+    }
+    apply((g) => T.setEnvironment(g, environmentFromTemplate(t, found), clock()))
+  }
   const bring = {
     placeOf: (item: LibraryItem) => {
-      // Templates can come in again and again.
+      // An environment is on the table once (another one replaces it); other templates can come in again and again.
+      if (item.type.key === 'environment') return game.environment?.templateId === item.doc.id ? (game.environment.hidden ? ('hidden' as const) : ('shown' as const)) : ('absent' as const)
       if (item.type.key !== 'hero' && item.type.key !== 'villain') return 'absent' as const
       const kind = item.type.key === 'hero' ? 'hero' : 'villain'
       const copy = T.copyOf(game, kind, item.doc.id)
@@ -296,6 +338,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         const t = item.doc as unknown as MinionTemplate
         apply((g) => T.addGroup(g, groupFromTemplate(t, item.type.key === 'minion' ? 'minions' : 'lieutenants', count ?? t.groupSize, true), clock()))
       } else if (item.type.key === 'challenge') apply((g) => T.addChallenge(g, challengeFromTemplate(item.doc as unknown as ChallengeTemplate, true), clock()))
+      else if (item.type.key === 'environment') void bringInEnvironment(item.doc as unknown as EnvironmentTemplate)
     },
     update: (item: LibraryItem) => {
       const kind = item.type.key === 'hero' ? 'hero' : 'villain'
@@ -322,6 +365,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       })}
       onReview={(heroId) => setDialog({ kind: 'review', heroId })}
       random={random}
+      sheets={phone}
     />
   )
   const center = <TableCenter game={table} heroes={heroes} villains={villains} now={now} gm={gm} hideLog={phone} />

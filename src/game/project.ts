@@ -77,6 +77,11 @@ function villainFor(v: Game['villains'][number], audience: Audience): VillainOnT
   return { ...base, ...(zone ? { zone } : {}), mods, ...defenses, ...(v.playersSee === 'health' ? { ...(health !== undefined ? { health } : {}), ...(maxHealth !== undefined ? { maxHealth } : {}) } : {}) }
 }
 
+/** The environment as players see it: its name and description. Its aspects, twists and twist use are the GM's only. */
+function environmentForPlayers(env: EnvironmentOnTable): EnvironmentOnTable {
+  return { id: env.id, name: env.name, hidden: env.hidden, ...(env.description ? { description: env.description } : {}) }
+}
+
 /** The game as `audience` sees it. */
 export function project(game: Game, audience: Audience): TableView {
   const gm = audience === 'gm'
@@ -87,7 +92,7 @@ export function project(game: Game, audience: Audience): TableView {
     id: game.id,
     name: game.name,
     scene: game.scene,
-    ...(game.environment && (gm || !game.environment.hidden) ? { environment: game.environment } : {}),
+    ...(game.environment && (gm || !game.environment.hidden) ? { environment: gm ? game.environment : environmentForPlayers(game.environment) } : {}),
     round: game.round,
     turn: {
       order: game.turn.order.filter(visibleActor),

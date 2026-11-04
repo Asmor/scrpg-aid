@@ -15,7 +15,7 @@ import { modName, type PlayZone } from '../play/state'
 import { formatFull, formatWhen } from '../play/time'
 import type { Die } from '../rules/types'
 import { sceneDisplayName, type ActorRef, type Challenge, type Game, type GameFeedEntry, type NpcGroup, type PlayersSee } from './model'
-import { actorKey, boxLabel, groupSummary, memberLabel, memberName, roundOver, sameActor, sceneZone, stepsText, turnStrip, waiting, type ItemRef } from './table'
+import { actedText, actorKey, boxLabel, groupSummary, memberLabel, memberName, roundOver, sameActor, sceneZone, stepsText, turnStrip, waiting, type ItemRef } from './table'
 import { heroOnTableName, viewHidden, viewName, type TableView } from './project'
 import { Modal } from '../components/Modal'
 
@@ -205,18 +205,27 @@ function SceneCard({ game, gm }: { game: Pick<TableView, 'scene' | 'environment'
           {sceneDisplayName(game)}
         </h2>
         {env && (gm || !env.hidden) && (
-          <div className="gt-sub">
-            Environment: {env.name}
-            {gm && env.hidden && (
-              <>
-                {' '}
-                <HiddenBadge />{' '}
-                <button type="button" className="button button--primary button--small" onClick={gm.revealEnvironment}>
-                  Reveal
-                </button>
-              </>
-            )}
-          </div>
+          <>
+            <div className="gt-sub">
+              Environment: {env.name}
+              {gm && env.hidden && (
+                <>
+                  {' '}
+                  <HiddenBadge />{' '}
+                  <button type="button" className="button button--primary button--small" onClick={gm.revealEnvironment}>
+                    Reveal
+                  </button>
+                </>
+              )}
+              {gm && (
+                <>
+                  {' '}
+                  <RunButton refTo={{ kind: 'environment', id: env.id }} name={env.name} gm={gm} />
+                </>
+              )}
+            </div>
+            {env.description && <p className="gt-sub gt-scene__env">{env.description}</p>}
+          </>
         )}
       </div>
       <div>
@@ -452,7 +461,8 @@ function VillainCard({ villain, acting, gm }: { villain: VillainView; acting: bo
   )
 }
 
-function GroupCard({ group, acting, gm }: { group: NpcGroup; acting: boolean; gm?: GmControls }) {
+/** A group's card. An environment's group shows the environment's name over its own, and acts on its turn. */
+function GroupCard({ group, acting, envName, gm }: { group: NpcGroup; acting: boolean; envName?: string; gm?: GmControls }) {
   const [open, setOpen] = useState(false)
   const id = `gt-group-${group.id}`
   const ref = { kind: 'group' as const, id: group.id }
@@ -460,7 +470,10 @@ function GroupCard({ group, acting, gm }: { group: NpcGroup; acting: boolean; gm
     <article className={cardClass(group.hidden, isRunning(gm, ref), acting)} aria-labelledby={id}>
       <div className="gt-row">
         <div className="gt-grow">
-          <div className="gt-sub">{group.kind === 'minions' ? 'Minions' : 'Lieutenants'}</div>
+          <div className="gt-sub">
+            {group.kind === 'minions' ? 'Minions' : 'Lieutenants'}
+            {envName !== undefined && ` · ${envName}`}
+          </div>
           <span className="gt-ent__name" id={id}>
             {group.name}
           </span>
@@ -469,6 +482,7 @@ function GroupCard({ group, acting, gm }: { group: NpcGroup; acting: boolean; gm
         {gm && <MenuButton label={`More for ${group.name}`} items={gm.itemMenu(ref, group.hidden)} sheets={gm.sheets} />}
       </div>
       {gm && group.hidden && <HiddenRow refTo={ref} gm={gm} />}
+      {acting && <p className="gt-sub">{actedText(group)}</p>}
       <div className="gt-row">
         <ul className="gt-summary" aria-label="Dice">
           {groupSummary(group).map((g) => (
@@ -649,7 +663,13 @@ export function TableCenter({ game, heroes, villains, now, gm, hideLog = false, 
               <VillainCard key={v.ref.id} villain={v} acting={sameActor(current, v.ref)} gm={gm} />
             ))}
             {groups.map((g) => (
-              <GroupCard key={g.id} group={g} acting={sameActor(current, { kind: 'group', id: g.id })} gm={gm} />
+              <GroupCard
+                key={g.id}
+                group={g}
+                {...(g.owner.kind === 'environment' ? { envName: game.environment?.name ?? 'Environment' } : {})}
+                acting={g.owner.kind === 'environment' ? current?.kind === 'environment' : sameActor(current, { kind: 'group', id: g.id })}
+                gm={gm}
+              />
             ))}
             {challenges.map((c) => (
               <ChallengeCard key={c.id} challenge={c} gm={gm} />

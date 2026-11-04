@@ -8,11 +8,11 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { listPath, navigate, templatePath } from '../app/route'
 import { useTemplateStores } from '../app/template-store-context'
 import { AbilityText, ActionIcon, DieIcon } from '../components/icons'
+import { DiePicker } from '../components/DiePicker'
 import { Modal } from '../components/Modal'
 import { RenameHeading } from '../components/RenameHeading'
 import { changedSince, restoreSnapshot } from '../editor/edit-snapshot'
 import { useDocumentEditor, type Lookup } from '../editor/useDocumentEditor'
-import { DICE } from '../rules/dice'
 import type { BasicAction, Die } from '../rules/types'
 import type { DocStore } from '../store/doc-store'
 import { createLieutenantTemplate, createMinionTemplate, createTwist, MAX_ATTACHED, MAX_GROUP_SIZE, MAX_STEPS, MAX_TWISTS, templateName, type AttachedTemplate, type ChallengeTemplate, type EnvironmentTemplate, type EnvironmentTwist, type LieutenantTemplate, type MinionTemplate, type TemplateAbility, type TemplateBase } from './model'
@@ -39,22 +39,6 @@ function Field({ label, children }: { label: string; children: (id: string) => R
       <span>{label}</span>
       {children(id)}
     </label>
-  )
-}
-
-/** Die icons as radio buttons, each labeled with its size (spec section 8). */
-function DiePicker({ value, onChange, label }: { value: Die; onChange: (die: Die) => void; label: string }) {
-  const name = useId()
-  return (
-    <fieldset className="die-picker">
-      <legend>{label}</legend>
-      {DICE.map((d) => (
-        <label key={d} className={d === value ? 'die-picker__option die-picker__option--on' : 'die-picker__option'}>
-          <input type="radio" className="visually-hidden" name={name} value={d} checked={d === value} onChange={() => onChange(d)} aria-label={d} />
-          <DieIcon die={d} />
-        </label>
-      ))}
-    </fieldset>
   )
 }
 

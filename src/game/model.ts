@@ -24,6 +24,7 @@ import { emptyPlay } from '../play/state'
 import type { FeedEntry } from '../session/types'
 import type { BasicAction, Die, Zone } from '../rules/types'
 import type { Villain, VillainPlayState } from '../villain/model'
+import type { EnvironmentAspect, EnvironmentTwist } from '../template/model'
 import { emptyVillainPlay } from '../villain/play'
 
 /** Anything with a turn-order entry. Ids are ids within the game: a hero's or villain's copy, a group, or the environment. */
@@ -126,11 +127,35 @@ export interface Challenge extends Visible {
   whenDone?: string
 }
 
+/** A twist on the table: the template's, and the round it was marked used in, if it was. */
+export interface TableTwist extends EnvironmentTwist {
+  used?: { round: number }
+}
+
+/** A minion or lieutenant template the environment brought, copied in: what Add puts on the table. */
+export interface AttachedOnTable {
+  kind: 'minion' | 'lieutenant'
+  templateId: string
+  name: string
+  die: Die
+  actions: NpcGroup['actions']
+  groupSize: number
+}
+
+/**
+ * The game's environment (docs/design/npcs/spec.md, section 6). Players see its name and
+ * description; its aspects (the environment dice), twists and twist use are the GM's only.
+ * A quick-added one has a name only, and can have aspects set on its turn.
+ */
 export interface EnvironmentOnTable extends Visible {
   id: string
   /** The template it came from, if any. */
   templateId?: string
   name: string
+  description?: string
+  aspects?: EnvironmentAspect[]
+  twists?: TableTwist[]
+  attached?: AttachedOnTable[]
 }
 
 /** A line in the table log. `gmOnly` marks one about something hidden, which only the GM sees. */

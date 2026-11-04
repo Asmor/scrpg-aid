@@ -187,7 +187,7 @@ const tableViewShape = object({
   id,
   name: text(MAX_NAME),
   scene: object({ name: text(MAX_NAME), tracker: list(zone, 30), position }),
-  'environment?': object({ id, name: text(MAX_NAME), hidden: boolean }),
+  'environment?': object({ id, name: text(MAX_NAME), hidden: boolean, 'description?': text(MAX_TEXT) }),
   round: position,
   turn: object({ order: list(actor, 100), acted: list(actor, 100), 'current?': actor }),
   heroes: list(object({ id, sourceId: id, sheet: heroShape, play: (v, path) => playStateShape(v, path) ?? object({ history: list(() => undefined, VIEW_HISTORY) })(v, path), 'player?': object({ name: text(MAX_NAME), 'since?': text(40) }) }), 30),

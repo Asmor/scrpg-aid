@@ -7181,6 +7181,93 @@ span.gt-step--done {
   min-width: 0;
 }
 
+/* The environment's Running panel (docs/design/npcs/spec.md, section 6). */
+.gt-env {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gt-env-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gt-env-list > li {
+  padding: 0.375rem 0;
+  border-top: 1px solid var(--ui-border);
+}
+
+.gt-env-roll {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.gt-env-roll__card {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.625rem;
+  background: var(--ui-surface-2);
+}
+
+.gt-env-twist {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+
+.gt-env-twist--used {
+  opacity: 0.6;
+}
+
+.gt-env-kind {
+  flex: none;
+  margin-top: 0.125rem;
+  padding: 0 0.375rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.3rem;
+  color: var(--ui-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.gt-env-kind--major {
+  border-color: var(--ui-accent);
+  color: inherit;
+}
+
+.gt-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.5rem;
+}
+
+.gt-stepper button {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.gt-stepper output {
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.gt-scene__env {
+  margin: 0.125rem 0 0;
+}
+
 /* An environment template's aspects, twists and attached templates (docs/design/npcs/spec.md, section 2). */
 .template-aspect {
   display: flex;

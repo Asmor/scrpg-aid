@@ -11,7 +11,7 @@ import { ActionIcon, DieIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL } from '../hero/labels'
 import { isDraft, type PlayMod } from '../hero/model'
 import { heroType, villainType, toItem, type LibraryItem, type LibraryStores } from '../library/registry'
-import { TEMPLATE_TYPES as ALL_TEMPLATE_TYPES } from '../library/template-types'
+import { TEMPLATE_TYPES } from '../library/template-types'
 import { useOptionalTemplateStores } from '../app/template-store-context'
 import { MAX_GROUP_SIZE, type MinionTemplate } from '../template/model'
 import { filterItems, matches, type LibraryQuery } from '../library/query'
@@ -24,14 +24,12 @@ import { addMod, addTwist, currentHealth, describeMod, modName, removeMod, remov
 import { villainDisplayName, type VillainPlayState } from '../villain/model'
 import { villainHealth, villainStatusDie, villainZone } from '../villain/play'
 import { buildVillainSheet, villainTraits } from '../villain/sheet'
-import type { Game, NpcGroup, VillainInGame } from './model'
+import type { EnvironmentOnTable, Game, NpcGroup, VillainInGame } from './model'
+import { RunningEnvironment, type EnvironmentActions } from './RunningEnvironment'
 import { RunningGroup, type GroupActions } from './RunningGroup'
 import { targetId } from './roll-targets'
 import { gmTable, targetOptions } from './target-options'
 import { ZoneChip } from './TableCenter'
-
-// Environments come to the table in NPCs phase 3, stage B.
-const TEMPLATE_TYPES = ALL_TEMPLATE_TYPES.filter((t) => t.key !== 'environment')
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -398,7 +396,7 @@ export type QuickAddKind = 'minions' | 'lieutenants' | 'challenge'
 interface GmScreenProps {
   game: Game
   quickAdd: (kind: QuickAddKind) => void
-  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange; attack: VillainAttacks } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'missing' }
+  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange; attack: VillainAttacks } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'environment'; env: EnvironmentOnTable; actions: EnvironmentActions } | { kind: 'missing' }
   stopRunning: () => void
   bring: BringIn
   setNotes: (notes: string) => void
@@ -406,12 +404,14 @@ interface GmScreenProps {
   requests?: { heroId: string; name: string; summary: string }[]
   onReview?: (heroId: string) => void
   random?: () => number
+  /** Bottom sheets for menus (phones). */
+  sheets?: boolean
 }
 
-export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes, requests = [], onReview, random }: GmScreenProps) {
+export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes, requests = [], onReview, random, sheets = false }: GmScreenProps) {
   const id = useId()
   const [tab, setTab] = useState<'bring' | 'notes'>('bring')
-  const runningName = running?.kind === 'villain' ? villainDisplayName(running.villain.sheet) : running?.kind === 'group' ? running.group.name : ''
+  const runningName = running?.kind === 'villain' ? villainDisplayName(running.villain.sheet) : running?.kind === 'group' ? running.group.name : running?.kind === 'environment' ? running.env.name : ''
   return (
     <aside className="gt-side" aria-label="GM screen">
       <section className="card gt-card">
@@ -466,7 +466,13 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
               ×
             </button>
           </div>
-          {running.kind === 'villain' ? <RunningVillain key={running.villain.id} game={game} copy={running.villain} change={running.change} attack={running.attack} random={random} /> : <RunningGroup key={running.group.id} game={game} group={running.group} actions={running.actions} random={random} />}
+          {running.kind === 'villain' ? (
+            <RunningVillain key={running.villain.id} game={game} copy={running.villain} change={running.change} attack={running.attack} random={random} />
+          ) : running.kind === 'environment' ? (
+            <RunningEnvironment key={running.env.id} game={game} env={running.env} actions={running.actions} sheets={sheets} />
+          ) : (
+            <RunningGroup key={running.group.id} game={game} group={running.group} actions={running.actions} random={random} />
+          )}
         </section>
       )}
 
