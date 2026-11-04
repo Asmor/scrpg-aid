@@ -1,12 +1,13 @@
 /**
  * Damage to a hero or a villain at the table, after one of its defenses (ruling 65), and giving
- * one a defense. Pure. Members' saves are in ./npc.ts; ./attacks.ts puts them together.
+ * one a defense. Pure. Members' saves are in ./npc.ts; ./resolve.ts puts them together.
  */
 import { heroDisplayName } from '../hero/model'
 import { addDefense, blockText, blockWith, defensesOf, pickDefense, removeDefense } from '../play/defense'
 import { currentHealth, setHealth, type Clock } from '../play/state'
 import { villainDisplayName } from '../villain/model'
 import { villainHealth } from '../villain/play'
+import type { TableTarget } from './actions'
 import type { Game } from './model'
 import { changeHeroPlay, changeVillainPlay, damageHero, defenseChooser, findHero, findVillain, holdHit, withLog } from './table'
 
@@ -49,11 +50,13 @@ export function hitCharacter(game: Game, by: string, to: { kind: 'hero' | 'villa
   )
 }
 
-/** A Defend for a hero, villain or group member: a defense of `value` from `from` (none for 0). */
-export function defend(game: Game, to: { kind: 'hero' | 'villain'; id: string } | { kind: 'member'; groupId: string; memberId: string }, value: number, from: string, clock: Clock): Game {
+/** A Defend for anyone at the table: a defense of `value` from `from` (none for 0). */
+export function defend(game: Game, to: TableTarget, value: number, from: string, clock: Clock): Game {
   switch (to.kind) {
     case 'hero':
       return changeHeroPlay(game, to.id, (p) => addDefense(p, value, from, clock), clock, false)
+    case 'heroMinion':
+      return changeHeroPlay(game, to.heroId, (p) => (p.minions?.some((m) => m.id === to.minionId) ? { ...p, minions: p.minions.map((m) => (m.id === to.minionId ? addDefense(m, value, from, clock) : m)) } : p), clock, false)
     case 'villain':
       return changeVillainPlay(game, to.id, (p) => addDefense(p, value, from, clock), clock, false)
     case 'member':

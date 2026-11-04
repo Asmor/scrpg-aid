@@ -25,7 +25,8 @@ import { currentHealth, describeMod, effectiveZone, MAX_HERO_POINTS, modName, st
 import type { PendingAction } from '../session/client'
 import type { HeroAction } from './actions'
 import type { HeroOnTable, TableView } from './project'
-import { OWN_MINION, rollAction, tableTargets } from './roll-targets'
+import { rollAction, targetId } from './roll-targets'
+import { targetOptions, viewTable } from './target-options'
 import { heroPlayInScene } from './table'
 import { MenuButton, ZoneChip } from './TableCenter'
 
@@ -338,11 +339,11 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
           formPicker={rolling.kind === 'ability' ? formPickerFor(rolling.text) : undefined}
           creates={rolling.kind === 'ability' ? minionCreation(rolling.text) : undefined}
           minionForms={sheet.minionForms}
-          targets={[...tableTargets(view, hero.id), ...(play.minions ?? []).map((m) => ({ id: `${OWN_MINION}${m.id}`, name: `${m.name} (your minion)` }))]}
-          attackTargets={tableTargets(view, hero.id)}
+          targetsFor={(effect, opts) => targetOptions({ kind: 'hero', id: hero.id }, effect, viewTable(view), opts)}
+          selfId={targetId({ kind: 'hero', id: hero.id })}
           onConfirm={(record, followUps, formChoice, made = [], choices = []) => {
             const subject = rolling.kind === 'ability' ? { kind: 'ability' as const, name: rolling.name } : { kind: 'basic' as const, ...(rolling.action ? { action: rolling.action } : {}) }
-            act({ kind: 'roll', roll: rollAction(subject, record, followUps, formChoice, made, choices) })
+            act({ kind: 'roll', roll: rollAction(hero.id, subject, record, followUps, formChoice, made, choices) })
           }}
           random={random}
         />

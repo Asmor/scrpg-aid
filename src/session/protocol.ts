@@ -90,7 +90,9 @@ const actor = object({ kind: oneOf('hero', 'villain', 'group', 'environment'), i
 const newMinion = object({ name: text(MAX_NAME), die, action: oneOf('attack', 'defend', 'boost', 'hinder', 'overcome', 'any'), 'form?': text(MAX_NAME), 'needsForm?': oneOf(true) })
 const target: Check = (v, path) => {
   if (!isRecord(v)) return `${path} should be an object`
-  return v.kind === 'member' ? object({ kind: oneOf('member'), groupId: id, memberId: id })(v, path) : object({ kind: oneOf('hero', 'villain'), id })(v, path)
+  if (v.kind === 'member') return object({ kind: oneOf('member'), groupId: id, memberId: id })(v, path)
+  if (v.kind === 'heroMinion') return object({ kind: oneOf('heroMinion'), heroId: id, minionId: id })(v, path)
+  return object({ kind: oneOf('hero', 'villain'), id })(v, path)
 }
 const rollRecord = object({
   title: text(MAX_NAME),

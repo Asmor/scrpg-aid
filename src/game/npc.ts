@@ -3,24 +3,20 @@
  * given the dice (`random`).
  *
  * - A group roll: each chosen member rolls its own die with its own mods, then the GM picks a
- *   target for each result. Apply carries out each result (Attack deals damage, Boost and
- *   Hinder give sized mods, Defend and Overcome are logged), uses up the one-time mods, and
- *   marks every rolled member as acted.
+ *   target for each result (./target-options.ts). Applying it is in ./resolve.ts.
  * - Saves: a minion or lieutenant that takes damage rolls its own die with its mods
  *   (../rules/saves.ts). A Minion-Maker hero's minions save as minions.
  */
-import { heroDisplayName, type PlayMinion, type PlayMod } from '../hero/model'
+import type { PlayMinion, PlayMod } from '../hero/model'
 import { removeMinion, shrinkMinion } from '../play/minions'
 import { blockWith, defensesOf, pickDefense, removeDefense, type Defense } from '../play/defense'
-import { effectAmount, modSize, overcomeOutcome } from '../play/roll'
-import { addMod, type Clock } from '../play/state'
+import type { Clock } from '../play/state'
 import { rollDie } from '../rules/rolling'
 import { save, type SaveResult } from '../rules/saves'
 import type { BasicAction, Die } from '../rules/types'
-import { villainDisplayName } from '../villain/model'
+import type { TableTarget } from './actions'
 import type { Game, NpcGroup, NpcMember } from './model'
-import { defend, hitCharacter } from './hits'
-import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, memberName, removeMember, withLog } from './table'
+import { changeHeroPlay, findHero, memberName, removeMember, withLog } from './table'
 
 export type Random = () => number
 
@@ -66,82 +62,6 @@ export function rollWithMods(die: Die, mods: readonly PlayMod[], random: Random)
 /** "5 − 1 Dazed": how a total was made (just the value without mods). */
 export function rollMath(roll: Pick<NpcRoll, 'value' | 'mods'>): string {
   return [String(roll.value), ...roll.mods.map((m) => `${m.value > 0 ? '+' : '−'} ${Math.abs(m.value)}${m.label.trim() ? ` ${m.label.trim()}` : ''}`)].join(' ')
-}
-
-// ---- Targets ----
-
-/** Who a group's result can go to: a hero, a hero's minion, a villain, or a member of a GM group. */
-export type NpcTarget = { kind: 'hero'; id: string } | { kind: 'heroMinion'; heroId: string; minionId: string } | { kind: 'villain'; id: string } | { kind: 'member'; groupId: string; memberId: string }
-
-export function npcTargetId(t: NpcTarget): string {
-  switch (t.kind) {
-    case 'hero':
-    case 'villain':
-      return `${t.kind}:${t.id}`
-    case 'heroMinion':
-      return `heroMinion:${t.heroId}:${t.minionId}`
-    case 'member':
-      return `member:${t.groupId}:${t.memberId}`
-  }
-}
-
-export function parseNpcTarget(id: string): NpcTarget | undefined {
-  const [kind, a, b] = id.split(':')
-  if ((kind === 'hero' || kind === 'villain') && a) return { kind, id: a }
-  if (kind === 'heroMinion' && a && b) return { kind, heroId: a, minionId: b }
-  if (kind === 'member' && a && b) return { kind, groupId: a, memberId: b }
-  return undefined
-}
-
-const heroName = (game: Game, id: string) => {
-  const h = findHero(game, id)
-  return h ? heroDisplayName(h.sheet) : undefined
-}
-
-/**
- * The targets a group's action can have (section 4): Attack goes to heroes and their minions,
- * Hinder to heroes, Boost and Defend to villains and the GM's groups' members. Overcome has none.
- */
-export function npcTargets(game: Game, action: BasicAction): { id: string; name: string }[] {
-  const heroes = game.heroes.map((h) => ({ id: npcTargetId({ kind: 'hero', id: h.id }), name: heroDisplayName(h.sheet) }))
-  switch (action) {
-    case 'attack':
-      return [
-        ...heroes,
-        ...game.heroes.flatMap((h) => (h.play.minions ?? []).map((m) => ({ id: npcTargetId({ kind: 'heroMinion', heroId: h.id, minionId: m.id }), name: `${m.name} (${heroDisplayName(h.sheet)}'s minion)` }))),
-      ]
-    case 'hinder':
-      return heroes
-    case 'boost':
-    case 'defend':
-      return [
-        ...game.villains.map((v) => ({ id: npcTargetId({ kind: 'villain', id: v.id }), name: villainDisplayName(v.sheet) })),
-        ...game.groups.filter((g) => g.owner.kind === 'gm').flatMap((g) => g.members.map((m) => ({ id: npcTargetId({ kind: 'member', groupId: g.id, memberId: m.id }), name: memberName(g, m.n) }))),
-      ]
-    case 'overcome':
-      return []
-  }
-}
-
-/** A target's name, or undefined when it isn't on the table any more. */
-export function npcTargetName(game: Game, t: NpcTarget): string | undefined {
-  switch (t.kind) {
-    case 'hero':
-      return heroName(game, t.id)
-    case 'heroMinion': {
-      const hero = findHero(game, t.heroId)
-      return hero?.play.minions?.find((m) => m.id === t.minionId)?.name
-    }
-    case 'villain': {
-      const v = findVillain(game, t.id)
-      return v && villainDisplayName(v.sheet)
-    }
-    case 'member': {
-      const g = game.groups.find((x) => x.id === t.groupId)
-      const m = g?.members.find((x) => x.id === t.memberId)
-      return g && m ? memberName(g, m.n) : undefined
-    }
-  }
 }
 
 // ---- Saves ----
@@ -214,7 +134,7 @@ export function memberSaveText(name: string, kind: NpcGroup['kind'], die: Die, s
   return block + saveText(name, kind, die, s.damage, s.roll?.total, s.result)
 }
 
-const usedUp = (mods: readonly PlayMod[], used: readonly PlayMod[]) => mods.filter((m) => m.persistent || !used.some((u) => u.id === m.id))
+export const usedUp = (mods: readonly PlayMod[], used: readonly PlayMod[]) => mods.filter((m) => m.persistent || !used.some((u) => u.id === m.id))
 
 /** Carries out a member's save: its die changes or it's KO'd, its one-time mods used are used up, and the log says so. */
 export function applySave(game: Game, groupId: string, s: MemberSave, clock: Clock): Game {
@@ -235,18 +155,28 @@ export function applySave(game: Game, groupId: string, s: MemberSave, clock: Clo
   return withLog(next, [line])
 }
 
-/** A hero's minion saves against damage, as a minion (it has no "lieutenant" kind). */
-function heroMinionSave(game: Game, heroId: string, minion: PlayMinion, damage: number, random: Random, clock: Clock): { game: Game; text: string } {
-  const roll = rollWithMods(minion.die, minion.mods, random)
-  const result = save('minions', minion, damage, roll.total)
-  const text = saveText(minion.name, 'minions', minion.die, damage, roll.total, result)
+/**
+ * A hero's minion saves against `incoming` damage, as a minion, after one of its defenses
+ * (ruling 65): its die shrinks or it's KO'd, and its one-time mods used are used up. Returns the
+ * game and the save's line.
+ */
+export function heroMinionSave(game: Game, heroId: string, minionId: string, incoming: number, random: Random, clock: Clock): { game: Game; text: string } | undefined {
+  const minion = findHero(game, heroId)?.play.minions?.find((m) => m.id === minionId)
+  if (!minion) return undefined
+  const s = rollSave('minions', minion, incoming, random)
+  const text = memberSaveText(minion.name, 'minions', minion.die, s)
   const next = changeHeroPlay(
     game,
     heroId,
     (p) => {
-      const kept = { ...p, minions: (p.minions ?? []).map((m) => (m.id === minion.id ? { ...m, mods: usedUp(m.mods, roll.mods) } : m)) }
-      if (result.outcome === 'ko') return removeMinion(kept, minion.id, clock, "KO'd:")
-      return result.outcome === 'shrink' ? shrinkMinion(kept, minion.id, clock) : kept
+      const after = (m: PlayMinion) => {
+        const used = { ...m, mods: s.roll ? usedUp(m.mods, s.roll.mods) : m.mods }
+        return s.defense ? removeDefense(used, s.defense.id) : used
+      }
+      const kept = { ...p, minions: (p.minions ?? []).map((m) => (m.id === minion.id ? after(m) : m)) }
+      if (s.noDamage) return kept
+      if (s.result.outcome === 'ko') return removeMinion(kept, minion.id, clock, "KO'd:")
+      return s.result.outcome === 'shrink' ? shrinkMinion(kept, minion.id, clock) : kept
     },
     clock,
     false,
@@ -260,7 +190,7 @@ function heroMinionSave(game: Game, heroId: string, minion: PlayMinion, damage: 
 export interface GroupRollRow {
   memberId: string
   roll: NpcRoll
-  target?: NpcTarget
+  target?: TableTarget
 }
 
 /** Rolls the chosen members, each with its own die and mods. */
@@ -269,83 +199,4 @@ export function rollMembers(group: NpcGroup, memberIds: readonly string[], rando
     const m = group.members.find((x) => x.id === id)
     return m ? [{ memberId: id, roll: rollWithMods(m.die, m.mods, random) }] : []
   })
-}
-
-/** "a −2 penalty", "a +1 bonus", or "no bonus" for a size of 0. */
-const sized = (size: number, sign: 1 | -1) => (size === 0 ? (sign > 0 ? 'no bonus' : 'no penalty') : `a ${sign > 0 ? '+' : '−'}${size} ${sign > 0 ? 'bonus' : 'penalty'}`)
-
-/**
- * Applies a group roll (section 4): each row's result goes to its target, every rolled member is
- * marked acted and uses up its one-time mods, and each line is logged. `random` rolls the saves
- * of hero minions that are attacked.
- */
-export function applyGroupRoll(game: Game, groupId: string, action: BasicAction, rows: readonly GroupRollRow[], random: Random, clock: Clock): Game {
-  const group = game.groups.find((g) => g.id === groupId)
-  if (!group) return game
-  const gmOnly = group.hidden
-  // The members first: acted, one-time mods used up.
-  let next: Game = {
-    ...game,
-    groups: game.groups.map((g) =>
-      g.id === groupId
-        ? {
-            ...g,
-            members: g.members.map((m) => {
-              const row = rows.find((r) => r.memberId === m.id)
-              return row ? { ...m, acted: true, mods: usedUp(m.mods, row.roll.mods) } : m
-            }),
-          }
-        : g,
-    ),
-  }
-  for (const row of rows) {
-    const member = group.members.find((m) => m.id === row.memberId)
-    if (!member) continue
-    const name = memberName(group, member.n)
-    const amount = effectAmount(row.roll.total)
-    const say = (text: string) => {
-      next = withLog(next, [{ id: clock.newId(), at: clock.now.toISOString(), by: group.name, text, ...(gmOnly ? { gmOnly: true as const } : {}) }])
-    }
-    const target = row.target
-    const targetName = target && npcTargetName(next, target)
-    if (action === 'overcome') {
-      say(`${name} took Overcome: ${row.roll.total} (${overcomeOutcome(row.roll.total)}).`)
-      continue
-    }
-    if (!target || !targetName) {
-      say(`${name} took ${ACTION_NAME[action]}: ${row.roll.total}, with no target.`)
-      continue
-    }
-    switch (action) {
-      case 'attack':
-        if (target.kind === 'hero') {
-          next = hitCharacter(next, name, target, amount, clock, gmOnly)
-        } else if (target.kind === 'heroMinion') {
-          const minion = findHero(next, target.heroId)?.play.minions?.find((m) => m.id === target.minionId)
-          if (!minion) continue
-          say(`${name} attacked ${targetName}: ${amount} damage.`)
-          const saved = heroMinionSave(next, target.heroId, minion, amount, random, clock)
-          next = saved.game
-          say(saved.text)
-        }
-        break
-      case 'hinder':
-      case 'boost': {
-        const sign = action === 'boost' ? 1 : -1
-        const size = modSize(row.roll.total)
-        say(`${name} ${action === 'boost' ? 'boosted' : 'hindered'} ${targetName}: ${sized(size, sign)}.`)
-        if (size === 0) break
-        const mod = { label: group.name, value: sign * size }
-        if (target.kind === 'hero') next = changeHeroPlay(next, target.id, (p) => addMod(p, mod, clock, { from: name }), clock, false)
-        else if (target.kind === 'villain') next = changeVillainPlay(next, target.id, (p) => addMod(p, mod, clock, { from: name }), clock, false)
-        else if (target.kind === 'member') next = addMemberMod(next, target.groupId, target.memberId, mod, clock)
-        break
-      }
-      case 'defend':
-        say(`${name} defended ${targetName}: Defend ${amount}.`)
-        if (target.kind === 'villain' || target.kind === 'member' || target.kind === 'hero') next = defend(next, target, amount, name, clock)
-        break
-    }
-  }
-  return next
 }

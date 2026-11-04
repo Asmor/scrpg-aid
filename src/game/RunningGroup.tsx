@@ -16,8 +16,11 @@ import { describeMod, modName } from '../play/state'
 import { defaultDefense, defenseText, defensesOf } from '../play/defense'
 import type { BasicAction } from '../rules/types'
 import type { Game, NpcGroup, NpcMember } from './model'
-import { ACTION_NAME, actionsText, groupActionList, npcTargets, parseNpcTarget, rollMath, rollMembers, rollSaves, verdictText, type GroupRollRow, type MemberSave, type Random } from './npc'
+import { ACTION_NAME, actionsText, groupActionList, rollMath, rollMembers, rollSaves, verdictText, type GroupRollRow, type MemberSave, type Random } from './npc'
 import { actedText, memberLabel, memberName, readyMembers } from './table'
+import { parseTarget } from './roll-targets'
+import { gmTable, polarity, targetOptions, toggleLabel, type TargetActor } from './target-options'
+import { ShowOtherSide, TargetOptions } from '../play/TargetPicker'
 
 export interface GroupActions {
   shrink: (memberId: string) => void
@@ -178,8 +181,14 @@ export function GroupRollDialog({ game, group, action, rows, onCancel, onApply }
   const id = useId()
   const [targets, setTargets] = useState<Record<string, string>>({})
   const [all, setAll] = useState('')
-  const options = npcTargets(game, action)
-  const hasTargets = action !== 'overcome'
+  // "Show allies too": off each time the dialog opens, one for every row.
+  const [showOther, setShowOther] = useState(false)
+  const table = gmTable(game)
+  const chosenIds = [all, ...Object.values(targets)].filter((t) => t && t !== NO_TARGET)
+  const listFor = (actor: TargetActor) => targetOptions(actor, action, table, { showOtherSide: showOther, keep: chosenIds })
+  const p = polarity(action)
+  const hasTargets = p !== undefined
+  const toggle = p && toggleLabel([p])
   const first = useRef<HTMLSelectElement>(null)
   // A full-screen sheet on phones (section 7).
   const phone = useMediaQuery('(max-width: 759px)', false)
@@ -197,7 +206,7 @@ export function GroupRollDialog({ game, group, action, rows, onCancel, onApply }
           e.preventDefault()
           onApply(
             rows.map((r) => {
-              const target = parseNpcTarget(targets[r.memberId] ?? '')
+              const target = parseTarget(targets[r.memberId] ?? '')
               return { ...r, ...(target ? { target } : {}) }
             }),
           )
@@ -221,14 +230,10 @@ export function GroupRollDialog({ game, group, action, rows, onCancel, onApply }
                 }}
               >
                 <option value="">Choose…</option>
-                {options.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
-                <option value={NO_TARGET}>No target</option>
+                <TargetOptions list={listFor({ kind: 'group', id: group.id })} noTargetValue={NO_TARGET} />
               </select>
             </label>
+            {toggle && <ShowOtherSide label={toggle} checked={showOther} onChange={setShowOther} />}
           </div>
         )}
         <table className="gt-results">
@@ -255,12 +260,7 @@ export function GroupRollDialog({ game, group, action, rows, onCancel, onApply }
                     <td data-label="Target">
                       <select aria-label={`Target for ${who}`} value={targets[r.memberId] ?? ''} onChange={(e) => setTargets((t) => ({ ...t, [r.memberId]: e.target.value }))}>
                         <option value="">Choose…</option>
-                        {options.map((o) => (
-                          <option key={o.id} value={o.id}>
-                            {o.name}
-                          </option>
-                        ))}
-                        <option value={NO_TARGET}>No target</option>
+                        <TargetOptions list={listFor({ kind: 'member', groupId: group.id, memberId: r.memberId })} noTargetValue={NO_TARGET} />
                       </select>
                     </td>
                   )}

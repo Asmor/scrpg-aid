@@ -15,7 +15,9 @@ import type { Action, BasicAction, Die, EffectUse, MinionForm } from '../rules/t
 import { activePlans, chosenMods, defaultAssignment, defaultModChoice, defaultPlans, describeEffect, hasDoubles, modFlagsFor, modSize, poolDice, results, sortRolls, toggleMod, USE_LABEL, useValue as valueFor, type EffectPlan, type EffectResult, type GivenValues, type RollRecord, type Rolled } from './roll'
 import { minionAction, minionSize, takesAnyAction } from './minions'
 import { defaultSlots, traitChoices, type FormDice, type RollTrait } from './forms'
-import { GONE, type ModTarget } from './ModForm'
+import { GONE } from './ModForm'
+import { ShowOtherSide, TargetOptions } from './TargetPicker'
+import { allOptions, polarity, toggleLabel, type Polarity, type TargetList } from '../game/target-options'
 import { describeMod, modName, type PlayZone } from './state'
 
 /** What's being used: an ability (with its effects), or a basic action (maybe already chosen). */
@@ -29,8 +31,8 @@ export interface FollowUpMod {
 
 /**
  * Who an Attack or Defend result goes to: the result's index in the record, and the target's id.
- * An Attack is listed only once it has a target; every Defend is listed, with `to` empty for
- * the roller itself (ruling 65: a Defend always protects someone).
+ * A result is listed only once it has a target; a Defend for the roller itself has `to` empty.
+ * Away from a table (no `targetsFor`), every Defend protects the roller.
  */
 export interface TargetChoice {
   result: number
@@ -66,13 +68,19 @@ interface RollDialogProps {
   creates?: readonly EffectUse[]
   /** The hero's minion forms, offered for each minion made. */
   minionForms?: readonly MinionForm[]
-  /** Other heroes in a game session a Boost's or Hinder's mod can go to. */
-  targets?: readonly ModTarget[]
   /**
-   * At a game table: who an Attack can target, or a Defend protect (docs/design/npcs/spec.md,
-   * section 5; ruling 65). Each Attack result gets a Target choice, each Defend a Protect choice.
+   * At a game table: who each result can go to (../game/target-options.ts). Each Attack result
+   * gets a Target choice, each Defend a Protect choice, and a Boost's or Hinder's mod a For
+   * choice. Away from a table, mods go on the roller's list and a Defend protects the roller.
    */
-  attackTargets?: readonly ModTarget[]
+  targetsFor?: (effect: BasicAction, opts: { showOtherSide: boolean; keep: readonly string[] }) => TargetList
+  /** The roller's own option in those lists, which stands for "me". */
+  selfId?: string
+  /**
+   * "mods": only a Boost's or Hinder's mod picks who it's for, from every option (solo play: the
+   * hero and their minions). By default every result picks a target, likely side first.
+   */
+  pickTargets?: 'all' | 'mods'
   /** What the status die is called in the roll; by default its zone's ("Green status"). A villain's is just "Status". */
   statusLabel?: string
   onClose: () => void
@@ -125,7 +133,7 @@ function modMade(action: Action, total: number): string | undefined {
   return action === 'boost' ? `a +${size} bonus` : `a −${size} penalty`
 }
 
-export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, creates = [], minionForms = [], targets = [], attackTargets = [], statusLabel, onClose, random }: RollDialogProps) {
+export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, creates = [], minionForms = [], targetsFor, selfId = '', pickTargets = 'all', statusLabel, onClose, random }: RollDialogProps) {
   const titleId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const use = subject.kind === 'ability' ? subject.use : undefined
@@ -174,8 +182,10 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
   const finalResults = rolled ? results(active, rolled, givenValues, chosen, assignment) : []
   const missingValue = finalResults.some((r) => r.total === undefined)
   const [followUps, setFollowUps] = useState<Record<number, FollowUpMod | undefined>>({})
-  // Each Attack result's target, by the result's index.
+  // Each Attack's or Defend's target, by the result's index ("" for No target).
   const [attackTo, setAttackTo] = useState<Record<number, string>>({})
+  // "Show allies too": one per dialog, off each time it opens.
+  const [showOther, setShowOther] = useState(false)
   const [formChoice, setFormChoice] = useState(formPicker?.current ?? '')
   // Minions the roll makes: each sized by its die plus the mods moved onto it, named in Resolve.
   const [made, setMade] = useState(() => creates.map(() => ({ name: '', action: 'attack' as BasicAction, form: '' })))
@@ -240,6 +250,20 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
     setAttackTo({})
     setStep(0)
   }
+  // A Defend protects the roller unless another target is chosen; an Attack has none until one is.
+  const targetOf = (i: number, action: 'attack' | 'defend') => attackTo[i] ?? (action === 'defend' ? selfId : '')
+  const listFor = (action: BasicAction, keep: readonly string[]) => targetsFor!(action, { showOtherSide: showOther || pickTargets === 'mods', keep: keep.filter(Boolean) })
+  // The effects that pick a target, for the one "Show allies too" checkbox.
+  const picking: Polarity[] =
+    targetsFor && pickTargets === 'all'
+    ? finalResults.flatMap((r) => {
+        if (r.total === undefined || r.action === 'recover' || r.action === 'overcome') return []
+        if ((r.action === 'boost' || r.action === 'hinder') && modSize(r.total) === 0) return []
+        const p = polarity(r.action)
+        return p ? [p] : []
+      })
+    : []
+  const toggle = toggleLabel(picking)
   const done = () => {
     if (!rolled) return
     onConfirm(
@@ -259,9 +283,12 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
       }),
       finalResults.flatMap((r, i) => {
         if (r.total === undefined) return []
-        const to = attackTo[i] && attackTargets.some((t) => t.id === attackTo[i]) ? attackTo[i]! : ''
-        if (r.action === 'attack') return to ? [{ result: i, to }] : []
-        return r.action === 'defend' ? [{ result: i, to }] : []
+        if (r.action !== 'attack' && r.action !== 'defend') return []
+        if (!targetsFor || pickTargets === 'mods') return r.action === 'defend' ? [{ result: i, to: '' }] : []
+        const to = targetOf(i, r.action)
+        // Someone who has left the table since is no target.
+        if (!to || !allOptions(targetsFor(r.action, { showOtherSide: true, keep: [] })).some((o) => o.id === to)) return []
+        return [{ result: i, to: to === selfId ? '' : to }]
       }),
     )
     onClose()
@@ -669,27 +696,34 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
                   ))}
                 </ul>
                 {picker}
-                {attackTargets.length > 0 &&
+                {toggle && <ShowOtherSide label={toggle} checked={showOther} onChange={setShowOther} />}
+                {targetsFor &&
+                  pickTargets === 'all' &&
                   finalResults.map((r, i) => {
                     if ((r.action !== 'attack' && r.action !== 'defend') || r.total === undefined) return null
-                    const several = finalResults.filter((x) => x.action === r.action).length > 1
-                    const word = r.action === 'attack' ? 'Target' : 'Protect'
+                    const action = r.action
+                    const several = finalResults.filter((x) => x.action === action).length > 1
+                    const word = action === 'attack' ? 'Target' : 'Protect'
+                    const to = targetOf(i, action)
+                    const list = listFor(action, [to])
+                    // Someone chosen who has since left isn't shown as another choice: they're asked to choose again.
+                    const gone = to !== '' && !allOptions(list).some((o) => o.id === to)
                     return (
                       <Field key={`target-${i}`} label={several ? `${word} for ${describeEffect(r).replace(/\.$/, '')}` : word}>
                         {(id) => (
-                          <select id={id} value={attackTo[i] ?? ''} onChange={(e) => setAttackTo((all) => ({ ...all, [i]: e.target.value }))}>
-                            <option value="">{r.action === 'attack' ? 'No target' : 'Me'}</option>
-                            {attackTargets.map((t) => (
-                              <option key={t.id} value={t.id}>
-                                {t.name}
+                          <select id={id} value={gone ? GONE : to} onChange={(e) => setAttackTo((all) => ({ ...all, [i]: e.target.value }))}>
+                            {gone && (
+                              <option value={GONE} disabled>
+                                They've left. Choose again
                               </option>
-                            ))}
+                            )}
+                            <TargetOptions list={list} />
                           </select>
                         )}
                       </Field>
                     )
                   })}
-                {attackTargets.length > 0 && finalResults.some((r) => r.action === 'attack' && r.total !== undefined) && <p className="hint">A hero or villain target loses that much Health, after one of its defenses. A minion or lieutenant rolls its save.</p>}
+                {targetsFor && pickTargets === 'all' && finalResults.some((r) => r.action === 'attack' && r.total !== undefined) && <p className="hint">A hero or villain target loses that much Health, after one of its defenses. A minion or lieutenant rolls its save.</p>}
                 {minionCards.map((c, j) => (
                   <fieldset key={`made-${j}`} className="roll-section">
                     <legend>
@@ -728,7 +762,8 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
                   if ((r.action !== 'boost' && r.action !== 'hinder') || r.total === undefined || modSize(r.total) === 0) return null
                   const value = (r.action === 'boost' ? 1 : -1) * modSize(r.total)
                   const flags = subject.kind === 'ability' ? modFlagsFor(subject.text, active[i]!) : { persistent: false, exclusive: false }
-                  return <ModOffer key={i} value={value} label={title} persistent={flags.persistent} exclusive={flags.exclusive} targets={targets} chosen={followUps[i]} onChange={(f) => setFollowUps((all) => ({ ...all, [i]: f }))} />
+                  const action = r.action
+                  return <ModOffer key={i} value={value} label={title} persistent={flags.persistent} exclusive={flags.exclusive} list={targetsFor && ((keep) => listFor(action, keep))} selfId={selfId} chosen={followUps[i]} onChange={(f) => setFollowUps((all) => ({ ...all, [i]: f }))} />
                 })}
                 <div className="button-row">
                   <button type="button" className="button button--primary" onClick={done}>
@@ -757,15 +792,17 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
 }
 
 /**
- * A follow-up to a Boost or Hinder: add its mod to yourself or give it to another hero, when
- * the roll is done. The label and kind can be edited first.
+ * A follow-up to a Boost or Hinder: add its mod to yourself or give it to someone else at the
+ * table, when the roll is done. The label and kind can be edited first. Not adding it is the
+ * way to leave it out, so its For list has no "No target".
  */
 function ModOffer({
   value,
   label: start,
   persistent: p,
   exclusive: x,
-  targets,
+  list,
+  selfId,
   chosen,
   onChange,
 }: {
@@ -773,7 +810,9 @@ function ModOffer({
   label: string
   persistent: boolean
   exclusive: boolean
-  targets: readonly ModTarget[]
+  /** Who it can go to (with these kept listed), at a table; away from one, it's for the roller. */
+  list: ((keep: readonly string[]) => TargetList) | undefined
+  selfId: string
   chosen: FollowUpMod | undefined
   onChange: (f: FollowUpMod | undefined) => void
 }) {
@@ -781,25 +820,32 @@ function ModOffer({
   const [label, setLabel] = useState(start)
   const [persistent, setPersistent] = useState(p)
   const [exclusive, setExclusive] = useState(x)
-  const [to, setTo] = useState<ModTarget | null>(null)
-  // A hero who was chosen and has since left isn't swapped for "Me": that could put their penalty on you.
-  const gone = to !== null && !targets.some((t) => t.id === to.id)
-  const target = gone ? undefined : (to ?? undefined)
+  const [to, setTo] = useState<string | null>(null)
+  // A bonus starts on the roller; a penalty on the first opponent, if there is one. Either stays listed.
+  const fallback = value > 0 ? selfId : (list?.([]).likely[0]?.id ?? selfId)
+  const listed = list ? list([to ?? fallback]) : undefined
+  // With nobody but the roller to give it to (solo, no minions), there's no For choice.
+  const options = listed && allOptions(listed).some((o) => o.id !== selfId) ? listed : undefined
+  // Someone who was chosen and has since left isn't swapped for someone else: that could put their penalty on you.
+  const gone = Boolean(options) && to !== null && !allOptions(options!).some((o) => o.id === to)
+  const target = !options || gone ? undefined : (to ?? fallback)
+  const nameOf = (t: string) => (list ? allOptions(list([t])).find((o) => o.id === t)?.name : undefined)
   const what = value > 0 ? `+${value} bonus` : `${value} penalty`
+  const toOther = target !== undefined && target !== selfId
   if (chosen) {
-    // Chosen, for when the roll is done; it can still be changed, e.g. if that hero leaves.
-    const recipient = chosen.to ? targets.find((t) => t.id === chosen.to) : undefined
+    // Chosen, for when the roll is done; it can still be changed, e.g. if they leave.
+    const recipient = chosen.to ? nameOf(chosen.to) : undefined
     return (
       <div className="roll-section roll-followup" role="group" aria-label={`Add the ${what} to the mods list?`}>
-        <p>{chosen.to ? `Will give ${describeMod(chosen.mod)} to ${recipient?.name ?? 'a hero who has left'} when done.` : `Will add ${describeMod(chosen.mod)} when done.`}</p>
-        {chosen.to && !recipient && <p className="hint">That hero has left the game. Change who it’s for.</p>}
+        <p>{chosen.to ? `Will give ${describeMod(chosen.mod)} to ${recipient ?? 'someone who has left'} when done.` : `Will add ${describeMod(chosen.mod)} when done.`}</p>
+        {chosen.to && !recipient && <p className="hint">They have left the game. Change who it’s for.</p>}
         <button
           type="button"
           className="button button--small"
           onClick={() => {
             onChange(undefined)
             // The button goes away; focus goes to the offer's first field rather than the page.
-            requestAnimationFrame(() => document.getElementById(targets.length || gone ? `${id}-to` : id)?.focus())
+            requestAnimationFrame(() => document.getElementById(options ? `${id}-to` : id)?.focus())
           }}
         >
           Change
@@ -810,22 +856,17 @@ function ModOffer({
   return (
     <fieldset className="roll-section">
       <legend>Add the {what} to the mods list?</legend>
-      {value < 0 && <p className="hint">{targets.length ? 'Only if the penalty is on a hero.' : 'Only if the penalty is on you.'}</p>}
-      {(targets.length > 0 || gone) && (
+      {value < 0 && !options && <p className="hint">Only if the penalty is on you.</p>}
+      {options && (
         <label className="field" htmlFor={`${id}-to`}>
           <span>For</span>
-          <select id={`${id}-to`} value={gone ? GONE : (target?.id ?? '')} onChange={(e) => setTo(targets.find((t) => t.id === e.target.value) ?? null)}>
+          <select id={`${id}-to`} value={gone ? GONE : target} onChange={(e) => setTo(e.target.value)}>
             {gone && (
               <option value={GONE} disabled>
                 Choose who it’s for
               </option>
             )}
-            <option value="">Me</option>
-            {targets.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
+            <TargetOptions list={options} noTarget={false} />
           </select>
         </label>
       )}
@@ -841,14 +882,14 @@ function ModOffer({
         <input type="checkbox" checked={exclusive} onChange={(e) => setExclusive(e.target.checked)} />
         Exclusive
       </label>
-      {gone && <p className="hint">{to.name} has left the game. Choose who it’s for.</p>}
+      {gone && <p className="hint">{nameOf(to!) ?? 'They'} have left the game. Choose who it’s for.</p>}
       <button
         type="button"
         className="button"
         disabled={gone || !label.trim()}
-        onClick={() => onChange({ mod: { label, value, ...(persistent ? { persistent: true } : {}), ...(exclusive ? { exclusive: true } : {}) }, ...(target ? { to: target.id } : {}) })}
+        onClick={() => onChange({ mod: { label, value, ...(persistent ? { persistent: true } : {}), ...(exclusive ? { exclusive: true } : {}) }, ...(toOther ? { to: target } : {}) })}
       >
-        {target ? `Give ${what} to ${target.name}` : `Add ${what}`}
+        {toOther ? `Give ${what} to ${nameOf(target!) ?? 'them'}` : `Add ${what}`}
       </button>
     </fieldset>
   )

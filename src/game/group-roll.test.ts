@@ -6,7 +6,9 @@ import type { Die } from '../rules/types'
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { createGame, heroCopy, villainCopy, type Game } from './model'
-import { actionsText, applyGroupRoll, applySave, applySaves, rollSaves, verdictText, groupActionList, npcRollMods, npcTargetId, npcTargets, parseNpcTarget, rollMath, rollMembers, rollSave, saveText, type GroupRollRow } from './npc'
+import { actionsText, applySave, applySaves, rollSaves, verdictText, groupActionList, npcRollMods, rollMath, rollMembers, rollSave, saveText, type GroupRollRow } from './npc'
+import { applyGroupRoll } from './resolve'
+import { parseTarget, targetId } from './roll-targets'
 import { addGroup, addMemberMod, syncTurnOrder } from './table'
 
 function clock(): Clock {
@@ -43,7 +45,7 @@ const health = (game: Game) => {
   return currentHealth(buildSheet(h.sheet), h.play)
 }
 const texts = (game: Game) => game.feed.map((e) => e.text)
-const row = (memberId: string, value: number, target?: string, mods: PlayMod[] = []): GroupRollRow => ({ memberId, roll: { value, mods, total: value + mods.reduce((s, m) => s + m.value, 0) }, ...(target ? { target: parseNpcTarget(target)! } : {}) })
+const row = (memberId: string, value: number, target?: string, mods: PlayMod[] = []): GroupRollRow => ({ memberId, roll: { value, mods, total: value + mods.reduce((s, m) => s + m.value, 0) }, ...(target ? { target: parseTarget(target)! } : {}) })
 
 describe('rolling for a group', () => {
   it('uses every mod but the weaker exclusive ones', () => {
@@ -66,20 +68,6 @@ describe('rolling for a group', () => {
     expect(actionsText({ actions: ['hinder', 'attack'] })).toBe('Attack or Hinder')
     expect(actionsText({ actions: ['attack', 'boost', 'hinder'] })).toBe('Attack, Boost or Hinder')
     expect(groupActionList({ actions: ['hinder', 'attack'] })).toEqual(['attack', 'hinder'])
-  })
-
-  it('offers targets by action', () => {
-    const { game, guards } = table()
-    const names = (action: Parameters<typeof npcTargets>[1]) => npcTargets(game, action).map((t) => t.name)
-    expect(names('attack')).toEqual(['Maya Reyes', "Rat (Maya Reyes's minion)"])
-    expect(names('hinder')).toEqual(['Maya Reyes'])
-    expect(names('boost')).toEqual(['Gravelord', 'Burglars 1', 'Burglars 2', 'Burglars 3', 'Guards 1'])
-    expect(names('defend')).toEqual(names('boost'))
-    expect(names('overcome')).toEqual([])
-    const id = npcTargetId({ kind: 'member', groupId: guards.id, memberId: guards.members[0]!.id })
-    expect(parseNpcTarget(id)).toEqual({ kind: 'member', groupId: guards.id, memberId: guards.members[0]!.id })
-    expect(parseNpcTarget('heroMinion:h1:m1')).toEqual({ kind: 'heroMinion', heroId: 'h1', minionId: 'm1' })
-    expect(parseNpcTarget('nonsense')).toBeUndefined()
   })
 })
 
@@ -109,7 +97,7 @@ describe('applying a group roll', () => {
     let g = applyGroupRoll(game, burglars.id, 'hinder', [row(ids[0]!, 7, 'hero:h1')], dice(), c)
     expect(g.heroes[0]!.play.mods.map((m) => [m.label, m.value])).toEqual([['Burglars', -2]])
     expect(texts(g)).toContain('Burglars 1 hindered Maya Reyes: a −2 penalty.')
-    const guard = npcTargetId({ kind: 'member', groupId: guards.id, memberId: guards.members[0]!.id })
+    const guard = targetId({ kind: 'member', groupId: guards.id, memberId: guards.members[0]!.id })
     g = applyGroupRoll(g, burglars.id, 'boost', [row(ids[1]!, 3, guard), row(ids[2]!, 5, 'villain:v1')], dice(), c)
     expect(g.groups[1]!.members[0]!.mods.map((m) => m.value)).toEqual([1])
     expect(g.villains[0]!.play.mods.map((m) => m.value)).toEqual([2])

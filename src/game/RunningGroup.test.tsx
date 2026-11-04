@@ -68,6 +68,27 @@ describe('running a group', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it('lists opponents first, and its allies (itself and its group too) with "Show allies too"', async () => {
+    const { actions, ids } = setup()
+    await userEvent.click(screen.getByRole('button', { name: 'Roll Burglars 2' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Burglars 2 rolls Attack' }))
+    const row = dialog.getByRole('combobox', { name: 'Target for Burglars 2' })
+    const texts = (select: HTMLElement) => [...select.querySelectorAll('option')].map((o) => o.textContent)
+    expect(texts(row)).toEqual(['Choose…', 'Maya Reyes', 'Paradigm', 'No target'])
+    const toggle = dialog.getByRole('checkbox', { name: 'Show allies too' })
+    expect(toggle).not.toBeChecked()
+    await userEvent.click(toggle)
+    expect(texts(row)).toEqual(['Choose…', 'Maya Reyes', 'Paradigm', 'Burglars 1 (same group)', 'Burglars 2 (you)', 'Burglars 3 (same group)', 'No target'])
+    expect(row.querySelector('optgroup')).toHaveAttribute('label', 'Allies')
+    expect(texts(dialog.getByRole('combobox', { name: 'Same target for all' }))).toContain('Burglars 2 (same group)')
+    await userEvent.selectOptions(row, 'Burglars 1 (same group)')
+    // Unchecked again: the chosen ally stays chosen and listed.
+    await userEvent.click(toggle)
+    expect(texts(row)).toEqual(['Choose…', 'Maya Reyes', 'Paradigm', 'Burglars 1 (same group)', 'No target'])
+    await userEvent.click(dialog.getByRole('button', { name: 'Apply' }))
+    expect(vi.mocked(actions.applyRoll).mock.calls[0]![1].map((r) => r.target)).toEqual([{ kind: 'member', groupId: expect.any(String), memberId: ids[0] }])
+  })
+
   it('cancels a roll without marking anyone', async () => {
     const { actions } = setup()
     await userEvent.click(screen.getByRole('button', { name: 'Roll Burglars 2' }))

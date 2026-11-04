@@ -18,18 +18,17 @@ import { availabilityContext, basicActionBlocked, currentForm, playAbilities, pl
 import { confirmRoll, effectAmount, type RollRecord } from '../play/roll'
 import { addMod, addTwist, currentHealth, effectiveZone, MAX_HERO_POINTS, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, type Clock } from '../play/state'
 import type { BasicAction } from '../rules/types'
-import { villainDisplayName } from '../villain/model'
-import { applyAttack } from './attacks'
+import { applyAttack, giveMod, protect, targetHidden, targetName } from './resolve'
 import { defend } from './hits'
 import type { ActorRef, Game, HeroInGame } from './model'
-import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, handOff, heroPlayInScene, isHidden, itemName, memberName, resolveHit, roundOver, sameActor, startRound, waiting, withLog } from './table'
+import { changeHeroPlay, findHero, handOff, heroPlayInScene, isHidden, itemName, resolveHit, roundOver, sameActor, startRound, waiting } from './table'
 
 export type ModInput = Omit<PlayMod, 'id'>
 /** A minion to make. */
 export type NewMinion = Omit<PlayMinion, 'id' | 'mods'>
 
-/** Someone at the table a roll's bonus or penalty can go to. */
-export type TableTarget = { kind: 'hero'; id: string } | { kind: 'villain'; id: string } | { kind: 'member'; groupId: string; memberId: string }
+/** Someone at the table a roll's result can go to: a hero, a hero's minion, a villain, or a group's member. */
+export type TableTarget = { kind: 'hero'; id: string } | { kind: 'heroMinion'; heroId: string; minionId: string } | { kind: 'villain'; id: string } | { kind: 'member'; groupId: string; memberId: string }
 
 /** A confirmed roll and what it does: the record, the form it changed to, and its bonuses and penalties. */
 export interface RollAction {
@@ -206,23 +205,9 @@ export function applyHeroAction(game: Game, heroId: string, action: HeroAction, 
   return refuse(`${name} can't do that`)
 }
 
-/** Who a roll's bonus or penalty goes to, by name; undefined when they aren't (visibly) at the table. */
-function targetName(game: Game, to: TableTarget, heroId: string): string | undefined {
-  switch (to.kind) {
-    case 'hero': {
-      const hero = to.id === heroId ? undefined : findHero(game, to.id)
-      return hero && heroDisplayName(hero.sheet)
-    }
-    case 'villain': {
-      const villain = findVillain(game, to.id)
-      return villain && !villain.hidden ? villainDisplayName(villain.sheet) : undefined
-    }
-    case 'member': {
-      const group = game.groups.find((g) => g.id === to.groupId)
-      const member = group?.members.find((m) => m.id === to.memberId)
-      return group && member && !group.hidden ? memberName(group, member.n) : undefined
-    }
-  }
+/** A target's name, if players can see it at the table (not hidden, not gone). */
+function visibleName(game: Game, to: TableTarget): string | undefined {
+  return targetHidden(game, to) ? undefined : targetName(game, to)
 }
 
 function applyRoll(game: Game, hero: HeroInGame, roll: RollAction, clock: Clock, random: () => number): ActionResult {
@@ -242,13 +227,13 @@ function applyRoll(game: Game, hero: HeroInGame, roll: RollAction, clock: Clock,
     if (why) return refuse(`you can't take that action now (${why})`)
   }
   if (roll.others.some((o) => o.to.kind === 'hero' && o.to.id === hero.id)) return refuse("a bonus or penalty for your own hero goes on your own list, not to someone else")
-  const named = roll.others.map((o) => ({ ...o, name: targetName(game, o.to, hero.id) }))
+  const named = roll.others.map((o) => ({ ...o, name: visibleName(game, o.to) }))
   const gone = named.find((o) => !o.name)
   if (gone) return refuse("someone you gave a bonus or penalty to isn't at the table any more")
-  const attacks = roll.attacks.map((a) => ({ ...a, name: targetName(game, a.to, hero.id), r: roll.record.results[a.result] }))
+  const attacks = roll.attacks.map((a) => ({ ...a, name: visibleName(game, a.to), r: roll.record.results[a.result] }))
   if (attacks.some((a) => a.r?.action !== 'attack' || a.r.total === undefined)) return refuse("an Attack target is for a result that isn't an Attack")
   if (new Set(attacks.map((a) => a.result)).size < attacks.length) return refuse('each Attack result has one target')
-  const defends = roll.defends.map((d) => ({ ...d, name: d.to ? targetName(game, d.to, hero.id) : undefined, r: roll.record.results[d.result] }))
+  const defends = roll.defends.map((d) => ({ ...d, name: d.to ? visibleName(game, d.to) : undefined, r: roll.record.results[d.result] }))
   if (defends.some((d) => d.r?.action !== 'defend' || d.r.total === undefined)) return refuse("a Defend's target is for a result that isn't a Defend")
   if (defends.some((d) => d.to && !d.name)) return refuse("someone you protected isn't at the table any more")
   if (new Set([...attacks, ...defends].map((a) => a.result)).size < attacks.length + defends.length) return refuse('each result has one target')
@@ -280,17 +265,11 @@ function applyRoll(game: Game, hero: HeroInGame, roll: RollAction, clock: Clock,
   )
   // Then everyone it gave a bonus or penalty to.
   const giver = heroDisplayName(hero.sheet)
-  for (const o of named) {
-    const to = o.to
-    if (to.kind === 'hero') next = changeHeroPlay(next, to.id, (p) => addMod(p, o.mod, clock, { from: giver }), clock)
-    else if (to.kind === 'villain') next = changeVillainPlay(next, to.id, (p) => addMod(p, o.mod, clock, { from: giver }), clock)
-    else next = addMemberMod(next, to.groupId, to.memberId, o.mod, clock)
-  }
+  for (const o of named) next = giveMod(next, o.to, o.mod, giver, clock)
   // Then whoever it protected (ruling 65).
   for (const d of defends) {
     const value = effectAmount(d.r!.total!)
-    next = d.to ? defend(next, d.to, value, giver, clock) : defend(next, { kind: 'hero', id: hero.id }, value, giver, clock)
-    if (d.to) next = withLog(next, [{ id: clock.newId(), at: clock.now.toISOString(), by: giver, text: `${giver} protected ${d.name}: Defend ${value}.` }])
+    next = d.to ? protect(next, giver, d.to, value, clock) : defend(next, { kind: 'hero', id: hero.id }, value, giver, clock)
   }
   // Then whoever it attacked: Health, or a minion's or lieutenant's save.
   const notes: string[] = []

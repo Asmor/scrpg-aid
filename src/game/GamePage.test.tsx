@@ -269,6 +269,24 @@ describe('the game table', () => {
     expect(running.getByRole('link', { name: "Open this villain's sheet" })).toHaveAttribute('href', '#/villain/v1')
   })
 
+  it("gives a villain's Hinder penalty to a hero it picks", async () => {
+    const { savedHero } = await setup()
+    await bringIn('Maya Reyes')
+    await bringIn('Ironclad')
+    await userEvent.click(screen.getByRole('button', { name: 'Run Ironclad' }))
+    await userEvent.click(within(screen.getByRole('region', { name: 'Ironclad' })).getByRole('button', { name: 'Roll' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Basic action' }))
+    await userEvent.selectOptions(dialog.getByLabelText('Action'), 'Hinder')
+    await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
+    const forWho = dialog.getByLabelText('For')
+    expect([...forWho.querySelectorAll('option')].map((o) => o.textContent)).toEqual(['Maya Reyes'])
+    await userEvent.click(dialog.getByRole('button', { name: /Give .* penalty to Maya Reyes/ }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
+    await waitFor(async () => expect((await savedHero()).play.mods).toMatchObject([{ value: expect.any(Number) }]))
+    expect((await savedHero()).play.mods[0]!.value).toBeLessThan(0)
+  })
+
   it('sets what players see of a revealed villain', async () => {
     const { saved } = await setup()
     await bringIn('Ironclad')

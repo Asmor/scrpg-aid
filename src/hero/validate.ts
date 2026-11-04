@@ -123,6 +123,7 @@ export const playStateShape = object({
       action: oneOf('attack', 'defend', 'boost', 'hinder', 'overcome', 'any'),
       'form?': string,
       'needsForm?': oneOf(true),
+      'defenses?': arrayOf(object({ id: nonEmptyString, value: integer, from: string })),
       mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
     }),
   ),

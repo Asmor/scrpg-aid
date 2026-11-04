@@ -9,7 +9,7 @@ import { useVillainStore } from '../app/villain-store-context'
 import { villainPath } from '../app/route'
 import { ActionIcon, DieIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL } from '../hero/labels'
-import { isDraft } from '../hero/model'
+import { isDraft, type PlayMod } from '../hero/model'
 import { heroType, villainType, toItem, type LibraryItem, type LibraryStores } from '../library/registry'
 import { TEMPLATE_TYPES } from '../library/template-types'
 import { useOptionalTemplateStores } from '../app/template-store-context'
@@ -26,6 +26,8 @@ import { villainHealth, villainStatusDie, villainZone } from '../villain/play'
 import { buildVillainSheet, villainTraits } from '../villain/sheet'
 import type { Game, NpcGroup, VillainInGame } from './model'
 import { RunningGroup, type GroupActions } from './RunningGroup'
+import { targetId } from './roll-targets'
+import { gmTable, targetOptions } from './target-options'
 import { ZoneChip } from './TableCenter'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -43,11 +45,11 @@ function LockIcon() {
 
 type VillainChange = (fn: (play: VillainPlayState, clock: Clock) => VillainPlayState) => void
 
-/** A villain's Attacks and Defends for others: who each goes to (a target id from ./roll-targets.ts), and its amount. */
-export type VillainAttacks = (hits: { kind: 'attack' | 'defend'; to: string; amount: number }[]) => void
+/** What a villain's roll does to others at the table: each target's id (./roll-targets.ts), and the damage, defense or mod. */
+export type VillainAttacks = (results: ({ kind: 'attack' | 'defend'; to: string; amount: number } | { kind: 'mod'; to: string; mod: Omit<PlayMod, 'id'> })[]) => void
 
 /** The villain's copy in this game: its sheet and its play state here. */
-function RunningVillain({ copy, change, attackTargets, attack, random }: { copy: VillainInGame; change: VillainChange; attackTargets: readonly { id: string; name: string }[]; attack: VillainAttacks; random?: () => number }) {
+function RunningVillain({ game, copy, change, attack, random }: { game: Game; copy: VillainInGame; change: VillainChange; attack: VillainAttacks; random?: () => number }) {
   const { sheet: villain, play } = copy
   const id = useId()
   const [amount, setAmount] = useState('')
@@ -205,18 +207,22 @@ function RunningVillain({ copy, change, attackTargets, attack, random }: { copy:
           mods={play.mods}
           statusLabel="Status"
           onClose={() => setRolling(null)}
-          attackTargets={attackTargets}
+          targetsFor={(effect, opts) => targetOptions({ kind: 'villain', id: copy.id }, effect, gmTable(game), opts)}
+          selfId={targetId({ kind: 'villain', id: copy.id })}
           onConfirm={(record, followUps, _form, _made, choices = []) => {
             change((p, c) => {
               const after = confirmRoll(p, record, c)
-              const withMods = followUps.reduce((q, f) => addMod(q, f.mod, c), after)
+              const withMods = followUps.filter((f) => !f.to).reduce((q, f) => addMod(q, f.mod, c), after)
               return rolling.kind === 'ability' && rolling.reaction ? setReactionUsed(withMods, true, c) : withMods
             })
             const amount = (i: number) => effectAmount(record.results[i]?.total ?? 0)
             // A Defend for itself (ruling 65); the rest go to others.
             const self = choices.filter((x) => record.results[x.result]?.action === 'defend' && !x.to)
             if (self.length) change((p, c) => self.reduce((q, x) => addDefense(q, amount(x.result), villainDisplayName(villain), c), p))
-            const others = choices.filter((x) => x.to).map((x) => ({ kind: record.results[x.result]?.action === 'defend' ? ('defend' as const) : ('attack' as const), to: x.to, amount: amount(x.result) }))
+            const others = [
+              ...choices.filter((x) => x.to).map((x) => ({ kind: record.results[x.result]?.action === 'defend' ? ('defend' as const) : ('attack' as const), to: x.to, amount: amount(x.result) })),
+              ...followUps.flatMap((f) => (f.to ? [{ kind: 'mod' as const, to: f.to, mod: f.mod }] : [])),
+            ]
             if (others.length) attack(others)
           }}
           random={random}
@@ -389,7 +395,7 @@ export type QuickAddKind = 'minions' | 'lieutenants' | 'challenge'
 interface GmScreenProps {
   game: Game
   quickAdd: (kind: QuickAddKind) => void
-  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange; attackTargets: readonly { id: string; name: string }[]; attack: VillainAttacks } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'missing' }
+  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange; attack: VillainAttacks } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'missing' }
   stopRunning: () => void
   bring: BringIn
   setNotes: (notes: string) => void
@@ -457,7 +463,7 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
               ×
             </button>
           </div>
-          {running.kind === 'villain' ? <RunningVillain key={running.villain.id} copy={running.villain} change={running.change} attackTargets={running.attackTargets} attack={running.attack} random={random} /> : <RunningGroup key={running.group.id} game={game} group={running.group} actions={running.actions} random={random} />}
+          {running.kind === 'villain' ? <RunningVillain key={running.villain.id} game={game} copy={running.villain} change={running.change} attack={running.attack} random={random} /> : <RunningGroup key={running.group.id} game={game} group={running.group} actions={running.actions} random={random} />}
         </section>
       )}
 

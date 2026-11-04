@@ -409,6 +409,8 @@ export interface PlayMinion {
   mods: PlayMod[]
   /** Its minion form left the hero's sheet in a sheet update: it can't act until the player picks a current one. */
   needsForm?: true
+  /** Its unused defenses (ruling 65): they go at the start of its hero's next turn. */
+  defenses?: Defense[]
 }
 
 export function emptyDetails(): HeroDetails {

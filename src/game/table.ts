@@ -534,6 +534,8 @@ export function turnStrip(game: Pick<Game, 'turn'>): { ref: ActorRef; state: Tur
   return [...acted.map((ref) => ({ ref, state: 'acted' as const })), ...current, ...waiting(game).map((ref) => ({ ref, state: 'waiting' as const }))]
 }
 
+const clearMinionDefenses = (p: PlayState): PlayState => (p.minions?.some((m) => m.defenses) ? { ...p, minions: p.minions.map(clearDefenses) } : p)
+
 /**
  * A turn starting: the actor's reaction and defenses are cleared (that character's only, not at
  * round start; ruling 65), a group's members are ready again with no defenses, and when it's the environment's turn, the scene tracker
@@ -548,7 +550,8 @@ function startTurn(game: Game, ref: ActorRef, clock: Clock): Game {
     case 'hero': {
       // Hits still waiting for a choice take the default defense before the defenses go.
       const resolved = (game.pendingHits ?? []).filter((h) => h.heroId === ref.id).reduce((g, h) => resolveHit(g, h.id, undefined, clock), game)
-      return changeHeroPlay(resolved, ref.id, (p) => clearDefenses(setReactionUsed(p, false, clock)), clock, false)
+      // The hero's defenses go, and its minions' (they act on its turn).
+      return changeHeroPlay(resolved, ref.id, (p) => clearMinionDefenses(clearDefenses(setReactionUsed(p, false, clock))), clock, false)
     }
     case 'villain':
       return changeVillainPlay(game, ref.id, (p) => clearDefenses(setReactionUsed(p, false, clock)), clock, false)

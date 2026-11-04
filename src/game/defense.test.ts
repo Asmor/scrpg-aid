@@ -8,10 +8,11 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { villainHealth } from '../villain/play'
 import { applyHeroAction, type HeroAction } from './actions'
-import { applyAttack } from './attacks'
+import { applyAttack, applyGroupRoll } from './resolve'
+import { targetId } from './roll-targets'
 import { defend, hitCharacter } from './hits'
 import { createGame, type Game } from './model'
-import { applyGroupRoll, memberSaveText, npcTargetId, rollSave } from './npc'
+import { memberSaveText, rollSave } from './npc'
 import { addGroup, addHero, addVillain, handOff, resolveHit, startRound } from './table'
 import { project } from './project'
 import { tableViewProblem } from '../session/protocol'
@@ -183,7 +184,7 @@ describe('making and losing defenses', () => {
     expect(next.villains[0]!.play.defenses).toMatchObject([{ value: 4, from: 'Drones 2' }])
     const toMember = applyGroupRoll(g, group.id, 'defend', [{ ...rolled, target: { kind: 'member' as const, groupId: group.id, memberId: group.members[0]!.id } }], d6(1), c)
     expect(toMember.groups[0]!.members[0]!.defenses).toMatchObject([{ value: 4 }])
-    expect(npcTargetId(rolled.target)).toBe(`villain:${villain}`)
+    expect(targetId(rolled.target)).toBe(`villain:${villain}`)
   })
 
   it("loses unused defenses when the defended character's turn starts", () => {

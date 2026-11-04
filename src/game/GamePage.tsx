@@ -22,11 +22,10 @@ import { useTick } from '../play/useTick'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
 import { villainHealth } from '../villain/play'
 import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, SceneSetupDialog, TwistDialog, UpdateDialog } from './dialogs'
-import { GmScreen, type QuickAddKind } from './GmScreen'
+import { GmScreen, type QuickAddKind, type VillainAttacks } from './GmScreen'
 import type { GroupActions } from './RunningGroup'
-import { applyGroupRoll, applySaves } from './npc'
-import { applyAttack, attackTargetName, villainAttackTargets } from './attacks'
-import { defend } from './hits'
+import { applySaves } from './npc'
+import { applyAttack, applyGroupRoll, giveMod, protect } from './resolve'
 import { parseTarget } from './roll-targets'
 import { applyHeroChange, type HeroChange } from './hero-changes'
 import { gameDisplayName, sceneDisplayName, type ActorRef, type Game, type HeroInGame, type VillainInGame } from './model'
@@ -264,19 +263,17 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         kind: 'villain' as const,
         villain: runningVillain,
         change: (fn: (p: VillainPlayState, c: Clock) => VillainPlayState) => changeVillain(runningVillain.id, fn),
-        attackTargets: villainAttackTargets(game, runningVillain.id),
-        attack: (hits: { kind: 'attack' | 'defend'; to: string; amount: number }[]) =>
+        attack: ((results) =>
           apply((g) =>
-            hits.reduce((x, a) => {
+            results.reduce((x, a) => {
               const to = parseTarget(a.to)
               const by = villainDisplayName(runningVillain.sheet)
               if (!to) return x
+              if (a.kind === 'mod') return giveMod(x, to, a.mod, by, clock(), !runningVillain.hidden)
               if (a.kind === 'attack') return applyAttack(x, by, to, a.amount, random ?? Math.random, clock(), runningVillain.hidden).game
-              const name = attackTargetName(x, to)
-              const c = clock()
-              return name ? T.withLog(defend(x, to, a.amount, by, c), [{ id: c.newId(), at: c.now.toISOString(), by, text: `${by} protected ${name}: Defend ${a.amount}.`, ...(runningVillain.hidden ? { gmOnly: true as const } : {}) }]) : x
+              return protect(x, by, to, a.amount, clock(), runningVillain.hidden)
             }, g),
-          ),
+          )) satisfies VillainAttacks,
       }
     : runningGroup ? { kind: 'group' as const, group: runningGroup, actions: groupActions(runningGroup.id) } : undefined
 

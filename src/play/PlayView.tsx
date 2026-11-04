@@ -26,6 +26,8 @@ import { addMinion, addMinionMod, minionCreation, removeMinion, removeMinionMod,
 import { ModForm } from './ModForm'
 import { confirmRoll, effectLineAction, rollChange, undoRoll, type RollChange } from './roll'
 import { RollDialog, type FormPicker, type RollSubject } from './RollDialog'
+import { parseTarget, targetId } from '../game/roll-targets'
+import { soloTable, targetOptions } from '../game/target-options'
 import {
   addMod,
   modName,
@@ -57,7 +59,6 @@ const PHONE_TABS: readonly [PhoneTab, string][] = [
   ['history', 'History'],
 ]
 /** A follow-up mod's recipient when it's one of the hero's own minions. */
-const MINION_TARGET = 'minion:'
 const BASIC_ACTIONS: readonly BasicAction[] = ['attack', 'defend', 'boost', 'hinder', 'overcome']
 const ACTION_LABEL: Record<BasicAction, string> = { attack: 'Attack', defend: 'Defend', boost: 'Boost', hinder: 'Hinder', overcome: 'Overcome' }
 
@@ -646,8 +647,11 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
                 if (next) after = setForm(after, next.key, next.name, c)
               }
               if (rolling.kind === 'ability' && rolling.reaction) after = setReactionUsed(after, true, c)
-              for (const f of followUps) if (!f.to) after = addMod(after, f.mod, c)
-              for (const f of followUps) if (f.to?.startsWith(MINION_TARGET)) after = addMinionMod(after, f.to.slice(MINION_TARGET.length), f.mod, c)
+              for (const f of followUps) {
+                const to = f.to ? parseTarget(f.to) : undefined
+                if (!f.to) after = addMod(after, f.mod, c)
+                else if (to?.kind === 'heroMinion') after = addMinionMod(after, to.minionId, f.mod, c)
+              }
               for (const m of made) after = addMinion(after, m, c)
               undo = rollChange(p, after, record.title)
               return after
@@ -677,7 +681,9 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
                 }),
             })
           }}
-          targets={(play.minions ?? []).map((m) => ({ id: `${MINION_TARGET}${m.id}`, name: `${m.name} (your minion)` }))}
+          targetsFor={(effect, opts) => targetOptions({ kind: 'hero', id: hero.id }, effect, soloTable(hero, play), opts)}
+          selfId={targetId({ kind: 'hero', id: hero.id })}
+          pickTargets="mods"
           random={random}
         />
       )}
