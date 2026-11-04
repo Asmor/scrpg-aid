@@ -7,7 +7,8 @@
  * - Twists are suggestions; the app only tracks which are used, and in which round.
  * - Its attached templates come on the table as environment-owned groups, revealed: they act on
  *   its turn and have no turn-order entry.
- * - All of it is the GM's: its log lines are GM-only, and players never get it (./project.ts).
+ * - Its log lines are for everyone (the user's call), unless the environment is still hidden. Its
+ *   aspects, twists and attached templates aren't sent to players (./project.ts).
  */
 import { rollDie } from '../rules/rolling'
 import type { Die } from '../rules/types'
@@ -22,7 +23,8 @@ import { parseTarget } from './roll-targets'
 
 type Random = () => number
 
-const gmLine = (game: Game, clock: Clock, text: string) => withLog(game, [{ id: clock.newId(), at: clock.now.toISOString(), by: game.environment?.name ?? 'Environment', text, gmOnly: true as const }])
+/** A log line about the environment: for everyone, or the GM's while the environment is hidden. */
+const envLine = (game: Game, clock: Clock, text: string) => withLog(game, [{ id: clock.newId(), at: clock.now.toISOString(), by: game.environment?.name ?? 'Environment', text, ...(game.environment?.hidden ? { gmOnly: true as const } : {}) }])
 
 /** A template's attached minions and lieutenants as found in the library: missing ones are left out. */
 export type FoundAttached = { kind: 'minion'; doc: MinionTemplate } | { kind: 'lieutenant'; doc: LieutenantTemplate }
@@ -46,7 +48,7 @@ const changeEnvironment = (game: Game, fn: (env: EnvironmentOnTable) => Environm
 export function setAspects(game: Game, aspects: readonly EnvironmentAspect[], clock: Clock): Game {
   if (!game.environment || aspects.length !== ASPECT_COUNT) return game
   const next = changeEnvironment(game, (env) => ({ ...env, aspects: aspects.map((a) => ({ name: a.name.trim(), die: a.die })) }))
-  return gmLine(next, clock, `The GM set ${game.environment.name}'s aspects: ${aspects.map((a, i) => `${aspectName(a, i)} (${a.die})`).join(', ')}.`)
+  return envLine(next, clock, `The GM set ${game.environment.name}'s aspects: ${aspects.map((a, i) => `${aspectName(a, i)} (${a.die})`).join(', ')}.`)
 }
 
 /** "Slick Tiles", or "Aspect 2" for an unnamed one. */
@@ -73,10 +75,10 @@ export function rollAspects(aspects: readonly EnvironmentAspect[], random: Rando
   return { min: dice[0]!, mid: dice[1]!, max: dice[2]! }
 }
 
-/** Logs an environment roll, for the GM only: "Rolled the environment dice: Min 2 (Howling Wind), …". */
+/** Logs an environment roll (see envLine): "Rolled the environment dice: Min 2 (Howling Wind), …". */
 export function logEnvironmentRoll(game: Game, roll: EnvironmentRoll, clock: Clock): Game {
   const part = (label: string, d: EnvironmentDie) => `${label} ${d.value} (${d.aspect})`
-  return gmLine(game, clock, `Rolled the environment dice: ${part('Min', roll.min)}, ${part('Mid', roll.mid)}, ${part('Max', roll.max)}.`)
+  return envLine(game, clock, `Rolled the environment dice: ${part('Min', roll.min)}, ${part('Mid', roll.mid)}, ${part('Max', roll.max)}.`)
 }
 
 /** "Floodlights", or the start of its text. */
@@ -87,7 +89,7 @@ export function twistTitle(t: Pick<TableTwist, 'name' | 'text'>): string {
   return text.length > 40 ? `${text.slice(0, 40)}…` : text || 'A twist'
 }
 
-/** Marks a twist used in this round, or unused again, and logs it for the GM. */
+/** Marks a twist used in this round, or unused again, and logs it (see envLine). */
 export function setTwistUsed(game: Game, twistId: string, used: boolean, clock: Clock): Game {
   const twist = game.environment?.twists?.find((t) => t.id === twistId)
   if (!twist || Boolean(twist.used) === used) return game
@@ -100,7 +102,7 @@ export function setTwistUsed(game: Game, twistId: string, used: boolean, clock: 
       return rest
     }),
   }))
-  return gmLine(next, clock, used ? `Twist used: ${twistTitle(twist)}.` : `Twist marked unused: ${twistTitle(twist)}.`)
+  return envLine(next, clock, used ? `Twist used: ${twistTitle(twist)}.` : `Twist marked unused: ${twistTitle(twist)}.`)
 }
 
 /** Clears every twist's use (the panel's ⋯ › Reset twists). */
@@ -111,7 +113,7 @@ export function resetTwists(game: Game, clock: Clock): Game {
       return rest
     }),
   }))
-  return gmLine(next, clock, 'The GM reset the twists: none are used.')
+  return envLine(next, clock, 'The GM reset the twists: none are used.')
 }
 
 const groupKind = (a: Pick<AttachedOnTable, 'kind'>): NpcGroup['kind'] => (a.kind === 'minion' ? 'minions' : 'lieutenants')

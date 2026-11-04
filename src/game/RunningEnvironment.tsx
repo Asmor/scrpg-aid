@@ -298,7 +298,6 @@ export function RunningEnvironment({ game, env, actions, sheets, random }: { gam
           zone={undefined}
           mods={[]}
           fixedPool={aspects.map((a, i) => ({ label: aspectName(a, i), die: a.die }))}
-          chooseUse
           targetsFor={(effect, opts) => targetOptions({ kind: 'environment' }, effect, gmTable(game), opts)}
           onClose={() => setActing(null)}
           onConfirm={(record, followUps, _form, _made, choices = []) => actions.basicAction(record, followUps, choices)}

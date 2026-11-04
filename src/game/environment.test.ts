@@ -76,7 +76,7 @@ describe('an environment template on the table', () => {
     expect(tableViewProblem(project(long, 'player'))).toBeUndefined()
   })
 
-  it('rolls the environment dice as Min, Mid and Max, naming each aspect, logged for the GM', () => {
+  it('rolls the environment dice as Min, Mid and Max, naming each aspect, logged for everyone once it is revealed', () => {
     const { g, c } = table()
     const roll = rollAspects(g.environment!.aspects!, dice(7, 2, 5))!
     expect([roll.min, roll.mid, roll.max].map((d) => [d.value, d.aspect])).toEqual([
@@ -84,8 +84,10 @@ describe('an environment template on the table', () => {
       [5, 'Night Security'],
       [7, 'Slick Tiles'],
     ])
-    const logged = logEnvironmentRoll(g, roll, c)
-    expect(logged.feed.at(-1)).toMatchObject({ text: 'Rolled the environment dice: Min 2 (Howling Wind), Mid 5 (Night Security), Max 7 (Slick Tiles).', gmOnly: true })
+    // Hidden, as it arrives: the GM's line.
+    expect(logEnvironmentRoll(g, roll, c).feed.at(-1)).toMatchObject({ text: 'Rolled the environment dice: Min 2 (Howling Wind), Mid 5 (Night Security), Max 7 (Slick Tiles).', gmOnly: true })
+    const revealed = { ...g, environment: { ...g.environment!, hidden: false } }
+    expect(logEnvironmentRoll(revealed, roll, c).feed.at(-1)).not.toHaveProperty('gmOnly')
     expect(rollAspects([], dice())).toBeUndefined()
   })
 
@@ -95,15 +97,21 @@ describe('an environment template on the table', () => {
     expect(g.environment!.aspects).toBeUndefined()
     g = setAspects(g, [{ name: ' Fog ', die: 'd6' }, { name: '', die: 'd8' }, { name: 'Cranes', die: 'd10' }], c)
     expect(g.environment!.aspects).toEqual([{ name: 'Fog', die: 'd6' }, { name: '', die: 'd8' }, { name: 'Cranes', die: 'd10' }])
-    expect(g.feed.at(-1)).toMatchObject({ text: "The GM set Docks's aspects: Fog (d6), Aspect 2 (d8), Cranes (d10).", gmOnly: true })
+    expect(g.feed.at(-1)).toMatchObject({ text: "The GM set Docks's aspects: Fog (d6), Aspect 2 (d8), Cranes (d10)." })
+    expect(g.feed.at(-1)).not.toHaveProperty('gmOnly')
     expect(setAspects(g, [{ name: 'Only one', die: 'd6' }], c)).toBe(g)
+    // While the environment is hidden, the line is the GM's.
+    const hidden = { ...g, environment: { ...g.environment!, hidden: true } }
+    expect(setAspects(hidden, [{ name: 'Fog', die: 'd6' }, { name: '', die: 'd8' }, { name: 'Cranes', die: 'd10' }], c).feed.at(-1)).toMatchObject({ gmOnly: true })
   })
 
   it('marks twists used in the round, unmarks them, and resets them all', () => {
     const { g, c } = table()
-    let next = setTwistUsed({ ...g, round: 2 }, 't1', true, c)
+    expect(setTwistUsed(g, 't1', true, c).feed.at(-1)).toMatchObject({ text: 'Twist used: Floodlights.', gmOnly: true })
+    let next = setTwistUsed({ ...g, round: 2, environment: { ...g.environment!, hidden: false } }, 't1', true, c)
     expect(next.environment!.twists![0]!.used).toEqual({ round: 2 })
-    expect(next.feed.at(-1)).toMatchObject({ text: 'Twist used: Floodlights.', gmOnly: true })
+    expect(next.feed.at(-1)!.text).toBe('Twist used: Floodlights.')
+    expect(next.feed.at(-1)).not.toHaveProperty('gmOnly')
     expect(setTwistUsed(next, 't1', true, c)).toBe(next)
     next = setTwistUsed(next, 't2', true, c)
     next = setTwistUsed(next, 't1', false, c)
@@ -111,6 +119,8 @@ describe('an environment template on the table', () => {
     expect(next.feed.at(-1)!.text).toBe('Twist marked unused: Floodlights.')
     next = resetTwists(next, c)
     expect(next.environment!.twists!.every((t) => !t.used)).toBe(true)
+    expect(next.feed.at(-1)!.text).toBe('The GM reset the twists: none are used.')
+    expect(next.feed.at(-1)).not.toHaveProperty('gmOnly')
     expect(resetTwists(next, c)).toBe(next)
     expect(twistTitle({ text: 'x'.repeat(50) })).toBe(`${'x'.repeat(40)}…`)
   })
