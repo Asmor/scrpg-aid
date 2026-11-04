@@ -30,6 +30,7 @@ import { TemplateEditor } from './template/TemplateEditor'
 import { SessionProvider } from './session/SessionProvider'
 import type { Connect } from './session/transport'
 import type { SessionStore } from './session/storage'
+import { AboutButton } from './components/About'
 import { ThemeToggle } from './components/ThemeToggle'
 import { createDefaultStore, type HeroStore } from './hero/store'
 import { useTheme } from './theme/useTheme'
@@ -96,7 +97,10 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
           <h1>
             <a href={listPath}>SCRPG Aid</a>
           </h1>
-          <ThemeToggle value={theme} onChange={setTheme} />
+          <span className="app-header__actions">
+            <ThemeToggle value={theme} onChange={setTheme} />
+            <AboutButton />
+          </span>
         </header>
         <main className={route.name === 'edit' || route.name === 'villainEdit' ? 'app-main app-main--wide' : 'app-main'}>
           {route.name === 'villain' && <VillainPage key={route.id} id={route.id} />}

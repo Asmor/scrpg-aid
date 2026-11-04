@@ -71,6 +71,20 @@ describe('the library on a phone', () => {
     expect(screen.getByRole('button', { name: /^Menu: data, color scheme/ })).toBeInTheDocument()
   })
 
+  it('opens About from the header menu, after a divider, with focus back on the menu afterwards', async () => {
+    await setup()
+    const menu = screen.getByRole('button', { name: /^Menu: data, color scheme, about/ })
+    await userEvent.click(menu)
+    const sheet = within(screen.getByRole('dialog', { name: 'Menu' }))
+    expect(sheet.getByRole('menuitem', { name: 'Back up everything' })).toBeInTheDocument()
+    await userEvent.click(sheet.getByRole('menuitem', { name: 'About' }))
+    expect(screen.queryByRole('dialog', { name: 'Menu' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'About SCRPG Aid' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(menu).toHaveFocus()
+  })
+
   it('picks a view from the view sheet', async () => {
     await setup()
     await userEvent.click(screen.getByRole('button', { name: 'All' }))

@@ -1,10 +1,12 @@
 /**
  * The library's header bar (docs/design/library/spec.md, "Page layout"): the app's name, the
  * Library | Games section tabs, Play together (host, join, or the game you're in), Data (backup,
- * import, the example hero), and the color scheme switch. On phones, Data and the color scheme
- * share one menu, and the section tabs sit under the bar. The Games page shares the header.
+ * import, the example hero), the color scheme switch, and About. On phones, Data, the color scheme
+ * and About share one menu, and the section tabs sit under the bar. The Games page shares the header.
  */
 import { gamePath, gamesPath, joinPath, listPath, receivePath, tablePath, watchPath } from '../app/route'
+import { useState } from 'react'
+import { AboutButton, AboutDialog } from '../components/About'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { useHostSnapshot, useSession } from '../session/context'
 import type { ThemePreference } from '../theme/theme'
@@ -221,22 +223,40 @@ export function DataMenu({ data }: { data: DataActions }) {
   )
 }
 
-/** The phone's header menu: Data's items, then the color scheme. */
-export function PhoneMenu({ data, theme, setTheme }: { data: DataActions; theme: ThemePreference; setTheme: (t: ThemePreference) => void }) {
+/** The phone's header menu: Data's items (when there's a Data menu), the color scheme, then About. */
+export function PhoneMenu({ data, theme, setTheme }: { data?: DataActions | undefined; theme: ThemePreference; setTheme: (t: ThemePreference) => void }) {
   const [popover, bindPopover] = usePopover()
-  const label = data.status.remind ? 'Menu: data, color scheme. Backup reminder' : 'Menu: data, color scheme'
+  const [about, setAbout] = useState(false)
+  const remind = data?.status.remind ?? false
+  const label = `Menu: ${data ? 'data, ' : ''}color scheme, about${remind ? '. Backup reminder' : ''}`
   return (
     <span className="popover-anchor">
       <button ref={bindPopover} type="button" className="icon-button" aria-label={label} aria-haspopup="dialog" aria-expanded={popover.open} onClick={popover.toggle}>
         <MenuIcon />
-        {data.status.remind && <span className="dot" aria-hidden="true" />}
+        {remind && <span className="dot" aria-hidden="true" />}
       </button>
       {popover.open && (
         <PopoverDialog popover={popover} label="Menu" className="popover--sheet">
-          <DataItems data={data} close={popover.close} />
+          {data && <DataItems data={data} close={popover.close} />}
           <ThemeToggle value={theme} onChange={setTheme} />
+          <hr className="popover__divider" />
+          <div role="menu" aria-label="About" className="popover__menu">
+            <button
+              type="button"
+              role="menuitem"
+              className="menu-item"
+              onClick={() => {
+                // Focus goes back to the menu button first, so it returns there when About closes.
+                popover.close()
+                setAbout(true)
+              }}
+            >
+              About
+            </button>
+          </div>
         </PopoverDialog>
       )}
+      {about && <AboutDialog onClose={() => setAbout(false)} />}
     </span>
   )
 }
@@ -283,12 +303,13 @@ export function LibraryHeader({ phone, theme, setTheme, data, heroName, now, sec
         {!phone && <SectionTabs section={section} {...(gameCount !== undefined ? { gameCount } : {})} />}
         <span className="library-header__actions">
           <PlayTogether heroName={heroName} now={now} compact={phone} />
-          {phone && data ? (
+          {phone ? (
             <PhoneMenu data={data} theme={theme} setTheme={setTheme} />
           ) : (
             <>
               {data && <DataMenu data={data} />}
               <ThemeToggle value={theme} onChange={setTheme} />
+              <AboutButton />
             </>
           )}
         </span>

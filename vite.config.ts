@@ -1,13 +1,21 @@
 /// <reference types="vitest/config" />
 import react from "@vitejs/plugin-react";
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 // GitHub Pages serves the app from /<repo>/, so the deploy workflow sets BASE_PATH.
 const base = process.env.BASE_PATH ?? "/";
 
+// The About dialog shows the app's version and when it was built (docs/design/library/spec.md, 8a).
+const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string };
+
 export default defineConfig({
   base,
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   plugins: [
     react(),
     VitePWA({

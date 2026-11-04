@@ -1,4 +1,5 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { exampleHero } from './hero/example'
@@ -23,6 +24,17 @@ describe('App', () => {
     go('#/join')
     const title = await screen.findByRole('heading', { level: 1, name: 'SCRPG Aid' })
     expect(title.querySelector('a')).toHaveAttribute('href', '#/')
+  })
+
+  it('opens About from the header on the library and on other pages', async () => {
+    render(<App store={new MemoryHeroStore()} villainStore={new MemoryVillainStore()} searchStore={new MemorySavedSearchStore()} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'About' }))
+    expect(within(screen.getByRole('dialog', { name: 'About SCRPG Aid' })).getByText(/^Version /)).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    go('#/join')
+    await screen.findByRole('heading', { level: 1, name: 'SCRPG Aid' })
+    await userEvent.click(screen.getByRole('button', { name: 'About' }))
+    expect(screen.getByRole('dialog', { name: 'About SCRPG Aid' })).toBeInTheDocument()
   })
 
   it('shows the hero list, a hero’s sheet, a missing hero, and unknown pages', async () => {

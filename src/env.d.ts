@@ -7,3 +7,8 @@ interface ImportMetaEnv {
    */
   readonly VITE_TURN_CREDENTIALS_URL?: string
 }
+
+/** The app's version, from package.json (set by `define` in vite.config.ts). */
+declare const __APP_VERSION__: string
+/** When the app was built, as an ISO time (set by `define` in vite.config.ts). */
+declare const __BUILD_TIME__: string
