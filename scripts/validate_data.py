@@ -186,6 +186,8 @@ def check_node(node, where, known, approaches, books, spans):
         if "pool" in node:
             check_pool(node["pool"], f"{where}.pool")
         check_pool_uses(node.get("effects"), node.get("pool"), where)
+        if "makesMinions" in node and (node["makesMinions"] is not True or not where.startswith("villains/")):
+            err(where, "'makesMinions' must be true, and only on villain abilities")
         req = node.get("requires")
         if req is not None:
             if not (isinstance(req, dict) and len(REF_KEYS & req.keys()) == 1):
@@ -474,6 +476,7 @@ def check_villains(docs):
                 err(f"approaches[{e.get('id')}]", "baseHealth should be a multiple of 5")
             require(e.get("abilities"), ["count", "options"], f"approaches[{e.get('id')}].abilities")
 
+    approach_ids = {e.get("id") for e in (va or {}).get("approaches", []) if isinstance(e, dict)}
     vr = docs.get("villains/archetypes.json")
     if vr:
         entries = items(vr, "archetypes", "villain archetypes")
@@ -494,6 +497,17 @@ def check_villains(docs):
             for z, d in status.get("zones", {}).items():
                 if d not in DICE:
                     err(ew, f"status zone {z} has invalid die '{d}'")
+            pn = e.get("pairingNote")
+            if pn is not None:
+                if not (isinstance(pn, dict) and isinstance(pn.get("text"), str) and pn["text"] and isinstance(pn.get("approaches"), list) and pn["approaches"]):
+                    err(ew, "pairingNote needs 'approaches' (a list of approach ids) and 'text'")
+                else:
+                    for a in pn["approaches"]:
+                        if a not in approach_ids:
+                            err(ew, f"pairingNote names unknown approach '{a}'")
+            nm = e.get("needsMinionMaker")
+            if nm is not None and not (isinstance(nm, dict) and isinstance(nm.get("note"), str) and nm["note"]):
+                err(ew, "needsMinionMaker needs a 'note'")
 
     vu = docs.get("villains/upgrades.json")
     if vu:

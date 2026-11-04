@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { A, P, Q } from '../test/heroes'
-import { adaptiveBruiser } from '../test/villains'
+import { adaptiveBruiser, bullyOverlord } from '../test/villains'
 import { createVillain } from './model'
 import { isKnownBracket } from '../rules/slots'
 import { villainApproaches, villainArchetypes, villainMasteries, villainUpgrades } from '../rules/villain-data'
-import { buildVillainSheet, fitsUsePattern } from './sheet'
+import { buildVillainSheet, fitsUsePattern, villainHealth, villainMakesMinions, villainTraits, villainZones } from './sheet'
 
 const codes = (v: ReturnType<typeof adaptiveBruiser>) => buildVillainSheet(v).warnings.map((w) => w.code)
 const messages = (v: ReturnType<typeof adaptiveBruiser>) => buildVillainSheet(v).warnings.map((w) => w.message)
@@ -55,7 +55,7 @@ describe('the villain sheet', () => {
     v.approach!.traits.push(A(Q('roleplaying-quality'), 'd10'), A(Q('science'), 'd6'))
     expect(messages(v)).toEqual([
       'The roleplaying quality comes with the approach at d8; assign the approach’s dice to other qualities.',
-      'Science has more than one die.',
+      'Science is already assigned.',
       "Assign Adaptive's power dice to powers: d10, d8, d8, d6.",
       "Assign Adaptive's quality dice to qualities: d10, d8, d8.",
     ])
@@ -74,10 +74,6 @@ describe('the villain sheet', () => {
     expect(fitsUsePattern([P('a'), P('b'), P('c')], { uses: 'power', groups: [2, 1] })).toBe(false)
     expect(fitsUsePattern([P('a'), P('a'), P('a')], { uses: 'power', groups: [2, 1] })).toBe(false)
     expect(fitsUsePattern([P('a'), Q('b')], { uses: 'power', groups: [2, 1] })).toBe(false)
-    // Extra abilities (Quality Upgrade) may use anything (ruling 57).
-    expect(fitsUsePattern([P('a'), P('a'), P('b'), P('c')], { uses: 'power', groups: [2, 1] }, 1)).toBe(true)
-    expect(fitsUsePattern([P('a'), P('a'), P('b'), Q('x')], { uses: 'power', groups: [2, 1] }, 1)).toBe(true)
-    expect(fitsUsePattern([P('a'), P('b'), P('c'), P('d')], { uses: 'power', groups: [2, 1] }, 1)).toBe(false)
     const v = adaptiveBruiser()
     v.approach = {
       id: 'focused',
@@ -94,7 +90,26 @@ describe('the villain sheet', () => {
     ]
     expect(codes(v)).toEqual([])
     v.approach.abilities[2] = { source: 'approach', name: 'Vicious Entanglement', uses: [Q('science')] }
-    expect(codes(v)).toContain('use-pattern')
+    expect(buildVillainSheet(v).warnings.find((w) => w.code === 'use-pattern')).toMatchObject({ step: 'approach', field: 'abilities:approach' })
+    // It's only judged once every chosen ability's slot is filled.
+    v.approach.abilities[2] = { source: 'approach', name: 'Vicious Entanglement' }
+    expect(codes(v)).not.toContain('use-pattern')
+  })
+
+  it('checks Prideful’s and Underpowered’s “each a different power or quality”', () => {
+    const v = adaptiveBruiser()
+    v.approach = {
+      id: 'prideful',
+      traits: [A(P('robotics'), 'd10'), A(P('strength'), 'd10'), A(P('power-suit'), 'd10'), A(P('agility'), 'd8'), A(Q('fitness'), 'd10'), A(Q('science'), 'd10'), A(Q('technology'), 'd8'), A(Q('history'), 'd8')],
+      abilities: [],
+    }
+    v.approach.abilities = [
+      { source: 'approach', name: 'I Will Deal With the Rest of You Later', uses: [P('strength')] },
+      { source: 'approach', name: 'My Greatness Cannot Be Denied', uses: [P('strength')] },
+    ]
+    expect(buildVillainSheet(v).warnings.find((w) => w.code === 'not-different')).toMatchObject({ step: 'approach', field: 'abilities:approach' })
+    v.approach.abilities[1]!.uses = [Q('fitness')]
+    expect(codes(v)).not.toContain('not-different')
   })
 
   it('makes a major villain with upgrades, which needs a mastery', () => {
@@ -141,7 +156,24 @@ describe('the villain sheet', () => {
     const big = adaptiveBruiser()
     big.approach = { ...big.approach!, id: 'focused', traits: [A(P('robotics'), 'd12'), A(P('strength'), 'd8'), A(Q('fitness'), 'd10'), A(Q('science'), 'd8')], abilities: [] }
     big.upgrades = [{ id: 'power-upgrade', abilities: [] }]
-    expect(messages(big)).toContain('Choose 3 of the Bruiser abilities; you have 2.')
+    big.mastery = { source: 'mastery', name: 'Master of Annihilation' }
+    // It's taken in the upgrade's own list, and named after it.
+    expect(buildVillainSheet(big).warnings).toContainEqual({ step: 'upgrades', code: 'ability-count', message: 'Choose 1 of the Power Upgrade extra Bruiser abilities; you have 0.', field: 'abilities:upgrade:power-upgrade:extra' })
+    big.upgrades[0]!.extra = [{ source: 'archetype', name: 'Lash Out', uses: [P('robotics')] }]
+    expect(messages(big)).toContain('Lash Out is already one of your Bruiser abilities.')
+    big.upgrades[0]!.extra = [{ source: 'archetype', name: 'Feel No Pain' }]
+    const sheet2 = buildVillainSheet(big)
+    expect(sheet2.warnings.filter((w) => w.step === 'upgrades')).toEqual([])
+    expect(sheet2.abilities.find((a) => a.baseName === 'Feel No Pain')).toMatchObject({ source: 'archetype', upgrade: 'Power Upgrade' })
+    // The changes, for the wizard's before-and-after list.
+    expect(villainTraits(big).upgrades).toEqual([
+      expect.objectContaining({ upgradeId: 'power-upgrade', list: 'archetype', extra: 1, changes: expect.arrayContaining([expect.objectContaining({ name: 'Robotics', from: 'd12', to: 'd12', overflow: true }), expect.objectContaining({ name: 'Strength', from: 'd8', to: 'd10', overflow: false })]) }),
+    ])
+    // Extra abilities where nothing overflowed.
+    v.upgrades[0]!.extra = [{ source: 'archetype', name: 'Feel No Pain' }]
+    expect(codes(v)).toContain('ability-count')
+    v.upgrades = [{ id: 'mook-squad', abilities: [], extra: [{ source: 'approach', name: 'Thick' }] }]
+    expect(codes(v)).toContain('overflow-count')
   })
 
   it('builds a Villainous Vehicle with its die’s number of abilities', () => {
@@ -169,12 +201,12 @@ describe('the villain sheet', () => {
     expect(codes(v)).toContain('unknown-ability')
   })
 
-  it('works out Health for the number of heroes, and warns off the chart', () => {
+  it('works out Health for the number of heroes', () => {
     const v = adaptiveBruiser()
     v.heroCount = 2
     expect(buildVillainSheet(v).health).toMatchObject({ max: 45, heroCount: 2 })
     v.heroCount = 0
-    expect(codes(v)).toEqual(['hero-count'])
+    expect(buildVillainSheet(v).warnings).toEqual([{ step: 'health', code: 'hero-count', message: 'The villain needs to face at least one hero.', field: 'hero-count' }])
     v.heroCount = 30
     // 15 + 20 + 150 = 185: the top row covers 100 or more, its Green range from the max down.
     expect(buildVillainSheet(v).health).toMatchObject({ max: 185, ranges: { max: 185, green: [185, 75] } })
@@ -210,13 +242,15 @@ describe('more villain checks', () => {
         { source: 'approach', name: 'Neutralizing Strike', uses: [Q('roleplaying-quality')] },
       ],
     }
-    v.upgrades = [{ id: 'quality-upgrade', abilities: [] }]
+    // The fourth comes from Quality Upgrade's own list, so the approach's three keep the pattern.
+    const fourth = v.approach.abilities.pop()!
+    v.upgrades = [{ id: 'quality-upgrade', abilities: [], extra: [fourth] }]
     v.mastery = { source: 'mastery', name: 'Master of Annihilation' }
     expect(buildVillainSheet(v).warnings).toEqual([])
     // Without the upgrade, three abilities, and a third quality breaks the pattern.
     v.upgrades = []
     v.mastery = null
-    v.approach.abilities.splice(1, 1)
+    v.approach.abilities.splice(1, 1, fourth)
     expect(buildVillainSheet(v).warnings.map((w) => w.code)).toEqual(['use-pattern'])
   })
 
@@ -230,3 +264,54 @@ describe('more villain checks', () => {
   })
 })
 
+
+describe('villain Health', () => {
+  it('lists every term, upgrades with no Health included, and the total', () => {
+    const v = bullyOverlord()
+    expect(villainHealth(v)).toEqual({
+      total: 60,
+      terms: [
+        { kind: 'base', label: 'Bully base', value: 25 },
+        { kind: 'modifier', label: 'Overlord modifier', value: 15 },
+        { kind: 'heroes', label: '5 × 4 heroes', value: 20 },
+        { kind: 'upgrade', label: 'Mook Squad', value: 0 },
+      ],
+    })
+    expect(villainHealth(v, 1)).toMatchObject({ total: 45, terms: expect.arrayContaining([{ kind: 'heroes', label: '5 × 1 hero', value: 5 }]) })
+  })
+
+  it('has no total until the approach and archetype are chosen', () => {
+    const v = createVillain()
+    expect(villainHealth(v)).toEqual({
+      terms: [
+        { kind: 'base', label: 'Approach base', value: null },
+        { kind: 'modifier', label: 'Archetype modifier', value: null },
+        { kind: 'heroes', label: '5 × 4 heroes', value: 20 },
+      ],
+    })
+  })
+
+  it('gives zones from the chart, the top row for 100 or more', () => {
+    expect(villainZones(60)).toEqual({ max: 60, green: [60, 41], yellow: [40, 17], red: [16, 1] })
+    expect(villainZones(100)).toMatchObject({ max: 100, green: [100, 75] })
+    expect(villainZones(135)).toEqual({ max: 135, green: [135, 75], yellow: [74, 26], red: [25, 1] })
+    expect(villainZones(10)).toMatchObject({ green: [10, 10] })
+    expect(villainZones(62)).toBeUndefined()
+  })
+})
+
+describe('abilities that make minions (ruling 66)', () => {
+  it('are found in every list the villain takes from', () => {
+    const v = adaptiveBruiser()
+    v.archetype = { id: 'legion', abilities: [] }
+    // Legion's fixed ability doesn't make minions.
+    expect(villainMakesMinions(v)).toBe(false)
+    v.archetype.abilities.push({ source: 'archetype', name: 'Split Up' })
+    expect(villainMakesMinions(v)).toBe(true)
+    v.archetype.abilities = []
+    v.upgrades = [{ id: 'mook-squad', abilities: [] }]
+    expect(villainMakesMinions(v)).toBe(true)
+    v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd8', abilities: [{ source: 'vehicle', name: 'Minion Deployment' }] } }]
+    expect(villainMakesMinions(v)).toBe(true)
+  })
+})

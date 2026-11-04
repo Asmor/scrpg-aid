@@ -46,7 +46,7 @@ interface Context {
   /** Traits given dice in the archetype step, for "[a power gained from your archetype]". */
   archetypeTraits: ReadonlySet<string>
   slotLimit?: SlotLimit
-  warnings: { step: string; code: string; message: string; field?: string }[]
+  warnings: { step: string; code: IssueCode; message: string; field?: string }[]
 }
 
 /** The fields of an ability pick the checks read (heroes' and villains' picks both have them). */
@@ -422,16 +422,18 @@ export function checkChoiceBlock<S extends string>(options: {
   available: readonly Ability[]
   picks: readonly PickLike[]
   source: string
-}): { warnings: { step: S; code: string; message: string }[]; uses: TraitRef[] } {
-  const warnings: { step: S; code: string; message: string }[] = []
+  /** The picks' source, so problems with the whole list name its box (abilityListField). */
+  list?: string
+}): { warnings: { step: S; code: IssueCode; message: string; field?: string }[]; uses: TraitRef[] } {
+  const warnings: { step: S; code: IssueCode; message: string; field?: string }[] = []
   const ctx: Context = { label: options.label, step: options.step, traits: new Map(options.traits.map((t) => [traitKey(t.trait), t])), archetypeTraits: new Set(), warnings }
-  const taken = checkBlock(ctx, options.block, options.available, options.picks, options.source, undefined)
+  const taken = checkBlock(ctx, options.block, options.available, options.picks, options.source, undefined, [], options.list)
   return { warnings, uses: taken.flatMap(({ ability, pick }) => primaryUse(ability, pick) ?? []) }
 }
 
 /** Checks one pick of a fixed ability (its blanks) for any kind of character. */
-export function checkPickFor<S extends string>(options: { step: S; traits: readonly { trait: TraitRef }[]; label: (t: TraitRef) => string; ability: Ability; pick: PickLike }): { step: S; code: string; message: string }[] {
-  const warnings: { step: S; code: string; message: string }[] = []
+export function checkPickFor<S extends string>(options: { step: S; traits: readonly { trait: TraitRef }[]; label: (t: TraitRef) => string; ability: Ability; pick: PickLike }): { step: S; code: IssueCode; message: string; field?: string }[] {
+  const warnings: { step: S; code: IssueCode; message: string; field?: string }[] = []
   checkPick({ label: options.label, step: options.step, traits: new Map(options.traits.map((t) => [traitKey(t.trait), t])), archetypeTraits: new Set(), warnings }, options.ability, options.pick)
   return warnings
 }

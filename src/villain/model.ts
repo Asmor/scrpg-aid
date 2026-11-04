@@ -53,9 +53,31 @@ export interface UpgradeChoice {
   id: string
   /** The upgrade's abilities, with their blanks filled in. */
   abilities: VillainAbilityPick[]
-  /** Villainous Vehicle: the vehicle's die (it's built as a lieutenant), and the vehicle abilities chosen (source 'vehicle'). */
-  vehicle?: { die?: Die; abilities: VillainAbilityPick[] }
+  /**
+   * Power Upgrade and Quality Upgrade: the abilities taken for dice already at d12, one each,
+   * from the archetype's list (powers) or the approach's (qualities), with those sources.
+   */
+  extra?: VillainAbilityPick[]
+  /**
+   * Villainous Vehicle: the vehicle as built in the wizard (it's a lieutenant): its name, die,
+   * and the vehicle abilities chosen (source 'vehicle'). The wizard saves it as a lieutenant
+   * template in the library and attaches that (role 'vehicle').
+   */
+  vehicle?: { name?: string; die?: Die; abilities: VillainAbilityPick[] }
 }
+
+/** A minion or lieutenant template that comes with the villain (the villain wizard spec, section 5). */
+export interface VillainAttachment {
+  templateId: string
+  kind: 'minion' | 'lieutenant'
+  /** Mook Squad's signature minions, or the Villainous Vehicle. */
+  role: 'signature' | 'vehicle'
+}
+
+/** Villain wizard steps that offer Suggest 3 (the spec, section 4). */
+export type SuggestStep = 'approach' | 'archetype' | 'upgrades' | 'mastery'
+
+export type VillainStatus = 'draft' | 'complete'
 
 /** Who the villain is, and the finishing touches (p. 208). */
 export const VILLAIN_DETAIL_FIELDS = ['name', 'alias', 'concept', 'appearance', 'costume', 'mannerisms', 'motivation', 'ties'] as const
@@ -71,6 +93,10 @@ export interface Villain {
   updatedAt: string
   /** The GM's own labels for organizing the library (docs/design/library/spec.md); see ../library/tags.ts. */
   tags: string[]
+  /** A new villain is a draft until the GM finishes it in the wizard; drafts can't be brought into games. */
+  status: VillainStatus
+  /** A draft's furthest wizard step (1–7), for the library's "Step N of 7" and Continue. */
+  furthestStep?: number
   details: VillainDetails
   /** The GM's names for traits that need one (the roleplaying quality, ...), keyed by traitKey. */
   traitNames: Record<string, string>
@@ -81,6 +107,10 @@ export interface Villain {
   mastery: VillainAbilityPick | null
   /** How many heroes the villain is built to face: 5 Health each (p. 239). */
   heroCount: number
+  /** Templates that come with the villain, brought in with it. */
+  attached: VillainAttachment[]
+  /** Suggest 3 (unofficial): each step's 3 random ids while it's on. */
+  suggest?: Partial<Record<SuggestStep, string[]>>
   notes?: string
 }
 
@@ -119,6 +149,7 @@ export function createVillain(options: { id?: string; now?: Date } = {}): Villai
     createdAt: timestamp,
     updatedAt: timestamp,
     tags: [],
+    status: 'complete',
     details: emptyVillainDetails(),
     traitNames: {},
     approach: null,
@@ -126,7 +157,12 @@ export function createVillain(options: { id?: string; now?: Date } = {}): Villai
     upgrades: [],
     mastery: null,
     heroCount: DEFAULT_HERO_COUNT,
+    attached: [],
   }
+}
+
+export function isVillainDraft(villain: Pick<Villain, 'status'>): boolean {
+  return villain.status === 'draft'
 }
 
 /** The name to show for a villain in lists. */

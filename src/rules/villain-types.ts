@@ -34,7 +34,10 @@ export interface VillainArchetype extends PageRef {
   name: string
   healthModifier: number
   suggestedApproaches: string[]
-  pairingNote?: string
+  /** Advice that applies when the villain's approach is one of `approaches`. */
+  pairingNote?: { approaches: string[]; text: string }
+  /** The archetype needs an ability that makes minions (`makesMinions`, ruling 66) from somewhere: Legion. */
+  needsMinionMaker?: { note: string }
   status: VillainStatusRule
   abilities: AbilityChoice & { options: Ability[] }
   /** Abilities every villain of this archetype has (Legion). */

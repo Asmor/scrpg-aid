@@ -15,6 +15,7 @@
       "abilities": [
         {
           "name": "Alert!",
+          "makesMinions": true,
           "type": "A",
           "text": "Replenish your minion squad up to the number of heroes.",
           "effects": []
@@ -105,6 +106,7 @@
         },
         {
           "name": "Minion Deployment",
+          "makesMinions": true,
           "type": "A",
           "text": "Add minions to an existing group equal to half (rounded down) the vehicle’s current die size. Those minions are of a size equal to the highest die size already existing in that group. If the vehicle has a bonus or penalty, adjust the number of minions created by that amount and then remove that mod.",
           "effects": []
@@ -230,6 +232,7 @@
       "abilities": [
         {
           "name": "Brainwashing Zone",
+          "makesMinions": true,
           "type": "I",
           "text": "While the scene is in the Green zone, all heroes’ quality dice at d8 or above are reduced one size. In the Yellow zone, all heroes’ quality dice at d10 or above are reduced two die sizes. In the Red zone, all heroes’ quality dice are treated as if they are d4. Heroes may remove this ability with three Overcome successes. If a hero takes a minor twist, the hero must lose access to a quality entirely until this ability is removed. If a hero is knocked out while this ability is active, you may create a new minion using the hero’s highest power die to represent the controlled version of that hero.",
           "effects": []

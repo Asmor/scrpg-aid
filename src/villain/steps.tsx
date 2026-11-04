@@ -82,7 +82,8 @@ function RadioChoices<T extends { id: string }>({ legend, items, selected, title
 export function ApproachStep({ villain, update }: StepProps) {
   const choice = villain.approach
   const approach = choice && villainApproachesById.get(choice.id)
-  const extra = villainTraits(villain).extra.approach
+  // Abilities for d12s an upgrade couldn't raise are taken in the upgrade's own list now (the villain wizard replaces this editor).
+  const extra = 0
   const ofKind = (kind: TraitKind) => (choice?.traits ?? []).filter((a) => a.trait.kind === kind)
   const label = (t: TraitRef) => villainTraitLabel(villain, t)
   const setTraits = (kind: TraitKind, assigned: TraitAssignment[]) =>
@@ -163,7 +164,7 @@ export function ApproachStep({ villain, update }: StepProps) {
 export function ArchetypeStep({ villain, update }: StepProps) {
   const choice = villain.archetype
   const archetype = choice && villainArchetypesById.get(choice.id)
-  const extra = villainTraits(villain).extra.archetype
+  const extra = 0
   return (
     <div className="step-form">
       <RadioChoices
@@ -181,7 +182,7 @@ export function ArchetypeStep({ villain, update }: StepProps) {
       {choice && archetype && (
         <>
           <p className="hint">
-            Pairs well with: {archetype.suggestedApproaches.map((id) => villainApproachesById.get(id)?.name ?? id).join(', ')}.{archetype.pairingNote ? ` ${archetype.pairingNote}` : ''}
+            Pairs well with: {archetype.suggestedApproaches.map((id) => villainApproachesById.get(id)?.name ?? id).join(', ')}.{archetype.pairingNote && villain.approach && archetype.pairingNote.approaches.includes(villain.approach.id) ? ` ${archetype.pairingNote.text}` : ''}
           </p>
           <StatusRuleText rule={archetype.status} />
           {archetype.fixedAbilities && (

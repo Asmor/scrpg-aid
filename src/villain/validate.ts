@@ -32,13 +32,17 @@ export const villainShape = object({
   createdAt: string,
   updatedAt: string,
   tags: arrayOf(string),
+  status: oneOf('draft', 'complete'),
+  'furthestStep?': integer,
   details: object(Object.fromEntries(VILLAIN_DETAIL_FIELDS.map((f) => [f, string]))),
   traitNames: recordOf(string),
   approach: nullable(object({ id: nonEmptyString, traits: arrayOf(assignment), abilities: arrayOf(pick) })),
   archetype: nullable(object({ id: nonEmptyString, abilities: arrayOf(pick) })),
-  upgrades: arrayOf(object({ id: nonEmptyString, abilities: arrayOf(pick), 'vehicle?': object({ 'die?': die, abilities: arrayOf(pick) }) })),
+  upgrades: arrayOf(object({ id: nonEmptyString, abilities: arrayOf(pick), 'extra?': arrayOf(pick), 'vehicle?': object({ 'name?': string, 'die?': die, abilities: arrayOf(pick) }) })),
   mastery: nullable(pick),
   heroCount,
+  attached: arrayOf(object({ templateId: nonEmptyString, kind: oneOf('minion', 'lieutenant'), role: oneOf('signature', 'vehicle') })),
+  'suggest?': object({ 'approach?': arrayOf(nonEmptyString), 'archetype?': arrayOf(nonEmptyString), 'upgrades?': arrayOf(nonEmptyString), 'mastery?': arrayOf(nonEmptyString) }),
   'notes?': string,
 })
 

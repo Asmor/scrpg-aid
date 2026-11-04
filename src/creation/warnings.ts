@@ -15,8 +15,9 @@ export type StepId =
   | 'advancement'
 
 /**
- * Every kind of rule issue the checks produce. The wizard needs each one placed at a field or a
- * part of a step (../editor/issue-targets.ts), so a new kind of issue goes here first.
+ * Every kind of rule issue the checks produce, for heroes and villains (../villain/sheet.ts). The
+ * wizards need each one placed at a field or a part of a step (../editor/issue-targets.ts), so a
+ * new kind of issue goes here first.
  */
 export const ISSUE_CODES = [
   'ability-count',
@@ -31,6 +32,8 @@ export const ISSUE_CODES = [
   'advancement-roleplaying',
   'already-have',
   'already-max',
+  'approach-missing',
+  'archetype-missing',
   'assigned-twice',
   'back-issues',
   'blank-empty',
@@ -50,21 +53,25 @@ export const ISSUE_CODES = [
   'filler-count',
   'filler-die',
   'fixed-unfilled',
-  'health-out-of-range',
-  'health-roll-invalid',
-  'health-roll-missing',
-  'health-trait-missing',
-  'health-trait-not-allowed',
-  'health-trait-not-held',
   'form-ability-missing',
   'form-ability-source',
   'form-count',
   'form-dice',
   'form-not-power',
   'form-upgrades',
+  'health-out-of-range',
+  'health-roll-invalid',
+  'health-roll-missing',
+  'health-trait-missing',
+  'health-trait-not-allowed',
+  'health-trait-not-held',
+  'hero-count',
+  'mastery-minor',
+  'mastery-missing',
   'minion-form-twice',
   'minion-forms-count',
   'minion-forms-quality',
+  'misplaced-ability',
   'missing-required',
   'mode-ability-missing',
   'mode-ability-source',
@@ -75,12 +82,14 @@ export const ISSUE_CODES = [
   'mode-row-misfit',
   'mode-twice',
   'name-roleplaying-quality',
+  'not-a-vehicle',
   'not-an-upgrade',
   'not-different',
   'not-on-list',
   'not-rolled',
   'nothing-to-upgrade',
   'out-from-missing',
+  'overflow-count',
   'power-count',
   'powerless-dice',
   'principle-blank',
@@ -95,6 +104,7 @@ export const ISSUE_CODES = [
   'retcon-form-missing',
   'retcon-no-change',
   'retcon-not-allowed',
+  'roleplaying-assigned',
   'same-as-green',
   'same-personality',
   'secondary-excluded',
@@ -126,8 +136,11 @@ export const ISSUE_CODES = [
   'unknown-entry',
   'unknown-minion-form',
   'unknown-trait',
+  'upgrade-twice',
+  'use-pattern',
   'uses-at-least',
   'uses-not-from-list',
+  'vehicle-die',
   'wrong-kind',
   'wrong-retcon-kind',
 ] as const

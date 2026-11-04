@@ -21,7 +21,7 @@ import { confirmRoll, effectAmount } from '../play/roll'
 import { addDefense, defenseText, removeDefense } from '../play/defense'
 import { RollDialog, type RollSubject } from '../play/RollDialog'
 import { addMod, addTwist, currentHealth, describeMod, modName, removeMod, removeTwist, setHealth, setReactionUsed, type Clock } from '../play/state'
-import { villainDisplayName, type VillainPlayState } from '../villain/model'
+import { isVillainDraft, villainDisplayName, type VillainPlayState } from '../villain/model'
 import { villainHealth, villainStatusDie, villainZone } from '../villain/play'
 import { buildVillainSheet, villainTraits } from '../villain/sheet'
 import type { EnvironmentOnTable, Game, NpcGroup, VillainInGame } from './model'
@@ -271,7 +271,7 @@ function BringInTab({ bring }: { bring: BringIn }) {
       ([h, v, s, lists]) => {
         if (!current) return
         // Drafts aren't ready to play.
-        setItems([...h.heroes.filter((x) => !isDraft(x)).map((x) => toItem(heroType as never, x)), ...v.villains.map((x) => toItem(villainType as never, x)), ...lists.flatMap(({ t, list }) => list.docs.map((d) => toItem(t, d)))])
+        setItems([...h.heroes.filter((x) => !isDraft(x)).map((x) => toItem(heroType as never, x)), ...v.villains.filter((x) => !isVillainDraft(x)).map((x) => toItem(villainType as never, x)), ...lists.flatMap(({ t, list }) => list.docs.map((d) => toItem(t, d)))])
         setSearches(s.searches)
       },
       (e: unknown) => current && setError(errorText(e)),

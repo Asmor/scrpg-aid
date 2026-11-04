@@ -146,18 +146,19 @@
     {
       "id": "legion", "number": 9, "name": "Legion", "book": "core-rules", "page": 229, "healthModifier": -5,
       "suggestedApproaches": ["adaptive", "creator", "tactician"],
-      "pairingNote": "If pairing with Creator, avoid overlapping abilities. A Legion villain needs some way to create more minions (from an approach ability, archetype ability, or upgrade).",
+      "pairingNote": { "approaches": ["creator"], "text": "If pairing with Creator, avoid overlapping abilities." },
+      "needsMinionMaker": { "note": "A Legion villain needs some way to create more minions (from an approach ability, archetype ability, or upgrade)." },
       "status": { "basis": "count", "counts": "minions in the scene allied with the villain", "tiers": [
         { "min": 9, "die": "d4" }, { "min": 5, "max": 8, "die": "d6" }, { "min": 3, "max": 4, "die": "d8" }, { "min": 1, "max": 2, "die": "d10" }, { "min": 0, "max": 0, "die": "d12" }
       ] },
       "abilities": {
         "count": 2,
         "options": [
-          { "name": "Divide and Conquer", "type": "R", "text": "When you would take physical damage, prevent that damage and create a minion with a die size equal to your current status die (including the newly made minion). You may use this reaction more than once a round, but each time you use this reaction after the first time, you take 1 irreducible damage.", "effects": [] },
+          { "name": "Divide and Conquer", "makesMinions": true, "type": "R", "text": "When you would take physical damage, prevent that damage and create a minion with a die size equal to your current status die (including the newly made minion). You may use this reaction more than once a round, but each time you use this reaction after the first time, you take 1 irreducible damage.", "effects": [] },
           { "name": "Instability of Form", "type": "I", "text": "Whenever a Legion minion larger than a d4 rolls a save against physical damage, if its save is successful, it splits into two dice of one smaller size instead of being reduced a die size, and you take 1 irreducible damage. If it fails its save, the minion is only reduced one die size, rather than being destroyed.", "effects": [] },
-          { "name": "Parts of the Whole", "type": "A", "text": "Roll your single status die. Deal yourself that much irreducible damage. Create that many d6 minions.", "effects": [] },
+          { "name": "Parts of the Whole", "makesMinions": true, "type": "A", "text": "Roll your single status die. Deal yourself that much irreducible damage. Create that many d6 minions.", "effects": [] },
           { "name": "Returned Vitality", "type": "R", "text": "When one of your minions is destroyed, roll its die. You Recover that much Health.", "effects": [{"actions": ["recover"], "use": "other"}] },
-          { "name": "Split Up", "type": "A", "text": "Add two minions of size equal to one die size lower than your current status.", "effects": [] },
+          { "name": "Split Up", "makesMinions": true, "type": "A", "text": "Add two minions of size equal to one die size lower than your current status.", "effects": [] },
           { "name": "Combine", "type": "A", "text": "Remove any number of Legion-controlled minions. Roll their dice and Recover that much Health.", "effects": [{"actions": ["recover"], "use": "other"}] }
         ]
       },
@@ -186,7 +187,7 @@
     {
       "id": "overlord", "number": 11, "name": "Overlord", "book": "core-rules", "page": 231, "healthModifier": 15,
       "suggestedApproaches": ["creator", "mastermind", "tactician"],
-      "pairingNote": "If pairing with Creator, avoid overlapping abilities.",
+      "pairingNote": { "approaches": ["creator"], "text": "If pairing with Creator, avoid overlapping abilities." },
       "status": { "basis": "count", "counts": "minions and lieutenants loyal to the villain in the scene", "tiers": [
         { "min": 9, "die": "d12" }, { "min": 5, "max": 8, "die": "d10" }, { "min": 3, "max": 4, "die": "d8" }, { "min": 1, "max": 2, "die": "d6" }, { "min": 0, "max": 0, "die": "d4" }
       ] },
@@ -197,7 +198,7 @@
           { "name": "Get Back in There!", "type": "R", "text": "Reroll any number of minion saves against the same Attack.", "effects": [] },
           { "name": "Give Me Your Strength", "type": "A", "text": "Roll all your minion dice and combine the result to Boost. Attack using [power] and use that bonus.", "effects": [{"actions": ["boost"], "use": "other"}, {"actions": ["attack"], "use": "mid"}] },
           { "name": "“Look Out, Boss!”", "type": "R", "text": "Redirect an Attack to one of your minions.", "effects": [] },
-          { "name": "Rapid Deployment", "type": "A", "text": "Use [quality] to create a number of minions equal to the value of your Max die. The starting die size for those minions is the same as the size of your Min die.", "effects": [] },
+          { "name": "Rapid Deployment", "makesMinions": true, "type": "A", "text": "Use [quality] to create a number of minions equal to the value of your Max die. The starting die size for those minions is the same as the size of your Min die.", "effects": [] },
           { "name": "Form Up", "type": "A", "text": "Attack using [power] and use your Max die. Defend against all Attacks against you until the start of your next turn using the number of your minions.", "effects": [{"actions": ["attack"], "use": "max"}, {"actions": ["defend"], "use": "other"}] }
         ]
       }

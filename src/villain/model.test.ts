@@ -41,7 +41,7 @@ describe('saving villains', () => {
 
   it('round-trips through the versioned envelope and JSON', () => {
     const v = full()
-    expect(villainToSaved(v)).toEqual({ format: VILLAIN_FORMAT, version: 3, villain: v })
+    expect(villainToSaved(v)).toEqual({ format: VILLAIN_FORMAT, version: 4, villain: v })
     expect(parseSavedVillain(villainToSaved(v))).toEqual({ ok: true, villain: v })
     expect(parseSavedVillainJson(JSON.stringify(villainToSaved(v)))).toEqual({ ok: true, villain: v })
   })
@@ -77,7 +77,25 @@ describe('saving villains', () => {
     const v = full()
     const play = { health: 20, reactionUsed: true, mods: [], twists: [], history: [] }
     expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 2, villain: { ...v, play } })).toEqual({ ok: true, villain: v, migratedFrom: 2 })
-    expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 3, villain: { ...v, play: 'junk' } })).toEqual({ ok: true, villain: v })
+    expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 4, villain: { ...v, play: 'junk' } })).toEqual({ ok: true, villain: v })
+  })
+
+  it('reads a version-3 villain as complete, with nothing attached', () => {
+    const { status: _s, attached: _a, ...v3 } = full()
+    expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 3, villain: v3 })).toEqual({ ok: true, villain: { ...v3, status: 'complete', attached: [] }, migratedFrom: 3 })
+  })
+
+  it('keeps the wizard’s draft state, attachments, Suggest 3 picks and extra abilities', () => {
+    const v = full()
+    v.status = 'draft'
+    v.furthestStep = 3
+    v.attached = [{ templateId: 't1', kind: 'lieutenant', role: 'vehicle' }]
+    v.suggest = { approach: ['bully', 'ninja', 'leech'] }
+    v.upgrades.push({ id: 'power-upgrade', abilities: [], extra: [{ source: 'archetype', name: 'Feel No Pain' }] })
+    v.upgrades[1]!.vehicle!.name = 'Siege Crawler'
+    expect(parseSavedVillainJson(JSON.stringify(villainToSaved(v)))).toEqual({ ok: true, villain: v })
+    expect(villainProblem({ ...v, status: 'done' })).toBe('villain.status has an unknown value')
+    expect(villainProblem({ ...v, attached: [{ templateId: 't1', kind: 'minion', role: 'boss' }] })).toBe('villain.attached[0].role has an unknown value')
   })
 
   it('migrates an older version forward', () => {

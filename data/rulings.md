@@ -395,6 +395,12 @@ These came from questions the user put to the rules-expert agent about an action
 - **Decision:** No. The scene zone raises heroes' zones only; a villain's zone comes from its own Health.
 - **Basis:** Interpretation (the user's ruling).
 
+### 66. Which abilities give a Legion villain a way to make minions
+- **Pages:** Legion (p. 229); Creator (p. 212); Overlord (p. 231); Mook Squad, Villainous Vehicle (p. 235–236); Brainwashing Zone (p. 238).
+- **Question:** A Legion villain needs some way to create more minions, from an approach ability, an archetype ability or an upgrade. Which abilities count?
+- **Decision:** Any that can add minions or a lieutenant to the scene: Summon Mob and Powerful Ally (Creator), Rapid Deployment (Overlord), Divide and Conquer, Parts of the Whole and Split Up (Legion), Alert! (Mook Squad), Minion Deployment (a Villainous Vehicle ability) and Brainwashing Zone. They carry `makesMinions: true` in the data.
+- **Basis:** Interpretation (the user's ruling).
+
 ## Minions and lieutenants (p. 16–17, 204–207)
 
 ### 58. What makes a minion's save successful

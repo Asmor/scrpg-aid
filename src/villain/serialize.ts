@@ -5,8 +5,12 @@ import { villainProblem } from './validate'
 import { cleanTags } from '../library/tags'
 
 export const VILLAIN_FORMAT = 'scrpg-villain'
-/** Version 2 added `tags`. Version 3 took play state (`play`) off the villain: games hold it now, and old play state is dropped. */
-export const VILLAIN_VERSION = 3
+/**
+ * Version 2 added `tags`. Version 3 took play state (`play`) off the villain: games hold it now,
+ * and old play state is dropped. Version 4 added the wizard's `status` and `attached` (the villain
+ * wizard spec, section 6): older villains read as complete, with nothing attached.
+ */
+export const VILLAIN_VERSION = 4
 
 export interface SavedVillain {
   format: typeof VILLAIN_FORMAT
@@ -18,6 +22,7 @@ export interface SavedVillain {
 export const VILLAIN_MIGRATIONS: Readonly<Record<number, Migration>> = {
   1: (villain) => ({ ...villain, tags: [] }),
   2: (villain) => withoutVillainPlay(villain),
+  3: (villain) => ({ ...villain, status: 'complete', attached: [] }),
 }
 
 /** A villain document without play state, which belongs to games now. */

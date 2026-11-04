@@ -334,6 +334,7 @@
           },
           {
             "name": "Powerful Ally",
+            "makesMinions": true,
             "type": "A",
             "text": "Use [power/quality] to create a lieutenant of the same die size as your Max die.",
             "effects": []
@@ -346,6 +347,7 @@
           },
           {
             "name": "Summon Mob",
+            "makesMinions": true,
             "type": "A",
             "text": "Use [power/quality] to create a number of minions equal to the value of your Max die. The starting die size for those minions is the same as the size of your Min die.",
             "effects": []

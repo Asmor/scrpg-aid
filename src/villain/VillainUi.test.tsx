@@ -74,7 +74,7 @@ describe('the villain editor', () => {
     const store = await storeWith(adaptiveBruiser())
     withStore(store, <VillainEditor id="v1" step="upgrades" />)
     await userEvent.click(await screen.findByRole('checkbox', { name: /^Villainous Vehicle/ }))
-    expect(screen.getByText('A villain with upgrades takes one villainous mastery.')).toBeInTheDocument()
+    expect(screen.getByText('Choose a mastery (a major villain has one).')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('radio', { name: /d12: 2 vehicle abilities/ }))
     const vehicle = within(screen.getByRole('group', { name: 'Vehicle abilities: choose 2' }))
     await userEvent.click(vehicle.getByRole('checkbox', { name: /Sturdy/ }))

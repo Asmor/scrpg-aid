@@ -19,7 +19,8 @@ import { continueStep, NUMBERED_STEPS, WIZARD_STEPS, wizardStepIndex } from '../
 import { heroFileName, heroJson, villainFileName, villainJson } from '../transfer/files'
 import { soloGameId } from '../game/solo'
 import type { GameStore } from '../game/store'
-import { createVillain, duplicateVillain, villainDisplayName, type Villain } from '../villain/model'
+import { createVillain, duplicateVillain, isVillainDraft, villainDisplayName, type Villain } from '../villain/model'
+import { continueVillainStep, villainDraftText } from '../villain/wizard-steps'
 import { buildVillainSheet } from '../villain/sheet'
 import type { VillainStore } from '../villain/store'
 import type { TemplateStores } from '../template/store'
@@ -154,12 +155,18 @@ export const villainType: LibraryType<Villain> = {
     await stores.games.remove(soloGameId('villain', id))
   },
   row(villain) {
+    const name = villainDisplayName(villain)
+    const named = Boolean(villain.details.name.trim() || villain.details.alias.trim())
+    if (isVillainDraft(villain)) {
+      const href = villainEditPath(villain.id, continueVillainStep(villain.furthestStep))
+      return { name, named, draft: true, details: villainDraftText(villain.furthestStep), openHref: villainPath(villain.id), primary: { label: 'Continue', href }, editHref: href }
+    }
     const sheet = buildVillainSheet(villain)
     const kind = [sheet.approach, sheet.archetype].filter(Boolean).join(' ')
     const first = sheet.warnings[0]
     return {
-      name: villainDisplayName(villain),
-      named: Boolean(villain.details.name.trim() || villain.details.alias.trim()),
+      name,
+      named,
       draft: false,
       details: kind ? `${kind} · ${sheet.major ? 'Major' : 'Minor'}` : '',
       ...(first ? { issues: { count: sheet.warnings.length, href: villainEditPath(villain.id, first.step) } } : {}),

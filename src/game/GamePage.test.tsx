@@ -19,7 +19,7 @@ import { MemoryGameStore } from './store'
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
 
-async function setup(change: (g: Game, docs: { hero: Hero; villain: Villain }) => void = () => {}) {
+async function setup(change: (g: Game, docs: { hero: Hero; villain: Villain }) => void = () => {}, more: { villains?: Villain[] } = {}) {
   const games = new MemoryGameStore()
   const heroes = new MemoryHeroStore()
   const villains = new MemoryVillainStore()
@@ -31,6 +31,7 @@ async function setup(change: (g: Game, docs: { hero: Hero; villain: Villain }) =
   const villain = adaptiveBruiser()
   villain.tags = ['scene-3']
   await villains.save(villain)
+  for (const v of more.villains ?? []) await villains.save(v)
   await searches.save(createSavedSearch('Scene 3', { text: '', types: [], tags: ['scene-3'] }, { id: 's1' }))
   const game = createGame({ id: 'g1', name: 'Thursday game' })
   change(game, { hero, villain })
@@ -117,6 +118,12 @@ describe('the game table', () => {
     expect(screen.getByRole('heading', { name: 'The Foundry' })).toBeInTheDocument()
     expect(within(screen.getByRole('group', { name: 'Scene tracker' })).getAllByRole('button')).toHaveLength(7)
     await waitFor(async () => expect((await saved()).scene).toMatchObject({ name: 'The Foundry', tracker: ['green', 'green', 'green', 'yellow', 'yellow', 'yellow', 'red'] }))
+  })
+
+  it('leaves draft villains out of Bring in', async () => {
+    await setup(undefined, { villains: [{ ...adaptiveBruiser(), id: 'v2', status: 'draft', details: { ...adaptiveBruiser().details, name: 'Half-made' } }] })
+    await gmScreen().findByRole('button', { name: 'Bring in Ironclad' })
+    expect(gmScreen().queryByRole('button', { name: 'Bring in Half-made' })).not.toBeInTheDocument()
   })
 
   it('brings in a hero and a villain from a saved search; the villain arrives hidden', async () => {

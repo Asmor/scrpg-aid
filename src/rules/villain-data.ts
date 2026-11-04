@@ -12,7 +12,7 @@ export const villainRoleplayingQuality = typed<PageRef & { die: Die }>(approache
 export const villainArchetypes = typed<VillainArchetype[]>(archetypesJson.archetypes)
 export const villainUpgrades = typed<VillainUpgrade[]>(upgradesJson.upgrades)
 export const villainMasteries = typed<PageRef & { summary: string; options: Ability[] }>(upgradesJson.masteries)
-export const villainHealth = typed<VillainHealthChart>(healthJson)
+export const villainHealthChart = typed<VillainHealthChart>(healthJson)
 
 const byId = <T extends { id: string }>(items: readonly T[]) => new Map(items.map((i) => [i.id, i]))
 export const villainApproachesById = byId(villainApproaches)

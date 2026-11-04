@@ -37,6 +37,16 @@ export const ISSUE_SECTION: Readonly<Record<IssueCode, IssueSection>> = {
   'advancement-roleplaying': 'choose',
   'back-issues': 'choose',
   'collection-name': 'choose',
+  // Villains: choosing the approach, archetype, upgrades and mastery, and the hero count.
+  'approach-missing': 'choose',
+  'archetype-missing': 'choose',
+  'upgrade-twice': 'choose',
+  'vehicle-die': 'choose',
+  'not-a-vehicle': 'choose',
+  'mastery-missing': 'choose',
+  'mastery-minor': 'choose',
+  'hero-count': 'choose',
+  'overflow-count': 'choose',
   // Putting dice on powers and qualities.
   'dice-mismatch': 'assign',
   'assigned-twice': 'assign',
@@ -53,6 +63,7 @@ export const ISSUE_SECTION: Readonly<Record<IssueCode, IssueSection>> = {
   'missing-required': 'assign',
   'wrong-kind': 'assign',
   'name-roleplaying-quality': 'assign',
+  'roleplaying-assigned': 'assign',
   // Abilities.
   'ability-count': 'abilities',
   'ability-twice': 'abilities',
@@ -74,6 +85,8 @@ export const ISSUE_SECTION: Readonly<Record<IssueCode, IssueSection>> = {
   'unknown-ability': 'abilities',
   'uses-at-least': 'abilities',
   'uses-not-from-list': 'abilities',
+  'use-pattern': 'abilities',
+  'misplaced-ability': 'abilities',
   // Bonuses.
   'bonus-count': 'bonus',
   'bonus-die': 'bonus',

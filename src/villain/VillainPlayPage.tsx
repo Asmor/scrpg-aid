@@ -6,7 +6,7 @@
  * (docs/design/game-table/spec.md, section 12), saved as it changes (./play.ts has the rules).
  */
 import { useId, useState, type ReactNode } from 'react'
-import { listPath, villainPath } from '../app/route'
+import { listPath, villainEditPath, villainPath } from '../app/route'
 import { ActionIcon, DiceText, DieIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL, PLAY_ZONE_LABEL } from '../hero/labels'
 import { newId } from '../hero/model'
@@ -16,9 +16,10 @@ import { RollDialog, type RollSubject } from '../play/RollDialog'
 import { addMod, addTwist, currentHealth, describeMod, removeMod, removeTwist, setHealth, setReactionUsed, type Clock } from '../play/state'
 import { formatFull, formatWhen } from '../play/time'
 import { useTick } from '../play/useTick'
-import { villainDisplayName, type VillainPlayState } from './model'
+import { isVillainDraft, villainDisplayName, type VillainPlayState } from './model'
 import { advanceScene, newScene, setChallengeParts, setSceneHeroes, setStatusCount, setWeaknessTier, villainHealth, villainStatusDie, villainZone } from './play'
 import { buildVillainSheet, villainTraits } from './sheet'
+import { continueVillainStep } from './wizard-steps'
 import { statusSummary } from './status'
 import { useVillainEditor } from './useVillainEditor'
 import { AlsoIn, SoloPlayActions } from '../game/SoloPlay'
@@ -47,11 +48,26 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
   const [countDraft, setCountDraft] = useState<string | null>(null)
 
   const loaded = state.status === 'ready' ? state.doc : undefined
-  const solo = useSoloGame('villain', loaded, clock)
+  // Drafts can't be played until they're finished (the villain wizard spec, section 1), so they get no solo game.
+  const draft = loaded && isVillainDraft(loaded) ? loaded : undefined
+  const solo = useSoloGame('villain', draft ? undefined : loaded, clock)
   const listed = useListedGames()
   const copy = solo.state.status === 'ready' ? soloVillain(solo.state.doc) : undefined
   const change = (fn: (p: VillainPlayState, c: Clock) => VillainPlayState) => {
     if (copy) solo.apply((g) => changeVillainPlay(g, copy.id, (p) => fn(p, clock()), clock(), false))
+  }
+
+  if (draft) {
+    return (
+      <div className="hero-page">
+        <p>
+          <a href={listPath}>← Home</a>
+        </p>
+        <p role="alert">
+          {villainDisplayName(draft)} is still a draft. <a href={villainEditPath(draft.id, continueVillainStep(draft.furthestStep))}>Continue making this villain</a> and finish it to play.
+        </p>
+      </div>
+    )
   }
 
   if (state.status !== 'ready' || !copy) {

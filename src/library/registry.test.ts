@@ -97,6 +97,13 @@ describe('villain rows', () => {
     expect(blank).toMatchObject({ name: 'Unnamed villain', named: false, details: '', issues: { href: '#/villain/v2/edit/approach' } })
   })
 
+  it('shows a draft as its step, with Continue', () => {
+    const draft = { ...adaptiveBruiser(), status: 'draft' as const, furthestStep: 3 }
+    expect(villainType.row(draft)).toEqual({ name: 'Ironclad', named: true, draft: true, details: 'Step 3 of 7 · Archetype', openHref: '#/villain/v1', primary: { label: 'Continue', href: '#/villain/v1/edit/archetype' }, editHref: '#/villain/v1/edit/archetype' })
+    expect(villainType.row({ ...draft, furthestStep: undefined }).details).toBe('Step 1 of 7 · Concept')
+    expect(villainType.row({ ...draft, furthestStep: 99 }).details).toBe('Step 7 of 7 · Finishing touches')
+  })
+
   it('creates and saves a villain, then opens its first step', async () => {
     const s = stores()
     const path = await villainType.create!({ stores: s, newHeroes: new NewHeroes() })

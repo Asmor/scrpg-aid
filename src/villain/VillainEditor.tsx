@@ -22,9 +22,9 @@ interface EditorStep {
 const STEPS: readonly EditorStep[] = [
   { id: 'approach', label: 'Approach', warns: ['approach'], render: (v, u) => <ApproachStep villain={v} update={u} /> },
   { id: 'archetype', label: 'Archetype', warns: ['archetype'], render: (v, u) => <ArchetypeStep villain={v} update={u} /> },
-  { id: 'upgrades', label: 'Upgrades', warns: ['upgrades'], render: (v, u) => <UpgradesStep villain={v} update={u} /> },
+  { id: 'upgrades', label: 'Upgrades', warns: ['upgrades', 'mastery'], render: (v, u) => <UpgradesStep villain={v} update={u} /> },
   { id: 'health', label: 'Health', warns: ['health'], render: (v, u) => <HealthStep villain={v} update={u} /> },
-  { id: 'details', label: 'Details', warns: ['details'], render: (v, u) => <DetailsStep villain={v} update={u} /> },
+  { id: 'details', label: 'Details', warns: ['concept', 'details'], render: (v, u) => <DetailsStep villain={v} update={u} /> },
 ]
 
 export function VillainEditor({ id, step: stepId }: { id: string; step?: string }) {

@@ -64,6 +64,8 @@ export interface Ability {
   text: string
   /** The hero must have this power/quality (or one in this category) to take the ability. */
   requires?: OptionRef
+  /** A villain ability that adds minions or a lieutenant to the scene (ruling 66; Legion needs one). */
+  makesMinions?: true
   /** Every ability in data/ has these; a player-written ability (a custom principle's) may not. */
   effects?: AbilityEffect[]
   pool?: AbilityPool

@@ -151,3 +151,18 @@ describe('a villain in the game aid', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("There's no saved villain with that link.")
   })
 })
+
+describe('a draft villain', () => {
+  it('can’t be played, and gets no solo game', async () => {
+    const store = playStores()
+    await seedVillain(store, { ...adaptiveBruiser(), status: 'draft', furthestStep: 4 })
+    render(
+      <PlayProviders stores={store}>
+        <VillainPlayPage id="v1" clock={clock} />
+      </PlayProviders>,
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ironclad is still a draft. Continue making this villain and finish it to play.')
+    expect(screen.getByRole('link', { name: 'Continue making this villain' })).toHaveAttribute('href', '#/villain/v1/edit/upgrades')
+    expect((await store.games.list()).games).toEqual([])
+  })
+})
