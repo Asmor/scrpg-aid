@@ -10,6 +10,7 @@ import { ABILITY_TYPE_LABEL } from '../../hero/labels'
 import type { Villain } from '../model'
 import { buildVillainSheet, villainIdentity, type VillainSheetAbility } from '../sheet'
 import { statusSummary } from '../status'
+import type { AttachedInfo } from './useAttached'
 
 function Group({ title, abilities, empty }: { title: string; abilities: readonly VillainSheetAbility[]; empty?: string }) {
   return (
@@ -36,7 +37,7 @@ function Group({ title, abilities, empty }: { title: string; abilities: readonly
   )
 }
 
-export function VillainPreview({ villain }: { villain: Villain }) {
+export function VillainPreview({ villain, comesWith }: { villain: Villain; comesWith?: readonly AttachedInfo[] | null }) {
   const sheet = buildVillainSheet(villain)
   const named = Boolean(villain.details.name.trim() || villain.details.alias.trim())
   const isFrom = (...sources: VillainSheetAbility['source'][]) => sheet.abilities.filter((a) => sources.includes(a.source) && !a.upgrade)
@@ -75,6 +76,18 @@ export function VillainPreview({ villain }: { villain: Villain }) {
         ))}
         {sheet.mastery && <Group title="Mastery" abilities={[sheet.mastery]} />}
       </section>
+      {comesWith && comesWith.length > 0 && (
+        <section className="sheet-preview__part" aria-label="Comes with">
+          <h4>Comes with</h4>
+          <ul className="vw-comes-with">
+            {comesWith.map((a) => (
+              <li key={`${a.attachment.role}:${a.attachment.templateId}`} className={a.missing ? 'placeholder' : undefined}>
+                <strong>{a.name}</strong> <span className="hint">{a.line}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </article>
   )
 }

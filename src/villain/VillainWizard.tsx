@@ -8,10 +8,15 @@
  * and it stays a draft, remembering the furthest step reached, until the GM finishes it. A
  * finished villain's editor opens at the edit summary, with a snapshot taken on entry for
  * Revert changes.
+ *
+ * Leaving the Upgrades step, or finishing, saves a Villainous Vehicle as a lieutenant template in
+ * the library and attaches it (the spec, section 5): a new template the first time, then the
+ * same one again whenever the wizard's vehicle has changed since.
  */
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { listPath, navigate, villainEditPath, villainPath } from '../app/route'
 import { useNewVillains } from '../app/new-villains'
+import { useOptionalTemplateStores } from '../app/template-store-context'
 import { DiceText } from '../components/icons'
 import { Modal } from '../components/Modal'
 import { RenameHeading } from '../components/RenameHeading'
@@ -24,7 +29,9 @@ import { StepIssues } from '../editor/StepSection'
 import { StepMarkIcon, StepRail } from '../editor/StepRail'
 import { useTick } from '../play/useTick'
 import { findBook } from '../rules/books'
+import { attachedAs, setAttached, VILLAINOUS_VEHICLE, vehicleTemplate } from './attached'
 import { createVillain, isVillainDraft, villainDisplayName, type Villain } from './model'
+import { useAttached } from './wizard/useAttached'
 import { buildVillainSheet, isMajorVillain, type VillainStepId, type VillainWarning } from './sheet'
 import { useVillainEditor } from './useVillainEditor'
 import { continueVillainStep, VILLAIN_STEP_COUNT, VILLAIN_STEPS, villainStepNumber, villainStepStates } from './wizard-steps'
@@ -85,12 +92,7 @@ export function NewVillain() {
   return <p>Starting a new villain…</p>
 }
 
-interface Ask {
-  title: string
-  body: string
-  confirm: string
-  onConfirm: () => void
-}
+type Ask = Parameters<Confirm>[0]
 
 /** Before finishing a villain with rule issues: each issue, with a way to it, and Finish anyway. */
 function FinishDialog({ issues, href, onGo, onFinish, onClose }: { issues: readonly { label: string; warning: VillainWarning }[]; href: (step: VillainStepId) => string; onGo: (w: VillainWarning) => void; onFinish: () => void; onClose: () => void }) {
@@ -137,6 +139,10 @@ export function VillainWizard({ id, step: stepId }: { id: string; step?: string 
   const [snapshot, setSnapshot] = useState<Villain | null>(null)
   const [reverting, setReverting] = useState(false)
   const revertButton = useRef<HTMLButtonElement>(null)
+  const templates = useOptionalTemplateStores()
+  // The wizard's vehicle as last saved to its template (JSON), so it's saved again only when changed.
+  const vehicleSaved = useRef<string | null>(null)
+  const [templatesChanged, setTemplatesChanged] = useState(0)
   const refocusRevert = useRef(false)
   useEffect(() => {
     if (!refocusRevert.current) return
@@ -148,6 +154,64 @@ export function VillainWizard({ id, step: stepId }: { id: string; step?: string 
   const step = VILLAIN_STEPS[index - 1]!
   const loaded = state.status === 'ready' ? state.doc : undefined
   const ready = loaded !== undefined
+  const comesWith = useAttached(loaded?.attached ?? [], templatesChanged)
+  const vehicleKey = (v: Villain) => JSON.stringify(v.upgrades.find((u) => u.id === VILLAINOUS_VEHICLE)?.vehicle ?? null)
+  // A vehicle already in the library counts as saved as the wizard opens.
+  useEffect(() => {
+    if (loaded && attachedAs(loaded, 'vehicle')) vehicleSaved.current = vehicleKey(loaded)
+    // Only when the villain first loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready])
+  /** Saves the vehicle as its lieutenant template (new, or the attached one updated) when it has changed. */
+  // The template made for the vehicle in this visit, so a second save before the villain catches up updates it rather than making another.
+  const madeVehicle = useRef<string | null>(null)
+  const saveVehicle = async (v: Villain): Promise<void> => {
+    if (!templates) return
+    const attached = attachedAs(v, 'vehicle') ?? (madeVehicle.current ? { templateId: madeVehicle.current } : undefined)
+    const found = attached ? await templates.lieutenants.get(attached.templateId) : undefined
+    const existing = found?.status === 'found' ? found.doc : undefined
+    if (existing && vehicleSaved.current === vehicleKey(v)) return
+    const template = vehicleTemplate(v, existing)
+    if (!template) return
+    await templates.lieutenants.save(template)
+    madeVehicle.current = template.id
+    vehicleSaved.current = vehicleKey(v)
+    setTemplatesChanged((n) => n + 1)
+    if (attached?.templateId !== template.id) save((d) => setAttached(d, 'vehicle', template.id))
+  }
+  const [vehicleError, setVehicleError] = useState<string | null>(null)
+  /** Saves the vehicle; resolves to whether that worked (or there was nothing to save). */
+  const saveVehicleNow = (v: Villain | undefined): Promise<boolean> =>
+    v
+      ? saveVehicle(v).then(
+          () => {
+            setVehicleError(null)
+            return true
+          },
+          (e: unknown) => {
+            setVehicleError(e instanceof Error ? e.message : String(e))
+            return false
+          },
+        )
+      : Promise.resolve(true)
+  // Leaving the wizard some other way (the browser's Back, say) while on Upgrades saves it too.
+  const latest = useRef<{ villain?: Villain; step?: string; save?: typeof saveVehicleNow }>({})
+  latest.current = { villain: loaded, step: stepId, save: saveVehicleNow }
+  useEffect(
+    () => () => {
+      const { villain: v, step: s, save: saveNow } = latest.current
+      if (s === 'upgrades') void saveNow?.(v)
+    },
+    [],
+  )
+  // Leaving the Upgrades step saves the vehicle.
+  const lastStep = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (lastStep.current === 'upgrades' && stepId !== 'upgrades') void saveVehicleNow(loaded)
+    lastStep.current = stepId
+    // Only when the step changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepId])
   // The snapshot is the finished villain as first loaded.
   useEffect(() => {
     if (loaded && !isVillainDraft(loaded)) setSnapshot(structuredClone(loaded))
@@ -186,7 +250,9 @@ export function VillainWizard({ id, step: stepId }: { id: string; step?: string 
   const leave = (path: string) => (e: MouseEvent<HTMLAnchorElement>) => {
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
     e.preventDefault()
-    void flush().then(() => navigate(path))
+    void saveVehicleNow(loaded)
+      .then(() => flush())
+      .then(() => navigate(path))
   }
 
   if (state.status !== 'ready') {
@@ -226,11 +292,15 @@ export function VillainWizard({ id, step: stepId }: { id: string; step?: string 
   /** Makes the draft a finished villain and opens its page, once that's saved. */
   const complete = () => {
     setFinishing(false)
-    update((v) => {
-      v.status = 'complete'
-      delete v.furthestStep
+    void saveVehicleNow(villain).then((ok) => {
+      // Stay, with the error showing, if the vehicle couldn't be saved.
+      if (!ok) return
+      update((v) => {
+        v.status = 'complete'
+        delete v.furthestStep
+      })
+      return flush().then((ok) => ok && navigate(villainPath(villain.id)))
     })
-    void flush().then((ok) => ok && navigate(villainPath(villain.id)))
   }
   const finish = () => (warnings.length > 0 ? setFinishing(true) : complete())
   const revert = () => {
@@ -330,6 +400,11 @@ export function VillainWizard({ id, step: stepId }: { id: string; step?: string 
           Your last change couldn't be saved: {saveError}
         </p>
       )}
+      {vehicleError && (
+        <p role="alert" className="error">
+          The vehicle couldn't be saved to your library: {vehicleError}
+        </p>
+      )}
 
       <div className={`wizard__layout${docked ? ' wizard__layout--preview' : ''}`}>
         {!phone && (
@@ -404,7 +479,7 @@ export function VillainWizard({ id, step: stepId }: { id: string; step?: string 
                 Hide
               </button>
             </div>
-            <VillainPreview villain={villain} />
+            <VillainPreview villain={villain} comesWith={comesWith} />
           </aside>
         )}
       </div>
@@ -425,7 +500,7 @@ export function VillainWizard({ id, step: stepId }: { id: string; step?: string 
       )}
       {previewOpen && !wide && (
         <Modal title="Sheet preview" variant={phone ? 'sheet' : 'drawer'} onClose={() => setPreviewOpen(false)}>
-          <VillainPreview villain={villain} />
+          <VillainPreview villain={villain} comesWith={comesWith} />
         </Modal>
       )}
       {asking && (
@@ -436,14 +511,15 @@ export function VillainWizard({ id, step: stepId }: { id: string; step?: string 
               type="button"
               className="button button--danger"
               onClick={() => {
-                asking.onConfirm()
+                // Closed first, so the change can ask something of its own.
                 setAsking(null)
+                asking.onConfirm()
               }}
             >
               {asking.confirm}
             </button>
             <button type="button" className="button" onClick={() => setAsking(null)}>
-              Cancel
+              {asking.cancel ?? 'Cancel'}
             </button>
           </div>
         </Modal>

@@ -2,9 +2,14 @@
  * Villain wizard step 4, Upgrades (p. 235–238; the villain wizard spec, sections 3 and 5): a
  * totals bar, then each upgrade as a checkbox row with its Health, requirement and abilities.
  * A checked upgrade opens a well for whatever it needs: blanks in its abilities, the dice Power
- * Upgrade and Quality Upgrade raise (with abilities for dice already at d12), and the vehicle.
+ * Upgrade and Quality Upgrade raise (with abilities for dice already at d12), the vehicle (saved
+ * as a lieutenant template when the GM leaves the step), and Mook Squad's signature minions.
  */
-import { useId } from 'react'
+import { useEffect, useId, useState } from 'react'
+import { useOptionalTemplateStores } from '../../app/template-store-context'
+import { NewMinionDialog } from '../../template/TemplateEditor'
+import type { MinionTemplate } from '../../template/model'
+import { attachedAs, MOOK_SQUAD, minionLine, setAttached, VILLAINOUS_VEHICLE } from '../attached'
 import { abilityListField } from '../../creation/abilities'
 import { ROLEPLAYING_QUALITY } from '../../creation/traits'
 import { AbilityChooser } from '../../editor/AbilityPicker'
@@ -74,6 +79,68 @@ function DiceWell({ villain, update, upgrade, dice }: { villain: Villain; update
   )
 }
 
+const NEW = '__new'
+
+/** Mook Squad's well: signature minions, a minion template from the library (optional), or a new one. */
+function SignatureWell({ villain, update }: { villain: Villain; update: VillainUpdate }) {
+  const id = useId()
+  const stores = useOptionalTemplateStores()
+  const [minions, setMinions] = useState<MinionTemplate[] | null>(null)
+  const [making, setMaking] = useState(false)
+  const chosen = attachedAs(villain, 'signature')?.templateId ?? ''
+  useEffect(() => {
+    if (!stores) return
+    let current = true
+    stores.minions.list().then(
+      (r) => current && setMinions(r.docs),
+      () => current && setMinions([]),
+    )
+    return () => {
+      current = false
+    }
+  }, [stores])
+  if (!stores) return null
+  const name = villainDisplayName(villain)
+  return (
+    <>
+      <label className="field" htmlFor={id}>
+        <span>Signature minions</span>
+        <select
+          id={id}
+          value={chosen}
+          onChange={(e) => {
+            if (e.target.value === NEW) setMaking(true)
+            else update((v) => setAttached(v, 'signature', e.target.value || undefined))
+          }}
+        >
+          <option value="">None chosen</option>
+          {chosen && minions && !minions.some((m) => m.id === chosen) && <option value={chosen}>Missing template</option>}
+          {(minions ?? []).map((m) => (
+            <option key={m.id} value={m.id}>
+              {minionLine(m)}
+            </option>
+          ))}
+          <option value={NEW}>Make a new minion template…</option>
+        </select>
+      </label>
+      <p className="hint">
+        {chosen ? `Attached to ${name}. Bringing ${name} into a game offers to bring them too, one per hero.` : `Optional. Alert! works either way; with signature minions, bringing ${name} into a game offers to bring them too.`}
+      </p>
+      {making && (
+        <NewMinionDialog
+          tags={villain.tags}
+          onClose={() => setMaking(false)}
+          onSaved={(doc) => {
+            setMaking(false)
+            setMinions((list) => [...(list ?? []), doc])
+            update((v) => setAttached(v, 'signature', doc.id))
+          }}
+        />
+      )}
+    </>
+  )
+}
+
 /** Villainous Vehicle's well: the vehicle built as a lieutenant, its name, die and abilities. */
 function VehicleWell({ villain, update, upgrade }: { villain: Villain; update: VillainUpdate; upgrade: VillainUpgrade }) {
   const nameId = useId()
@@ -88,6 +155,7 @@ function VehicleWell({ villain, update, upgrade }: { villain: Villain; update: V
   return (
     <>
       <p className="vw-well__title">Build the vehicle as a lieutenant</p>
+      <p className="hint">Saved as a lieutenant template in your library and attached to {villainDisplayName(villain)}, like an environment's minions.</p>
       <label className="field" htmlFor={nameId}>
         <span>Name</span>
         <input id={nameId} type="text" value={vehicle.name ?? ''} placeholder={`${villainDisplayName(villain)}'s vehicle`} onChange={(e) => setVehicle((v) => (v.name = e.target.value))} />
@@ -147,7 +215,7 @@ function UpgradeRow({ villain, update, upgrade, onUncheck, dice }: { villain: Vi
           <strong>{a.name}</strong> <span className="tag">{ABILITY_TYPE_LABEL[a.type]}</span> <AbilityText text={a.text} actions={a.effects && effectActions(a.effects)} />
         </p>
       ))}
-      {choice && (withBlanks || dice || upgrade.lieutenantOptions) && (
+      {choice && (withBlanks || dice || upgrade.lieutenantOptions || upgrade.id === MOOK_SQUAD) && (
         <div className="vw-well">
           {withBlanks && (
             <AbilityChooser<VillainAbilityPick>
@@ -162,6 +230,7 @@ function UpgradeRow({ villain, update, upgrade, onUncheck, dice }: { villain: Vi
           )}
           {dice && <DiceWell villain={villain} update={update} upgrade={upgrade} dice={dice} />}
           {upgrade.lieutenantOptions && <VehicleWell villain={villain} update={update} upgrade={upgrade} />}
+          {upgrade.id === MOOK_SQUAD && <SignatureWell villain={villain} update={update} />}
         </div>
       )}
     </div>
@@ -169,15 +238,36 @@ function UpgradeRow({ villain, update, upgrade, onUncheck, dice }: { villain: Vi
 }
 
 export function UpgradesStep({ villain, update, confirm }: StepProps) {
+  const stores = useOptionalTemplateStores()
   const taken = knownUpgrades(villain)
   const major = isMajorVillain(villain)
   const health = taken.reduce((sum, u) => sum + u.health, 0)
   const diceUpgrades = villainTraits(villain).upgrades
   /** Unchecking: the last upgrade with a mastery chosen asks first, since the mastery goes too. */
   const uncheck = (upgrade: VillainUpgrade) => {
+    // Unchecking detaches what the upgrade built; the vehicle's template may be deleted too.
+    const vehicleId = upgrade.id === VILLAINOUS_VEHICLE ? attachedAs(villain, 'vehicle')?.templateId : undefined
     const remove = (v: Villain) => {
       v.upgrades = v.upgrades.filter((c) => c.id !== upgrade.id)
       if (!v.upgrades.length) v.mastery = null
+      if (upgrade.id === VILLAINOUS_VEHICLE) setAttached(v, 'vehicle', undefined)
+      if (upgrade.id === MOOK_SQUAD) setAttached(v, 'signature', undefined)
+    }
+    const askDelete = async () => {
+      if (!vehicleId || !stores) return
+      const found = await stores.lieutenants.get(vehicleId)
+      if (found.status !== 'found') return
+      confirm({
+        title: 'Delete the vehicle too?',
+        body: `Delete ${found.doc.name.trim() || 'the vehicle'} from your library as well?`,
+        confirm: 'Delete',
+        cancel: 'Keep',
+        onConfirm: () => void stores.lieutenants.remove(vehicleId),
+      })
+    }
+    const removeThenAsk = () => {
+      update(remove)
+      void askDelete()
     }
     const last = villain.upgrades.every((c) => c.id === upgrade.id)
     if (last && villain.mastery) {
@@ -185,10 +275,10 @@ export function UpgradesStep({ villain, update, confirm }: StepProps) {
         title: 'Remove the last upgrade?',
         body: `${villainDisplayName(villain)} becomes a minor villain and loses ${villain.mastery.name}.`,
         confirm: 'Remove it',
-        onConfirm: () => update(remove),
+        onConfirm: removeThenAsk,
       })
     } else {
-      update(remove)
+      removeThenAsk()
     }
   }
   return (

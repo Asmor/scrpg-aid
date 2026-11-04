@@ -2,7 +2,10 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NewVillains, NewVillainsContext } from '../app/new-villains'
+import { TemplateStoresContext } from '../app/template-store-context'
 import { VillainStoreContext } from '../app/villain-store-context'
+import { createLieutenantTemplate, createMinionTemplate } from '../template/model'
+import { memoryTemplateStores, type TemplateStores } from '../template/store'
 import { adaptiveBruiser, bullyOverlord } from '../test/villains'
 import { readable } from '../test/readable'
 import { createVillain, type Villain } from './model'
@@ -23,14 +26,20 @@ async function storeWith(villain: Villain = createVillain({ id: 'v1' })) {
   return store
 }
 
-const wizard = (store: VillainStore, step?: string, id = 'v1', fresh = new NewVillains()) =>
-  render(
+const ui = (store: VillainStore, step: string | undefined, id: string, fresh: NewVillains, templates?: TemplateStores) => (
+  <TemplateStoresContext.Provider value={templates ?? null}>
     <NewVillainsContext.Provider value={fresh}>
       <VillainStoreContext.Provider value={store}>
         <VillainWizard id={id} step={step} />
       </VillainStoreContext.Provider>
-    </NewVillainsContext.Provider>,
-  )
+    </NewVillainsContext.Provider>
+  </TemplateStoresContext.Provider>
+)
+
+const wizard = (store: VillainStore, step?: string, id = 'v1', fresh = new NewVillains(), templates?: TemplateStores) => {
+  const view = render(ui(store, step, id, fresh, templates))
+  return { ...view, goTo: (next: string | undefined) => view.rerender(ui(store, next, id, fresh, templates)) }
+}
 
 const saved = async (store: VillainStore, id = 'v1') => {
   const r = await store.get(id)
@@ -375,5 +384,87 @@ describe('step 6, Health', () => {
     wizard(await storeWith(createVillain({ id: 'v1' })), 'health')
     expect(await screen.findByText('Choose an approach in step 2')).toBeInTheDocument()
     expect(screen.getByText('Choose an archetype in step 3')).toBeInTheDocument()
+  })
+})
+
+describe('templates the villain comes with', () => {
+  const withVehicle = () => {
+    const v = adaptiveBruiser()
+    v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { name: 'Siege Crawler', die: 'd12', abilities: [{ source: 'vehicle', name: 'Sturdy' }, { source: 'vehicle', name: 'Escape Plan' }] } }]
+    v.mastery = { source: 'mastery', name: 'Master of Annihilation' }
+    v.tags = ['docks']
+    return v
+  }
+
+  it('saves the vehicle as a lieutenant template on leaving Upgrades, then updates it when it changes', async () => {
+    viewport(1440)
+    const store = await storeWith(withVehicle())
+    const templates = memoryTemplateStores()
+    const view = wizard(store, 'upgrades', 'v1', new NewVillains(), templates)
+    await screen.findByRole('heading', { name: '4 · Upgrades' })
+    expect((await templates.lieutenants.list()).docs).toEqual([])
+    view.goTo('mastery')
+    await waitFor(async () => expect((await saved(store)).attached).toHaveLength(1))
+    const [vehicle] = (await templates.lieutenants.list()).docs
+    expect(vehicle).toMatchObject({ name: 'Siege Crawler', die: 'd12', tags: ['docks'], abilities: [{ name: 'Sturdy' }, { name: 'Escape Plan' }] })
+    expect((await saved(store)).attached).toEqual([{ templateId: vehicle!.id, kind: 'lieutenant', role: 'vehicle' }])
+    // The preview lists it.
+    expect(within(await screen.findByRole('region', { name: 'Comes with' })).getByText('Lieutenant · d12 · 2 abilities')).toBeInTheDocument()
+    // A change in the wizard updates the same template.
+    view.goTo('upgrades')
+    const name = await screen.findByRole('textbox', { name: 'Name' })
+    await userEvent.clear(name)
+    await userEvent.type(name, 'Bone Barge')
+    view.goTo('health')
+    await waitFor(async () => expect((await templates.lieutenants.list()).docs.map((d) => [d.id, d.name])).toEqual([[vehicle!.id, 'Bone Barge']]))
+  })
+
+  it('detaches the vehicle when its upgrade is unchecked, and deletes its template if asked', async () => {
+    const v = withVehicle()
+    const templates = memoryTemplateStores()
+    await templates.lieutenants.save({ ...createLieutenantTemplate({ id: 'l1' }), name: 'Siege Crawler' })
+    v.attached = [{ templateId: 'l1', kind: 'lieutenant', role: 'vehicle' }]
+    v.upgrades.push({ id: 'calming-aura', abilities: [] })
+    const store = await storeWith(v)
+    wizard(store, 'upgrades', 'v1', new NewVillains(), templates)
+    await userEvent.click(await screen.findByRole('checkbox', { name: /^Villainous Vehicle/ }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Delete the vehicle too?' }))
+    expect(dialog.getByText('Delete Siege Crawler from your library as well?')).toBeInTheDocument()
+    await waitFor(async () => expect((await saved(store)).attached).toEqual([]))
+    await userEvent.click(dialog.getByRole('button', { name: 'Delete' }))
+    await waitFor(async () => expect((await templates.lieutenants.get('l1')).status).toBe('missing'))
+  })
+
+  it('attaches signature minions from the library, or a new one made in a dialog', async () => {
+    const templates = memoryTemplateStores()
+    await templates.minions.save({ ...createMinionTemplate({ id: 'm1' }), name: 'Grave Guard', die: 'd8', actions: ['attack', 'hinder'] })
+    const store = await storeWith(bullyOverlord())
+    wizard(store, 'upgrades', 'v2', new NewVillains(), templates)
+    const select = await screen.findByRole('combobox', { name: 'Signature minions' })
+    await screen.findByRole('option', { name: 'Grave Guard · d8 · Attack or Hinder' })
+    await userEvent.selectOptions(select, 'Grave Guard · d8 · Attack or Hinder')
+    await waitFor(async () => expect((await saved(store, 'v2')).attached).toEqual([{ templateId: 'm1', kind: 'minion', role: 'signature' }]))
+    expect(screen.getByText('Attached to Test Villain. Bringing Test Villain into a game offers to bring them too, one per hero.')).toBeInTheDocument()
+    await userEvent.selectOptions(select, 'Make a new minion template…')
+    const dialog = within(screen.getByRole('dialog', { name: 'New minion template' }))
+    await userEvent.type(dialog.getByRole('textbox', { name: 'Name' }), 'Thug')
+    await userEvent.click(dialog.getByRole('button', { name: 'Save and attach' }))
+    await waitFor(async () => expect((await templates.minions.list()).docs.map((d) => d.name).sort()).toEqual(['Grave Guard', 'Thug']))
+    const thug = (await templates.minions.list()).docs.find((d) => d.name === 'Thug')!
+    await waitFor(async () => expect((await saved(store, 'v2')).attached).toEqual([{ templateId: thug.id, kind: 'minion', role: 'signature' }]))
+    // Unchecking Mook Squad detaches them.
+    await userEvent.click(screen.getByRole('checkbox', { name: /^Mook Squad/ }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Remove the last upgrade?' })).getByRole('button', { name: 'Remove it' }))
+    await waitFor(async () => expect((await saved(store, 'v2')).attached).toEqual([]))
+  })
+
+  it('saves the vehicle when a draft is finished', async () => {
+    const store = await storeWith({ ...withVehicle(), status: 'draft', furthestStep: 7 })
+    const templates = memoryTemplateStores()
+    wizard(store, 'details', 'v1', new NewVillains(), templates)
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Finish villain' }))[0]!)
+    await waitFor(async () => expect((await saved(store)).status).toBe('complete'))
+    expect((await saved(store)).attached).toHaveLength(1)
+    expect((await templates.lieutenants.list()).docs).toHaveLength(1)
   })
 })

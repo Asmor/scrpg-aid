@@ -13,7 +13,7 @@ import { villainTraitLabel, villainTraits } from '../sheet'
 export type VillainUpdate = (change: (draft: Villain) => void) => void
 
 /** Asks before a change that clears choices (changing the approach, say), then makes it. */
-export type Confirm = (ask: { title: string; body: string; confirm: string; onConfirm: () => void }) => void
+export type Confirm = (ask: { title: string; body: string; confirm: string; onConfirm: () => void; /** The other button's label ("Cancel" by default); it just closes. */ cancel?: string }) => void
 
 export interface StepProps {
   villain: Villain

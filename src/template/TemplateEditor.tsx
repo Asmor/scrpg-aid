@@ -545,3 +545,52 @@ export function TemplateEditor({ kind, id }: { kind: TemplateKind; id: string })
     </div>
   )
 }
+
+/**
+ * A new minion template made in a dialog, for another editor to attach (the villain wizard's
+ * Mook Squad, docs/design/villain-wizard/spec.md section 5): the minion editor's fields over a
+ * template held in memory. Save adds it to the library and hands it to `onSaved`; Cancel
+ * leaves nothing behind.
+ */
+export function NewMinionDialog({ tags = [], onSaved, onClose }: { tags?: readonly string[]; onSaved: (doc: MinionTemplate) => void; onClose: () => void }) {
+  const stores = useTemplateStores()
+  const [doc, setDoc] = useState<MinionTemplate>(() => ({ ...createMinionTemplate(), tags: [...tags] }))
+  const [error, setError] = useState<string | null>(null)
+  const update: Update<MinionTemplate> = (change) =>
+    setDoc((d) => {
+      const next = structuredClone(d)
+      change(next)
+      return next
+    })
+  const save = async () => {
+    const saved = { ...doc, name: doc.name.trim(), updatedAt: new Date().toISOString() }
+    try {
+      await stores.minions.save(saved)
+    } catch (e) {
+      setError(`The minion couldn't be saved: ${e instanceof Error ? e.message : String(e)}`)
+      return
+    }
+    onSaved(saved)
+  }
+  return (
+    <Modal title="New minion template" onClose={onClose}>
+      <div className="template-fields">
+        <Field label="Name">{(id) => <input id={id} type="text" maxLength={MAX_NAME} value={doc.name} onChange={(e) => update((d) => void (d.name = e.target.value))} />}</Field>
+        <MinionFields doc={doc} update={update} />
+      </div>
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
+      <div className="button-row">
+        <button type="button" className="button button--primary" onClick={() => void save()}>
+          Save and attach
+        </button>
+        <button type="button" className="button" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </Modal>
+  )
+}

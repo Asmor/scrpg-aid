@@ -7752,3 +7752,13 @@ ol.vw-conditions li {
   font-size: 0.6875rem;
   letter-spacing: 0.04em;
 }
+
+.vw-comes-with {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
