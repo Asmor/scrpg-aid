@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { VillainStoreContext } from '../app/villain-store-context'
@@ -6,7 +6,6 @@ import { adaptiveBruiser, bullyOverlord } from '../test/villains'
 import { readable } from '../test/readable'
 import { createVillain, type Villain } from './model'
 import { MemoryVillainStore, type VillainStore } from './store'
-import { VillainEditor } from './VillainEditor'
 import { VillainPage } from './VillainPage'
 import { VillainSheetView } from './VillainSheetView'
 
@@ -18,103 +17,8 @@ async function storeWith(villain: Villain = createVillain({ id: 'v1' })) {
 
 const withStore = (store: VillainStore, ui: React.ReactNode) => render(<VillainStoreContext.Provider value={store}>{ui}</VillainStoreContext.Provider>)
 
-const saved = async (store: VillainStore) => {
-  const r = await store.get('v1')
-  if (r.status !== 'found') throw new Error('not saved')
-  return r.villain
-}
-
 afterEach(() => {
   window.location.hash = ''
-})
-
-describe('the villain editor', () => {
-  it('builds an approach: choose it, assign its dice, name the roleplaying quality, and take abilities', async () => {
-    const store = await storeWith()
-    withStore(store, <VillainEditor id="v1" step="approach" />)
-    await userEvent.click(await screen.findByRole('radio', { name: /^Adaptive/ }))
-    const powers = within(screen.getByRole('group', { name: 'Adaptive power dice' }))
-    await userEvent.selectOptions(powers.getByRole('combobox', { name: 'd10' }), 'Robotics')
-    await userEvent.selectOptions(powers.getByRole('combobox', { name: 'd8 #1' }), 'Power Suit')
-    await userEvent.selectOptions(powers.getByRole('combobox', { name: 'd8 #2' }), 'Strength')
-    await userEvent.selectOptions(powers.getByRole('combobox', { name: 'd6' }), 'Agility')
-    const qualities = within(screen.getByRole('group', { name: 'Adaptive quality dice' }))
-    await userEvent.selectOptions(qualities.getByRole('combobox', { name: 'd10' }), 'Technology')
-    await userEvent.selectOptions(qualities.getByRole('combobox', { name: 'd8 #1' }), 'Science')
-    await userEvent.selectOptions(qualities.getByRole('combobox', { name: 'd8 #2' }), 'Fitness')
-    await userEvent.type(screen.getByLabelText('Roleplaying quality (d8)'), 'Relentless')
-    const abilities = within(screen.getByRole('group', { name: 'Adaptive abilities: choose 3' }))
-    await userEvent.click(abilities.getByRole('checkbox', { name: /Initiate Upgrade Procedure/ }))
-    await userEvent.selectOptions(abilities.getByRole('combobox', { name: '[power]' }), 'Robotics (d10)')
-    await userEvent.click(abilities.getByRole('checkbox', { name: /Powerful Imitation/ }))
-    // Two of three taken: the step says so.
-    expect(screen.getByRole('region', { name: 'Rule issues in this step' })).toHaveTextContent('Choose 3 of the Adaptive abilities; you have 2.')
-    await userEvent.click(abilities.getByRole('checkbox', { name: /The Pain of Perfection/ }))
-    expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
-    await waitFor(async () => expect((await saved(store)).approach?.abilities).toHaveLength(3))
-    expect((await saved(store)).traitNames['quality:roleplaying-quality']).toBe('Relentless')
-    // Many steps of typing and choosing: slow when the whole suite runs at once.
-  }, 20_000)
-
-  it('chooses an archetype and its abilities, with its status rule shown', async () => {
-    const v = adaptiveBruiser()
-    v.archetype = null
-    const store = await storeWith(v)
-    withStore(store, <VillainEditor id="v1" step="archetype" />)
-    await userEvent.click(await screen.findByRole('radio', { name: /^Bruiser/ }))
-    expect(screen.getByText('Status die.')).toBeInTheDocument()
-    const abilities = within(screen.getByRole('group', { name: 'Bruiser abilities: choose 2' }))
-    await userEvent.click(abilities.getByRole('checkbox', { name: /Feel No Pain/ }))
-    await userEvent.click(abilities.getByRole('checkbox', { name: /Living Wall/ }))
-    expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
-    await waitFor(async () => expect((await saved(store)).archetype?.abilities.map((p) => p.name)).toEqual(['Feel No Pain', 'Living Wall']))
-  })
-
-  it('takes upgrades, a vehicle, and a mastery', async () => {
-    const store = await storeWith(adaptiveBruiser())
-    withStore(store, <VillainEditor id="v1" step="upgrades" />)
-    await userEvent.click(await screen.findByRole('checkbox', { name: /^Villainous Vehicle/ }))
-    expect(screen.getByText('Choose a mastery (a major villain has one).')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('radio', { name: /d12: 2 vehicle abilities/ }))
-    const vehicle = within(screen.getByRole('group', { name: 'Vehicle abilities: choose 2' }))
-    await userEvent.click(vehicle.getByRole('checkbox', { name: /Sturdy/ }))
-    await userEvent.click(vehicle.getByRole('checkbox', { name: /Escape Plan/ }))
-    await userEvent.click(screen.getByRole('radio', { name: /Master of Annihilation/ }))
-    expect(screen.getByText('No rule issues so far.')).toBeInTheDocument()
-    const v = await saved(store)
-    expect(v.upgrades).toEqual([{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd12', abilities: [{ source: 'vehicle', name: 'Sturdy' }, { source: 'vehicle', name: 'Escape Plan' }] } }])
-    expect(v.mastery).toEqual({ source: 'mastery', name: 'Master of Annihilation' })
-  })
-
-  it('sets the number of heroes and shows how Health adds up', async () => {
-    const store = await storeWith(adaptiveBruiser())
-    withStore(store, <VillainEditor id="v1" step="health" />)
-    const count = await screen.findByLabelText("Number of heroes it's built to face")
-    expect(screen.getByText(/Max Health 55/)).toBeInTheDocument()
-    await userEvent.clear(count)
-    await userEvent.type(count, '2')
-    expect(screen.getByText(/Max Health 45/)).toBeInTheDocument()
-    await waitFor(async () => expect((await saved(store)).heroCount).toBe(2))
-  })
-
-  it('renames the villain from the header', async () => {
-    const store = await storeWith(adaptiveBruiser())
-    withStore(store, <VillainEditor id="v1" step="details" />)
-    await userEvent.click(await screen.findByRole('button', { name: 'Rename villain: Ironclad' }))
-    await userEvent.keyboard('Steel Tyrant{Enter}')
-    await waitFor(async () => expect((await saved(store)).details.name).toBe('Steel Tyrant'))
-    expect(screen.getByRole('button', { name: 'Rename villain: Steel Tyrant' })).toHaveFocus()
-  })
-
-  it('edits details, and says when a villain is missing', async () => {
-    const store = await storeWith(adaptiveBruiser())
-    withStore(store, <VillainEditor id="v1" step="details" />)
-    await userEvent.type(await screen.findByLabelText('Motivation'), 'Revenge')
-    await waitFor(async () => expect((await saved(store)).details.motivation).toBe('Revenge'))
-    expect(screen.getByRole('link', { name: /Approach/ })).toHaveAttribute('href', '#/villain/v1/edit/approach')
-    withStore(store, <VillainEditor id="nobody" />)
-    expect(await screen.findByRole('alert')).toHaveTextContent("There's no saved villain with that link.")
-  })
 })
 
 describe('the villain sheet', () => {
@@ -199,36 +103,3 @@ describe('the villain sheet', () => {
     expect(within(banner).getByRole('link', { name: 'Open in edit' })).toHaveAttribute('href', '#/villain/v1/edit')
   })
 })
-
-describe('more of the editor', () => {
-  it('ignores a hero count that isn’t a whole number of 1 or more, and says so', async () => {
-    const store = await storeWith(adaptiveBruiser())
-    withStore(store, <VillainEditor id="v1" step="health" />)
-    const count = await screen.findByLabelText("Number of heroes it's built to face")
-    for (const typed of ['', '0', '-1']) {
-      await userEvent.clear(count)
-      if (typed) await userEvent.type(count, typed)
-      expect(count).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByText('Enter a whole number of heroes, 1 or more.')).toBeInTheDocument()
-    }
-    expect((await saved(store)).heroCount).toBe(4)
-    await userEvent.clear(count)
-    await userEvent.type(count, '3')
-    expect(count).toHaveAttribute('aria-invalid', 'false')
-    await waitFor(async () => expect((await saved(store)).heroCount).toBe(3))
-  })
-
-  it('shows Legion’s fixed ability, and fills in an upgrade ability’s blank', async () => {
-    const v = adaptiveBruiser()
-    v.archetype = { id: 'legion', abilities: [] }
-    v.upgrades = [{ id: 'defense-shield', abilities: [] }]
-    const store = await storeWith(v)
-    withStore(store, <VillainEditor id="v1" step="archetype" />)
-    expect(await screen.findByRole('group', { name: 'Legion always has' })).toHaveTextContent('Uncoordinated Actions')
-    withStore(store, <VillainEditor id="v1" step="upgrades" />)
-    const gives = within(await screen.findByRole('group', { name: 'Defense Shield gives' }))
-    await userEvent.selectOptions(gives.getAllByRole('combobox', { name: '[power]' })[0]!, 'Robotics (d10)')
-    await waitFor(async () => expect((await saved(store)).upgrades[0]!.abilities).toEqual([{ source: 'upgrade', name: 'Defense Shield', uses: [{ kind: 'power', id: 'robotics' }] }]))
-  })
-})
-

@@ -10,7 +10,7 @@
  * The NPC templates (minions, lieutenants and challenges) are library types too:
  * ./template-types.ts.
  */
-import { editPath, playPath, heroPath, villainEditPath, villainPath, villainPlayPath } from '../app/route'
+import { editPath, playPath, heroPath, newVillainPath, villainEditPath, villainPath, villainPlayPath } from '../app/route'
 import type { NewHeroes } from '../app/new-heroes'
 import { buildSheet } from '../creation/sheet'
 import { createHero, duplicateHero, heroDisplayName, isDraft, type Hero } from '../hero/model'
@@ -19,7 +19,7 @@ import { continueStep, NUMBERED_STEPS, WIZARD_STEPS, wizardStepIndex } from '../
 import { heroFileName, heroJson, villainFileName, villainJson } from '../transfer/files'
 import { soloGameId } from '../game/solo'
 import type { GameStore } from '../game/store'
-import { createVillain, duplicateVillain, isVillainDraft, villainDisplayName, type Villain } from '../villain/model'
+import { duplicateVillain, isVillainDraft, villainDisplayName, type Villain } from '../villain/model'
 import { continueVillainStep, villainDraftText } from '../villain/wizard-steps'
 import { buildVillainSheet } from '../villain/sheet'
 import type { VillainStore } from '../villain/store'
@@ -177,11 +177,8 @@ export const villainType: LibraryType<Villain> = {
   },
   duplicate: (villain) => duplicateVillain(villain),
   exportFile: (villain) => ({ name: villainFileName(villain, 'json'), text: villainJson(villain) }),
-  async create({ stores }) {
-    const villain = createVillain()
-    await stores.villains.save(villain)
-    return villainEditPath(villain.id, 'approach')
-  },
+  // The wizard makes a draft in memory and saves it on the first choice (the villain wizard spec, section 1).
+  create: async () => newVillainPath,
 }
 
 /** Every library type, in the order the type chips and New menu list them. */

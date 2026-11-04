@@ -9,7 +9,8 @@
  * "#/watch/<room code>") watching one on a TV, "#/receive" (or "#/receive/<code>") receiving items
  * someone is sending, "#/minion/<id>", "#/lieutenant/<id>" and "#/challenge/<id>" an NPC
  * template's editor, and
- * "#/villain/<id>" a villain's sheet ("#/villain/<id>/edit/<step>" its editor), "#/games" the Games
+ * "#/villain/<id>" a villain's sheet ("#/villain/<id>/edit" its edit summary, "#/villain/<id>/edit/<step>"
+ * a step of its wizard, "#/villain/new" a new villain's wizard), "#/games" the Games
  * page, "#/game/<id>" a game's table, and "#/game/<id>/display" its display view.
  */
 import { useEffect, useState } from 'react'
@@ -19,6 +20,8 @@ export type Route =
   /** `search` is the library view's query string, without the "?". */
   | { name: 'list'; search: string }
   | { name: 'villain'; id: string }
+  /** A new villain: a draft in memory, opened in the wizard (docs/design/villain-wizard/spec.md, section 1). */
+  | { name: 'villainNew' }
   | { name: 'villainEdit'; id: string; step?: string }
   | { name: 'villainPlay'; id: string }
   | { name: 'game'; id: string }
@@ -49,6 +52,7 @@ export function parseRoute(hash: string): Route {
       return { name: 'notFound' }
     }
   }
+  if (path === '/villain/new') return { name: 'villainNew' }
   const villain = /^\/villain\/([^/]+)(\/edit(?:\/([^/]+))?|\/play)?$/.exec(path)
   if (villain) {
     let id: string
@@ -156,6 +160,9 @@ export function villainPath(id: string): string {
 export function villainPlayPath(id: string): string {
   return `${villainPath(id)}/play`
 }
+
+/** Starts a new villain in the wizard. */
+export const newVillainPath = '#/villain/new'
 
 export function villainEditPath(id: string, step?: string): string {
   return `${villainPath(id)}/edit${step ? `/${step}` : ''}`

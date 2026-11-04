@@ -12,7 +12,7 @@ import { VillainStoreContext } from './app/villain-store-context'
 import { TemplateStoresContext } from './app/template-store-context'
 import { createDefaultTemplateStores, type TemplateStores } from './template/store'
 import { createDefaultVillainStore, type VillainStore } from './villain/store'
-import { VillainEditor } from './villain/VillainEditor'
+import { NewVillain, VillainWizard } from './villain/VillainWizard'
 import { VillainPage } from './villain/VillainPage'
 import { VillainPlayPage } from './villain/VillainPlayPage'
 import { GameStoreContext } from './app/game-store-context'
@@ -98,10 +98,11 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
           </h1>
           <ThemeToggle value={theme} onChange={setTheme} />
         </header>
-        <main className={route.name === 'edit' ? 'app-main app-main--wide' : 'app-main'}>
+        <main className={route.name === 'edit' || route.name === 'villainEdit' ? 'app-main app-main--wide' : 'app-main'}>
           {route.name === 'villain' && <VillainPage key={route.id} id={route.id} />}
           {route.name === 'villainPlay' && <VillainPlayPage key={route.id} id={route.id} />}
-          {route.name === 'villainEdit' && <VillainEditor key={route.id} id={route.id} step={route.step} />}
+          {route.name === 'villainEdit' && <VillainWizard key={route.id} id={route.id} step={route.step} />}
+          {route.name === 'villainNew' && <NewVillain />}
           {/* Sheet and Play are one page: the same key keeps it (and the loaded hero) when switching. */}
           {(route.name === 'hero' || route.name === 'play') && <HeroPage key={route.id} id={route.id} mode={route.name === 'play' ? 'play' : 'sheet'} />}
           {route.name === 'edit' && <HeroEditor key={route.id} id={route.id} step={route.step} part={route.part} />}

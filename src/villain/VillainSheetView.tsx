@@ -149,12 +149,13 @@ const rows = (abilities: readonly VillainSheetAbility[]) => (
 )
 
 function Abilities({ sheet }: { sheet: VillainSheet }) {
-  const from = (...sources: VillainSheetAbility['source'][]) => sheet.abilities.filter((a) => sources.includes(a.source))
+  // Abilities an upgrade gave (including ones taken from the approach's or archetype's list for a d12 it couldn't raise) go with the upgrade.
+  const from = (...sources: VillainSheetAbility['source'][]) => sheet.abilities.filter((a) => sources.includes(a.source) && !a.upgrade)
   const approach = from('approach')
   const archetype = from('archetype', 'archetype.fixed')
   // Each upgrade that grants abilities, in the order taken; a vehicle's abilities go with its upgrade.
   const upgrades = sheet.upgrades
-    .map((u) => ({ ...u, abilities: [...sheet.abilities, ...(sheet.vehicle?.abilities ?? [])].filter((a) => (a.source === 'upgrade' || a.source === 'vehicle') && a.upgrade === u.name) }))
+    .map((u) => ({ ...u, abilities: [...sheet.abilities, ...(sheet.vehicle?.abilities ?? [])].filter((a) => a.upgrade === u.name) }))
     .filter((u) => u.abilities.length)
   return (
     <section className="sheet-section sheet-section--abilities" aria-labelledby="sheet-abilities-title">

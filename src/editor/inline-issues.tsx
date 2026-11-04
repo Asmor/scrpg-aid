@@ -4,12 +4,14 @@
  * that can show issues claims them as it renders: a field takes the issues that name it, a
  * section takes the rest of its kind, and anything nothing claimed (a section this archetype
  * doesn't have) shows at the top of the scope. So every issue appears once, in the place
- * closest to what it's about. Outside a scope (the villain editor) nothing shows.
+ * closest to what it's about. Outside a scope nothing shows.
  */
 import { createContext, useCallback, useContext, useId, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
-import type { RuleWarning } from '../creation/warnings'
 import { DiceText } from '../components/icons'
-import { fieldKey, issueKey, placeIssues, sectionKey, type Claim, type IssueSection } from './issue-targets'
+import { fieldKey, issueKey, placeIssues, sectionKey, type Claim, type IssueRef, type IssueSection } from './issue-targets'
+
+/** Any rule issue: a hero's (../creation/warnings.ts) or a villain's (../villain/sheet.ts). */
+type RuleWarning = IssueRef
 
 interface Scope {
   /** Each owner's issues: a field's or section's id, or "" for the top of the scope. */

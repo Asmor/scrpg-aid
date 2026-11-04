@@ -165,9 +165,9 @@ export const sectionKey = (section: IssueSection) => `section:${section}`
  * Who shows each issue, given what's claimed (in page order): the first field that names it,
  * else the first section of its kind, else the top of the scope ("").
  */
-export function placeIssues(issues: readonly RuleWarning[], claims: readonly Claim[]): Map<string, RuleWarning[]> {
+export function placeIssues<W extends IssueRef>(issues: readonly W[], claims: readonly Claim[]): Map<string, W[]> {
   const owner = (key: string) => claims.find((c) => c.key === key)?.owner
-  const placed = new Map<string, RuleWarning[]>()
+  const placed = new Map<string, W[]>()
   for (const w of issues) {
     const at = (w.field ? owner(fieldKey(w.field)) : undefined) ?? owner(sectionKey(issueSection(w.code))) ?? ''
     placed.set(at, [...(placed.get(at) ?? []), w])

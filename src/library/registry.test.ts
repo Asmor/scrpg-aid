@@ -104,11 +104,10 @@ describe('villain rows', () => {
     expect(villainType.row({ ...draft, furthestStep: 99 }).details).toBe('Step 7 of 7 · Finishing touches')
   })
 
-  it('creates and saves a villain, then opens its first step', async () => {
+  it('starts a new villain in the wizard, saving nothing yet', async () => {
     const s = stores()
-    const path = await villainType.create!({ stores: s, newHeroes: new NewHeroes() })
-    const [villain] = (await s.villains.list()).villains
-    expect(path).toBe(`#/villain/${villain!.id}/edit/approach`)
+    expect(await villainType.create!({ stores: s, newHeroes: new NewHeroes() })).toBe('#/villain/new')
+    expect((await s.villains.list()).villains).toEqual([])
   })
 })
 

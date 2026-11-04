@@ -512,7 +512,8 @@ describe('the empty library', () => {
     expect(screen.getByRole('button', { name: 'New hero' })).toHaveClass('button--primary')
     expect(screen.getByRole('button', { name: 'Import from a file…' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'New villain' }))
-    await waitFor(() => expect(window.location.hash).toMatch(/^#\/villain\/[^/]+\/edit\/approach$/))
+    // "#/villain/new" starts a draft in memory and opens its first step.
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/villain\/[^/]+\/edit\/concept$/))
   })
 
   it('starts a new hero from the New menu', async () => {

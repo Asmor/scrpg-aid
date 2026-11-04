@@ -1,10 +1,25 @@
 /**
- * The wizard's step list: Start, then the eight numbered steps, each with its mark (not
- * started, done, or its issue count) and the current one highlighted. In edit mode the
- * summary comes first.
+ * A wizard's step list: for heroes Start, then the eight numbered steps; for villains their seven
+ * (../villain/wizard-steps.ts). Each has its mark (not started, done, or its issue count) and the
+ * current one is highlighted. In edit mode the summary comes first. A step that isn't needed
+ * (a minor villain's Mastery) is greyed out with a note, and can still be opened.
  */
 import type { ArchetypePart } from '../hero/archetype-parts'
-import type { StepMark, StepState } from '../hero/wizard-steps'
+import type { StepMark } from '../hero/wizard-steps'
+
+/** What the rail needs to know about a step. */
+export interface RailStep {
+  id: string
+  label: string
+  /** Its number; 0 has none (the hero's Start). */
+  index: number
+  issues: readonly unknown[]
+  mark: StepMark
+  /** Greyed out, with `note` saying why ("Not needed"). */
+  skipped?: boolean
+  /** A short note after the label. */
+  note?: string
+}
 
 /** A step's mark: a hollow dot, a check, or a count pill. */
 export function StepMarkIcon({ mark, count }: { mark: StepMark; count: number }) {
@@ -36,7 +51,7 @@ export function StepMarkIcon({ mark, count }: { mark: StepMark; count: number })
 }
 
 interface StepRailProps {
-  steps: readonly StepState[]
+  steps: readonly RailStep[]
   current: string
   href: (id: string) => string
   /** A complex archetype's parts, listed under Archetype. */
@@ -67,9 +82,17 @@ export function StepRail({ steps, current, href, parts = [], currentPart: given,
       )}
       {steps.map((s) => (
         <li key={s.id}>
-          <a className="rail__item" href={href(s.id)} aria-current={s.id === current && !currentPart ? 'step' : undefined} onClick={onNavigate}>
+          <a className={s.skipped ? 'rail__item rail__item--skipped' : 'rail__item'} href={href(s.id)} aria-current={s.id === current && !currentPart ? 'step' : undefined} onClick={onNavigate}>
             <span className="rail__num">{s.index > 0 ? s.index : ''}</span>
-            <span className="rail__label">{s.label}</span>
+            <span className="rail__label">
+              {s.label}
+              {s.note && (
+                <>
+                  {' '}
+                  <span className="rail__note">{s.note}</span>
+                </>
+              )}
+            </span>
             <StepMarkIcon mark={s.mark} count={s.issues.length} />
           </a>
           {s.id === 'archetype' && parts.length > 0 && partHref && (
