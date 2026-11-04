@@ -9,6 +9,7 @@ import type { TraitRef } from '../../rules/catalog'
 import type { TraitSlot } from '../../rules/slots'
 import type { Villain, VillainAbilityPick, VillainAbilitySource } from '../model'
 import { villainTraitLabel, villainTraits } from '../sheet'
+import type { SuggestState } from './SuggestBar'
 
 export type VillainUpdate = (change: (draft: Villain) => void) => void
 
@@ -19,6 +20,7 @@ export interface StepProps {
   villain: Villain
   update: VillainUpdate
   confirm: Confirm
+  suggest: SuggestState
 }
 
 /** The villain's traits filling ability slots. Villains never limit a slot (that's heroes' Red abilities). */

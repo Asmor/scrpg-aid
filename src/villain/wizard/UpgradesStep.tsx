@@ -24,6 +24,8 @@ import { villainDisplayName, type UpgradeChoice, type Villain, type VillainAbili
 import { isMajorVillain, knownUpgrades, upgradeField, VEHICLE_DIE_FIELD, villainTraitLabel, villainTraits, type DiceUpgrade } from '../sheet'
 import { chosenCount, villainFilling, withPicks, type StepProps, type VillainUpdate } from './choices'
 import { Section } from './shared'
+import { SuggestBar, SuggestButton } from './SuggestBar'
+import { suggestedView } from '../suggest'
 
 const healthTag = (u: VillainUpgrade) => (u.health ? `+${u.health} Health` : 'No Health')
 
@@ -237,12 +239,14 @@ function UpgradeRow({ villain, update, upgrade, onUncheck, dice }: { villain: Vi
   )
 }
 
-export function UpgradesStep({ villain, update, confirm }: StepProps) {
+export function UpgradesStep({ villain, update, confirm, suggest }: StepProps) {
   const stores = useOptionalTemplateStores()
   const taken = knownUpgrades(villain)
   const major = isMajorVillain(villain)
   const health = taken.reduce((sum, u) => sum + u.health, 0)
   const diceUpgrades = villainTraits(villain).upgrades
+  // Every checked upgrade stays visible while Suggest 3 is on.
+  const checked = villain.upgrades.map((u) => u.id)
   /** Unchecking: the last upgrade with a mastery chosen asks first, since the mastery goes too. */
   const uncheck = (upgrade: VillainUpgrade) => {
     // Unchecking detaches what the upgrade built; the vehicle's template may be deleted too.
@@ -293,10 +297,11 @@ export function UpgradesStep({ villain, update, confirm }: StepProps) {
         <span className={major ? 'type-chip type-chip--major' : 'type-chip'}>{major ? 'Major villain' : 'Minor villain'}</span>
         <span className="hint">{major ? 'Choose a mastery next.' : 'No mastery needed.'}</span>
       </div>
-      <Section title="Choose upgrades" section="choose">
+      <Section title="Choose upgrades" section="choose" aside={<SuggestButton step="upgrades" suggest={suggest} all={villainUpgrades} picked={checked} />}>
+        <SuggestBar step="upgrades" suggest={suggest} all={villainUpgrades} picked={checked} />
         <SectionIssues section="choose" />
         <div className="vw-upgrades">
-          {villainUpgrades.map((u) => (
+          {(suggest.ids('upgrades') ? suggestedView(villainUpgrades, suggest.ids('upgrades')!, checked).map((v) => v.item) : villainUpgrades).map((u) => (
             <UpgradeRow key={u.id} villain={villain} update={update} upgrade={u} dice={diceUpgrades.find((d) => d.upgradeId === u.id)} onUncheck={() => uncheck(u)} />
           ))}
         </div>

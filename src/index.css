@@ -7762,3 +7762,38 @@ ol.vw-conditions li {
   gap: 0.25rem;
   font-size: 0.875rem;
 }
+
+.vw-suggest-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.vw-suggestbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px dashed var(--ui-muted);
+  border-radius: 0.5rem;
+  background: var(--ui-surface-2);
+  font-size: 0.875rem;
+}
+
+.vw-suggestbar > span:first-child {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.vw-suggestbar__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Dice in an option card use the compact size, as in the sheet preview. */
+.vw-card .dice-row .die-icon {
+  width: 18px;
+  height: 18px;
+}

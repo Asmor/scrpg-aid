@@ -15,6 +15,8 @@ import { villainMakesMinions } from '../sheet'
 import { statusSummary } from '../status'
 import { archetypeHasChoices, chosenCount, setArchetype, villainFilling, withPicks, type StepProps } from './choices'
 import { OptionCards, Section, type CardOption } from './shared'
+import { SuggestBar, SuggestButton } from './SuggestBar'
+import { suggestedView } from '../suggest'
 
 const signed = (n: number) => (n < 0 ? `−${-n}` : `+${n}`)
 
@@ -112,7 +114,7 @@ function card(a: VillainArchetype): CardOption {
   }
 }
 
-export function ArchetypeStep({ villain, update, confirm }: StepProps) {
+export function ArchetypeStep({ villain, update, confirm, suggest }: StepProps) {
   const radioName = useId()
   const choice = villain.archetype
   const archetype = choice ? villainArchetypesById.get(choice.id) : undefined
@@ -139,9 +141,23 @@ export function ArchetypeStep({ villain, update, confirm }: StepProps) {
   const hasMinionMaker = villainMakesMinions(villain)
   return (
     <div className="step-form">
-      <Section title="Choose an archetype" section="choose">
+      <Section title="Choose an archetype" section="choose" aside={<SuggestButton step="archetype" suggest={suggest} all={villainArchetypes} picked={choice ? [choice.id] : []} />}>
+        <SuggestBar step="archetype" suggest={suggest} all={villainArchetypes} picked={choice ? [choice.id] : []} />
         <SectionIssues section="choose" />
-        {approach && paired.length > 0 ? (
+        {suggest.ids('archetype') ? (
+          // Suggestions aren't weighted toward pairings; a pairing only shows as a tag.
+          <OptionCards
+            label="Archetype"
+            name={radioName}
+            selected={choice?.id}
+            onSelect={choose}
+            options={suggestedView(villainArchetypes, suggest.ids('archetype')!, choice ? [choice.id] : []).map(({ item, yours }) => ({
+              ...card(item),
+              ...(yours ? { flag: 'Your pick' } : {}),
+              ...(approach && paired.includes(item) ? { tags: <span className="tag tag--strong">Often paired with {approach.name}</span> } : {}),
+            }))}
+          />
+        ) : approach && paired.length > 0 ? (
           <>
             <p className="vw-group-label">Often paired with {approach.name}</p>
             <OptionCards label={`Archetypes often paired with ${approach.name}`} name={radioName} selected={choice?.id} onSelect={choose} options={paired.map(card)} />

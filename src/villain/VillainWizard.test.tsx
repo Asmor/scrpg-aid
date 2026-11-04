@@ -26,11 +26,14 @@ async function storeWith(villain: Villain = createVillain({ id: 'v1' })) {
   return store
 }
 
+/** Suggest 3's random source: always the first option left, so draws are predictable. */
+let random = () => 0
+
 const ui = (store: VillainStore, step: string | undefined, id: string, fresh: NewVillains, templates?: TemplateStores) => (
   <TemplateStoresContext.Provider value={templates ?? null}>
     <NewVillainsContext.Provider value={fresh}>
       <VillainStoreContext.Provider value={store}>
-        <VillainWizard id={id} step={step} />
+        <VillainWizard id={id} step={step} random={() => random()} />
       </VillainStoreContext.Provider>
     </NewVillainsContext.Provider>
   </TemplateStoresContext.Provider>
@@ -466,5 +469,68 @@ describe('templates the villain comes with', () => {
     await waitFor(async () => expect((await saved(store)).status).toBe('complete'))
     expect((await saved(store)).attached).toHaveLength(1)
     expect((await templates.lieutenants.list()).docs).toHaveLength(1)
+  })
+})
+
+describe('Suggest 3', () => {
+  it('shows 3 approaches with the pick kept visible, re-rolls, saves with the draft, and returns to the full list', async () => {
+    const v = { ...createVillain({ id: 'v1' }), status: 'draft' as const }
+    v.approach = { id: 'ninja', traits: [], abilities: [] }
+    const store = await storeWith(v)
+    wizard(store, 'approach')
+    await userEvent.click(await screen.findByRole('button', { name: 'Suggest 3' }))
+    expect(screen.getByText('Showing 3 random approaches. Not official, just for inspiration.')).toBeInTheDocument()
+    const names = () => within(screen.getByRole('radiogroup', { name: 'Approach' })).getAllByRole('radio').map((r) => r.closest('label')!.querySelector('.vw-card__name')!.textContent)
+    // Ninja isn't among the first three, so it stays first, marked as the pick.
+    expect(names()).toEqual(['Ninja', 'Adaptive', 'Ancient', 'Bully'])
+    expect(screen.getByText('Your pick')).toBeInTheDocument()
+    await waitFor(async () => expect((await saved(store)).suggest).toEqual({ approach: ['adaptive', 'ancient', 'bully'] }))
+    random = () => 0.9999
+    try {
+      const reroll = screen.getByRole('button', { name: 'Re-roll' })
+      await userEvent.click(reroll)
+      // Shown in the list's own order.
+      expect(names()).toEqual(['Ninja', 'Specialized', 'Tactician', 'Underpowered'])
+      expect(reroll).toHaveFocus()
+      expect(screen.getByText('3 new suggestions: Underpowered, Tactician, Specialized.')).toBeInTheDocument()
+    } finally {
+      random = () => 0
+    }
+    await userEvent.click(screen.getByRole('button', { name: 'Show all 18' }))
+    expect(names()).toHaveLength(18)
+    await waitFor(async () => expect((await saved(store)).suggest).toBeUndefined())
+    expect((await saved(store)).approach?.id).toBe('ninja')
+  })
+
+  it('tags archetypes that pair with the approach, without weighting them', async () => {
+    const v = { ...adaptiveBruiser(), status: 'draft' as const, suggest: { archetype: ['legion', 'domain', 'fragile'] } }
+    wizard(await storeWith(v), 'archetype')
+    const group = within(await screen.findByRole('radiogroup', { name: 'Archetype' }))
+    expect(group.getAllByRole('radio')).toHaveLength(4)
+    expect(group.getByRole('radio', { name: /^Legion.*Often paired with Adaptive/ })).toBeInTheDocument()
+    expect(group.getByRole('radio', { name: /^Bruiser.*Your pick/ })).toBeInTheDocument()
+  })
+
+  it('keeps every checked upgrade visible and draws from the rest', async () => {
+    const v = { ...bullyOverlord(), status: 'draft' as const }
+    const store = await storeWith(v)
+    wizard(store, 'upgrades', 'v2')
+    await userEvent.click(await screen.findByRole('button', { name: 'Suggest 3' }))
+    expect(screen.getByText("Showing 3 random upgrades, plus any you've already checked. Not official, just for inspiration.")).toBeInTheDocument()
+    expect(screen.getAllByRole('checkbox', { name: /Health|p\./ }).length).toBeGreaterThan(0)
+    await waitFor(async () => expect((await saved(store, 'v2')).suggest).toEqual({ upgrades: ['hardier-minions', 'group-fighter', 'villainous-vehicle'] }))
+    expect(screen.getByRole('checkbox', { name: /^Mook Squad/ })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /^Hardier Minions/ })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /^Calming Aura/ })).not.toBeInTheDocument()
+  })
+
+  it('starts off when editing a finished villain, and isn’t saved there', async () => {
+    const store = await storeWith({ ...bullyOverlord(), suggest: { mastery: ['Master of Mysticism', 'Master Mercenary', 'Master of Superiority'] } })
+    wizard(store, 'mastery', 'v2')
+    expect(within(await screen.findByRole('radiogroup', { name: 'Villainous mastery' })).getAllByRole('radio')).toHaveLength(11)
+    await userEvent.click(screen.getByRole('button', { name: 'Suggest 3' }))
+    // The first three drawn include the pick, Master of Conquest.
+    expect(within(screen.getByRole('radiogroup', { name: 'Villainous mastery' })).getAllByRole('radio').map((r) => r.closest('label')!.querySelector('.choice__title')!.textContent)).toEqual(['Master of Annihilation', 'Master Behind the Curtain', 'Master of Conquest'])
+    expect((await saved(store, 'v2')).suggest?.mastery).toEqual(['Master of Mysticism', 'Master Mercenary', 'Master of Superiority'])
   })
 })

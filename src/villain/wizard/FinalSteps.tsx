@@ -14,6 +14,8 @@ import { DEFAULT_HERO_COUNT, MAX_HEROES, MIN_HEROES, villainDisplayName } from '
 import { HERO_COUNT_FIELD, isMajorVillain, MASTERY_FIELD, villainHealth, villainZones, type HealthTerm } from '../sheet'
 import type { StepProps } from './choices'
 import { Section } from './shared'
+import { SuggestBar, SuggestButton } from './SuggestBar'
+import { suggestedView } from '../suggest'
 
 /** Step 1: who the villain is and what they want (p. 208). All optional. */
 export function ConceptStep({ villain, update }: StepProps) {
@@ -38,9 +40,13 @@ export function ConceptStep({ villain, update }: StepProps) {
 }
 
 /** Step 5: one villainous mastery, for a major villain (p. 238). */
-export function MasteryStep({ villain, update }: StepProps) {
+export function MasteryStep({ villain, update, suggest }: StepProps) {
   const name = useId()
   const major = isMajorVillain(villain)
+  const all = villainMasteries.options.map((m) => ({ ...m, id: m.name }))
+  const picked = villain.mastery ? [villain.mastery.name] : []
+  const ids = suggest.ids('mastery')
+  const shown = ids ? suggestedView(all, ids, picked) : all.map((item) => ({ item, yours: false }))
   return (
     <div className="step-form">
       {!major && (
@@ -48,17 +54,26 @@ export function MasteryStep({ villain, update }: StepProps) {
           A minor villain doesn't take a mastery. <a href={villainEditPath(villain.id, 'upgrades')}>Add an upgrade in step 4</a> to make {villainDisplayName(villain)} a major villain.
         </p>
       )}
-      <Section title="Choose a mastery" section="choose">
+      <Section title="Choose a mastery" section="choose" aside={<SuggestButton step="mastery" suggest={suggest} all={all} picked={picked} />}>
+        <SuggestBar step="mastery" suggest={suggest} all={all} picked={picked} />
         <SectionIssues section="choose" />
         <IssueField field={MASTERY_FIELD}>
           {(f) => (
             <div className={f.invalid ? 'vw-masteries field-group--invalid' : 'vw-masteries'} role="radiogroup" aria-label="Villainous mastery" {...f.control}>
               {f.list}
-              {villainMasteries.options.map((m) => (
+              {shown.map(({ item: m, yours }) => (
                 <label key={m.name} className={villain.mastery?.name === m.name ? 'choice vw-mastery vw-mastery--on' : 'choice vw-mastery'}>
                   <input type="radio" name={name} checked={villain.mastery?.name === m.name} onChange={() => update((v) => void (v.mastery = { source: 'mastery', name: m.name }))} />
                   <span className="choice__body">
-                    <span className="choice__title">{m.name}</span>
+                    <span className="choice__title">
+                      {m.name}
+                      {yours && (
+                        <>
+                          {' '}
+                          <span className="tag tag--strong">Your pick</span>
+                        </>
+                      )}
+                    </span>
                     <span className="choice__detail">
                       <AbilityText text={m.text} actions={m.effects && effectActions(m.effects)} />
                     </span>

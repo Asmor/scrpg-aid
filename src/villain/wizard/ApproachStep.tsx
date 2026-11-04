@@ -20,6 +20,8 @@ import { villainDisplayName, type Villain, type VillainAbilityPick } from '../mo
 import { villainTraitLabel } from '../sheet'
 import { approachHasChoices, chosenCount, setApproach, villainFilling, withPicks, type StepProps } from './choices'
 import { OptionCards, Section } from './shared'
+import { SuggestBar, SuggestButton } from './SuggestBar'
+import { suggestedView } from '../suggest'
 
 const ROLEPLAYING_KEY = traitKey(ROLEPLAYING_QUALITY)
 
@@ -96,7 +98,7 @@ function DiceRows({ villain, approach, kind, dice, suggested, onChange }: { vill
   )
 }
 
-export function ApproachStep({ villain, update, confirm }: StepProps) {
+export function ApproachStep({ villain, update, confirm, suggest }: StepProps) {
   const radioName = useId()
   const nameId = useId()
   const choice = villain.approach
@@ -122,15 +124,17 @@ export function ApproachStep({ villain, update, confirm }: StepProps) {
   const picks = choice?.abilities.filter((p) => p.source === 'approach') ?? []
   return (
     <div className="step-form">
-      <Section title="Choose an approach" section="choose">
+      <Section title="Choose an approach" section="choose" aside={<SuggestButton step="approach" suggest={suggest} all={villainApproaches} picked={choice ? [choice.id] : []} />}>
+        <SuggestBar step="approach" suggest={suggest} all={villainApproaches} picked={choice ? [choice.id] : []} />
         <SectionIssues section="choose" />
         <OptionCards
           label="Approach"
           name={radioName}
           selected={choice?.id}
           onSelect={choose}
-          options={villainApproaches.map((a) => ({
+          options={(suggest.ids('approach') ? suggestedView(villainApproaches, suggest.ids('approach')!, choice ? [choice.id] : []) : villainApproaches.map((item) => ({ item, yours: false }))).map(({ item: a, yours }) => ({
             id: a.id,
+            ...(yours ? { flag: 'Your pick' } : {}),
             name: a.name,
             page: a.page,
             body: (

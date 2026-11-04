@@ -32,6 +32,9 @@ import { findBook } from '../rules/books'
 import { attachedAs, setAttached, VILLAINOUS_VEHICLE, vehicleTemplate } from './attached'
 import { createVillain, isVillainDraft, villainDisplayName, type Villain } from './model'
 import { useAttached } from './wizard/useAttached'
+import type { SuggestState } from './wizard/SuggestBar'
+import { cryptoRandom, type Random } from './suggest'
+import type { SuggestStep } from './model'
 import { buildVillainSheet, isMajorVillain, type VillainStepId, type VillainWarning } from './sheet'
 import { useVillainEditor } from './useVillainEditor'
 import { continueVillainStep, VILLAIN_STEP_COUNT, VILLAIN_STEPS, villainStepNumber, villainStepStates } from './wizard-steps'
@@ -125,7 +128,8 @@ function FinishDialog({ issues, href, onGo, onFinish, onClose }: { issues: reado
   )
 }
 
-export function VillainWizard({ id, step: stepId }: { id: string; step?: string }) {
+/** `random` is injectable for tests (Suggest 3). */
+export function VillainWizard({ id, step: stepId, random = cryptoRandom }: { id: string; step?: string; random?: Random }) {
   const { state, update: save, saveError, flush, savedAt, stored } = useVillainEditor(id)
   const now = useTick()
   const wide = useMediaQuery('(min-width: 1280px)')
@@ -139,6 +143,8 @@ export function VillainWizard({ id, step: stepId }: { id: string; step?: string 
   const [snapshot, setSnapshot] = useState<Villain | null>(null)
   const [reverting, setReverting] = useState(false)
   const revertButton = useRef<HTMLButtonElement>(null)
+  // Suggest 3 while editing a finished villain: kept for the visit only, so edit mode starts with it off.
+  const [visitSuggest, setVisitSuggest] = useState<Partial<Record<SuggestStep, string[]>>>({})
   const templates = useOptionalTemplateStores()
   // The wizard's vehicle as last saved to its template (JSON), so it's saved again only when changed.
   const vehicleSaved = useRef<string | null>(null)
@@ -283,6 +289,21 @@ export function VillainWizard({ id, step: stepId }: { id: string; step?: string 
   const named = villain.details.name.trim() || villain.details.alias.trim()
   const lastSaved = savedAt ?? (stored ? new Date(villain.updatedAt) : null)
   const confirm: Confirm = (ask) => setAsking(ask)
+  // A draft saves each step's Suggest 3 state, so coming back shows the same three.
+  const suggest: SuggestState = {
+    random,
+    ids: (s) => (draft ? villain.suggest?.[s] : visitSuggest[s]),
+    set: (s, ids) => {
+      if (!draft) return setVisitSuggest((m) => ({ ...m, [s]: ids }))
+      update((v) => {
+        const next = { ...v.suggest }
+        if (ids) next[s] = ids
+        else delete next[s]
+        if (Object.keys(next).length) v.suggest = next
+        else delete v.suggest
+      })
+    },
+  }
   // A minor villain skips Mastery: Upgrades' next is Health, and Health's back is Upgrades.
   const skip = (s: VillainStepId | undefined) => (s === 'mastery' && !major ? undefined : s)
   const prevId = skip(VILLAIN_STEPS[index - 2]?.id) ?? VILLAIN_STEPS[index - 3]?.id
@@ -451,7 +472,7 @@ export function VillainWizard({ id, step: stepId }: { id: string; step?: string 
                 </div>
                 <span className="page-ref">{pageText(view.ref)}</span>
               </div>
-              <IssueScope issues={current.issues}>{view.render({ villain, update, confirm })}</IssueScope>
+              <IssueScope issues={current.issues}>{view.render({ villain, update, confirm, suggest })}</IssueScope>
               <StepIssues issues={current.issues} />
               <div className="stepnav">
                 {prevId ? (
