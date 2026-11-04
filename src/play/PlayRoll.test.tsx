@@ -86,16 +86,23 @@ describe('using abilities', () => {
     // Resolve: one line per effect for the table.
     expect(dialog.getByText('Deal 10 (Mid) damage.')).toBeInTheDocument()
     expect(dialog.getByText('Defend 8 (Min).')).toBeInTheDocument()
+    // The Defend protects the hero unless it's for no one in the app; an Attack picks no target here.
+    expect(dialog.getByLabelText('Protect')).toHaveDisplayValue('Unnamed hero (you)')
+    expect(dialog.queryByLabelText('Target')).not.toBeInTheDocument()
     // Nothing is recorded until Done.
     expect((await saved(store)).play).toBeUndefined()
     await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await waitFor(async () =>
-      expect((await saved(store)).play?.history.at(-1)).toMatchObject({
-        text: 'Used ability Always on the Move:',
-        details: ['Max: 12 (Speed d12)', 'Mid: 10 (Fitness d10)', 'Min: 8 (Green status d8)', 'Deal 10 (Mid) damage.', 'Defend 8 (Min).'],
-      }),
+      expect((await saved(store)).play?.history.slice(-2)).toMatchObject([
+        {
+          text: 'Used ability Always on the Move:',
+          details: ['Max: 12 (Speed d12)', 'Mid: 10 (Fitness d10)', 'Min: 8 (Green status d8)', 'Deal 10 (Mid) damage.', 'Defend 8 (Min).'],
+        },
+        { text: 'Gained a defense: Defend 8.' },
+      ]),
     )
+    expect((await saved(store)).play?.defenses).toMatchObject([{ value: 8 }])
     expect(screen.getByRole('status')).toHaveTextContent('Roll recorded.')
   })
 
@@ -147,6 +154,20 @@ describe('using abilities', () => {
     expect((await saved(store)).play?.history).toEqual([])
   })
 
+  it('gives no defense for a Defend with no target in the app', async () => {
+    const store = await setup()
+    await userEvent.click(abilities().getByRole('button', { name: 'Defend' }))
+    const dialog = within(screen.getByRole('dialog'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
+    // Only the hero is listed: minions take no hits in solo play.
+    expect(within(dialog.getByLabelText('Protect')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Unnamed hero (you)', 'No target'])
+    await userEvent.selectOptions(dialog.getByLabelText('Protect'), 'No target')
+    await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
+    await waitFor(async () => expect((await saved(store)).play?.history.at(-1)?.text).toBe('Took a basic action (Defend):'))
+    expect((await saved(store)).play).not.toHaveProperty('defenses')
+  })
+
   it('changes nothing when cancelled at any step', async () => {
     const store = await setup()
     await userEvent.click(abilities().getByRole('button', { name: 'Use Always on the Move' }))
@@ -177,7 +198,7 @@ describe('using abilities', () => {
     expect(dialog.getByRole('group', { name: 'Attack (Mid)' })).toHaveTextContent('Uses Mid (5)')
     await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
     await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
-    await waitFor(async () => expect((await saved(store)).play?.history.at(-1)?.details?.[0]).toBe('Max: 9 (Fitness d10) (typed in)'))
+    await waitFor(async () => expect((await saved(store)).play?.history.find((h) => h.details)?.details?.[0]).toBe('Max: 9 (Fitness d10) (typed in)'))
   })
 
   it('offers to add the bonus a Boost makes when done, and marks a reaction used', async () => {

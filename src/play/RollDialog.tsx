@@ -77,8 +77,8 @@ interface RollDialogProps {
   /** The roller's own option in those lists, which stands for "me". */
   selfId?: string
   /**
-   * "mods": only a Boost's or Hinder's mod picks who it's for, from every option (solo play: the
-   * hero and their minions). By default every result picks a target, likely side first.
+   * "mods": a Boost's or Hinder's mod and a Defend pick who they're for, from every option, and an
+   * Attack picks none (solo play). By default every result picks a target, likely side first.
    */
   pickTargets?: 'all' | 'mods'
   /** Dice rolled as they are, in place of picking a power and a quality (the environment dice). */
@@ -287,7 +287,8 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
       finalResults.flatMap((r, i) => {
         if (r.total === undefined) return []
         if (r.action !== 'attack' && r.action !== 'defend') return []
-        if (!targetsFor || pickTargets === 'mods') return r.action === 'defend' ? [{ result: i, to: '' }] : []
+        if (!targetsFor) return r.action === 'defend' ? [{ result: i, to: '' }] : []
+        if (pickTargets === 'mods' && r.action === 'attack') return []
         const to = targetOf(i, r.action)
         // Someone who has left the table since is no target.
         if (!to || !allOptions(targetsFor(r.action, { showOtherSide: true, keep: [] })).some((o) => o.id === to)) return []
@@ -708,9 +709,9 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
                 {picker}
                 {toggle && <ShowOtherSide label={toggle} checked={showOther} onChange={setShowOther} />}
                 {targetsFor &&
-                  pickTargets === 'all' &&
                   finalResults.map((r, i) => {
                     if ((r.action !== 'attack' && r.action !== 'defend') || r.total === undefined) return null
+                    if (pickTargets === 'mods' && r.action === 'attack') return null
                     const action = r.action
                     const several = finalResults.filter((x) => x.action === action).length > 1
                     const word = action === 'attack' ? 'Target' : 'Protect'

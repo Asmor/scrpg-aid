@@ -3400,6 +3400,19 @@ a.button--primary {
   width: 4.5rem;
 }
 
+/* Solo play's defenses (ruling 65), under the Health controls. */
+.play-defenses {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.625rem;
+}
+
+.play-defenses .label,
+.play-defenses__use {
+  margin: 0;
+}
+
 .segmented--fill {
   display: flex;
 }

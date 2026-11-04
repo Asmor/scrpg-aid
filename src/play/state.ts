@@ -7,6 +7,7 @@
 import type { HeroSheet } from '../creation/sheet'
 import type { PlayHistoryEntry, PlayMod, PlayState, PlayTwist } from '../hero/model'
 import type { Die, Zone } from '../rules/types'
+import { addDefense, blockText, blockWith, clearDefenses, defensesOf, pickDefense, removeDefense } from './defense'
 
 /** A hero's zone, including Out (p. 14). */
 export type PlayZone = Zone | 'out'
@@ -189,4 +190,36 @@ export function startOver(): PlayState {
 export function newIssue(play: PlayState, clock: Clock): PlayState {
   const { form, dividedForm } = play
   return { ...emptyPlay(), ...(form ? { form } : {}), ...(dividedForm ? { dividedForm } : {}), history: [...play.history, entry(clock, 'Started a new issue: Health restored; mods, twists, hero points and minions cleared.')] }
+}
+
+// ---- Defenses in solo play (ruling 65; the table's are in ../game/hits.ts) ----
+
+/** A Defend's result on the hero: a defense of `value` from `from` (none for 0), noted in the history. */
+export function gainDefense(play: PlayState, value: number, from: string, clock: Clock): PlayState {
+  const after = addDefense(play, value, from, clock)
+  return after === play ? play : withEntry(after, entry(clock, `Gained a defense: Defend ${value}.`))
+}
+
+/**
+ * The hero takes a hit of `amount`: one defense blocks what it can (the one chosen, or the
+ * default) and is used up, and the rest comes off Health. "Took 8 damage (Defend 5 blocked 5, 3 taken)."
+ */
+export function takeDamage(play: PlayState, sheet: Pick<HeroSheet, 'healthRanges' | 'maxHealth'>, amount: number, clock: Clock, defenseId?: string): PlayState {
+  if (!Number.isInteger(amount) || amount <= 0) return play
+  const defense = pickDefense(defensesOf(play), amount, defenseId)
+  const { taken } = blockWith(amount, defense)
+  const after = withEntry(defense ? removeDefense(play, defense.id) : play, entry(clock, `Took ${amount} damage${blockText(amount, defense)}.`))
+  const now = currentHealth(sheet, after)
+  return now === undefined || taken === 0 ? after : setHealth(after, sheet, now - taken, clock)
+}
+
+/** Drops one defense by hand, noted in the history. */
+export function dropDefense(play: PlayState, id: string, clock: Clock): PlayState {
+  const d = defensesOf(play).find((x) => x.id === id)
+  return d ? withEntry(removeDefense(play, id), entry(clock, `Removed a defense: Defend ${d.value}.`)) : play
+}
+
+/** Drops every defense (the hero's next turn starts: solo play has no turns, so the player says when). */
+export function clearHeroDefenses(play: PlayState, clock: Clock): PlayState {
+  return play.defenses?.length ? withEntry(clearDefenses(play), entry(clock, 'Defenses cleared.')) : play
 }

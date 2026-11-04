@@ -87,6 +87,45 @@ describe('PlayPage', () => {
     expect(healthIs()).toBe('30 of 30 · Green')
   })
 
+  it('holds defenses: Take damage uses one (the default, or the one chosen), and they can be removed or cleared', async () => {
+    const store = await setup((h) => {
+      h.play = { ...emptyPlay(), defenses: [{ id: 'd3', value: 3, from: 'Unnamed hero' }, { id: 'd5', value: 5, from: 'Ally' }, { id: 'd9', value: 9, from: 'Ally' }] }
+    })
+    const health = within(screen.getByRole('region', { name: 'Health' }))
+    expect(within(health.getByRole('list', { name: 'Defenses' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Defend 3×', 'Defend 5 from Ally×', 'Defend 9 from Ally×'])
+    const amount = health.getByLabelText('Amount')
+    await userEvent.type(amount, '8')
+    // The default: the largest that doesn't exceed the damage.
+    const uses = health.getByLabelText('Take damage uses')
+    expect(uses).toHaveDisplayValue('Defend 5 from Ally')
+    await userEvent.click(health.getByRole('button', { name: 'Take damage' }))
+    expect(healthIs()).toBe('27 of 30 · Green')
+    expect(screen.getByRole('region', { name: 'History' })).toHaveTextContent('Took 8 damage (Defend 5 blocked 5, 3 taken).')
+    // Another hit, with the larger one chosen: it blocks all of it.
+    await userEvent.type(amount, '4')
+    await userEvent.selectOptions(health.getByLabelText('Take damage uses'), 'Defend 9 from Ally')
+    await userEvent.click(health.getByRole('button', { name: 'Take damage' }))
+    expect(healthIs()).toBe('27 of 30 · Green')
+    // One left: no choice to make. Lose takes Health without using it.
+    expect(health.queryByLabelText('Take damage uses')).not.toBeInTheDocument()
+    await userEvent.type(amount, '2')
+    await userEvent.click(health.getByRole('button', { name: 'Lose' }))
+    expect(healthIs()).toBe('25 of 30 · Green')
+    await waitFor(async () => expect((await saved(store)).play?.defenses).toEqual([{ id: 'd3', value: 3, from: 'Unnamed hero' }]))
+    await userEvent.click(health.getByRole('button', { name: 'Remove Defend 3' }))
+    expect(health.queryByRole('list', { name: 'Defenses' })).not.toBeInTheDocument()
+    expect(health.queryByRole('button', { name: 'Take damage' })).not.toBeInTheDocument()
+  })
+
+  it('clears every defense at once', async () => {
+    const store = await setup((h) => {
+      h.play = { ...emptyPlay(), defenses: [{ id: 'd3', value: 3, from: 'Ally' }] }
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Clear defenses' }))
+    expect(screen.getByRole('region', { name: 'History' })).toHaveTextContent('Defenses cleared.')
+    await waitFor(async () => expect((await saved(store)).play).not.toHaveProperty('defenses'))
+  })
+
   it('follows the scene zone when it’s further along', async () => {
     const store = await setup()
     const zones = screen.getByRole('group', { name: 'Scene zone' })

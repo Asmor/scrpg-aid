@@ -24,12 +24,15 @@ import { outerLayer, secondaryLayer } from '../creation/layers'
 import { MinionList } from './MinionList'
 import { addMinion, addMinionMod, minionCreation, removeMinion, removeMinionMod, setMinionForm, shrinkMinion, recordMinionRoll } from './minions'
 import { ModForm } from './ModForm'
-import { confirmRoll, effectLineAction, rollChange, undoRoll, type RollChange } from './roll'
+import { confirmRoll, effectAmount, effectLineAction, rollChange, undoRoll, type RollChange } from './roll'
 import { RollDialog, type FormPicker, type RollSubject } from './RollDialog'
 import { parseTarget, targetId } from '../game/roll-targets'
 import { soloTable, targetOptions } from '../game/target-options'
 import {
   addMod,
+  clearHeroDefenses,
+  dropDefense,
+  gainDefense,
   modName,
   addTwist,
   currentHealth,
@@ -46,8 +49,10 @@ import {
   setReactionUsed,
   setSceneZone,
   statusDieFor,
+  takeDamage,
   type Clock,
 } from './state'
+import { defaultDefense, defenseText } from './defense'
 import { formatFull, formatWhen } from './time'
 import { useTick } from './useTick'
 
@@ -301,6 +306,10 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
     return { label: `Change ${noun} to`, current: form.key ?? '', options: forms.map((f) => ({ value: f.key ?? '', label: f.name, ...(formZoneNote(f, zone) ? { note: formZoneNote(f, zone) } : {}) })) }
   }
   const changeHealth = (by: number) => change((p, c) => setHealth(p, sheet, (currentHealth(sheet, p) ?? 0) + by, c))
+  const defenses = play.defenses ?? []
+  // Which defense a hit uses: the one picked, or the default for the amount (ruling 65).
+  const [defenseChoice, setDefenseChoice] = useState('')
+  const hitDefense = defenses.find((d) => d.id === defenseChoice) ?? defaultDefense(defenses, validAmount ? delta : 0)
   const ranges = sheet.healthRanges
 
   // The cards of the status column, the actions column, and the history, laid out as columns, or as tabs on a phone.
@@ -341,6 +350,11 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
                 Amount
               </label>
               <input id={`${formId}-amount`} className="play-amount" type="number" inputMode="numeric" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" />
+              {defenses.length > 0 && (
+                <button type="button" className="button" disabled={!validAmount} onClick={() => (change((p, c) => takeDamage(p, sheet, delta, c, hitDefense?.id)), setAmount(''), setDefenseChoice(''))}>
+                  Take damage
+                </button>
+              )}
               <button type="button" className="button" disabled={!validAmount} onClick={() => (changeHealth(-delta), setAmount(''))}>
                 Lose
               </button>
@@ -348,6 +362,39 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
                 Gain
               </button>
             </div>
+            {defenses.length > 0 && (
+              <div className="play-defenses">
+                <p className="label">Defenses</p>
+                <ul className="gt-chips" aria-label="Defenses">
+                  {defenses.map((d) => (
+                    <li key={d.id} className="gt-mod gt-defense">
+                      {defenseText(d, heroDisplayName(hero))}
+                      <button type="button" className="gt-chip-x" aria-label={`Remove ${defenseText(d, heroDisplayName(hero))}`} onClick={() => change((p, c) => dropDefense(p, d.id, c))}>
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {defenses.length > 1 && (
+                  <p className="play-defenses__use">
+                    <label htmlFor={`${formId}-defense`}>Take damage uses</label>{' '}
+                    <select id={`${formId}-defense`} value={hitDefense?.id ?? ''} onChange={(e) => setDefenseChoice(e.target.value)}>
+                      {defenses.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {defenseText(d, heroDisplayName(hero))}
+                        </option>
+                      ))}
+                    </select>
+                  </p>
+                )}
+                <p className="play-card__note">
+                  Take damage uses one; Lose doesn't. They're gone when your next turn starts.{' '}
+                  <button type="button" className="button button--small" onClick={() => (change((p, c) => clearHeroDefenses(p, c)), setDefenseChoice(''))}>
+                    Clear defenses
+                  </button>
+                </p>
+              </div>
+            )}
           </>
         )}
       </Card>
@@ -633,7 +680,7 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
           formPicker={rolling.kind === 'ability' ? formPickerFor(rolling.text) : undefined}
           creates={rolling.kind === 'ability' ? minionCreation(rolling.text) : undefined}
           minionForms={sheet.minionForms}
-          onConfirm={(record, followUps, formChoice, made = []) => {
+          onConfirm={(record, followUps, formChoice, made = [], choices = []) => {
             // A mod for one of the hero's own minions goes on it. (Solo Play has no one else to give one to.)
             let undo: RollChange | undefined
             let formBefore: Pick<PlayState, 'form' | 'dividedForm'> = {}
@@ -653,6 +700,11 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
                 else if (to?.kind === 'heroMinion') after = addMinionMod(after, to.minionId, f.mod, c)
               }
               for (const m of made) after = addMinion(after, m, c)
+              // A Defend for the hero (no target is someone outside the app): a defense they hold.
+              for (const ch of choices) {
+                const r = record.results[ch.result]
+                if (ch.to === '' && r?.action === 'defend' && r.total !== undefined) after = gainDefense(after, effectAmount(r.total), heroDisplayName(hero), c)
+              }
               undo = rollChange(p, after, record.title)
               return after
             })
@@ -681,7 +733,8 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
                 }),
             })
           }}
-          targetsFor={(effect, opts) => targetOptions({ kind: 'hero', id: hero.id }, effect, soloTable(hero, play), opts)}
+          // A Defend protects the hero or no one in the app: solo minions take no hits here.
+          targetsFor={(effect, opts) => targetOptions({ kind: 'hero', id: hero.id }, effect, soloTable(hero, effect === 'defend' ? {} : play), opts)}
           selfId={targetId({ kind: 'hero', id: hero.id })}
           pickTargets="mods"
           random={random}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildSheet } from '../creation/sheet'
 import { completeHero } from '../test/heroes'
-import { abilityAvailable, addMod, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, newIssue, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
+import { abilityAvailable, addMod, clearHeroDefenses, dropDefense, gainDefense, takeDamage, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, newIssue, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
 
 // completeHero: Max Health 30; Green 30–23, Yellow 22–12, Red 11–1; Lone Wolf d8/d8/d8.
 const sheet = buildSheet(completeHero())
@@ -143,5 +143,41 @@ describe('giving mods', () => {
     const play = noteGivenMod(emptyPlay(), { label: 'rallied', value: 2 }, 'Bolt', { now: new Date('2026-10-27T10:00:00Z'), newId: () => 'x' })
     expect(play.mods).toEqual([])
     expect(play.history.map((h) => h.text)).toEqual(["Gave '+2 rallied' bonus to Bolt."])
+  })
+})
+
+describe('defenses in solo play (ruling 65)', () => {
+  it('gains a defense from a Defend, none for 0', () => {
+    const c = clock()
+    const play = gainDefense(emptyPlay(), 5, 'Maya', c)
+    expect(play.defenses).toEqual([{ id: 'id1', value: 5, from: 'Maya' }])
+    expect(texts(play)).toEqual(['Gained a defense: Defend 5.'])
+    expect(gainDefense(play, 0, 'Maya', c)).toBe(play)
+  })
+
+  it('takes damage after one defense, the default or the one chosen', () => {
+    const c = clock()
+    const held = { ...emptyPlay(), defenses: [{ id: 'a', value: 3, from: '' }, { id: 'b', value: 10, from: '' }] }
+    let play = takeDamage(held, sheet, 8, c)
+    expect([currentHealth(sheet, play), play.defenses]).toEqual([25, [{ id: 'b', value: 10, from: '' }]])
+    expect(texts(play)).toEqual(['Took 8 damage (Defend 3 blocked 3, 5 taken).', 'Lost 5 HP (30 → 25).'])
+    play = takeDamage(held, sheet, 8, c, 'b')
+    expect(currentHealth(sheet, play)).toBe(30)
+    expect(texts(play)).toEqual(['Took 8 damage (Defend 10 blocked 8, 0 taken).'])
+    // Without defenses it's plain damage; a bad amount changes nothing.
+    expect(texts(takeDamage(emptyPlay(), sheet, 4, c))).toEqual(['Took 4 damage.', 'Lost 4 HP (30 → 26).'])
+    expect(takeDamage(held, sheet, 0, c)).toBe(held)
+  })
+
+  it('removes one defense, or clears them all', () => {
+    const c = clock()
+    const held = { ...emptyPlay(), defenses: [{ id: 'a', value: 3, from: '' }, { id: 'b', value: 10, from: '' }] }
+    const one = dropDefense(held, 'a', c)
+    expect([one.defenses, texts(one)]).toEqual([[{ id: 'b', value: 10, from: '' }], ['Removed a defense: Defend 3.']])
+    expect(dropDefense(held, 'gone', c)).toBe(held)
+    const none = clearHeroDefenses(held, c)
+    expect(none).not.toHaveProperty('defenses')
+    expect(texts(none)).toEqual(['Defenses cleared.'])
+    expect(clearHeroDefenses(emptyPlay(), c)).toEqual(emptyPlay())
   })
 })
