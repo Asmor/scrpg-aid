@@ -24,7 +24,6 @@ import { continueVillainStep, villainDraftText } from '../villain/wizard-steps'
 import { buildVillainSheet } from '../villain/sheet'
 import type { VillainStore } from '../villain/store'
 import type { TemplateStores } from '../template/store'
-import type { Die } from '../rules/types'
 import { TEMPLATE_TYPES } from './template-types'
 
 /** Every document in the library has these. */
@@ -52,10 +51,8 @@ export interface RowInfo {
   draft: boolean
   /** The Details column: "Speedster · Accident", or a draft's step. */
   details: string
-  /** A die shown as an icon before the details on phones (a minion's or lieutenant's starting die). */
-  detailsDie?: Die
   /**
-   * The kind shown after the type on desktop, "Villain (Major)" or "Minion (d8)"
+   * The kind shown after the type at every size, "Villain (Major)" or "Minion (d8)"
    * (docs/design/library/spec.md, section 4, the spec's kindLabel). Unset when the type has none.
    */
   kind?: string
@@ -168,13 +165,13 @@ export const villainType: LibraryType<Villain> = {
       return { name, named, draft: true, details: villainDraftText(villain.furthestStep), openHref: villainPath(villain.id), primary: { label: 'Continue', href }, editHref: href }
     }
     const sheet = buildVillainSheet(villain)
-    const kind = [sheet.approach, sheet.archetype].filter(Boolean).join(' ')
+    const archetype = [sheet.approach, sheet.archetype].filter(Boolean).join(' ')
     const first = sheet.warnings[0]
     return {
       name,
       named,
       draft: false,
-      details: kind ? `${kind} · ${sheet.major ? 'Major' : 'Minor'}` : '',
+      details: archetype,
       kind: sheet.major ? 'Major' : 'Minor',
       ...(first ? { issues: { count: sheet.warnings.length, href: villainEditPath(villain.id, first.step) } } : {}),
       openHref: villainPath(villain.id),

@@ -25,7 +25,7 @@ interface TemplateTypeSpec<D> {
   store: (stores: TemplateStores) => DocStore<D>
   envelope: DocEnvelope<D>
   create: () => D
-  details: (doc: D) => Pick<RowInfo, 'details' | 'detailsDie' | 'kind'>
+  details: (doc: D) => Pick<RowInfo, 'details' | 'kind'>
 }
 
 function templateType<D extends TemplateBase>(spec: TemplateTypeSpec<D>): LibraryType<D> {
@@ -66,8 +66,8 @@ export const minionTemplateType = templateType<MinionTemplate>({
   store: (s) => s.minions,
   envelope: minionTemplateEnvelope,
   create: () => createMinionTemplate(),
-  // "[d8] Attack or Hinder · groups of 4"
-  details: (m) => ({ detailsDie: m.die, kind: m.die, details: `${actionsText(m)} · groups of ${m.groupSize}` }),
+  // "Minion (d8)", then "Attack or Hinder · groups of 4"
+  details: (m) => ({ kind: m.die, details: `${actionsText(m)} · groups of ${m.groupSize}` }),
 })
 
 export const lieutenantTemplateType = templateType<LieutenantTemplate>({
@@ -78,8 +78,8 @@ export const lieutenantTemplateType = templateType<LieutenantTemplate>({
   store: (s) => s.lieutenants,
   envelope: lieutenantTemplateEnvelope,
   create: () => createLieutenantTemplate(),
-  // "[d10] 2 abilities"
-  details: (l) => ({ detailsDie: l.die, kind: l.die, details: plural(l.abilities.length, 'ability', 'abilities') }),
+  // "Lieutenant (d10)", then "2 abilities"
+  details: (l) => ({ kind: l.die, details: plural(l.abilities.length, 'ability', 'abilities') }),
 })
 
 export const challengeTemplateType = templateType<ChallengeTemplate>({

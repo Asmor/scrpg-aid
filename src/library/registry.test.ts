@@ -89,7 +89,7 @@ describe('hero rows', () => {
 describe('villain rows', () => {
   it('shows approach archetype · category and Play, and nothing from play', () => {
     const row = villainType.row(adaptiveBruiser())
-    expect(row).toEqual({ name: 'Ironclad', named: true, draft: false, details: 'Adaptive Bruiser · Minor', kind: 'Minor', openHref: '#/villain/v1', primary: { label: 'Play', href: '#/villain/v1/play' }, editHref: '#/villain/v1/edit' })
+    expect(row).toEqual({ name: 'Ironclad', named: true, draft: false, details: 'Adaptive Bruiser', kind: 'Minor', openHref: '#/villain/v1', primary: { label: 'Play', href: '#/villain/v1/play' }, editHref: '#/villain/v1/edit' })
   })
 
   it('counts issues, linking to the first step with one', () => {

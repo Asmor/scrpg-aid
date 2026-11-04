@@ -57,11 +57,13 @@ afterEach(() => {
 })
 
 describe('the library on a phone', () => {
-  it('lists rows with type, details, status and tag X’s, but no tag filter shortcut', async () => {
+  it('lists rows with type, kind, details, status and tag X’s, but no tag filter shortcut', async () => {
     await setup()
     expect(rows()).toHaveLength(3)
     const maya = rowFor('Maya Reyes')
     expect(maya.getByText('Hero · Speedster · Accident')).toBeInTheDocument()
+    // A villain's Major or Minor follows its type at every size.
+    expect(rowFor('Ironclad').getByText('Villain (Minor) · Adaptive Bruiser')).toBeInTheDocument()
     expect(maya.getByRole('button', { name: 'Remove thursday-game from Maya Reyes' })).toBeInTheDocument()
     expect(maya.queryByRole('button', { name: 'Filter by thursday-game' })).not.toBeInTheDocument()
     expect(maya.getByRole('link', { name: 'Play Maya Reyes' })).toBeInTheDocument()

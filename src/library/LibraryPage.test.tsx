@@ -131,9 +131,9 @@ describe('the library table', () => {
     expect(rowElement('Unnamed hero').querySelector('.library-games')).toBeNull()
     expect(draft.getByRole('link', { name: 'Continue Unnamed hero' })).toHaveAttribute('href', '#/hero/d/edit/power-source')
 
-    expect(row('Gravelord').getByText('Adaptive Bruiser · Minor')).toBeInTheDocument()
+    expect(row('Gravelord').getByText('Adaptive Bruiser')).toBeInTheDocument()
     // Details clamp to two lines, with the full text in title.
-    expect(row('Gravelord').getByText('Adaptive Bruiser · Minor')).toHaveAttribute('title', 'Adaptive Bruiser · Minor')
+    expect(row('Gravelord').getByText('Adaptive Bruiser')).toHaveAttribute('title', 'Adaptive Bruiser')
     // The kind follows the type: "Villain (Minor)"; heroes and drafts have none.
     expect(row('Gravelord').getByText('Villain').closest('.library-type')).toHaveTextContent('Villain (Minor)')
     expect(maya.getByText('Hero').closest('.library-type')).toHaveTextContent(/^Hero$/)
