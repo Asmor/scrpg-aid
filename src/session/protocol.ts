@@ -10,13 +10,14 @@
 import type { HeroAction } from '../game/actions'
 import { VIEW_HISTORY, type TableView } from '../game/project'
 import type { Hero } from '../hero/model'
+import type { Appearance } from '../colors/palette'
 import { normalizeRoomCode } from './code'
 import { appearanceShape, charColor } from '../colors/validate'
 import { die, heroShape, playStateShape } from '../hero/validate'
 import { groupActions } from '../game/validate'
 import { arrayOf, boolean, integer, isRecord, nonEmptyString, object, oneOf, type Check } from '../shape'
 
-export const PROTOCOL_VERSION = 9
+export const PROTOCOL_VERSION = 10
 
 /** The most observers a game takes (section 10). */
 export const OBSERVER_LIMIT = 20
@@ -34,13 +35,15 @@ export const VIEW_FEED = 200
 
 export type ClientMessage =
   /** `gameId` when reconnecting a saved game: the GM checks the code and the game match. */
-  | { v: 9; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero; gameId?: string }
-  | { v: 9; type: 'hello'; role: 'observer'; clientId: string; screenName: string }
-  | { v: 9; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
-  | { v: 9; type: 'syncRequest'; heroId: string; sheet: Hero }
-  | { v: 9; type: 'syncCancel'; heroId: string }
+  | { v: 10; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero; gameId?: string }
+  | { v: 10; type: 'hello'; role: 'observer'; clientId: string; screenName: string }
+  | { v: 10; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
+  | { v: 10; type: 'syncRequest'; heroId: string; sheet: Hero }
+  | { v: 10; type: 'syncCancel'; heroId: string }
+  /** A player's colors, applied at once: they're cosmetic, so they skip the GM's review (docs/design/character-colors/spec.md, section 6). */
+  | { v: 10; type: 'appearance'; heroId: string; appearance?: Appearance }
   /** What a player did about a back issue, for the GM's list (docs/design/issues/spec.md, section 3). Only ever information. */
-  | { v: 9; type: 'issueAck'; issueId: string; heroId: string; status: 'added' | 'later'; count?: number }
+  | { v: 10; type: 'issueAck'; issueId: string; heroId: string; status: 'added' | 'later'; count?: number }
 
 /** Who a state message is for: a player's own hero in the game, and when it first joined. */
 export interface YouAre {
@@ -49,18 +52,18 @@ export interface YouAre {
 }
 
 export type HostMessage =
-  | { v: 9; type: 'state'; room: string; version: number; table: TableView; gm: string; you?: YouAre }
+  | { v: 10; type: 'state'; room: string; version: number; table: TableView; gm: string; you?: YouAre }
   /** `notes`: lines for the player as toasts (a save against their Attack). */
-  | { v: 9; type: 'result'; id: string; ok: true; notes?: string[] }
-  | { v: 9; type: 'result'; id: string; ok: false; reason: string }
-  | { v: 9; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
-  | { v: 9; type: 'refused'; reason: RefusedReason }
+  | { v: 10; type: 'result'; id: string; ok: true; notes?: string[] }
+  | { v: 10; type: 'result'; id: string; ok: false; reason: string }
+  | { v: 10; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
+  | { v: 10; type: 'refused'; reason: RefusedReason }
   /** The GM got a new code for the game: kept peers move to it (docs/design/game-table/game-table-spec-addendum-game-codes.md). */
-  | { v: 9; type: 'codeChanged'; code: string }
+  | { v: 10; type: 'codeChanged'; code: string }
   /** The GM removed this peer from the game (Remove, or left behind by a new code). */
-  | { v: 9; type: 'removed'; reason?: string }
+  | { v: 10; type: 'removed'; reason?: string }
   /** The GM is about to start the next issue, and this player's hero has hero points left. */
-  | { v: 9; type: 'spendReminder' }
+  | { v: 10; type: 'spendReminder' }
 
 /**
  * Why the GM's device won't take a peer: another version of the app, a full game, the hero is
@@ -137,6 +140,7 @@ const ACTIONS: Record<HeroAction['kind'], Check> = {
   minionMod: object({ minionId: id, mod: modInput }),
   removeMinionMod: object({ minionId: id, modId: id }),
   chooseDefense: object({ hitId: id, defenseId: id }),
+  minionColor: object({ minionId: id, 'color?': charColor }),
   minionRoll: object({ minionId: id, roll: object({ action: basicAction, value: range(1, 12), mods: list(mod, 20), 'entered?': oneOf(true) }) }),
   minionForm: object({ minionId: id, form: text(MAX_NAME) }),
   handOff: object({ to: actor }),
@@ -157,6 +161,7 @@ const CLIENT: Record<string, Check> = {
   action: object({ id, heroId: id, action: heroAction, basedOn: integer }),
   syncRequest: object({ heroId: id, sheet: heroShape }),
   syncCancel: object({ heroId: id }),
+  appearance: object({ heroId: id, 'appearance?': appearanceShape }),
   issueAck: object({ issueId: id, heroId: id, status: oneOf('added', 'later'), 'count?': range(0, 6) }),
 }
 

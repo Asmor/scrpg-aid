@@ -9,6 +9,9 @@ import { useId, useState } from 'react'
 import { ActionIcon, DieIcon } from '../components/icons'
 import type { PlayMinion, PlayMod } from '../hero/model'
 import { DicePad } from '../components/DicePad'
+import { ColorSelect } from '../colors/ColorSelect'
+import { appearanceOf, type CharColor } from '../colors/palette'
+import { CharSwatch } from '../components/CharBand'
 import { rollDie } from '../rules/rolling'
 import { useSettings } from '../settings/context'
 import type { BasicAction, Die, MinionForm } from '../rules/types'
@@ -178,6 +181,9 @@ interface MinionListProps {
   onAddMod: (id: string, mod: Omit<PlayMod, 'id'>) => void
   onRemoveMod: (id: string, modId: string) => void
   onUse: (id: string, roll: MinionRoll) => void
+  /** The hero's primary: a minion's color unless it has its own. */
+  heroColor?: CharColor
+  onColor?: (id: string, color: CharColor | undefined) => void
   /** Picks a current form for a minion whose form left the sheet. */
   onPickForm?: (id: string, form: string) => void
   random?: () => number
@@ -208,7 +214,7 @@ function PickForm({ minion, forms, onPick }: { minion: PlayMinion; forms: readon
   )
 }
 
-export function MinionList({ minions, forms, onAdd, onRemove, onShrink, onAddMod, onRemoveMod, onUse, onPickForm, random }: MinionListProps) {
+export function MinionList({ heroColor = 'blue', onColor, minions, forms, onAdd, onRemove, onShrink, onAddMod, onRemoveMod, onUse, onPickForm, random }: MinionListProps) {
   const [usingId, setUsing] = useState<string | null>(null)
   const [moddingId, setModdingFor] = useState<string | null>(null)
   // A minion removed (or shrunk away) while its roll or mod form was open leaves nothing open.
@@ -224,6 +230,7 @@ export function MinionList({ minions, forms, onAdd, onRemove, onShrink, onAddMod
           {minions.map((m) => (
             <li key={m.id} className="minion-row">
               <div className="minion-row__top">
+                <CharSwatch appearance={appearanceOf({ kind: 'heroMinion', color: m.color, heroPrimary: heroColor })} />
                 <DieIcon die={m.die} />
                 <strong>{m.name}</strong>
                 {m.form && <span className="tag">{m.needsForm ? `${m.form} (gone)` : m.form}</span>}
@@ -256,6 +263,7 @@ export function MinionList({ minions, forms, onAdd, onRemove, onShrink, onAddMod
                   }}
                 />
               )}
+              {onColor && <ColorSelect label={`Color of ${m.name}`} value={m.color} unset={{ label: "Hero's color", color: heroColor }} onChange={(c) => onColor(m.id, c)} />}
               {m.needsForm && <PickForm minion={m} forms={forms} {...(onPickForm ? { onPick: (form: string) => onPickForm(m.id, form) } : {})} />}
               <div className="button-row">
                 <button type="button" className="button button--small" aria-label={`Use ${m.name}`} disabled={Boolean(m.needsForm) || (using !== null && using !== m.id)} onClick={() => setUsing(m.id)}>

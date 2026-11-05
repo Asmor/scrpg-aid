@@ -71,6 +71,16 @@ describe('the template library rows', () => {
 })
 
 describe('the template editors', () => {
+  it('choose a color, or go back to the side\'s', async () => {
+    const t = await setup('#/minion/m', async (s) => s.minions.save(createMinionTemplate({ id: 'm' })))
+    const color = await screen.findByRole('group', { name: 'Color' })
+    expect(within(color).getByRole('radio', { name: 'By side' })).toBeChecked()
+    await userEvent.click(within(color).getByRole('radio', { name: 'Pink' }))
+    await waitFor(async () => expect(await saved(() => t.minions.get('m'))).toMatchObject({ color: 'pink' }))
+    await userEvent.click(within(color).getByRole('radio', { name: 'By side' }))
+    await waitFor(async () => expect(await saved(() => t.minions.get('m'))).not.toHaveProperty('color'))
+  })
+
   it('edit a minion: name, die, group size, actions and notes, saving as they go', async () => {
     const t = await setup('#/minion/m', async (s) => s.minions.save(createMinionTemplate({ id: 'm' })))
     await userEvent.click(await screen.findByRole('button', { name: /Rename minion/ }))

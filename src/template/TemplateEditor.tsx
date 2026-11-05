@@ -4,6 +4,7 @@
  * is renamed from the header, every change saves straight away, and Revert changes puts the
  * template back as it was when the page opened. No steps.
  */
+import { SingleColorPicker } from '../colors/ColorPicker'
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { listPath, navigate, templatePath } from '../app/route'
 import { useTemplateStores } from '../app/template-store-context'
@@ -515,6 +516,16 @@ export function TemplateEditor({ kind, id }: { kind: TemplateKind; id: string })
         </button>
       </div>
       <section className="editor-step template-fields" aria-label={KIND_LABEL[kind]}>
+        <SingleColorPicker
+          item={kind === 'environment' ? { kind: 'environment', color: doc.color } : kind === 'challenge' ? { kind: 'challenge', color: doc.color } : { kind: 'group', color: doc.color }}
+          name={templateName(doc, kind)}
+          onChange={(color) =>
+            update((d) => {
+              if (color) d.color = color
+              else delete d.color
+            })
+          }
+        />
         {kind === 'challenge' ? (
           <ChallengeFields doc={doc as ChallengeTemplate} update={update as Update<ChallengeTemplate>} />
         ) : kind === 'environment' ? (

@@ -33,10 +33,10 @@ export type FoundAttached = { kind: 'minion'; doc: MinionTemplate } | { kind: 'l
 function attachedCopy(found: FoundAttached): AttachedOnTable {
   if (found.kind === 'challenge') {
     const { doc } = found
-    return { kind: 'challenge', templateId: doc.id, name: doc.name.trim() || 'Challenge', labels: doc.steps.map((s) => s.label), ...(doc.description.trim() ? { description: doc.description } : {}), ...(doc.done.trim() ? { whenDone: doc.done } : {}) }
+    return { ...(doc.color ? { color: doc.color } : {}), kind: 'challenge', templateId: doc.id, name: doc.name.trim() || 'Challenge', labels: doc.steps.map((s) => s.label), ...(doc.description.trim() ? { description: doc.description } : {}), ...(doc.done.trim() ? { whenDone: doc.done } : {}) }
   }
   const { kind, doc } = found
-  return { kind, templateId: doc.id, name: doc.name.trim() || (kind === 'minion' ? 'Minions' : 'Lieutenants'), die: doc.die, actions: doc.actions === 'any' ? 'any' : [...doc.actions], groupSize: doc.groupSize }
+  return { ...(doc.color ? { color: doc.color } : {}), kind, templateId: doc.id, name: doc.name.trim() || (kind === 'minion' ? 'Minions' : 'Lieutenants'), die: doc.die, actions: doc.actions === 'any' ? 'any' : [...doc.actions], groupSize: doc.groupSize }
 }
 
 /** What an environment template brings in: copies of its aspects, twists and attached templates. Hidden unless the caller says otherwise. */
@@ -45,6 +45,7 @@ export function environmentFromTemplate(t: EnvironmentTemplate, attached: readon
     templateId: t.id,
     name: t.name,
     hidden: true,
+    ...(t.color ? { color: t.color } : {}),
     ...(t.description.trim() ? { description: t.description } : {}),
     aspects: t.aspects.map((a) => ({ ...a })),
     twists: t.twists.map((tw) => ({ ...tw })),
@@ -149,9 +150,9 @@ export const attachedChallengeCount = (game: Pick<Game, 'challenges'>, templateI
 export function addAttached(game: Game, index: number, count: number, clock: Clock): Game {
   const a = game.environment?.attached?.[index]
   if (!a || !Number.isInteger(count) || count < 1) return game
-  if (a.kind === 'challenge') return addChallenge(game, { name: a.name, steps: a.labels.length, labels: a.labels, hidden: false, templateId: a.templateId, owner: { kind: 'environment' }, ...(a.description ? { description: a.description } : {}), ...(a.whenDone ? { whenDone: a.whenDone } : {}) }, clock)
+  if (a.kind === 'challenge') return addChallenge(game, { ...(a.color ? { color: a.color } : {}), name: a.name, steps: a.labels.length, labels: a.labels, hidden: false, templateId: a.templateId, owner: { kind: 'environment' }, ...(a.description ? { description: a.description } : {}), ...(a.whenDone ? { whenDone: a.whenDone } : {}) }, clock)
   const existing = attachedGroup(game, a)
-  if (!existing) return addGroup(game, { kind: groupKind(a), name: a.name, die: a.die, count: Math.min(count, MAX_GROUP_SIZE), hidden: false, actions: a.actions, templateId: a.templateId, owner: { kind: 'environment' } }, clock)
+  if (!existing) return addGroup(game, { ...(a.color ? { color: a.color } : {}), kind: groupKind(a), name: a.name, die: a.die, count: Math.min(count, MAX_GROUP_SIZE), hidden: false, actions: a.actions, templateId: a.templateId, owner: { kind: 'environment' } }, clock)
   const room = Math.min(count, MAX_GROUP_SIZE - existing.members.length)
   if (room < 1) return game
   const start = Math.max(0, ...existing.members.map((m) => m.n))

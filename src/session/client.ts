@@ -11,6 +11,7 @@
 import type { HeroAction } from '../game/actions'
 import type { Hero } from '../hero/model'
 import { HostLink, type LinkSnapshot, type OtherHostMessage, type Received } from './link'
+import type { Appearance } from '../colors/palette'
 import { PROTOCOL_VERSION, type ClientMessage } from './protocol'
 import type { Connect } from './transport'
 import { heroShape } from '../hero/validate'
@@ -136,6 +137,14 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
     if (!this.live || !heroId) return false
     this.toGm({ v: PROTOCOL_VERSION, type: 'syncCancel', heroId } satisfies ClientMessage)
     this.setSyncWaiting(false)
+    return true
+  }
+
+  /** Tells the GM this hero's colors; they apply at once. */
+  sendAppearance(appearance: Appearance | undefined): boolean {
+    const heroId = this.heroId
+    if (!this.live || !heroId) return false
+    this.toGm({ v: PROTOCOL_VERSION, type: 'appearance', heroId, ...(appearance ? { appearance } : {}) } satisfies ClientMessage)
     return true
   }
 

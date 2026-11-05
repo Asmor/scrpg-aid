@@ -4,6 +4,8 @@
  */
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Modal } from '../components/Modal'
+import { ColorSelect } from '../colors/ColorSelect'
+import { SIDE_COLOR, type CharColor } from '../colors/palette'
 import { useSettings } from '../settings/context'
 import type { PlayMod, PlayTwist } from '../hero/model'
 import { ModForm } from '../play/ModForm'
@@ -68,16 +70,17 @@ function SaveBox({ value, onChange }: { value: boolean; onChange: (v: boolean) =
 }
 
 /** + Minion or + Lieutenant: one group whose members all have the same die. */
-export function AddGroupDialog({ kind, onAdd, onClose, canSave = false, submit = 'Add to table' }: { kind: NpcGroup['kind']; onAdd: (group: { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean }, save: boolean) => void; onClose: () => void; canSave?: boolean; submit?: string }) {
+export function AddGroupDialog({ kind, onAdd, onClose, canSave = false, submit = 'Add to table' }: { kind: NpcGroup['kind']; onAdd: (group: { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean; color?: CharColor }, save: boolean) => void; onClose: () => void; canSave?: boolean; submit?: string }) {
   const [save, setSave] = useState(false)
   const [name, setName] = useState('')
   const [die, setDie] = useState<Die>(kind === 'minions' ? 'd6' : 'd8')
   const [count, setCount] = useState('3')
   const [hidden, setHidden] = useState(useSettings().settings.newGame.startHidden)
+  const [color, setColor] = useState<CharColor | undefined>()
   const n = whole(count, 1, MAX_GROUP_SIZE)
   return (
     <Modal title={kind === 'minions' ? 'Add minions' : 'Add lieutenants'} onClose={onClose}>
-      <form className="gt-form" onSubmit={submitWith(() => n !== undefined && (onAdd({ kind, name, die, count: n, hidden }, save), onClose()))}>
+      <form className="gt-form" onSubmit={submitWith(() => n !== undefined && (onAdd({ kind, name, die, count: n, hidden, ...(color ? { color } : {}) }, save), onClose()))}>
         <Field label="Name">{(id) => <input id={id} type="text" value={name} placeholder={kind === 'minions' ? 'Minions' : 'Lieutenants'} onChange={(e) => setName(e.target.value)} />}</Field>
         <div className="gt-form__pair">
           <Field label="Die">
@@ -94,6 +97,7 @@ export function AddGroupDialog({ kind, onAdd, onClose, canSave = false, submit =
           <Field label="How many">{(id) => <input id={id} type="number" inputMode="numeric" min={1} max={MAX_GROUP_SIZE} value={count} onChange={(e) => setCount(e.target.value)} />}</Field>
         </div>
         {n === undefined && <p className="error">How many should be 1 to {MAX_GROUP_SIZE}.</p>}
+        <ColorSelect value={color} unset={{ label: 'By side', color: SIDE_COLOR.gm }} onChange={setColor} />
         <HiddenBox value={hidden} onChange={setHidden} />
         {canSave && <SaveBox value={save} onChange={setSave} />}
         <Actions submit={submit} onCancel={onClose} disabled={n === undefined} />
@@ -103,16 +107,17 @@ export function AddGroupDialog({ kind, onAdd, onClose, canSave = false, submit =
 }
 
 /** `environment` names the game's environment, which it can belong to; `owned` starts it checked. */
-export function AddChallengeDialog({ onAdd, onClose, canSave = false, submit = 'Add to table', environment, owned = false }: { onAdd: (challenge: { name: string; steps: number; hidden: boolean; owner: Challenge['owner'] }, save: boolean) => void; onClose: () => void; canSave?: boolean; submit?: string; environment?: string | undefined; owned?: boolean }) {
+export function AddChallengeDialog({ onAdd, onClose, canSave = false, submit = 'Add to table', environment, owned = false }: { onAdd: (challenge: { name: string; steps: number; hidden: boolean; owner: Challenge['owner']; color?: CharColor }, save: boolean) => void; onClose: () => void; canSave?: boolean; submit?: string; environment?: string | undefined; owned?: boolean }) {
   const [belongs, setBelongs] = useState(owned)
   const [save, setSave] = useState(false)
   const [name, setName] = useState('')
   const [steps, setSteps] = useState('3')
   const [hidden, setHidden] = useState(useSettings().settings.newGame.startHidden)
+  const [color, setColor] = useState<CharColor | undefined>()
   const n = whole(steps, 1, MAX_STEPS)
   return (
     <Modal title="Add a challenge" onClose={onClose}>
-      <form className="gt-form" onSubmit={submitWith(() => n !== undefined && (onAdd({ name, steps: n, hidden, owner: { kind: environment && belongs ? 'environment' : 'gm' } }, save), onClose()))}>
+      <form className="gt-form" onSubmit={submitWith(() => n !== undefined && (onAdd({ ...(color ? { color } : {}), name, steps: n, hidden, owner: { kind: environment && belongs ? 'environment' : 'gm' } }, save), onClose()))}>
         <Field label="Name">{(id) => <input id={id} type="text" value={name} placeholder="Challenge" onChange={(e) => setName(e.target.value)} />}</Field>
         <Field label="Number of steps">{(id) => <input id={id} type="number" inputMode="numeric" min={1} max={MAX_STEPS} value={steps} onChange={(e) => setSteps(e.target.value)} />}</Field>
         {n === undefined && <p className="error">Steps should be 1 to {MAX_STEPS}.</p>}
@@ -122,6 +127,7 @@ export function AddChallengeDialog({ onAdd, onClose, canSave = false, submit = '
             Belongs to {environment}
           </label>
         )}
+        <ColorSelect value={color} unset={{ label: 'By side', color: environment && belongs ? SIDE_COLOR.environment : SIDE_COLOR.gm }} onChange={setColor} />
         <HiddenBox value={hidden} onChange={setHidden} />
         {canSave && <SaveBox value={save} onChange={setSave} />}
         <Actions submit={submit} onCancel={onClose} disabled={n === undefined} />

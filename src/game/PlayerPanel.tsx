@@ -22,6 +22,7 @@ import { MinionList } from '../play/MinionList'
 import { minionCreation } from '../play/minions'
 import { ModForm } from '../play/ModForm'
 import { RollDialog, type FormPicker, type RollSubject } from '../play/RollDialog'
+import { appearanceOf } from '../colors/palette'
 import { currentHealth, describeMod, effectiveZone, heroPointCount, modName, statusDieFor } from '../play/state'
 import type { PendingAction } from '../session/client'
 import type { HeroAction } from './actions'
@@ -349,6 +350,8 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
                 onAdd={(minion) => act({ kind: 'makeMinion', minion })}
                 onRemove={(minionId) => act({ kind: 'removeMinion', minionId })}
                 onShrink={(minionId) => act({ kind: 'shrinkMinion', minionId })}
+                heroColor={appearanceOf({ kind: 'hero', appearance: hero.sheet.appearance }).primary}
+                onColor={(minionId, color) => act({ kind: 'minionColor', minionId, ...(color ? { color } : {}) })}
                 onAddMod={(minionId, mod) => act({ kind: 'minionMod', minionId, mod })}
                 onRemoveMod={(minionId, modId) => act({ kind: 'removeMinionMod', minionId, modId })}
                 onUse={(minionId, roll) => act({ kind: 'minionRoll', minionId, roll })}

@@ -89,6 +89,18 @@ describe('applying a player action', () => {
     expect(apply(g, maya, { kind: 'addTwist', twist: { kind: 'minor', text: '  ' } }).ok).toBe(false)
   })
 
+  it('sets a minion\'s color, with no history line', () => {
+    const { g, maya } = table()
+    const withMinion = { ...g, heroes: g.heroes.map((h) => (h.id === maya ? { ...h, play: { ...h.play, minions: [{ id: 'm', name: 'Bolt', die: 'd6' as const, action: 'attack' as const, mods: [] }] } } : h)) }
+    const r = apply(withMinion, maya, { kind: 'minionColor', minionId: 'm', color: 'pink' })
+    if (!r.ok) throw new Error(r.reason)
+    expect(hero(r.game, maya).play.minions![0]!.color).toBe('pink')
+    expect(hero(r.game, maya).play.history).toEqual(hero(withMinion, maya).play.history)
+    const back = apply(r.game, maya, { kind: 'minionColor', minionId: 'm' })
+    expect(back.ok && hero(back.game, maya).play.minions![0]).not.toHaveProperty('color')
+    expect(apply(r.game, maya, { kind: 'minionColor', minionId: 'nope', color: 'pink' })).toEqual({ ok: false, reason: 'that minion is already gone' })
+  })
+
   it('marks the reaction used', () => {
     const { g, maya } = table()
     const r = apply(g, maya, { kind: 'reaction', used: true })

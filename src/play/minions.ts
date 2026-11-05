@@ -10,6 +10,7 @@
  *   (ruling 61); the hero's mods don't apply.
  * - Shrinking below the smallest die removes it.
  */
+import type { CharColor } from '../colors/palette'
 import { archetypesById } from '../rules/data'
 import { stepDie } from '../rules/dice'
 import type { BasicAction, Die, EffectUse } from '../rules/types'
@@ -124,6 +125,18 @@ export interface MinionRoll {
   mods: readonly PlayMod[]
   /** The number came from physical dice. */
   entered?: boolean
+}
+
+/** A minion's color; unset goes back to the hero's primary. Cosmetic, so it isn't in the history. */
+export function setMinionColor(play: PlayState, id: string, color: CharColor | undefined): PlayState {
+  return {
+    ...play,
+    minions: minionsOf(play).map((m) => {
+      if (m.id !== id) return m
+      const { color: _, ...rest } = m
+      return color ? { ...rest, color } : rest
+    }),
+  }
 }
 
 /** The roll's total: the die plus the mods (the effect is never below 0, ruling 61). */

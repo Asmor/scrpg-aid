@@ -7,6 +7,7 @@
  * them, names included, comes from the game itself, and the game's state changes directly: a
  * turn starting clears that character's reaction, and the GM's edits change the game's copy.
  */
+import type { Appearance, CharColor } from '../colors/palette'
 import { nameList } from './names'
 import { stepDie } from '../rules/dice'
 import type { Die, Zone } from '../rules/types'
@@ -272,7 +273,7 @@ export function newVillainCopy(villain: Villain, hidden: boolean, heroCount: num
 const GROUP_WORD = { minions: ['minion', 'minions'], lieutenants: ['lieutenant', 'lieutenants'] } as const
 
 /** What a group is made from: quick add, or a template. */
-export type GroupSpec = { kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean; actions?: NpcGroup['actions']; templateId?: string; owner?: NpcGroup['owner']; abilities?: readonly TemplateAbility[] }
+export type GroupSpec = { color?: CharColor; kind: NpcGroup['kind']; name: string; die: Die; count: number; hidden: boolean; actions?: NpcGroup['actions']; templateId?: string; owner?: NpcGroup['owner']; abilities?: readonly TemplateAbility[] }
 
 /** A new group whose members all start with the same die; undefined if the count is out of range. */
 export function newGroup(group: GroupSpec, clock: Clock): NpcGroup | undefined {
@@ -282,7 +283,7 @@ export function newGroup(group: GroupSpec, clock: Clock): NpcGroup | undefined {
   const members = Array.from({ length: group.count }, (_, i) => ({ id: clock.newId(), n: i + 1, die: group.die, mods: [], acted: false }))
   const actions = group.actions === undefined || group.actions === 'any' ? 'any' : [...group.actions]
   const abilities = (group.abilities ?? []).slice(0, MAX_ABILITIES).map((a) => ({ name: a.name.trim().slice(0, MAX_NAME), type: a.type, text: a.text.slice(0, MAX_TEXT), ...(a.saveBonus ? { saveBonus: a.saveBonus } : {}) }))
-  return { id: clock.newId(), ...(group.templateId ? { templateId: group.templateId } : {}), kind: group.kind, name, hidden: group.hidden, owner: group.owner ?? { kind: 'gm' }, actions, ...(abilities.length ? { abilities } : {}), members }
+  return { id: clock.newId(), ...(group.color ? { color: group.color } : {}), ...(group.templateId ? { templateId: group.templateId } : {}), kind: group.kind, name, hidden: group.hidden, owner: group.owner ?? { kind: 'gm' }, actions, ...(abilities.length ? { abilities } : {}), members }
 }
 
 /** Quick add, or a template brought in (docs/design/npcs/spec.md, section 3): a group on the table. */
@@ -295,7 +296,7 @@ export function addGroup(game: Game, group: GroupSpec, clock: Clock): Game {
 }
 
 /** What a challenge is made from: quick add, or a template. */
-export type ChallengeSpec = { name: string; steps: number; hidden: boolean; labels?: readonly string[]; description?: string; whenDone?: string; templateId?: string; owner?: Challenge['owner'] }
+export type ChallengeSpec = { color?: CharColor; name: string; steps: number; hidden: boolean; labels?: readonly string[]; description?: string; whenDone?: string; templateId?: string; owner?: Challenge['owner'] }
 
 /** A new challenge; undefined if the number of steps is out of range. */
 export function newChallenge(challenge: ChallengeSpec, clock: Clock): Challenge | undefined {
@@ -303,6 +304,7 @@ export function newChallenge(challenge: ChallengeSpec, clock: Clock): Challenge 
   const name = challenge.name.trim().slice(0, MAX_NAME) || 'Challenge'
   return {
     id: clock.newId(),
+    ...(challenge.color ? { color: challenge.color } : {}),
     ...(challenge.templateId ? { templateId: challenge.templateId } : {}),
     name,
     hidden: challenge.hidden,
@@ -426,6 +428,33 @@ export function setHidden(game: Game, ref: ItemRef, hidden: boolean, clock: Cloc
   return log(syncTurnOrder(next), clock, hidden ? `The GM hid ${name} from players.` : `The GM revealed ${name}.`, { gmOnly: hidden })
 }
 
+/** A group's, challenge's or the environment's color in this game; unset goes back to its side's. */
+export function setItemColor(game: Game, ref: ItemRef, color: CharColor | undefined): Game {
+  const paint = <T extends { color?: CharColor }>(item: T): T => {
+    const { color: _, ...rest } = item
+    return (color ? { ...rest, color } : rest) as T
+  }
+  switch (ref.kind) {
+    case 'group':
+      return { ...game, groups: game.groups.map((g) => (g.id === ref.id ? paint(g) : g)) }
+    case 'challenge':
+      return { ...game, challenges: game.challenges.map((c) => (c.id === ref.id ? paint(c) : c)) }
+    case 'environment':
+      return game.environment?.id === ref.id ? { ...game, environment: paint(game.environment) } : game
+    default:
+      return game
+  }
+}
+
+/** A villain's colors in this game, at once; a player's hero's when their device says so. Nothing is logged: they're cosmetic. */
+export function setCharacterColors(game: Game, ref: { kind: 'hero' | 'villain'; id: string }, appearance: Appearance | undefined): Game {
+  const paint = <T extends { sheet: { appearance?: Appearance } }>(copy: T): T => {
+    const { appearance: _, ...sheet } = copy.sheet
+    return { ...copy, sheet: appearance ? { ...sheet, appearance } : sheet }
+  }
+  return ref.kind === 'hero' ? { ...game, heroes: game.heroes.map((h) => (h.id === ref.id ? paint(h) : h)) } : { ...game, villains: game.villains.map((v) => (v.id === ref.id ? paint(v) : v)) }
+}
+
 /** What players see of a villain. */
 export function setPlayersSee(game: Game, villainId: string, playersSee: PlayersSee): Game {
   const villain = findVillain(game, villainId)
@@ -480,7 +509,10 @@ export function updateSheet(game: Game, ref: { kind: 'hero'; id: string; sheet: 
     const { play, adjustments } = reconcile(hero.play, ref.sheet, hero.sheet)
     const text = `The sheet was updated ${why}.`
     const entry: PlayHistoryEntry = { id: clock.newId(), at, text, ...(adjustments.length ? { details: adjustments } : {}) }
-    const updated = { ...hero, sheet: structuredClone(ref.sheet), play: { ...play, history: [...play.history, entry] } }
+    // A player's colors reach the game by themselves (docs/design/character-colors/spec.md, section 6): a sheet waiting for review may hold older ones.
+    const { appearance: _, ...rest } = structuredClone(ref.sheet)
+    const kept = hero.player ? (hero.sheet.appearance ? { appearance: hero.sheet.appearance } : {}) : ref.sheet.appearance ? { appearance: ref.sheet.appearance } : {}
+    const updated = { ...hero, sheet: { ...rest, ...kept }, play: { ...play, history: [...play.history, entry] } }
     const next = { ...game, heroes: game.heroes.map((h) => (h.id === ref.id ? updated : h)), pendingSyncs: game.pendingSyncs.filter((r) => r.heroId !== ref.id) }
     return log(next, clock, `${heroDisplayName(ref.sheet)}: ${text}`, { details: adjustments })
   }

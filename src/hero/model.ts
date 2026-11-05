@@ -21,7 +21,7 @@
  * misreading. Until the first public release there are no real saves, so v1 may still
  * change freely.
  */
-import type { Appearance } from '../colors/palette'
+import type { Appearance, CharColor } from '../colors/palette'
 import type { Defense } from '../play/defense'
 import { traitKey, type TraitRef } from '../rules/catalog'
 import type { RollRecord } from '../rules/rolling'
@@ -452,6 +452,8 @@ export interface PlayState {
 export interface PlayMinion {
   id: string
   name: string
+  /** Unset: the hero's primary (docs/design/character-colors/spec.md). */
+  color?: CharColor
   die: Die
   action: BasicAction | 'any'
   form?: string

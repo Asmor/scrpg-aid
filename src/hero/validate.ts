@@ -3,7 +3,7 @@
  * untrusted. This checks shape only (types and required fields), not game rules:
  * rule problems are warnings, but a malformed document can't be opened at all.
  */
-import { appearanceShape } from '../colors/validate'
+import { appearanceShape, charColor } from '../colors/validate'
 import { DETAIL_FIELDS } from './model'
 import { type Check, arrayOf, boolean, either, integer, nonEmptyString, nullable, object, oneOf, recordOf, string, positiveInteger } from '../shape'
 
@@ -124,6 +124,7 @@ export const playStateShape = object({
   'minions?': arrayOf(
     object({
       id: nonEmptyString,
+      'color?': charColor,
       name: string,
       die,
       action: oneOf('attack', 'defend', 'boost', 'hinder', 'overcome', 'any'),

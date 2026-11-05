@@ -818,6 +818,77 @@ describe('new game defaults from Settings', () => {
   })
 })
 
+describe('colors on the table', () => {
+  it('sets a group, a challenge and a villain, in this game only, with no log line', async () => {
+    const { saved, libraryVillain } = await setup((g, { villain }) => {
+      g.villains.push(villainCopy(villain, 'v1', false))
+      g.groups.push({ id: 'g1', kind: 'minions', name: 'Burglars', hidden: false, owner: { kind: 'gm' }, actions: 'any', members: [{ id: 'm1', n: 1, die: 'd6', mods: [], acted: false }] })
+      g.challenges.push({ id: 'c1', name: 'Furnace', hidden: false, owner: { kind: 'gm' }, steps: [{ label: 'Step 1', done: false }], requests: [] })
+    })
+    const feed = (await saved()).feed.length
+    await menuItem('More for Burglars', 'Color…')
+    let dialog = within(screen.getByRole('dialog', { name: 'Color: Burglars' }))
+    expect(dialog.getByRole('radio', { name: 'By side' })).toBeChecked()
+    await userEvent.click(dialog.getByRole('radio', { name: 'Pink' }))
+    await waitFor(async () => expect((await saved()).groups[0]!.color).toBe('pink'))
+    await userEvent.click(dialog.getByRole('radio', { name: 'By side' }))
+    await waitFor(async () => expect((await saved()).groups[0]).not.toHaveProperty('color'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
+    await menuItem('More for Furnace', 'Color…')
+    dialog = within(screen.getByRole('dialog', { name: 'Color: Furnace' }))
+    await userEvent.click(dialog.getByRole('radio', { name: 'Grey' }))
+    await waitFor(async () => expect((await saved()).challenges[0]!.color).toBe('grey'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
+    await menuItem('More for Ironclad', 'Color…')
+    dialog = within(screen.getByRole('dialog', { name: 'Color: Ironclad' }))
+    await userEvent.click(within(dialog.getByRole('group', { name: 'Primary' })).getByRole('radio', { name: 'Purple' }))
+    await waitFor(async () => expect((await saved()).villains[0]!.sheet.appearance).toEqual({ primary: 'purple' }))
+    expect((await libraryVillain()).appearance).toBeUndefined()
+    expect((await saved()).feed).toHaveLength(feed)
+  })
+
+  it('offers a library villain\'s new colors through Update from library, but not its own at the table', async () => {
+    const { saved, savedVillain } = await setup((g, { villain }) => {
+      const copy = villainCopy(villain, 'v1', false)
+      copy.sheet = { ...copy.sheet, updatedAt: '2020-01-01T00:00:00.000Z', appearance: { primary: 'grey' } }
+      g.villains.push(copy)
+    }, { villains: [] })
+    expect((await savedVillain()).sheet.appearance).toEqual({ primary: 'grey' })
+    expect((await saved()).villains).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: 'More for Ironclad' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Update from library…' }))
+    const dialog = within(screen.getByRole('dialog', { name: /Update Ironclad/ }))
+    expect(dialog.getByText('Colors')).toBeInTheDocument()
+    expect(dialog.getByText('Red.')).toBeInTheDocument()
+  })
+
+  it('sets the environment from the scene menu', async () => {
+    const { saved } = await setup((g) => {
+      g.environment = { id: 'e1', name: 'Rooftop', hidden: false }
+    })
+    await menuItem('Scene menu', 'Environment color…')
+    const dialog = within(screen.getByRole('dialog', { name: 'Color: Rooftop' }))
+    await userEvent.click(dialog.getByRole('radio', { name: 'Cyan' }))
+    await waitFor(async () => expect((await saved()).environment!.color).toBe('cyan'))
+  })
+
+  it('quick adds with a color', async () => {
+    const { saved } = await setup()
+    await userEvent.click(gmScreen().getByRole('button', { name: '+ Minion' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Add minions' }))
+    const color = dialog.getByRole('combobox', { name: 'Color' })
+    expect(color).toHaveDisplayValue('By side')
+    await userEvent.selectOptions(color, 'Pink')
+    await userEvent.click(dialog.getByRole('button', { name: 'Add to table' }))
+    await waitFor(async () => expect((await saved()).groups[0]!.color).toBe('pink'))
+    await userEvent.click(gmScreen().getByRole('button', { name: '+ Challenge' }))
+    const second = within(screen.getByRole('dialog', { name: 'Add a challenge' }))
+    await userEvent.selectOptions(second.getByRole('combobox', { name: 'Color' }), 'Grey')
+    await userEvent.click(second.getByRole('button', { name: 'Add to table' }))
+    await waitFor(async () => expect((await saved()).challenges[0]!.color).toBe('grey'))
+  })
+})
+
 describe("the game's hero points", () => {
   const heading = () => screen.getByRole('heading', { name: /^Heroes · / })
 

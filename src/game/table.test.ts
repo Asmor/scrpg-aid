@@ -600,3 +600,12 @@ describe('making the scene more dangerous', () => {
     expect(undoDanger(game, id, c)).toBe(game)
   })
 })
+
+describe("updating a GM's own hero", () => {
+  it('takes the colors from the library, which nobody else sends', () => {
+    const clock2 = { now: new Date('2026-11-05T12:00:00Z'), newId: () => crypto.randomUUID() }
+    const g = addHero(createGame({ id: 'g' }), { ...completeHero(), id: 'own' }, clock2)
+    const next = updateSheet(g, { kind: 'hero', id: g.heroes[0]!.id, sheet: { ...completeHero(), id: 'own', appearance: { primary: 'pink' } } }, clock2, 'from the library')
+    expect(next.heroes[0]!.sheet.appearance).toEqual({ primary: 'pink' })
+  })
+})

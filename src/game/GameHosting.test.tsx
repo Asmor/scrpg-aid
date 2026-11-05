@@ -70,7 +70,7 @@ function player(net: ReturnType<typeof fakeNetwork>, room: string) {
   })
   return {
     got,
-    hello: (clientId = 'c1', sheet = maya()) => t.send({ v: 9, type: 'hello', role: 'player', clientId, name: 'Alex', heroSourceId: sheet.id, sheet }),
+    hello: (clientId = 'c1', sheet = maya()) => t.send({ v: 10, type: 'hello', role: 'player', clientId, name: 'Alex', heroSourceId: sheet.id, sheet }),
     send: (msg: unknown) => t.send(msg),
     leave: () => t.leave(),
   }
@@ -128,7 +128,7 @@ describe('hosting from the game table', () => {
     const { net } = await setup()
     const room = await startHosting()
     const tv = player(net, room)
-    tv.send({ v: 9, type: 'hello', role: 'observer', clientId: 'tv1', screenName: 'Living room TV' })
+    tv.send({ v: 10, type: 'hello', role: 'observer', clientId: 'tv1', screenName: 'Living room TV' })
     await net.settle()
     expect(await screen.findByText('0 of 0 players connected · 1 watching')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Invite' }))
@@ -155,7 +155,7 @@ describe('hosting from the game table', () => {
     await net.settle()
     expect(vibrate).not.toHaveBeenCalled()
     const state = alex.got.find((m) => m.type === 'state') as Extract<HostMessage, { type: 'state' }>
-    alex.send({ v: 9, type: 'syncRequest', heroId: state.you!.heroId, sheet: { ...maya(), details: { ...maya().details, name: 'Maya Two' } } })
+    alex.send({ v: 10, type: 'syncRequest', heroId: state.you!.heroId, sheet: { ...maya(), details: { ...maya().details, name: 'Maya Two' } } })
     await net.settle()
     await waitFor(() => expect(vibrate).toHaveBeenCalledTimes(1))
     // The GM's own change.
@@ -171,7 +171,7 @@ describe('hosting from the game table', () => {
     alex.hello()
     await net.settle()
     const state = alex.got.find((m) => m.type === 'state') as Extract<HostMessage, { type: 'state' }>
-    alex.send({ v: 9, type: 'action', id: 'a1', heroId: state.you!.heroId, action: { kind: 'reaction', used: true }, basedOn: state.version })
+    alex.send({ v: 10, type: 'action', id: 'a1', heroId: state.you!.heroId, action: { kind: 'reaction', used: true }, basedOn: state.version })
     await net.settle()
     await waitFor(() => expect(screen.getByRole('article', { name: 'Maya Reyes' })).toHaveTextContent('Reaction used'))
   })
@@ -183,7 +183,7 @@ describe('hosting from the game table', () => {
     alex.hello()
     await net.settle()
     const state = alex.got.find((m) => m.type === 'state') as Extract<HostMessage, { type: 'state' }>
-    alex.send({ v: 9, type: 'syncRequest', heroId: state.you!.heroId, sheet: maya('Maya Reyes II') })
+    alex.send({ v: 10, type: 'syncRequest', heroId: state.you!.heroId, sheet: maya('Maya Reyes II') })
     await net.settle()
     const requests = within(await screen.findByRole('region', { name: /^Requests/ }))
     expect(requests.getByText('1')).toBeInTheDocument()

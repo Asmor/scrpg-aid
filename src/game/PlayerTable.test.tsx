@@ -194,6 +194,18 @@ describe('a player at the table', () => {
     Object.defineProperty(navigator, 'vibrate', { value: undefined, configurable: true })
   })
 
+  it("sends the library hero's colors to the game at once, with no sheet update to review", async () => {
+    const { host, settle } = await setup({ ...maya(), appearance: { primary: 'pink' } })
+    host.apply((g) => g)
+    await join(settle)
+    expect(host.game!.heroes[0]!.sheet.appearance).toEqual({ primary: 'pink' })
+    // New colors between visits: the game's copy still has the old ones.
+    host.apply((g) => ({ ...g, heroes: g.heroes.map((h) => ({ ...h, sheet: { ...h.sheet, appearance: { primary: 'grey' as const } } })) }))
+    await settle()
+    await waitFor(() => expect(host.game!.heroes[0]!.sheet.appearance).toEqual({ primary: 'pink' }))
+    expect(host.game!.pendingSyncs).toEqual([])
+  })
+
   it('sends an action and shows the result from the GM', async () => {
     const { host, settle } = await setup()
     await join(settle)

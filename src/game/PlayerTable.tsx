@@ -144,6 +144,8 @@ function sheetChange(copy: HeroOnTable, library: Hero) {
   return { changes, inGame: adjustments.length ? adjustments : line ? [line] : ['Nothing else changes.'] }
 }
 
+const heroNowColors = (hero: Hero | undefined) => (hero ? JSON.stringify(hero.appearance ?? null) : undefined)
+
 export function PlayerTable({ room, random }: { room: string; random?: () => number }) {
   const session = useSession()
   const heroStore = useStore()
@@ -312,6 +314,18 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     remindedFor.current = lastIssue.id
     setPointsToast({ id: `points-${lastIssue.id}`, text: `You have ${pointsLeft} hero ${pointsLeft === 1 ? 'point' : 'points'} to spend on bonuses for issue ${lastIssue.number + 1}.`, action: { label: 'Spend', onClick: focusPoints } })
   }, [remindNow, lastIssue, pointsLeft, focusPoints])
+
+  // Colors reach the game at once, with no review (docs/design/character-colors/spec.md, section 6).
+  const libraryColors = heroNowColors(loaded?.hero)
+  const tableColors = copy ? JSON.stringify(copy.sheet.appearance ?? null) : undefined
+  const sentColors = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (!live || !client || !copy || libraryColors === undefined || tableColors === libraryColors) return
+    // Once for each difference: if the game's copy changes again, it's a new one.
+    const difference = `${tableColors}|${libraryColors}`
+    if (sentColors.current === difference) return
+    if (client.sendAppearance(loaded?.hero?.appearance)) sentColors.current = difference
+  }, [live, client, copy, libraryColors, tableColors, loaded])
 
   // Alerts (docs/design/settings/spec.md, section 4).
   const alertWatch = useMemo<PlayerWatch | undefined>(() => {

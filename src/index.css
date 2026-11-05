@@ -9429,3 +9429,14 @@ a.menu-item {
   flex: 1;
   min-width: min(100%, 16rem);
 }
+
+.color-select__row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.color-select__row select {
+  flex: 1;
+  min-width: 0;
+}

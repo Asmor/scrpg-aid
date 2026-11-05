@@ -13,8 +13,8 @@ const actor = object({ kind: oneOf('hero', 'villain', 'group', 'environment'), i
 const mod = object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true), 'source?': oneOf('heroPoint') })
 /** 'any', or a list of basic actions. */
 export const groupActions: Check = (v, path) => (v === 'any' ? undefined : arrayOf(oneOf('attack', 'defend', 'boost', 'hinder', 'overcome'))(v, path))
-const attachedGroup = object({ kind: oneOf('minion', 'lieutenant'), templateId: nonEmptyString, name: string, die, actions: groupActions, groupSize: integer })
-const attachedChallenge = object({ kind: oneOf('challenge'), templateId: nonEmptyString, name: string, labels: arrayOf(string), 'description?': string, 'whenDone?': string })
+const attachedGroup = object({ 'color?': charColor, kind: oneOf('minion', 'lieutenant'), templateId: nonEmptyString, name: string, die, actions: groupActions, groupSize: integer })
+const attachedChallenge = object({ 'color?': charColor, kind: oneOf('challenge'), templateId: nonEmptyString, name: string, labels: arrayOf(string), 'description?': string, 'whenDone?': string })
 const attachedOnTable: Check = (v, path) => (isRecord(v) && v.kind === 'challenge' ? attachedChallenge : attachedGroup)(v, path)
 const position: Check = (v, path) => integer(v, path) ?? ((v as number) < 0 ? `${path} should be at least 0` : undefined)
 

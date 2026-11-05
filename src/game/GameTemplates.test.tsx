@@ -13,7 +13,8 @@ import { MemoryHeroStore } from '../hero/store'
 import { MemorySavedSearchStore } from '../library/saved-searches'
 import { createChallengeTemplate, createEnvironmentTemplate, createMinionTemplate } from '../template/model'
 import { memoryTemplateStores } from '../template/store'
-import { challengeFromTemplate, groupFromTemplate } from '../template/to-table'
+import { challengeFromTemplate, groupFromTemplate, templateFromChallenge, templateFromGroup } from '../template/to-table'
+import { environmentFromTemplate } from './environment'
 import { MemoryVillainStore } from '../villain/store'
 import { bullyOverlord } from '../test/villains'
 import { GamePage } from './GamePage'
@@ -42,6 +43,19 @@ describe('templates on the table', () => {
     expect(gamesHolding([{ ...g, name: 'Thursday' }], 'minion', 'burglar')).toHaveLength(1)
     expect(gamesHolding([g], 'lieutenant', 'burglar')).toEqual([])
     expect(gamesHolding([g], 'challenge', 'crucible')).toHaveLength(1)
+  })
+
+  it('bring their color to the table, the environment\'s too, and a saved quick add keeps it', () => {
+    const coloured = { ...burglar(), color: 'pink' as const }
+    let g = addGroup(createGame({ id: 'g' }), groupFromTemplate(coloured, 'minions', 2, false), clock())
+    expect(g.groups[0]!.color).toBe('pink')
+    g = addChallenge(g, challengeFromTemplate({ ...crucible(), color: 'grey' }, false), clock())
+    expect(g.challenges[0]!.color).toBe('grey')
+    expect(environmentFromTemplate({ ...createEnvironmentTemplate({ id: 'e' }), color: 'cyan' }, []).color).toBe('cyan')
+    expect(templateFromGroup({ kind: 'minions', name: 'x', die: 'd6', count: 2, color: 'pink' }).color).toBe('pink')
+    expect(templateFromChallenge({ name: 'x', steps: 2, color: 'grey' }).color).toBe('grey')
+    expect(tableViewProblem(project(g, 'player'))).toBeUndefined()
+    expect(project(g, 'player').groups[0]!.color).toBe('pink')
   })
 
   it('keeps what a template brings within what the table view carries', () => {

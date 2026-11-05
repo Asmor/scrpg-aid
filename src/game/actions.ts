@@ -11,9 +11,10 @@
  * Setting a value outright is refused when the value changed after the state the player saw
  * (`basedOn`), so nobody overwrites a change they hadn't seen.
  */
+import type { CharColor } from '../colors/palette'
 import { buildSheet } from '../creation/sheet'
 import { heroDisplayName, type Hero, type PlayMinion, type PlayMod, type PlayState, type PlayTwist } from '../hero/model'
-import { addMinion, addMinionMod, recordMinionRoll, removeMinion, removeMinionMod, setMinionForm, shrinkMinion, type MinionRoll } from '../play/minions'
+import { addMinion, addMinionMod, recordMinionRoll, removeMinion, removeMinionMod, setMinionColor, setMinionForm, shrinkMinion, type MinionRoll } from '../play/minions'
 import { availabilityContext, basicActionBlocked, currentForm, playAbilities, playForms } from '../play/forms'
 import { confirmRoll, effectAmount, type RollRecord } from '../play/roll'
 import { addMod, addTwist, buyHeroPointBonus, currentHealth, returnHeroPointBonus, effectiveZone, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setReactionUsed, type Clock } from '../play/state'
@@ -70,6 +71,7 @@ export type HeroAction =
   | { kind: 'removeMinionMod'; minionId: string; modId: string }
   | { kind: 'minionRoll'; minionId: string; roll: MinionRoll }
   | { kind: 'minionForm'; minionId: string; form: string }
+  | { kind: 'minionColor'; minionId: string; color?: CharColor }
   /** Chooses the defense for a hit waiting on the hero (ruling 65). */
   | { kind: 'chooseDefense'; hitId: string; defenseId: string }
   | { kind: 'handOff'; to: ActorRef }
@@ -180,7 +182,8 @@ export function applyHeroAction(game: Game, heroId: string, action: HeroAction, 
     case 'minionMod':
     case 'removeMinionMod':
     case 'minionRoll':
-    case 'minionForm': {
+    case 'minionForm':
+    case 'minionColor': {
       const minion = hero.play.minions?.find((m) => m.id === action.minionId)
       if (!minion) return refuse('that minion is already gone')
       switch (action.kind) {
@@ -196,6 +199,8 @@ export function applyHeroAction(game: Game, heroId: string, action: HeroAction, 
         case 'minionRoll':
           if (minion.needsForm) return refuse(`${minion.name} needs a new form before it can act`)
           return change((p) => recordMinionRoll(p, action.minionId, action.roll, clock))
+        case 'minionColor':
+          return { ok: true, game: changeHeroPlay(game, heroId, (p) => setMinionColor(p, action.minionId, action.color), clock, false) }
         case 'minionForm':
           if (!buildSheet(hero.sheet).minionForms?.some((f) => f.name === action.form)) return refuse("your hero doesn't have that minion form")
           return change((p) => setMinionForm(p, action.minionId, action.form, clock))

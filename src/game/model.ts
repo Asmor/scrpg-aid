@@ -178,6 +178,7 @@ export interface TableTwist extends EnvironmentTwist {
 
 /** A minion or lieutenant template the environment brought, copied in: what Add puts on the table. */
 export interface AttachedGroupOnTable {
+  color?: CharColor
   kind: 'minion' | 'lieutenant'
   templateId: string
   name: string
@@ -188,6 +189,7 @@ export interface AttachedGroupOnTable {
 
 /** A challenge template the environment brought, copied in. */
 export interface AttachedChallengeOnTable {
+  color?: CharColor
   kind: 'challenge'
   templateId: string
   name: string

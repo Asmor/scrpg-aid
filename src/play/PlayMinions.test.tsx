@@ -152,6 +152,18 @@ describe('Your minions', () => {
     expect(minion('Bolt').getByRole('button', { name: 'Use Bolt' })).toBeEnabled()
   })
 
+  it('gives a minion its own color, or the hero\'s', async () => {
+    const store = await setup((h) => {
+      h.play = { reactionUsed: false, mods: [], twists: [], history: [], minions: [{ id: 'm1', name: 'Kix', die: 'd6', action: 'attack', mods: [] }] }
+    })
+    const color = screen.getByRole('combobox', { name: 'Color of Kix' })
+    expect(color).toHaveDisplayValue("Hero's color")
+    await userEvent.selectOptions(color, 'Pink')
+    await waitFor(async () => expect((await saved(store)).play?.minions?.[0]?.color).toBe('pink'))
+    await userEvent.selectOptions(color, "Hero's color")
+    await waitFor(async () => expect((await saved(store)).play?.minions?.[0]).not.toHaveProperty('color'))
+  })
+
   it('can give a Boost’s bonus to one of the hero’s own minions, even playing alone', async () => {
     const store = await setup((h) => {
       h.play = { reactionUsed: false, mods: [], twists: [], history: [], minions: [{ id: 'm1', name: 'Kix', die: 'd6', action: 'attack', mods: [] }] }

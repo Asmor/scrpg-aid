@@ -23,7 +23,7 @@ import { diceChanges, noChanges } from '../creation/dice-changes'
 import type { HeroTrait } from '../creation/traits'
 import { outerLayer, secondaryLayer } from '../creation/layers'
 import { MinionList } from './MinionList'
-import { addMinion, addMinionMod, minionCreation, removeMinion, removeMinionMod, setMinionForm, shrinkMinion, recordMinionRoll } from './minions'
+import { addMinion, addMinionMod, minionCreation, removeMinion, removeMinionMod, setMinionColor, setMinionForm, shrinkMinion, recordMinionRoll } from './minions'
 import { ModForm } from './ModForm'
 import { confirmRoll, effectAmount, effectLineAction, rollChange, undoRoll, type RollChange } from './roll'
 import { RollDialog, type FormPicker, type RollSubject } from './RollDialog'
@@ -625,6 +625,8 @@ export function PlayView({ hero, play, changePlay, heroPoints, clock, random }: 
             onRemoveMod={(mid, modId) => change((p, c) => removeMinionMod(p, mid, modId, c))}
             onUse={(mid, roll) => change((p, c) => recordMinionRoll(p, mid, roll, c))}
             onPickForm={(mid, form) => change((p, c) => setMinionForm(p, mid, form, c))}
+            heroColor={appearanceOf({ kind: 'hero', appearance: hero.appearance }).primary}
+            onColor={(mid, color) => change((p) => setMinionColor(p, mid, color))}
             random={random}
           />
         </Card>

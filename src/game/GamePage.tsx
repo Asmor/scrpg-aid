@@ -12,6 +12,7 @@ import { useVillainStore } from '../app/villain-store-context'
 import { RenameHeading } from '../components/RenameHeading'
 import { gmAlerts, gmWatch } from '../settings/alerts'
 import { useAlerts } from '../settings/useAlerts'
+import { Modal } from '../components/Modal'
 import { useSettings } from '../settings/context'
 import { Toasts, type ToastData } from '../components/Toasts'
 import { useMediaQuery } from '../components/useMediaQuery'
@@ -42,7 +43,9 @@ import { SceneEditor, type EditorTarget } from './SceneEditor'
 import type { SceneDraft } from './scenes'
 import { addAsideTo, deleteScene, duplicateScene, moveScene, moveToTable, removeAside, saveCurrentScene, savePlannedScene, setAside, setSceneRecord, startScene, waitingNote } from './scenes'
 import { StartSceneDialog } from './StartSceneDialog'
-import { sheetDiff } from './sheet-diff'
+import { sheetDiff, type DiffSection } from './sheet-diff'
+import { ColorPicker, SingleColorPicker } from '../colors/ColorPicker'
+import { appearanceOf, appearanceText, type Appearance } from '../colors/palette'
 import { TableCenter, TableLog, ZoneChip, type GmControls, type HeroView, type VillainView } from './TableCenter'
 import { useDocMap } from './useDocMap'
 import { useDisplayBroadcast } from './useDisplayBroadcast'
@@ -85,6 +88,7 @@ type Dialog =
   | { kind: 'startHosting' }
   | { kind: 'invite' }
   | { kind: 'bringVillain'; villain: Villain }
+  | { kind: 'color'; ref: T.ItemRef }
   | { kind: 'recalculate'; villainId: string }
   | { kind: 'editSteps'; challengeId: string }
   | { kind: 'capture'; villainId: string; name: string }
@@ -95,16 +99,22 @@ export const SCENE_UNDO_MS = 30_000
 const defaultClock = (): Clock => ({ now: new Date(), newId: () => newId() })
 const noSave = async () => {}
 
+const sameColors = (a: Appearance | undefined, b: Appearance | undefined) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+
+/** The update dialog's list: the sheet's changes, and a line for new colors, which `sheetDiff` leaves out. */
+const withColors = (changes: readonly DiffSection[], from: Hero | Villain, to: Hero | Villain): DiffSection[] => (sameColors(from.appearance, to.appearance) ? [...changes] : [...changes, { section: 'Colors', changes: [appearanceText(appearanceOf(isHeroDoc(to) ? { kind: 'hero', appearance: to.appearance } : { kind: 'villain', appearance: to.appearance }))] }])
+const isHeroDoc = (doc: Hero | Villain): doc is Hero => 'method' in doc
+
 /** What the update dialog shows for a copy and a newer library sheet: the changes, the adjustments, and the line on Health. */
 function updatePreview(copy: HeroInGame | VillainInGame, sheet: Hero | Villain) {
   if ('method' in sheet) {
     const hero = copy as HeroInGame
     const { adjustments } = reconcile(hero.play, sheet, hero.sheet)
-    return { name: heroDisplayName(hero.sheet), changes: sheetDiff(hero.sheet, sheet), adjustments, healthLine: healthLine(hero.play, buildSheet(hero.sheet).maxHealth, adjustments) }
+    return { name: heroDisplayName(hero.sheet), changes: withColors(sheetDiff(hero.sheet, sheet), hero.sheet, sheet), adjustments, healthLine: healthLine(hero.play, buildSheet(hero.sheet).maxHealth, adjustments) }
   }
   const villain = copy as VillainInGame
   const { adjustments } = reconcileVillain(villain.play, sheet, villain.sheet)
-  return { name: villainDisplayName(villain.sheet), changes: sheetDiff(villain.sheet, sheet), adjustments, healthLine: healthLine(villain.play, villainHealth(villain.sheet, villain.play).maxHealth, adjustments) }
+  return { name: villainDisplayName(villain.sheet), changes: withColors(sheetDiff(villain.sheet, sheet), villain.sheet, sheet), adjustments, healthLine: healthLine(villain.play, villainHealth(villain.sheet, villain.play).maxHealth, adjustments) }
 }
 
 export function GamePage({ id, clock = defaultClock, random }: { id: string; clock?: () => Clock; random?: () => number }) {
@@ -274,7 +284,9 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const libraryChange = (kind: 'hero' | 'villain', copy: HeroInGame | VillainInGame): Hero | Villain | undefined => {
     const doc = kind === 'hero' ? libraryHeroes.get(copy.sourceId) : libraryVillains.get(copy.sourceId)
     if (!doc || (kind === 'hero' && isDraft(doc as Hero))) return undefined
-    return sheetDiff(copy.sheet, doc).length ? doc : undefined
+    if (sheetDiff(copy.sheet, doc).length) return doc
+    // New colors only: offered for a sheet changed since it was copied, so a color chosen at the table doesn't look like a library change.
+    return doc.updatedAt > copy.sheet.updatedAt && !sameColors(copy.sheet.appearance, doc.appearance) ? doc : undefined
   }
 
   // ---- What the cards show ----
@@ -319,6 +331,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     setPosition: (i) => apply((g) => T.setTrackerPosition(g, i, clock())),
     changeHeroPoints: (by) => apply((g) => changeHeroPoints(g, by, clock())),
     sceneMenu: [
+      ...(env ? [{ label: 'Environment color…', onSelect: () => setDialog({ kind: 'color', ref: { kind: 'environment', id: env.id } }) }] : []),
       { label: 'Edit this scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'current' } }) },
       nextScene ? { label: `Start the next scene: ${sceneName(nextScene)}…`, onSelect: () => setDialog({ kind: 'sceneStart', sceneId: nextScene.id }) } : { label: 'Plan the next scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'new' } }) },
       { label: 'Finish the issue…', onSelect: () => setDialog({ kind: 'finishIssue' }) },
@@ -362,6 +375,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     reveal,
     hide,
     itemMenu: (ref, hidden) => [
+      { label: 'Color…', onSelect: () => setDialog({ kind: 'color', ref }) },
       ...(() => {
         const copy = ref.kind === 'villain' ? T.findVillain(game, ref.id) : undefined
         const newer = copy && libraryChange('villain', copy)
@@ -804,6 +818,38 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           onClose={() => setDialog(null)}
         />
       )}
+      {dialog?.kind === 'color' &&
+        (() => {
+          const { ref } = dialog
+          const close = (
+            <div className="button-row gt-dialog-actions">
+              <button type="button" className="button button--primary" onClick={() => setDialog(null)}>
+                Done
+              </button>
+            </div>
+          )
+          const villain = ref.kind === 'villain' ? T.findVillain(game, ref.id) : undefined
+          if (villain) {
+            return (
+              <Modal title={`Color: ${villainDisplayName(villain.sheet)}`} onClose={() => setDialog(null)} wide>
+                <ColorPicker kind="villain" appearance={villain.sheet.appearance} name={villainDisplayName(villain.sheet)} onChange={(appearance) => apply((g) => T.setCharacterColors(g, { kind: 'villain', id: ref.id }, appearance))} />
+                {close}
+              </Modal>
+            )
+          }
+          const group = ref.kind === 'group' ? game.groups.find((g) => g.id === ref.id) : undefined
+          const challenge = ref.kind === 'challenge' ? game.challenges.find((c) => c.id === ref.id) : undefined
+          const environment = ref.kind === 'environment' && game.environment?.id === ref.id ? game.environment : undefined
+          const item = group ? ({ kind: 'group', environment: group.owner.kind === 'environment', color: group.color } as const) : challenge ? ({ kind: 'challenge', environment: challenge.owner.kind === 'environment', color: challenge.color } as const) : environment ? ({ kind: 'environment', color: environment.color } as const) : undefined
+          const name = group?.name ?? challenge?.name ?? environment?.name
+          if (!item || name === undefined) return null
+          return (
+            <Modal title={`Color: ${name}`} onClose={() => setDialog(null)} wide>
+              <SingleColorPicker item={item} name={name} onChange={(color) => apply((g) => T.setItemColor(g, ref, color))} />
+              {close}
+            </Modal>
+          )
+        })()}
       {dialog?.kind === 'bringVillain' && (
         <BringInVillainDialog
           villain={dialog.villain}
