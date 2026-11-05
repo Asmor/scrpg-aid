@@ -13,7 +13,7 @@ import { fakeNetwork } from '../session/transport'
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { downloadFile } from '../transfer/download'
-import { backupJson, readImport } from '../transfer/files'
+import { backupJson } from '../transfer/files'
 import { MemoryVillainStore } from '../villain/store'
 import { createGame, createScene, type Game } from './model'
 import { finishIssue } from './issues'
@@ -180,17 +180,10 @@ describe('the Games page', () => {
     expect(await store.get('thu')).toEqual({ status: 'missing' })
   })
 
-  it('shares the library header, with Data: backs up the games with everything else', async () => {
+  it('shares the library header, with no Data menu', async () => {
     await setup([thursday(), createSoloGame('hero', completeHero(), clock)])
-    await userEvent.click(screen.getByRole('button', { name: /^Data/ }))
-    const menu = within(screen.getByRole('dialog', { name: 'Data' }))
-    expect(menu.getByRole('menuitem', { name: 'Import from a file…' })).toBeEnabled()
-    expect(menu.getByRole('menuitem', { name: 'Add an example hero' })).toBeEnabled()
-    await userEvent.click(menu.getByRole('menuitem', { name: 'Back up everything' }))
-    const [name, text] = vi.mocked(downloadFile).mock.calls.at(-1)!
-    expect(name).toMatch(/^scrpg-aid-backup-/)
-    // Not the solo game, which belongs to its character's Play page.
-    expect(readImport(text as string)).toMatchObject({ ok: true, games: [{ id: 'thu' }] })
+    expect(screen.queryByRole('button', { name: /^Data/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^Settings/ })).toHaveAttribute('href', '#/settings')
   })
 
   it('starts a new game on the tracker chosen in Settings', async () => {
@@ -228,17 +221,18 @@ describe('the Games page', () => {
 
   it('imports over a hosted game through the hosting session', async () => {
     const store = await setup([thursday()], hosting('thu'))
-    await userEvent.click(screen.getByRole('button', { name: /^Data/ }))
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Import from a file…' }))
+    window.location.hash = '#/settings'
+    await userEvent.click(await screen.findByRole('button', { name: 'Import from a file…' }))
     const imported = { ...thursday(), name: 'Imported game', tags: ['from-file'] }
-    await userEvent.upload(document.querySelector<HTMLInputElement>('input[type="file"]')!, new File([backupJson({ heroes: [], games: [imported] })], 'backup.json', { type: 'application/json' }))
+    await userEvent.upload([...document.querySelectorAll<HTMLInputElement>('input[type="file"]')].at(-1)!, new File([backupJson({ heroes: [], games: [imported] })], 'backup.json', { type: 'application/json' }))
     await userEvent.click(within(await screen.findByRole('radiogroup', { name: 'Imported game' })).getByRole('radio', { name: 'Replace mine' }))
-    await userEvent.click(screen.getByRole('button', { name: /^Import/ }))
+    await userEvent.click(screen.getByRole('button', { name: /^Import (?!from a file)/ }))
     await waitFor(async () => {
       const r = await store.get('thu')
       expect(r.status === 'found' && r.game.name).toBe('Imported game')
     })
     // The hosting session has the imported game: its next change keeps it.
+    window.location.hash = '#/games'
     await userEvent.click(await screen.findByRole('button', { name: 'More actions for Imported game' }))
     await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
     const rename = within(screen.getByRole('dialog'))

@@ -1,7 +1,6 @@
 /**
- * The header's Data menu (docs/design/library/spec.md, "Page layout"): the backup reminder, Back up
- * everything, Import from a file, and Add an example hero. The Library and Games pages share the
- * header, so both use this.
+ * The library's backup reminder, downloads of chosen items, and its empty state's ways to start.
+ * Backing up everything and importing later are on the Settings page.
  */
 import { useRef, useState, type ReactNode } from 'react'
 import { heroPath, navigate } from '../app/route'
@@ -10,19 +9,13 @@ import type { Game } from '../game/model'
 import { exampleHero } from '../hero/example'
 import type { Hero } from '../hero/model'
 import { downloadFile } from '../transfer/download'
-import { backupFileName, backupJson } from '../transfer/files'
+import { backupJson } from '../transfer/files'
 import type { Villain } from '../villain/model'
 import { templateListsOf } from './send-text'
 import { backupStatus, type BackupTimeStore } from './backup-time'
-import type { DataActions } from './LibraryHeader'
 import { heroType, type LibraryItem, type LibraryStores, type LibraryType } from './registry'
 import type { SavedSearch } from './saved-searches'
 import type { LibraryState } from './useLibraryData'
-
-const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
-
-/** The time of a backup, as it's made. */
-const timestamp = () => new Date().toISOString()
 
 /** Downloads items in the backup format, with any games and saved searches. */
 export function downloadItems(list: readonly LibraryItem[], fileName: string, extras: { games: readonly Game[]; savedSearches: readonly SavedSearch[] }) {
@@ -31,40 +24,28 @@ export function downloadItems(list: readonly LibraryItem[], fileName: string, ex
   downloadFile(fileName, backupJson(contents), 'application/json')
 }
 
-interface DataMenuOptions {
+/** What the header needs to know about backups: read once, as a page opens. */
+export function useBackupStatus(docs: readonly { updatedAt: string }[], backupTime: BackupTimeStore, now: Date) {
+  const [lastBackupAt] = useState(() => backupTime.load())
+  return backupStatus(docs, lastBackupAt, now)
+}
+
+interface LibraryStartOptions {
   stores: LibraryStores
   /** The library, once it has loaded. */
   ready: Extract<LibraryState, { status: 'ready' }> | undefined
-  /** The listed games (a backup of everything has them; solo games belong to their characters' Play pages). */
-  games: readonly Game[]
-  backupTime: BackupTimeStore
-  now: Date
   /** The page is busy with something else. */
   busy: boolean
   /** Runs an action, showing "Couldn't <what>" if it fails. */
   run: (what: string, action: () => Promise<void>) => Promise<void>
-  setError: (message: string | null) => void
   onImported: () => void
 }
 
-export function useDataMenu({ stores, ready, games, backupTime, now, busy, run, setError, onImported }: DataMenuOptions): { dataActions: DataActions; importControl: ReactNode } {
+/** The empty library's ways to start: an example hero, or importing a file. Settings has the same for later. */
+export function useLibraryStart({ stores, ready, busy, run, onImported }: LibraryStartOptions): { start: LibraryStart; importControl: ReactNode } {
   const [importing, setImporting] = useState(false)
-  const [lastBackupAt, setLastBackupAt] = useState(() => backupTime.load())
   const importer = useRef<ImportHandle>(null)
   const items = ready ? [...ready.items.values()] : []
-  const status = backupStatus(items.map((i) => i.doc), lastBackupAt, now)
-
-  const backUp = () => {
-    setError(null)
-    try {
-      downloadItems(items, backupFileName(), { games, savedSearches: ready?.searches ?? [] })
-      const at = timestamp()
-      backupTime.save(at)
-      setLastBackupAt(at)
-    } catch (e) {
-      setError(`Couldn't make the backup: ${errorText(e)}`)
-    }
-  }
   const addExample = () =>
     void run('add the example hero', async () => {
       const hero = exampleHero()
@@ -84,7 +65,11 @@ export function useDataMenu({ stores, ready, games, backupTime, now, busy, run, 
       onImported={onImported}
     />
   )
+  return { start: { busy: busy || importing || !ready, importFile: () => importer.current?.open(), addExample }, importControl }
+}
 
-  const dataActions: DataActions = { status, busy: busy || importing || !ready, backUp, importFile: () => importer.current?.open(), addExample }
-  return { dataActions, importControl }
+export interface LibraryStart {
+  busy: boolean
+  importFile: () => void
+  addExample: () => void
 }

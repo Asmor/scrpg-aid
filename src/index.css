@@ -9440,3 +9440,7 @@ a.menu-item {
   flex: 1;
   min-width: 0;
 }
+
+.settings__reminder {
+  font-weight: 600;
+}

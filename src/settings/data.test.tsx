@@ -20,6 +20,7 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { downloadFile } from '../transfer/download'
 import { MemoryVillainStore } from '../villain/store'
+import type { BackupTimeStore } from '../library/backup-time'
 import { backupText, byteLength, contentCounts, readEverything, readRestoreFile, restoreAdd, restoreReplace, sizeText, storageLine, type DataStores } from './data'
 import { DEFAULT_SETTINGS } from './model'
 import { SettingsProvider } from './SettingsProvider'
@@ -106,7 +107,7 @@ describe('restoring', () => {
 describe('the Data section', () => {
   beforeEach(() => vi.mocked(downloadFile).mockClear())
 
-  function page(s: ReturnType<typeof stores>, settings = new MemorySettingsStore()) {
+  function page(s: ReturnType<typeof stores>, settings = new MemorySettingsStore(), backupTime?: BackupTimeStore) {
     render(
       <SettingsProvider store={settings}>
         <StoreContext.Provider value={s.heroes}>
@@ -115,7 +116,7 @@ describe('the Data section', () => {
               <JoinedStoreContext.Provider value={s.joined}>
                 <SavedSearchStoreContext.Provider value={s.searches}>
                   <TemplateStoresContext.Provider value={s.templates}>
-                    <SettingsPage />
+                    <SettingsPage {...(backupTime ? { backupTime } : {})} />
                   </TemplateStoresContext.Provider>
                 </SavedSearchStoreContext.Provider>
               </JoinedStoreContext.Provider>
@@ -139,6 +140,26 @@ describe('the Data section', () => {
     const [name, text] = vi.mocked(downloadFile).mock.calls[0]!
     expect(name).toMatch(/^scrpg-aid-backup-/)
     expect(readRestoreFile(text as string)).toMatchObject({ ok: true, contents: { joined: [{ id: 'j1' }], settings: {} } })
+  })
+
+  it('says when the last backup was, and backing up records it', async () => {
+    const s = await filled()
+    const saved: string[] = []
+    const backupTime = { load: () => new Date(Date.now() - 19 * 24 * 60 * 60 * 1000).toISOString(), save: (at: string) => void saved.push(at) }
+    page(s, new MemorySettingsStore(), backupTime)
+    expect(await screen.findByText(/^Saved in this browser only\. Last backup 19 days ago; 3 items changed since\.$/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Back up everything' }))
+    await waitFor(() => expect(saved).toHaveLength(1))
+    expect(await screen.findByText(/^Saved in this browser only\. Last backup (?!19 days)/)).toBeInTheDocument()
+  })
+
+  it('imports a file, and adds the example hero', async () => {
+    const s = stores()
+    page(s)
+    await screen.findByText(/^This device holds 0 library items/)
+    await userEvent.click(screen.getByRole('button', { name: 'Add an example hero' }))
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/hero\/[^/]+$/))
+    expect((await s.heroes.list()).heroes).toHaveLength(1)
   })
 
   it('lists games it can\'t read, and deletes one after asking', async () => {

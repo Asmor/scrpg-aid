@@ -91,7 +91,7 @@ interface ImportControlProps {
   ref?: Ref<ImportHandle>
 }
 
-/** Opens the file picker from elsewhere on the page (the library's Data menu). */
+/** Opens the file picker from elsewhere on the page (Settings' Data section, the empty library). */
 export interface ImportHandle {
   open: () => void
 }

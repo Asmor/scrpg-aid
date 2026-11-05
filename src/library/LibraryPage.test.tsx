@@ -442,29 +442,17 @@ describe('saved searches', () => {
 })
 
 describe('the header', () => {
-  it('Data: backs up everything with saved searches, recording the time, and reminds after 14 days', async () => {
-    const { searchStore, backupStorage } = await standard({ backupAt: ago(19) })
-    await searchStore.save(createSavedSearch('Prep', { text: '', types: [], tags: ['prep'] }, { id: 's1' }))
+  it('has no Data menu: Settings carries the backup reminder after 14 days', async () => {
+    await standard({ backupAt: ago(19) })
     await loaded()
-    const data = screen.getByRole('button', { name: 'Data: backup reminder' })
-    await userEvent.click(data)
-    const menu = within(screen.getByRole('dialog', { name: 'Data' }))
-    expect(menu.getByText('Saved in this browser only. Last backup 19 days ago; 5 items changed since.')).toBeInTheDocument()
-    await userEvent.click(menu.getByRole('menuitem', { name: 'Back up everything' }))
-    const [name, text] = vi.mocked(downloadFile).mock.calls[0]!
-    expect(name).toMatch(/^scrpg-aid-backup-/)
-    // Games go in too, but not solo games, which belong to their characters' Play pages.
-    expect(readImport(text as string)).toMatchObject({ ok: true, heroes: [{}, {}, {}], villains: [{}, {}], games: [{ id: 'thu' }] })
-    expect(backupStorage.getItem('scrpg.library.lastBackupAt')).not.toBeNull()
-    expect(screen.getByRole('button', { name: 'Data' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Data/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Settings: backup reminder' })).toHaveAttribute('href', '#/settings')
   })
 
-  it('Data: shows no reminder for a recent backup, and adds the example hero', async () => {
+  it('shows no reminder for a recent backup', async () => {
     await standard({ backupAt: ago(3) })
     await loaded()
-    await userEvent.click(screen.getByRole('button', { name: 'Data' }))
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Add an example hero' }))
-    await waitFor(() => expect(window.location.hash).toMatch(/^#\/hero\/[^/]+$/))
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
   })
 
   it('Play together: host or join, with the last game to rejoin', async () => {

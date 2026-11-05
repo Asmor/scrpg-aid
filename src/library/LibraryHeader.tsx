@@ -1,8 +1,9 @@
 /**
  * The library's header bar (docs/design/library/spec.md, "Page layout"): the app's name, the
- * Library | Games section tabs, Play together (host, join, or the game you're in), Data (backup,
- * import, the example hero), the color scheme switch, and About. On phones, Data, the color scheme
- * and About share one menu, and the section tabs sit under the bar. The Games page shares the header.
+ * Library | Games section tabs, Play together (host, join, or the game you're in), the color scheme
+ * switch, Settings (which holds backups and importing, and carries the backup reminder) and About.
+ * On phones, those last three share one menu, and the section tabs sit under the bar. The Games
+ * page shares the header.
  */
 import { gamePath, gamesPath, joinPath, listPath, receivePath, settingsPath, tablePath, watchPath } from '../app/route'
 import { useState } from 'react'
@@ -13,7 +14,6 @@ import { useHostSnapshot, useSession } from '../session/context'
 import type { ThemePreference } from '../theme/theme'
 import { PopoverDialog } from './Popover'
 import { usePopover } from './popover-state'
-import type { BackupStatus } from './backup-time'
 import { formatAgoInline } from './when'
 
 const PeopleIcon = () => (
@@ -167,69 +167,11 @@ function ReceiveOption() {
   )
 }
 
-export interface DataActions {
-  status: BackupStatus
-  busy: boolean
-  backUp: () => void
-  importFile: () => void
-  addExample: () => void
-}
-
-/** The Data menu's contents: the backup line and its three actions. */
-function DataItems({ data, close }: { data: DataActions; close: () => void }) {
-  const run = (action: () => void) => () => {
-    close()
-    action()
-  }
-  return (
-    <div className="popover__stack">
-      <p className="popover__line">{data.status.text}</p>
-      <div role="menu" aria-label="Data" className="popover__menu">
-        <button type="button" role="menuitem" className="menu-item" disabled={data.busy} onClick={run(data.backUp)}>
-          Back up everything
-        </button>
-        <button type="button" role="menuitem" className="menu-item" disabled={data.busy} onClick={run(data.importFile)}>
-          Import from a file…
-        </button>
-        <button type="button" role="menuitem" className="menu-item" disabled={data.busy} onClick={run(data.addExample)}>
-          Add an example hero
-        </button>
-      </div>
-    </div>
-  )
-}
-
-export function DataMenu({ data }: { data: DataActions }) {
-  const [popover, bindPopover] = usePopover()
-  return (
-    <span className="popover-anchor">
-      <button
-        ref={bindPopover}
-        type="button"
-        className="button button--quiet"
-        aria-haspopup="dialog"
-        aria-expanded={popover.open}
-        {...(data.status.remind ? { 'aria-label': 'Data: backup reminder' } : {})}
-        onClick={popover.toggle}
-      >
-        Data
-        {data.status.remind && <span className="dot" aria-hidden="true" />}
-      </button>
-      {popover.open && (
-        <PopoverDialog popover={popover} label="Data" className="popover--end popover--wide">
-          <DataItems data={data} close={popover.close} />
-        </PopoverDialog>
-      )}
-    </span>
-  )
-}
-
-/** The phone's header menu: Data's items (when there's a Data menu), the color scheme, then Settings and About. */
-export function PhoneMenu({ data, theme, setTheme }: { data?: DataActions | undefined; theme: ThemePreference; setTheme: (t: ThemePreference) => void }) {
+/** The phone's header menu: the color scheme, then Settings and About. */
+export function PhoneMenu({ remind = false, theme, setTheme }: { remind?: boolean; theme: ThemePreference; setTheme: (t: ThemePreference) => void }) {
   const [popover, bindPopover] = usePopover()
   const [about, setAbout] = useState(false)
-  const remind = data?.status.remind ?? false
-  const label = `Menu: ${data ? 'data, ' : ''}color scheme, settings, about${remind ? '. Backup reminder' : ''}`
+  const label = `Menu: color scheme, settings, about${remind ? '. Backup reminder' : ''}`
   return (
     <span className="popover-anchor">
       <button ref={bindPopover} type="button" className="icon-button" aria-label={label} aria-haspopup="dialog" aria-expanded={popover.open} onClick={popover.toggle}>
@@ -238,7 +180,6 @@ export function PhoneMenu({ data, theme, setTheme }: { data?: DataActions | unde
       </button>
       {popover.open && (
         <PopoverDialog popover={popover} label="Menu" className="popover--sheet">
-          {data && <DataItems data={data} close={popover.close} />}
           <ThemeToggle value={theme} onChange={setTheme} />
           <hr className="popover__divider" />
           <div role="menu" aria-label="About" className="popover__menu">
@@ -289,15 +230,15 @@ interface HeaderProps {
   phone: boolean
   theme: ThemePreference
   setTheme: (t: ThemePreference) => void
-  /** The Data menu (backup, import, the example hero); left out while there's nothing to show. */
-  data?: DataActions
+  /** It's been a while since a backup: Settings says so. */
+  remind?: boolean
   heroName: (id: string) => string | undefined
   now: Date
   section: 'library' | 'games'
   gameCount?: number
 }
 
-export function LibraryHeader({ phone, theme, setTheme, data, heroName, now, section, gameCount }: HeaderProps) {
+export function LibraryHeader({ phone, theme, setTheme, remind = false, heroName, now, section, gameCount }: HeaderProps) {
   return (
     <>
       <header className="app-header library-header">
@@ -308,12 +249,11 @@ export function LibraryHeader({ phone, theme, setTheme, data, heroName, now, sec
         <span className="library-header__actions">
           <PlayTogether heroName={heroName} now={now} compact={phone} />
           {phone ? (
-            <PhoneMenu data={data} theme={theme} setTheme={setTheme} />
+            <PhoneMenu remind={remind} theme={theme} setTheme={setTheme} />
           ) : (
             <>
-              {data && <DataMenu data={data} />}
               <ThemeToggle value={theme} onChange={setTheme} />
-              <SettingsLink />
+              <SettingsLink remind={remind} />
               <AboutButton />
             </>
           )}

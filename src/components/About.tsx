@@ -31,7 +31,7 @@ export function AboutDialog({ onClose, version = appVersion, built = buildTime }
             Source code on GitHub <NewTab />
           </a>
         </div>
-        <p className="muted about__note">Your heroes, villains and games are saved in this browser only. Use Data › Back up everything to keep a copy.</p>
+        <p className="muted about__note">Your heroes, villains and games are saved in this browser only. Use Settings › Data › Back up everything to keep a copy.</p>
         <div className="button-row">
           <button type="button" className="button" onClick={onClose}>
             Close

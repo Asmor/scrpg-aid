@@ -622,7 +622,7 @@ export function EmptyLibrary({ model }: { model: LibraryModel }) {
         <button type="button" className="button" disabled={model.busy} onClick={model.addExample}>
           Add an example hero
         </button>
-        <button type="button" className="button" disabled={model.busy} onClick={model.dataActions.importFile}>
+        <button type="button" className="button" disabled={model.busy} onClick={model.start.importFile}>
           Import from a file…
         </button>
       </div>

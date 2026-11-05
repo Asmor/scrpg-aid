@@ -51,7 +51,7 @@ export interface BackupStatus {
   changedSince: number
   /** Whether the Data button shows its reminder dot. */
   remind: boolean
-  /** The line at the top of the Data menu. */
+  /** The line in Settings' Data section. */
   text: string
 }
 

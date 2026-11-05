@@ -12,7 +12,7 @@ describe('the About dialog', () => {
     expect(dialog.getByText('Created by Asmor (Ian Toltz) with assistance from Claude.')).toBeInTheDocument()
     expect(dialog.getByText('Not associated with or endorsed by Greater Than Games.')).toBeInTheDocument()
     expect(dialog.getByText('Mention your version (0.9.3) and what you were doing.')).toBeInTheDocument()
-    expect(dialog.getByText(/saved in this browser only\. Use Data › Back up everything/)).toBeInTheDocument()
+    expect(dialog.getByText(/saved in this browser only\. Use Settings › Data › Back up everything/)).toBeInTheDocument()
 
     const report = dialog.getByRole('link', { name: 'Report a bug or request a feature (opens in a new tab)' })
     const source = dialog.getByRole('link', { name: 'Source code on GitHub (opens in a new tab)' })

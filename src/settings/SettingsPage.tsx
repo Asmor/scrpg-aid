@@ -1,6 +1,7 @@
 /** The Settings page (docs/design/settings/spec.md): every change saves at once, with a short "Saved" beside it. */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { DieIcon } from '../components/icons'
+import type { BackupTimeStore } from '../library/backup-time'
 import { DICE } from '../rules/dice'
 import { countsText, TRACKER_PRESETS } from '../rules/trackers'
 import { askToNotify, canVibrate, needsHomeScreen, playChime } from './alerts'
@@ -157,7 +158,7 @@ function Alerts({ settings, update, mark }: { settings: Settings; update: (key: 
   )
 }
 
-export function SettingsPage() {
+export function SettingsPage({ backupTime }: { backupTime?: BackupTimeStore }) {
   const { settings, update, saveError } = useSettings()
   const { mark, saved } = useSavedMark()
   const set = (key: string, change: (s: Settings) => Settings) => {
@@ -254,7 +255,7 @@ export function SettingsPage() {
           saved={mark === 'see'}
         />
       </Section>
-      <DataSection />
+      <DataSection {...(backupTime ? { backupTime } : {})} />
     </div>
   )
 }

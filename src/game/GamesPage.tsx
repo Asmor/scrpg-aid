@@ -24,7 +24,7 @@ import { localBackupTime, type BackupTimeStore } from '../library/backup-time'
 import type { LibraryStores } from '../library/registry'
 import { useOptionalTemplateStores } from '../app/template-store-context'
 import type { SavedSearchStore } from '../library/saved-searches'
-import { useDataMenu } from '../library/useDataMenu'
+import { useBackupStatus } from '../library/useLibraryStart'
 import { itemKey, useLibraryData } from '../library/useLibraryData'
 import { DeleteDialog } from '../library/LibraryPage'
 import { SearchIcon } from '../library/DesktopLibrary'
@@ -193,7 +193,7 @@ type Which = 'all' | 'run' | 'joined'
 export interface GamesPageProps {
   theme: ThemePreference
   setTheme: (t: ThemePreference) => void
-  /** For the Data menu: a backup has the saved searches. */
+  /** The library's data, which includes the saved searches. */
   searchStore: SavedSearchStore
   backupTime?: BackupTimeStore
 }
@@ -205,11 +205,10 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
   const villainStore = useVillainStore()
   const templates = useOptionalTemplateStores()
   const stores: LibraryStores = useMemo(() => ({ heroes: heroStore, villains: villainStore, games: store, ...(templates ? { templates } : {}) }), [heroStore, villainStore, store, templates])
-  // The library's items: the Data menu backs them up, and Play together names heroes.
+  // The library's items: for the backup reminder, and naming heroes in Play together, and Play together names heroes.
   const library = useLibraryData(stores, searchStore)
   const ready = library.state.status === 'ready' ? library.state : undefined
   const [fallbackTime] = useState(() => backupTime ?? localBackupTime())
-  const [loads, setLoads] = useState(0)
   const phone = useMediaQuery('(max-width: 759.98px)', false)
   const now = useTick()
   const [games, setGames] = useState<Game[] | null>(null)
@@ -232,7 +231,7 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
     return () => {
       live = false
     }
-  }, [joinedStore, loads])
+  }, [joinedStore])
 
   // Hosting starting or stopping changes games (a code, the play): read them again then.
   const hostingId = useSession().hosting?.gameId
@@ -249,7 +248,7 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
     return () => {
       live = false
     }
-  }, [store, loads, hostingId])
+  }, [store, hostingId])
 
   // The hosted game is live in the hosting session: its card shows that, not the list as loaded.
   const session = useSession()
@@ -321,27 +320,13 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
     remove: (g) => setDialog({ kind: 'delete', id: g.id }),
   }
   const open = dialog ? find(dialog.id) : undefined
-  const { dataActions, importControl } = useDataMenu({
-    stores,
-    ready,
-    games: games ?? [],
-    backupTime: fallbackTime,
-    now,
-    busy,
-    run,
-    setError,
-    onImported: () => {
-      void library.reload()
-      setLoads((n) => n + 1)
-    },
-  })
+  const backup = useBackupStatus(ready ? [...ready.items.values()].map((i) => i.doc) : [], fallbackTime, now)
 
   return (
     <PopoverGroup>
       <div className="library">
-        <LibraryHeader phone={phone} theme={theme} setTheme={setTheme} data={dataActions} heroName={(id) => ready?.items.get(itemKey('hero', id))?.row.name} now={now} section="games" {...(games ? { gameCount: games.length + joined.length } : {})} />
+        <LibraryHeader phone={phone} theme={theme} setTheme={setTheme} remind={backup.remind} heroName={(id) => ready?.items.get(itemKey('hero', id))?.row.name} now={now} section="games" {...(games ? { gameCount: games.length + joined.length } : {})} />
         <main className="games-page">
-          {importControl}
           <div className="games-page__title">
             <h1>Games</h1>
             <span className="gt-grow" />

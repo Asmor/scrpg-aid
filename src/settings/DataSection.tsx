@@ -6,11 +6,17 @@ import { useOptionalSavedSearchStore } from '../app/saved-search-context'
 import { useStore } from '../app/store-context'
 import { useOptionalTemplateStores } from '../app/template-store-context'
 import { useVillainStore } from '../app/villain-store-context'
+import { heroPath, navigate } from '../app/route'
+import { ImportControl, type ImportHandle } from '../components/ImportControl'
 import { Modal } from '../components/Modal'
+import { exampleHero } from '../hero/example'
+import { backupStatus, localBackupTime, type BackupTimeStore } from '../library/backup-time'
+import { TEMPLATE_LIST_KEYS } from '../template/lists'
 import { ConfirmDialog } from '../game/dialogs'
 import { isSoloGameId } from '../game/solo'
 import type { GameList } from '../game/store'
 import { formatFull } from '../play/time'
+import { useTick } from '../play/useTick'
 import { backupFileName } from '../transfer/files'
 import { downloadFile } from '../transfer/download'
 import { useSettings } from './context'
@@ -122,8 +128,9 @@ function RestoreDialog({ contents, stores, skipped, onDone, onClose }: { content
   )
 }
 
-export function DataSection() {
+export function DataSection({ backupTime }: { backupTime?: BackupTimeStore }) {
   const { settings } = useSettings()
+  const [backups] = useState(() => backupTime ?? localBackupTime())
   const heroes = useStore()
   const villains = useVillainStore()
   const games = useGameStore()
@@ -132,12 +139,19 @@ export function DataSection() {
   const joined = useOptionalJoinedStore()
   const stores = useMemo<DataStores>(() => ({ heroes, villains, games, templates, searches, joined }), [heroes, villains, games, templates, searches, joined])
   const [line, setLine] = useState('')
+  const [lastBackup, setLastBackup] = useState(() => backups.load())
+  const [libraryDocs, setLibraryDocs] = useState<readonly { updatedAt: string }[]>([])
+  const [heroIds, setHeroIds] = useState<{ saved: string[]; unreadable: string[] }>({ saved: [], unreadable: [] })
+  const importer = useRef<ImportHandle>(null)
   const [unreadable, setUnreadable] = useState<GameList['unreadable']>([])
   const [deleting, setDeleting] = useState<GameList['unreadable'][number] | null>(null)
   const [restoring, setRestoring] = useState<{ contents: Contents; skipped: number } | null>(null)
   const [status, setStatus] = useState('')
   const [error, setError] = useState<string | null>(null)
   const file = useRef<HTMLInputElement>(null)
+  const [importing, setImporting] = useState(false)
+  const now = useTick()
+  const backup = backupStatus(libraryDocs, lastBackup, now)
   const settingsNow = useRef(settings)
   useEffect(() => {
     settingsNow.current = settings
@@ -146,6 +160,9 @@ export function DataSection() {
   const refresh = useCallback(async () => {
     const contents = await readEverything(stores, settingsNow.current)
     setLine(storageLine(contents, byteLength(backupText(contents))))
+    setLibraryDocs([...contents.heroes, ...contents.villains, ...TEMPLATE_LIST_KEYS.flatMap((key): readonly { updatedAt: string }[] => contents.templates[key])])
+    const heroList = await stores.heroes.list()
+    setHeroIds({ saved: [...heroList.heroes.map((h) => h.id), ...heroList.unreadable.map((u) => u.id)], unreadable: heroList.unreadable.map((u) => u.id) })
     setUnreadable((await stores.games.list()).unreadable)
   }, [stores])
   useEffect(() => {
@@ -156,8 +173,21 @@ export function DataSection() {
     setError(null)
     try {
       downloadFile(backupFileName(), backupText(await readEverything(stores, settings)), 'application/json')
+      const at = new Date().toISOString()
+      backups.save(at)
+      setLastBackup(at)
     } catch (e) {
       setError(`Couldn't make the backup: ${errorText(e)}`)
+    }
+  }
+  const addExample = async () => {
+    setError(null)
+    try {
+      const hero = exampleHero()
+      await stores.heroes.save(hero)
+      navigate(heroPath(hero.id))
+    } catch (e) {
+      setError(`Couldn't add the example hero: ${errorText(e)}`)
     }
   }
   const chosen = async (picked: File) => {
@@ -170,12 +200,19 @@ export function DataSection() {
     <section className="card settings__section" aria-labelledby="settings-data">
       <h2 id="settings-data">Data</h2>
       <p className="muted">{line}</p>
+      <p className={backup.remind ? 'settings__reminder' : 'muted'}>{backup.text}</p>
       <div className="settings__row">
         <button type="button" className="button" onClick={() => void backUp()}>
           Back up everything
         </button>
         <button type="button" className="button" onClick={() => file.current?.click()}>
           Restore from a backup…
+        </button>
+        <button type="button" className="button" disabled={importing} onClick={() => importer.current?.open()}>
+          Import from a file…
+        </button>
+        <button type="button" className="button" onClick={() => void addExample()}>
+          Add an example hero
         </button>
         <input
           ref={file}
@@ -190,6 +227,18 @@ export function DataSection() {
           }}
         />
       </div>
+      <p className="hint">Import adds one hero, villain, template, game or backup to what's here, asking about anything you already have.</p>
+      <ImportControl
+        ref={importer}
+        hideButton
+        savedIds={new Set(heroIds.saved)}
+        unreadableIds={new Set(heroIds.unreadable)}
+        disabled={false}
+        onBusyChange={setImporting}
+        onImported={() => {
+          refresh().catch((e: unknown) => setError(errorText(e)))
+        }}
+      />
       <p role="status" className="settings__saved">
         {status}
       </p>

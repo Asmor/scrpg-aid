@@ -122,7 +122,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
           {route.name === 'join' && <JoinPage key={route.room ?? ''} room={route.room} />}
           {route.name === 'receive' && <ReceivePage key={route.code ?? ''} code={route.code} />}
           {route.name === 'template' && <TemplateEditor key={`${route.kind}:${route.id}`} kind={route.kind} id={route.id} />}
-          {route.name === 'settings' && <SettingsPage />}
+          {route.name === 'settings' && <SettingsPage {...(backupTime ? { backupTime } : {})} />}
           {route.name === 'notFound' && (
             <p role="alert">
               That page doesn't exist. <a href={listPath}>Go to your library</a>.

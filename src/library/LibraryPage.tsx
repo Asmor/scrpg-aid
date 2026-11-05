@@ -27,7 +27,7 @@ import { itemFields, LIBRARY_TYPES, libraryType, type LibraryItem, type LibraryS
 import { checkSearchName, createSavedSearch, type SavedSearch, type SavedSearchStore } from './saved-searches'
 import { allTags, withoutTag, withTag } from './tags'
 import { itemKey, useLibraryData } from './useLibraryData'
-import { downloadItems, useDataMenu } from './useDataMenu'
+import { downloadItems, useBackupStatus, useLibraryStart } from './useLibraryStart'
 import { useLibraryView } from './useLibraryView'
 import { DesktopLibrary } from './DesktopLibrary'
 import { PhoneLibrary } from './PhoneLibrary'
@@ -199,15 +199,12 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     })
   const removeUnreadable = (type: LibraryType, id: string) => void run('delete it', () => data.removeDoc(type, id))
 
-  const { dataActions, importControl } = useDataMenu({
+  const backup = useBackupStatus(ready ? [...ready.items.values()].map((i) => i.doc) : [], backupTime, now)
+  const { start, importControl } = useLibraryStart({
     stores,
     ready,
-    games: gameList,
-    backupTime,
-    now,
     busy,
     run,
-    setError,
     onImported: () => {
       // The new items appear (docs/design/library/spec.md, "Stability").
       void data.reload().then((next) => {
@@ -252,7 +249,8 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     error,
     title,
     suggestedName,
-    dataActions,
+    start,
+    remind: backup.remind,
     heroName,
     importControl,
     deleteDialog,
@@ -274,7 +272,7 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     duplicate,
     askDelete: (keys: string[]) => setPendingDelete({ keys }),
     create,
-    addExample: dataActions.addExample,
+    addExample: start.addExample,
     saveSearch,
     renameSearch,
     deleteSearch,
@@ -309,7 +307,7 @@ export function LibraryPage({ theme, setTheme, searchStore, backupTime }: Librar
   return (
     <PopoverGroup>
       <div className="library">
-        <LibraryHeader phone={phone} theme={theme} setTheme={setTheme} data={model.dataActions} heroName={model.heroName} now={model.now} section="library" {...(model.gameCount !== undefined ? { gameCount: model.gameCount } : {})} />
+        <LibraryHeader phone={phone} theme={theme} setTheme={setTheme} remind={model.remind} heroName={model.heroName} now={model.now} section="library" {...(model.gameCount !== undefined ? { gameCount: model.gameCount } : {})} />
         {phone ? <PhoneLibrary model={model} /> : <DesktopLibrary model={model} />}
         {model.deleteDialog}
         {model.sendDialog}
