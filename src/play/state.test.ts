@@ -2,7 +2,7 @@ import type { PlayState } from '../hero/model'
 import { describe, expect, it } from 'vitest'
 import { buildSheet } from '../creation/sheet'
 import { completeHero } from '../test/heroes'
-import { abilityAvailable, addMod, clearHeroDefenses, dropDefense, gainDefense, takeDamage, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, buyHeroPointBonus, heroRecovers, returnHeroPointBonus, spendHeroPoints, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
+import { abilityAvailable, addMod, clearHeroDefenses, dropDefense, gainDefense, takeDamage, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, buyHeroPointBonus, heroRecovers, returnHeroPointBonus, spendHeroPoints, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, noteHeroPoints, heroPointsLeft, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
 
 // completeHero: Max Health 30; Green 30–23, Yellow 22–12, Red 11–1; Lone Wolf d8/d8/d8.
 const sheet = buildSheet(completeHero())
@@ -79,19 +79,17 @@ describe('changes and their history', () => {
     expect(play.mods).toHaveLength(1)
   })
 
-  it('counts hero points up to 5, and tracks the reaction and the scene', () => {
+  it('notes hero points, and tracks the reaction and the scene', () => {
     const c = clock()
-    let play = setHeroPoints(emptyPlay(), 2, c)
-    play = setHeroPoints(play, 9, c)
-    play = setHeroPoints(play, 4, c)
+    let play = noteHeroPoints(emptyPlay(), 0, 1, c)
+    play = noteHeroPoints(play, 1, 0, c)
     play = setReactionUsed(play, true, c)
     play = setReactionUsed(play, false, c)
     play = setSceneZone(play, 'red', c)
     play = setSceneZone(play, 'green', c)
     expect(texts(play)).toEqual([
-      'Gained 2 hero points (now 2).',
-      'Gained 3 hero points (now 5).',
-      'Spent a hero point (now 4).',
+      'Gained a hero point (now 1).',
+      'Spent a hero point (now 0).',
       'Used this round’s reaction.',
       'Reaction ready again.',
       'The scene is now Red.',
@@ -108,38 +106,41 @@ describe('changes and their history', () => {
     expect(texts(play)).toEqual(['Took a minor twist: Sprained ankle.', 'Cleared the minor twist: Sprained ankle.'])
   })
 
-  it('recovers for a new issue, keeping the history and hero points', () => {
+  it('recovers for a new issue, keeping the history and what was bought', () => {
     const c = clock()
-    const start: PlayState = { ...emptyPlay(), heroPoints: 2, heroPointBuys: [{ id: 'b', size: 1 }], form: 'mode:1', dividedForm: 'heroic', reactionUsed: true }
+    const start: PlayState = { ...emptyPlay(), heroPointBuys: [{ id: 'b', size: 1 }], form: 'mode:1', dividedForm: 'heroic', reactionUsed: true }
     const play = heroRecovers(setHealth(addMod(start, { label: 'x', value: 1 }, c), sheet, 10, c), c)
     expect(play.mods).toEqual([])
     expect(play.health).toBeUndefined()
     expect(play).not.toHaveProperty('form')
     expect(play).not.toHaveProperty('dividedForm')
-    expect(play).toMatchObject({ heroPoints: 2, heroPointBuys: [{ size: 1 }], reactionUsed: false })
+    expect(play).toMatchObject({ heroPointBuys: [{ size: 1 }], reactionUsed: false })
     expect(texts(play).at(-1)).toMatch(/^Recovered for the new issue/)
     expect(play.history).toHaveLength(3)
   })
 
   it('buys and returns hero point bonuses, each costing its size', () => {
     const c = clock()
-    const start = { ...emptyPlay(), heroPoints: 5 }
-    const bought = buyHeroPointBonus(start, 5, 2, c)
-    expect(bought).toMatchObject({ heroPoints: 0, heroPointBuys: [{ size: 5 }] })
+    const start = emptyPlay()
+    expect(heroPointsLeft(5, start)).toBe(5)
+    const bought = buyHeroPointBonus(start, 5, 5, 2, c)
+    expect(bought).toMatchObject({ heroPointBuys: [{ size: 5 }] })
+    expect(heroPointsLeft(5, bought)).toBe(0)
     expect(texts(bought)).toEqual(['Bought a +5 bonus for issue 2.'])
-    expect(buyHeroPointBonus(bought, 1, 2, c)).toBe(bought)
-    expect(buyHeroPointBonus(start, 0, 2, c)).toBe(start)
+    expect(buyHeroPointBonus(bought, 5, 1, 2, c)).toBe(bought)
+    expect(buyHeroPointBonus(start, 5, 0, 2, c)).toBe(start)
+    expect(buyHeroPointBonus(start, 2, 3, 2, c)).toBe(start)
     const back = returnHeroPointBonus(bought, bought.heroPointBuys![0]!.id, 2, c)
-    expect(back).toMatchObject({ heroPoints: 5, heroPointBuys: [] })
+    expect(back).toMatchObject({ heroPointBuys: [] })
+    expect(heroPointsLeft(5, back)).toBe(5)
     expect(returnHeroPointBonus(back, 'nope', 2, c)).toBe(back)
   })
 
   it('turns bought bonuses into exclusive mods, and loses the rest', () => {
     const c = clock()
-    const play = spendHeroPoints({ ...emptyPlay(), heroPoints: 2, heroPointBuys: [{ id: 'b', size: 3 }] }, c)
+    const play = spendHeroPoints({ ...emptyPlay(), heroPointBuys: [{ id: 'b', size: 3 }] }, 2, c)
     expect(play.mods).toMatchObject([{ label: 'Hero point', value: 3, exclusive: true, source: 'heroPoint' }])
     expect(play.mods[0]).not.toHaveProperty('persistent')
-    expect(play.heroPoints).toBe(0)
     expect(play).not.toHaveProperty('heroPointBuys')
     expect(texts(play).at(-1)).toBe('Lost 2 unspent hero points.')
   })

@@ -67,6 +67,8 @@ export interface TableView {
   scene: SceneOnTable
   environment?: EnvironmentOnTable
   round: number
+  /** The count every player's hero shares. */
+  heroPoints: number
   turn: Game['turn']
   heroes: HeroOnTable[]
   villains: VillainOnTable[]
@@ -133,6 +135,7 @@ export function project(game: Game, audience: Audience, heroId?: string): TableV
     scene: gm && total !== undefined ? { ...scene, total } : scene,
     ...(game.environment && (gm || !game.environment.hidden) ? { environment: gm ? game.environment : environmentForPlayers(game.environment) } : {}),
     round: game.round,
+    heroPoints: game.heroPoints,
     turn: {
       order: game.turn.order.filter(visibleActor),
       acted: game.turn.acted.filter(visibleActor),

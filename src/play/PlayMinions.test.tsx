@@ -80,7 +80,7 @@ describe('Your minions', () => {
 
   it('lets an Autonomous minion take any basic action, and removes a d4 minion that shrinks', async () => {
     const store = await setup((h) => {
-      h.play = { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [], minions: [{ id: 'm1', name: 'Bolt', die: 'd4', action: 'any', form: 'Autonomous', mods: [] }] }
+      h.play = { reactionUsed: false, mods: [], twists: [], history: [], minions: [{ id: 'm1', name: 'Bolt', die: 'd4', action: 'any', form: 'Autonomous', mods: [] }] }
     })
     expect(minion('Bolt').getByText('Any basic action')).toBeInTheDocument()
     await userEvent.click(minion('Bolt').getByRole('button', { name: 'Use Bolt' }))
@@ -113,7 +113,7 @@ describe('Your minions', () => {
 
   it('uses up and logs the hero’s mods that sized a minion, and Undo brings them back', async () => {
     const store = await setup((h) => {
-      h.play = { heroPoints: 0, reactionUsed: false, mods: [{ id: 'p', label: 'shaky', value: -2 }], twists: [], history: [] }
+      h.play = { reactionUsed: false, mods: [{ id: 'p', label: 'shaky', value: -2 }], twists: [], history: [] }
     })
     await userEvent.click(screen.getByRole('button', { name: 'Use Make Minion' }))
     const dialog = within(screen.getByRole('dialog'))
@@ -134,7 +134,6 @@ describe('Your minions', () => {
   it('frees the other minions’ Use when the one being used is removed', async () => {
     await setup((h) => {
       h.play = {
-        heroPoints: 0,
         reactionUsed: false,
         mods: [],
         twists: [],
@@ -155,7 +154,7 @@ describe('Your minions', () => {
 
   it('can give a Boost’s bonus to one of the hero’s own minions, even playing alone', async () => {
     const store = await setup((h) => {
-      h.play = { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [], minions: [{ id: 'm1', name: 'Kix', die: 'd6', action: 'attack', mods: [] }] }
+      h.play = { reactionUsed: false, mods: [], twists: [], history: [], minions: [{ id: 'm1', name: 'Kix', die: 'd6', action: 'attack', mods: [] }] }
     })
     await userEvent.click(screen.getByRole('button', { name: 'Use Power Up' }))
     const dialog = within(screen.getByRole('dialog'))

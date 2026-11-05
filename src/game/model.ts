@@ -326,6 +326,8 @@ export interface Game {
   environment?: EnvironmentOnTable
   /** 0 before the first round starts. */
   round: number
+  /** Shared by every player's hero (the GM's own are NPCs, with none); the GM changes it, or the player in solo. */
+  heroPoints: number
   turn: {
     /** The actors in the turn order, in its fixed order: heroes, villains, groups, the environment. */
     order: ActorRef[]
@@ -441,6 +443,7 @@ export function createGame(options: { id?: string; now?: Date; name?: string } =
     aside: [],
     offTable: emptyOffTable(),
     round: 0,
+    heroPoints: 0,
     turn: { order: [], acted: [] },
     heroes: [],
     villains: [],

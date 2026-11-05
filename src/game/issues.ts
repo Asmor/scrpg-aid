@@ -7,7 +7,7 @@ import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 import { heroDisplayName, type Hero } from '../hero/model'
 import { holdsIssue } from '../advancement/records'
 import { villainDisplayName } from '../villain/model'
-import { clearHeroMods, heroRecovers, modSizes, spendHeroPoints, type Clock } from '../play/state'
+import { clearHeroMods, heroPointsLeft, heroRecovers, MAX_HERO_POINTS, modSizes, returnHeroPointBonus, spendHeroPoints, type Clock } from '../play/state'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
 import { nameList } from './names'
 import { betweenIssues, createIssue, currentIssue, gameDisplayName, nextIssueNumber, sceneName, sceneNumber, type Game, type GameFeedEntry, type HeroInGame, type Issue, type IssueAck, type Scene } from './model'
@@ -63,6 +63,31 @@ export function finishIssue(game: Game, choices: FinishChoices, clock: Clock): G
   const { currentIssueId: _, ...rest } = settled
   const lines = [...(cleared.length ? [logLine(clock, `Bonuses and penalties removed: ${cleared.map((c) => `${c.name} ${c.sizes}`).join('; ')}.`)] : []), logLine(clock, `Issue ${issue.number} finished: ${title}.`)]
   return withLog({ ...rest, heroes, scenes, issues }, lines)
+}
+
+/**
+ * The GM changes the game's hero points (docs/design/game-table/spec.md, section 5), logged for
+ * everyone. Lowered below what a hero has already bought for the next issue, that hero's newest
+ * bonuses go back until it fits (docs/design/issues/spec.md, section 4a).
+ */
+export function changeHeroPoints(game: Game, by: 1 | -1, clock: Clock): Game {
+  const count = game.heroPoints + by
+  if (count < 0 || count > MAX_HERO_POINTS) return game
+  const next = nextIssueNumber(game)
+  const returned: string[] = []
+  const heroes = game.heroes.map((h) => {
+    let play = h.play
+    const back: number[] = []
+    while ((play.heroPointBuys ?? []).reduce((n, b) => n + b.size, 0) > count) {
+      const newest = play.heroPointBuys!.at(-1)!
+      back.push(newest.size)
+      play = returnHeroPointBonus(play, newest.id, next, clock)
+    }
+    if (back.length) returned.push(`${heroLabel(game.heroes, h)} ${back.map((s) => `+${s}`).join(', ')}`)
+    return play === h.play ? h : { ...h, play }
+  })
+  const lines = [logLine(clock, `The heroes ${by > 0 ? 'gained' : 'lost'} a hero point. They have ${count}.`), ...(returned.length ? [logLine(clock, `Bonuses returned for the lower count: ${returned.join('; ')}.`)] : [])]
+  return withLog({ ...game, heroPoints: count, heroes }, lines)
 }
 
 /** A hero's answer to a back issue, for the GM's list. It's only ever information. */
@@ -173,12 +198,14 @@ export function startIssue(game: Game, sceneId: string, choices: IssueStartChoic
   const entered = enterScene(opened, sceneId, choices, clock, false)
   if (entered === opened) return game
   const bought = game.heroes.flatMap((h) => (h.play.heroPointBuys?.length ? [`${heroLabel(game.heroes, h)} ${h.play.heroPointBuys.map((b) => `+${b.size}`).join(', ')}`] : []))
-  const lost = game.heroes.flatMap((h) => (h.play.heroPoints > 0 ? [`${heroLabel(game.heroes, h)} ${h.play.heroPoints}`] : []))
-  const heroes = entered.heroes.map((h) => ({ ...h, play: spendHeroPoints(choices.recover ? heroRecovers(h.play, clock) : h.play, clock) }))
+  // The GM's own heroes are NPCs: only players' heroes have points to lose.
+  const left = (h: HeroInGame) => (h.player ? heroPointsLeft(game.heroPoints, h.play) : 0)
+  const lost = game.heroes.flatMap((h) => (left(h) > 0 ? [`${heroLabel(game.heroes, h)} ${left(h)}`] : []))
+  const heroes = entered.heroes.map((h) => ({ ...h, play: spendHeroPoints(choices.recover ? heroRecovers(h.play, clock) : h.play, left(h), clock) }))
   const points = [...(bought.length ? [`Hero point bonuses: ${bought.join('; ')}.`] : []), ...(lost.length ? [`Unspent hero points lost: ${lost.join(', ')}.`] : [])].join(' ')
   const scene = entered.scenes.find((s) => s.id === sceneId)!
   const name = scene.name.trim()
-  return withLog({ ...entered, heroes }, [...(points ? [logLine(clock, points)] : []), logLine(clock, `Issue ${number} began with scene ${sceneNumber(entered, sceneId)}${name ? `: ${name}` : ''}.`)])
+  return withLog({ ...entered, heroes, heroPoints: 0 }, [...(points ? [logLine(clock, points)] : []), logLine(clock, `Issue ${number} began with scene ${sceneNumber(entered, sceneId)}${name ? `: ${name}` : ''}.`)])
 }
 
 /** What "Before you start" says about the game (section 5). */
@@ -192,10 +219,13 @@ export interface IssueStartFacts {
   notRecorded: string[]
 }
 
-export function issueStartFacts(game: Pick<Game, 'heroes' | 'pendingSyncs' | 'issues'>, connected: ReadonlySet<string>): IssueStartFacts {
+export function issueStartFacts(game: Pick<Game, 'heroes' | 'heroPoints' | 'pendingSyncs' | 'issues'>, connected: ReadonlySet<string>): IssueStartFacts {
   const last = game.issues.at(-1)
   return {
-    unspent: game.heroes.flatMap((h) => (h.play.heroPoints > 0 ? [{ name: heroLabel(game.heroes, h), points: h.play.heroPoints, away: Boolean(h.player && !connected.has(h.player.clientId)) }] : [])),
+    unspent: game.heroes.flatMap((h) => {
+      const points = heroPointsLeft(game.heroPoints, h.play)
+      return h.player && points > 0 ? [{ name: heroLabel(game.heroes, h), points, away: !connected.has(h.player.clientId) }] : []
+    }),
     bought: game.heroes.flatMap((h) => (h.play.heroPointBuys?.length ? [`${heroLabel(game.heroes, h)} ${h.play.heroPointBuys.map((b) => `+${b.size}`).join(', ')}`] : [])),
     syncs: game.pendingSyncs.flatMap((r) => {
       const hero = game.heroes.find((h) => h.id === r.heroId)

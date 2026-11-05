@@ -9,7 +9,7 @@ import { issueToPrompt } from './issues'
 import { buildSheet } from '../creation/sheet'
 import { heroDisplayName, type Hero } from '../hero/model'
 import { formatFull } from '../play/time'
-import { currentHealth, effectiveZone } from '../play/state'
+import { currentHealth, effectiveZone, heroPointCount, heroPointsLeft } from '../play/state'
 import type { JoinedGame } from './joined-store'
 import { betweenIssues, gameDisplayName, sceneDisplayName } from './model'
 import { finishedPill, viewSceneLine } from './summary'
@@ -29,6 +29,7 @@ export function JoinedCard({ joined, live, onOpen, onRemove }: { joined: JoinedG
   const zone = sheet && play ? effectiveZone(sheet, play) : undefined
   const health = sheet && play ? currentHealth(sheet, play) : undefined
   const others = view.heroes.filter((h) => h.id !== joined.heroId)
+  const pointsLeft = betweenIssues(view) && mine ? heroPointsLeft(view.heroPoints, mine.play) : 0
   // "Back issue to add": from the library hero, which says what's been added.
   const heroStore = useStore()
   const [library, setLibrary] = useState<Hero | undefined>()
@@ -59,9 +60,9 @@ export function JoinedCard({ joined, live, onOpen, onRemove }: { joined: JoinedG
         )}
         {betweenIssues(view) && <span className="gt-pill">{finishedPill(view.issues)}</span>}
         {toAdd && <span className="gt-pill gt-pill--live">Back issue to add</span>}
-        {betweenIssues(view) && mine && mine.play.heroPoints > 0 && (
+        {pointsLeft > 0 && (
           <span className="gt-pill gt-pill--live">
-            {mine.play.heroPoints} hero {mine.play.heroPoints === 1 ? 'point' : 'points'} to spend
+            {heroPointCount(pointsLeft)} to spend
           </span>
         )}
       </div>

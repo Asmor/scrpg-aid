@@ -196,11 +196,9 @@ function Roleplaying({ hero, sheet, advancement, interactive }: { hero: Hero; sh
         ))}
       </div>
       <p className="record-strip">
-        <span>
-          {/* Play state lives in games, not on the sheet: on screen, say where to find it. */}
-          Hero points <span className="screen-only muted">tracked in Play</span>
-          {/* On paper, a line to keep count on. */}
-          <span className="print-only write-in" aria-hidden="true" />
+        {/* Hero points belong to each game, not the sheet. On paper, a line to keep count on. */}
+        <span className="print-only">
+          Hero points <span className="write-in" aria-hidden="true" />
         </span>
         <span>
           Back issues{' '}

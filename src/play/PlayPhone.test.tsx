@@ -38,7 +38,7 @@ afterEach(() => vi.unstubAllGlobals())
 async function setup() {
   phone()
   const store = playStores()
-  await seedHero(store, { ...completeHero(), id: 'h1', play: { health: 17, heroPoints: 2, reactionUsed: false, mods: [], twists: [], history: [] } })
+  await seedHero(store, { ...completeHero(), id: 'h1', heroPoints: 2, play: { health: 17, reactionUsed: false, mods: [], twists: [], history: [] } })
   render(
     <PlayProviders stores={store}>
       <PlayPage id="h1" clock={clock} />

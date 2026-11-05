@@ -17,7 +17,7 @@ import { project, type TableView } from '../game/project'
 import type { GameStore } from '../game/store'
 import { addHero, findHero, removeFromTable, setGameCode, updateSheet, withLog, GM } from '../game/table'
 import { heroDisplayName, type Hero } from '../hero/model'
-import type { Clock } from '../play/state'
+import { heroPointsLeft, type Clock } from '../play/state'
 import { Subscribable } from './subscribable'
 import { fitView, messageVersion, OBSERVER_LIMIT, PLAYER_LIMIT, PROTOCOL_VERSION, readClientMessage, type ClientMessage, type HostMessage, type RefusedReason } from './protocol'
 import { quietAfterLeave, type Connect, type Transport } from './transport'
@@ -270,7 +270,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
     const game = this.snapshot.game
     if (!game) return
     for (const [peer, p] of this.peers) {
-      if (p.role === 'player' && (findHero(game, p.heroId)?.play.heroPoints ?? 0) > 0) this.send({ v: PROTOCOL_VERSION, type: 'spendReminder' }, peer)
+      if (p.role === 'player' && heroPointsLeft(game.heroPoints, findHero(game, p.heroId)?.play ?? {}) > 0) this.send({ v: PROTOCOL_VERSION, type: 'spendReminder' }, peer)
     }
   }
 

@@ -111,7 +111,6 @@ export const playStateShape = object({
   'sceneZone?': oneOf('yellow', 'red'),
   'form?': nonEmptyString,
   'dividedForm?': oneOf('heroic'),
-  heroPoints: integer,
   'heroPointBuys?': arrayOf(object({ id: nonEmptyString, size: positiveInteger })),
   reactionUsed: boolean,
   mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true), 'source?': oneOf('heroPoint') })),

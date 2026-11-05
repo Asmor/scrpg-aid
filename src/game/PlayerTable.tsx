@@ -34,6 +34,7 @@ import { usePlayingSnapshot, useSession } from '../session/context'
 import { refusedText } from '../session/refused'
 import type { HeroAction } from './actions'
 import { betweenIssues, gameDisplayName, issueTitle, nextIssueNumber, sceneDisplayName } from './model'
+import { heroPointsLeft } from '../play/state'
 import { HERO_POINTS_ID } from './HeroPointsCard'
 import { finishedPill } from './summary'
 import { heroOnTableName, viewName, type HeroOnTable, type IssueOnTable, type TableView } from './project'
@@ -296,7 +297,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
 
   // Once the prompt is out of the way, a hero with points is told they can spend them.
   const lastIssue = issues.at(-1)
-  const pointsLeft = copy?.play.heroPoints ?? 0
+  const pointsLeft = copy && table ? heroPointsLeft(table.heroPoints, copy.play) : 0
   const remindedFor = useRef<string | undefined>(undefined)
   const [pointsToast, setPointsToast] = useState<ToastData | null>(null)
   const focusPoints = useCallback(() => {

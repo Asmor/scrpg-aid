@@ -8,7 +8,7 @@
  * Pure, apart from the id: a character's solo game has a fixed id, so it's found without a search.
  */
 import { heroDisplayName, type Hero } from '../hero/model'
-import { startOver, type Clock } from '../play/state'
+import { MAX_HERO_POINTS, startOver, type Clock } from '../play/state'
 import { villainDisplayName, type Villain } from '../villain/model'
 import { resetVillain } from '../villain/play'
 import { createGame, copySheet, heroCopy, villainCopy, type Game, type HeroInGame, type VillainInGame } from './model'
@@ -62,10 +62,16 @@ export function refreshSolo(game: Game, doc: Hero | Villain, clock: Clock): Game
   return { ...updateSheet(game, ref, clock, 'from your sheet'), name }
 }
 
-/** Start over: the character back to fresh play state (Health at max, no mods, twists, hero points, minions, form or history), and an empty log. */
+/** The solo game's hero points, changed by the player: kept between 0 and the most a hero can earn. */
+export function changeSoloHeroPoints(game: Game, by: number): Game {
+  return { ...game, heroPoints: Math.max(0, Math.min(MAX_HERO_POINTS, game.heroPoints + by)) }
+}
+
+/** Start over: the character back to fresh play state (Health at max, no mods, twists, minions, form or history), no hero points, and an empty log. */
 export function startOverSolo(game: Game): Game {
   return {
     ...game,
+    heroPoints: 0,
     heroes: game.heroes.map((h) => ({ ...h, play: startOver() })),
     villains: game.villains.map((v) => ({ ...v, play: resetVillain() })),
     feed: [],

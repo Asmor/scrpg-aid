@@ -18,7 +18,7 @@ import { HeroSheetView } from './HeroSheetView'
 import { IssueBanner, ModeSwitch, type CharacterMode } from './CharacterHead'
 import { SheetTags } from '../library/SheetTags'
 import { AlsoIn, SoloPlayActions, UnreadablePlayState } from '../game/SoloPlay'
-import { soloHero, startOverSolo } from '../game/solo'
+import { changeSoloHeroPoints, soloHero, startOverSolo } from '../game/solo'
 import { changeHeroPlay } from '../game/table'
 import { gamesHolding, useListedGames, useSoloGame } from '../game/useGameEditor'
 
@@ -153,7 +153,10 @@ export function HeroPage({ id, mode = 'sheet', clock = defaultClock, random }: {
       {mode === 'sheet' ? (
         <HeroSheetView hero={hero} advancement={draft ? undefined : { href: advancementPath(id), onClick: leave(advancementPath(id)) }} />
       ) : copy ? (
-        <PlayView hero={copy.sheet} play={copy.play} changePlay={(fn) => solo.apply((g) => changeHeroPlay(g, copy.id, (p) => fn(p), clock(), false))} clock={clock} random={random} />
+        <PlayView hero={copy.sheet} play={copy.play} heroPoints={game?.heroPoints ?? 0} changePlay={(fn, heroPointsBy) => solo.apply((g) => {
+          const next = changeHeroPlay(g, copy.id, (p) => fn(p), clock(), false)
+          return heroPointsBy ? changeSoloHeroPoints(next, heroPointsBy) : next
+        })} clock={clock} random={random} />
       ) : solo.state.status === 'unreadable' ? (
         <UnreadablePlayState who="hero" error={solo.state.error} onDiscard={solo.discard} />
       ) : solo.state.status === 'error' ? (

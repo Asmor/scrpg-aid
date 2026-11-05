@@ -3,7 +3,7 @@ import { addMod, emptyPlay, setHealth } from '../play/state'
 import { completeHero, minionMakerHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { isListedGame } from './model'
-import { createSoloGame, refreshSolo, soloGameId, soloHero, soloVillain, startOverSolo } from './solo'
+import { changeSoloHeroPoints, createSoloGame, refreshSolo, soloGameId, soloHero, soloVillain, startOverSolo } from './solo'
 import { changeHeroPlay, changeVillainPlay } from './table'
 import { gamesHolding } from './useGameEditor'
 
@@ -57,11 +57,20 @@ describe('solo games', () => {
     expect(soloVillain(hurt)!.play.health).toBe(50)
   })
 
+  it("keeps the game's hero points between 0 and 5", () => {
+    const game = createSoloGame('hero', completeHero(), clock)
+    expect(game.heroPoints).toBe(0)
+    expect(changeSoloHeroPoints(game, -1).heroPoints).toBe(0)
+    expect(changeSoloHeroPoints(changeSoloHeroPoints(game, 5), 1).heroPoints).toBe(5)
+  })
+
   it('start over: fresh play state and an empty log, the sheet untouched', () => {
     let game = createSoloGame('hero', completeHero(), clock)
     const id = soloHero(game)!.id
-    game = changeHeroPlay(game, id, (p) => addMod({ ...p, heroPoints: 2, form: 'form:0', health: 3 }, { label: 'x', value: 1 }, clock), clock)
+    game = changeHeroPlay(game, id, (p) => addMod({ ...p, form: 'form:0', health: 3 }, { label: 'x', value: 1 }, clock), clock)
+    game = changeSoloHeroPoints(game, 2)
     const fresh = startOverSolo(game)
+    expect(fresh.heroPoints).toBe(0)
     expect(soloHero(fresh)!.play).toEqual(emptyPlay())
     expect(soloHero(fresh)!.sheet).toEqual(soloHero(game)!.sheet)
     expect(fresh.feed).toEqual([])

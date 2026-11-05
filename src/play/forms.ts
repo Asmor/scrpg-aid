@@ -250,6 +250,11 @@ export function playAbilities(hero: Hero, sheet: HeroSheet, play: PlayState, zon
   return list.map(({ principle, only, ...a }) => ({ ...a, ...availability({ ...a, principle, only }, ctx) }))
 }
 
+/** Whether an ability awards a hero point ("You and each of your allies gain a hero point."). */
+export function gainsHeroPoint(text: string): boolean {
+  return /\bgain a hero point\b/i.test(text)
+}
+
 /**
  * Whether using an ability changes the hero's form or mode (Switch, Quick Switch, Change Forms,
  * Surprise Shift, Form Recovery, the Emergency ones, Divided's Transform and the like), going

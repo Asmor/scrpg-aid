@@ -31,10 +31,7 @@ import { applyAttack, applyGroupRoll, giveMod, protect } from './resolve'
 import { parseTarget } from './roll-targets'
 import { applyHeroChange, type HeroChange } from './hero-changes'
 import { betweenIssues, currentIssue, currentScene, gameDisplayName, issueTitle, nextIssueNumber, sceneName, sceneNumber, sceneOnTable, type ActorRef, type Issue, type OfferedHero, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
-import { backIssueStatuses, finishIssue, issueStartFacts, recordIssueAck, setIssueRecord, startIssue, type FinishChoices, type OwnHeroState } from './issues'
-import { applyHeroAction, type HeroAction } from './actions'
-import { HeroPointsCard } from './HeroPointsCard'
-import { Modal } from '../components/Modal'
+import { backIssueStatuses, changeHeroPoints, finishIssue, issueStartFacts, recordIssueAck, setIssueRecord, startIssue, type FinishChoices, type OwnHeroState } from './issues'
 import { FinishIssueDialog } from './FinishIssueDialog'
 import { finishedPill } from './summary'
 import { addBackIssue, backIssueOffer } from '../advancement/records'
@@ -75,7 +72,6 @@ type Dialog =
   | { kind: 'sceneStart'; sceneId: string }
   | { kind: 'finishIssue' }
   | { kind: 'issueText'; issueId: string; field: 'title' | 'summary' }
-  | { kind: 'spend'; heroId: string }
   | { kind: 'sceneRecord'; sceneId: string }
   | { kind: 'sceneDelete'; sceneId: string; number: number }
   | { kind: 'asideRemove'; ref: OppositionRef; name: string }
@@ -339,6 +335,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     nextUp,
     ...(between ? { backIssues: backIssueStatuses(game, connected), startIssue: () => setDialog(nextScene ? { kind: 'sceneStart', sceneId: nextScene.id } : { kind: 'scene', target: { kind: 'new' } }) } : {}),
     setPosition: (i) => apply((g) => T.setTrackerPosition(g, i, clock())),
+    changeHeroPoints: (by) => apply((g) => changeHeroPoints(g, by, clock())),
     sceneMenu: [
       { label: 'Edit this scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'current' } }) },
       nextScene ? { label: `Start the next scene: ${sceneName(nextScene)}…`, onSelect: () => setDialog({ kind: 'sceneStart', sceneId: nextScene.id }) } : { label: 'Plan the next scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'new' } }) },
@@ -371,7 +368,6 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       return [
         ...(newer ? [{ label: `Library sheet changed ${formatAgoInline(newer.updatedAt, now)}`, note: true as const, onSelect: () => {} }, { label: 'Update from library…', onSelect: () => setDialog({ kind: 'update', ref: { kind: 'hero', id: hero.ref.id }, sheet: newer }) }] : []),
         ...(request ? [{ label: 'Review sheet update…', onSelect: () => setDialog({ kind: 'review', heroId: hero.ref.id }) }] : []),
-        ...(between && copy && !copy.player ? [{ label: 'Spend hero points…', onSelect: () => setDialog({ kind: 'spend', heroId: hero.ref.id }) }] : []),
         { label: 'Change Health…', onSelect: () => setDialog({ kind: 'heroHealth', hero }) },
         { label: 'Give a bonus or penalty…', onSelect: () => setDialog({ kind: 'heroMod', hero }) },
         { label: 'Add a twist…', onSelect: () => setDialog({ kind: 'heroTwist', hero }) },
@@ -799,20 +795,6 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
               onSave={(value) => apply((g) => setIssueRecord(g, target.id, { [dialog.field]: value }))}
               onClose={() => setDialog(null)}
             />
-          )
-        })()}
-      {dialog?.kind === 'spend' &&
-        (() => {
-          const copy = T.findHero(game, dialog.heroId)
-          if (!copy) return null
-          const act = (action: HeroAction) => apply((g) => {
-            const result = applyHeroAction(g, copy.id, action, { basedOn: 0, versions: {} }, clock())
-            return result.ok ? result.game : g
-          })
-          return (
-            <Modal title={`Spend ${heroDisplayName(copy.sheet)}'s hero points`} onClose={() => setDialog(null)}>
-              <HeroPointsCard play={copy.play} issue={nextIssueNumber(game)} gmName="you" onBuy={(size) => act({ kind: 'buyHeroPointBonus', size })} onReturn={(buyId) => act({ kind: 'returnHeroPointBonus', buyId })} />
-            </Modal>
           )
         })()}
       {startReview && reviewDialog(startReview, () => setStartReview(null))}

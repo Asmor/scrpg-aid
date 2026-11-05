@@ -15,7 +15,7 @@ import { die, heroShape, playStateShape } from '../hero/validate'
 import { groupActions } from '../game/validate'
 import { arrayOf, boolean, integer, isRecord, nonEmptyString, object, oneOf, type Check } from '../shape'
 
-export const PROTOCOL_VERSION = 8
+export const PROTOCOL_VERSION = 9
 
 /** The most observers a game takes (section 10). */
 export const OBSERVER_LIMIT = 20
@@ -33,13 +33,13 @@ export const VIEW_FEED = 200
 
 export type ClientMessage =
   /** `gameId` when reconnecting a saved game: the GM checks the code and the game match. */
-  | { v: 8; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero; gameId?: string }
-  | { v: 8; type: 'hello'; role: 'observer'; clientId: string; screenName: string }
-  | { v: 8; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
-  | { v: 8; type: 'syncRequest'; heroId: string; sheet: Hero }
-  | { v: 8; type: 'syncCancel'; heroId: string }
+  | { v: 9; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero; gameId?: string }
+  | { v: 9; type: 'hello'; role: 'observer'; clientId: string; screenName: string }
+  | { v: 9; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
+  | { v: 9; type: 'syncRequest'; heroId: string; sheet: Hero }
+  | { v: 9; type: 'syncCancel'; heroId: string }
   /** What a player did about a back issue, for the GM's list (docs/design/issues/spec.md, section 3). Only ever information. */
-  | { v: 8; type: 'issueAck'; issueId: string; heroId: string; status: 'added' | 'later'; count?: number }
+  | { v: 9; type: 'issueAck'; issueId: string; heroId: string; status: 'added' | 'later'; count?: number }
 
 /** Who a state message is for: a player's own hero in the game, and when it first joined. */
 export interface YouAre {
@@ -48,18 +48,18 @@ export interface YouAre {
 }
 
 export type HostMessage =
-  | { v: 8; type: 'state'; room: string; version: number; table: TableView; gm: string; you?: YouAre }
+  | { v: 9; type: 'state'; room: string; version: number; table: TableView; gm: string; you?: YouAre }
   /** `notes`: lines for the player as toasts (a save against their Attack). */
-  | { v: 8; type: 'result'; id: string; ok: true; notes?: string[] }
-  | { v: 8; type: 'result'; id: string; ok: false; reason: string }
-  | { v: 8; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
-  | { v: 8; type: 'refused'; reason: RefusedReason }
+  | { v: 9; type: 'result'; id: string; ok: true; notes?: string[] }
+  | { v: 9; type: 'result'; id: string; ok: false; reason: string }
+  | { v: 9; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
+  | { v: 9; type: 'refused'; reason: RefusedReason }
   /** The GM got a new code for the game: kept peers move to it (docs/design/game-table/game-table-spec-addendum-game-codes.md). */
-  | { v: 8; type: 'codeChanged'; code: string }
+  | { v: 9; type: 'codeChanged'; code: string }
   /** The GM removed this peer from the game (Remove, or left behind by a new code). */
-  | { v: 8; type: 'removed'; reason?: string }
+  | { v: 9; type: 'removed'; reason?: string }
   /** The GM is about to start the next issue, and this player's hero has hero points left. */
-  | { v: 8; type: 'spendReminder' }
+  | { v: 9; type: 'spendReminder' }
 
 /**
  * Why the GM's device won't take a peer: another version of the app, a full game, the hero is
@@ -124,7 +124,6 @@ const ACTIONS: Record<HeroAction['kind'], Check> = {
   removeMod: object({ modId: id }),
   addTwist: object({ twist: object({ kind: oneOf('minor', 'major'), text: text() }) }),
   removeTwist: object({ twistId: id }),
-  heroPoints: object({ by: oneOf(1, -1) }),
   buyHeroPointBonus: object({ size: range(1, 5) }),
   returnHeroPointBonus: object({ buyId: id }),
   reaction: object({ used: boolean }),
@@ -210,6 +209,7 @@ const tableViewShape = object({
   scene: object({ name: text(MAX_NAME), tracker: list(zone, 30), position, number: range(1, 1000) }),
   'environment?': object({ id, name: text(MAX_NAME), hidden: boolean, 'description?': text(MAX_TEXT) }),
   round: position,
+  heroPoints: position,
   turn: object({ order: list(actor, 100), acted: list(actor, 100), 'current?': actor }),
   heroes: list(object({ id, sourceId: id, sheet: heroShape, play: (v, path) => playStateShape(v, path) ?? object({ history: list(() => undefined, VIEW_HISTORY) })(v, path), 'player?': object({ name: text(MAX_NAME), 'since?': text(40) }) }), 30),
   villains: list(

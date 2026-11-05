@@ -61,7 +61,7 @@ describe('forms in play', () => {
 
   it('keeps a Yellow mode’s dice and ability after healing to Green, locking the other Yellow abilities', async () => {
     const hero: HeroWithPlay = modularBlasterHero()
-    hero.play = { health: 28, form: 'mode:2', heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [] }
+    hero.play = { health: 28, form: 'mode:2', reactionUsed: false, mods: [], twists: [], history: [] }
     await setup(hero)
     const card = screen.getByRole('region', { name: 'Mode' })
     expect(card).toHaveTextContent("You're in the Green zone: Bombardment Mode keeps its dice and its own ability, but your other Yellow abilities are locked.")
@@ -87,7 +87,7 @@ describe('forms in play', () => {
 
   it('says nothing about zones while Out', async () => {
     const hero: HeroWithPlay = formChangerHero()
-    hero.play = { health: 0, heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [] }
+    hero.play = { health: 0, reactionUsed: false, mods: [], twists: [], history: [] }
     await setup(hero)
     const card = within(screen.getByRole('region', { name: 'Form' }))
     expect(card.queryByText(/Normally needs/)).not.toBeInTheDocument()

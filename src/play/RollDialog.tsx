@@ -14,11 +14,11 @@ import { checkManualResults, rollDice } from '../rules/rolling'
 import type { Action, BasicAction, Die, EffectUse, MinionForm } from '../rules/types'
 import { activePlans, chosenMods, defaultAssignment, defaultModChoice, defaultPlans, describeEffect, hasDoubles, modFlagsFor, modSize, poolDice, results, sortRolls, toggleMod, USE_LABEL, useValue as valueFor, type EffectPlan, type EffectResult, type GivenValues, type RollRecord, type Rolled } from './roll'
 import { minionAction, minionSize, takesAnyAction } from './minions'
-import { defaultSlots, traitChoices, type FormDice, type RollTrait } from './forms'
+import { defaultSlots, gainsHeroPoint, traitChoices, type FormDice, type RollTrait } from './forms'
 import { GONE } from './ModForm'
 import { ShowOtherSide, TargetOptions } from './TargetPicker'
 import { allOptions, polarity, toggleLabel, type Polarity, type TargetList } from '../game/target-options'
-import { describeMod, modName, type PlayZone } from './state'
+import { describeMod, MAX_HERO_POINTS, modName, type PlayZone } from './state'
 
 /** What's being used: an ability (with its effects), or a basic action (maybe already chosen). */
 export type RollSubject = { kind: 'ability'; name: string; text: string; use: AbilityUse; reaction: boolean } | { kind: 'basic'; action?: BasicAction }
@@ -61,11 +61,16 @@ interface RollDialogProps {
   zone: PlayZone | undefined
   mods: readonly PlayMod[]
   /** Done: the roll to record, the follow-up mods to add or give, and the form or mode chosen, if it changed. */
-  onConfirm: (record: RollRecord, followUps: readonly FollowUpMod[], formChoice?: string, minions?: readonly NewMinion[], targetChoices?: readonly TargetChoice[], overcoming?: string) => void
+  onConfirm: (record: RollRecord, followUps: readonly FollowUpMod[], formChoice?: string, minions?: readonly NewMinion[], targetChoices?: readonly TargetChoice[], overcoming?: string, gainedHeroPoint?: boolean) => void
   /** A player at a table: the challenges an Overcome can go against, as ids and labels. */
   overcomeOptions?: readonly { id: string; label: string }[]
   /** For an ability that changes form or mode: the choices, offered in the Resolve step. */
   formPicker?: FormPicker
+  /**
+   * For a player's hero, when an ability awards a hero point: in solo the player takes it here (the
+   * count, for the limit); at a table only the GM changes the game's count, so this only says so.
+   */
+  heroPoint?: { kind: 'solo'; count: number } | { kind: 'table' }
   /** For an ability that makes minions (Make Minion and the like): the die that sizes each one (ruling 62). */
   creates?: readonly EffectUse[]
   /** The hero's minion forms, offered for each minion made. */
@@ -137,7 +142,7 @@ function modMade(action: Action, total: number): string | undefined {
   return action === 'boost' ? `a +${size} bonus` : `a −${size} penalty`
 }
 
-export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptions = [], formPicker, creates = [], minionForms = [], targetsFor, selfId = '', pickTargets = 'all', fixedPool, statusLabel, onClose, random }: RollDialogProps) {
+export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptions = [], formPicker, heroPoint, creates = [], minionForms = [], targetsFor, selfId = '', pickTargets = 'all', fixedPool, statusLabel, onClose, random }: RollDialogProps) {
   const titleId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const use = subject.kind === 'ability' ? subject.use : undefined
@@ -161,6 +166,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
 
   // Effects: an ability's, or the basic action chosen.
   const [overcoming, setOvercoming] = useState('')
+  const [gainPoint, setGainPoint] = useState(false)
   const [basicAction, setBasicAction] = useState<Action>(() => (subject.kind === 'basic' && subject.action) || actions[0] || 'attack')
   // A basic action always uses Mid (the environment's too).
   const effects = use ? use.effects : [{ actions: [basicAction], use: 'mid' as EffectUse }]
@@ -271,6 +277,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
       })
     : []
   const toggle = toggleLabel(picking)
+  const awardsPoint = subject.kind === 'ability' && gainsHeroPoint(subject.text)
   const overcomeOffered = overcomeOptions.length > 0 && finalResults.some((r) => r.action === 'overcome' && r.total !== undefined)
   const done = () => {
     if (!rolled) return
@@ -301,6 +308,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
       }),
       // Only an Overcome goes against a challenge, and one that's still there.
       overcomeOffered && overcomeOptions.some((o) => o.id === overcoming) ? overcoming : undefined,
+      gainPoint,
     )
     onClose()
   }
@@ -800,6 +808,21 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
                   const action = r.action
                   return <ModOffer key={i} value={value} label={title} persistent={flags.persistent} exclusive={flags.exclusive} list={targetsFor && ((keep) => listFor(action, keep))} selfId={selfId} chosen={followUps[i]} onChange={(f) => setFollowUps((all) => ({ ...all, [i]: f }))} />
                 })}
+                {awardsPoint && heroPoint?.kind === 'table' && <p className="roll-section hint">Hero points go to the whole table. Ask the GM.</p>}
+                {awardsPoint && heroPoint?.kind === 'solo' && (
+                  <div className="roll-section roll-followup">
+                    {heroPoint.count >= MAX_HERO_POINTS ? (
+                      <p className="hint">This ability gains a hero point, but you already have {MAX_HERO_POINTS}.</p>
+                    ) : (
+                      <>
+                        <p>{gainPoint ? 'Will gain a hero point when done.' : `This ability gains a hero point. You have ${heroPoint.count}.`}</p>
+                        <button type="button" className="button button--small" onClick={() => setGainPoint(!gainPoint)}>
+                          {gainPoint ? 'Change' : 'Gain a hero point'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
                 <div className="button-row">
                   <button type="button" className="button button--primary" onClick={done}>
                     Done
@@ -810,6 +833,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
                     onClick={() => {
                       // The results can change on the way back, so the follow-ups are chosen again.
                       setFollowUps({})
+                      setGainPoint(false)
                       setAttackTo({})
                       setStep(1)
                     }}

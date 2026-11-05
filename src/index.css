@@ -6716,6 +6716,11 @@ span.gt-step--done {
   padding: 2px 12px;
 }
 
+/* The Heroes heading, with the game's hero points. */
+.dv-heroes {
+  margin-bottom: 8px;
+}
+
 .dv-tracker {
   display: flex;
   gap: 10px;

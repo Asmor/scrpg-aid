@@ -13,7 +13,8 @@ import { emptyVillainPlay } from '../villain/play'
 import { MemoryVillainStore } from '../villain/store'
 
 /** A hero or villain as a test writes it: its document, plus the play state its solo game starts with. */
-export type HeroWithPlay = Hero & { play?: PlayState }
+/** A hero, and what its solo game holds for it. */
+export type HeroWithPlay = Hero & { play?: PlayState; heroPoints?: number }
 export type VillainWithPlay = Villain & { play?: VillainPlayState }
 
 export interface PlayStores {
@@ -29,11 +30,11 @@ export function playStores(): PlayStores {
 const clock = () => ({ now: new Date('2026-11-01T00:00:00Z'), newId: () => `seed-${Math.random().toString(36).slice(2)}` })
 
 /** Saves the hero, and its solo game when it comes with play state. */
-export async function seedHero(stores: PlayStores, { play, ...hero }: HeroWithPlay): Promise<void> {
+export async function seedHero(stores: PlayStores, { play, heroPoints = 0, ...hero }: HeroWithPlay): Promise<void> {
   await stores.heroes.save(hero)
   if (!play) return
   const game = createSoloGame('hero', hero, clock())
-  await stores.games.save({ ...game, heroes: game.heroes.map((h) => ({ ...h, play: { ...emptyPlay(), ...play } })) })
+  await stores.games.save({ ...game, heroPoints, heroes: game.heroes.map((h) => ({ ...h, play: { ...emptyPlay(), ...play } })) })
 }
 
 export async function seedVillain(stores: PlayStores, { play, ...villain }: VillainWithPlay): Promise<void> {
@@ -49,7 +50,7 @@ export async function savedHero(stores: PlayStores, id: string): Promise<HeroWit
   if (r.status !== 'found') throw new Error('not saved')
   const g = await stores.games.get(soloGameId('hero', id))
   const play = g.status === 'found' ? soloHero(g.game)?.play : undefined
-  return play ? { ...r.hero, play } : r.hero
+  return play && g.status === 'found' ? { ...r.hero, play, heroPoints: g.game.heroPoints } : r.hero
 }
 
 export async function savedVillain(stores: PlayStores, id: string): Promise<VillainWithPlay> {

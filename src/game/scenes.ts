@@ -791,6 +791,7 @@ export function duplicateGame(game: Game, options: { id?: string; now?: Date } =
     issues: [issue],
     currentIssueId: issue.id,
     round: 0,
+    heroPoints: 0,
     turn: { order: [], acted: [] },
     heroes: copy.heroes.filter((h) => !h.player).map((h) => ({ ...h, play: emptyPlay() })),
     villains: [],

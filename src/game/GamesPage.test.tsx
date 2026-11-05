@@ -279,8 +279,8 @@ describe('the Games page', () => {
     expect(await screen.findByText(/The GM isn't connected\./)).toBeInTheDocument()
     expect(screen.getByText(/This is Friday game as of Oct 28/)).toBeInTheDocument()
     const panel = within(screen.getByRole('complementary', { name: 'My hero' }))
-    expect(panel.getByRole('button', { name: 'Gain a hero point' })).toBeDisabled()
-    expect(panel.getByRole('button', { name: 'Gain a hero point' })).toHaveAccessibleDescription('Needs the GM')
+    expect(panel.getByRole('button', { name: 'Gain 1 Health' })).toBeDisabled()
+    expect(panel.getByRole('button', { name: 'Gain 1 Health' })).toHaveAccessibleDescription('Needs the GM')
     // Reading still works: the table and the log.
     expect(screen.getByRole('article', { name: 'Jo' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try to reconnect' })).toBeInTheDocument()

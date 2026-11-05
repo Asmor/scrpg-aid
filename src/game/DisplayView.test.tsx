@@ -28,6 +28,11 @@ function game(): Game {
 }
 
 describe('the display view', () => {
+  it("shows the game's hero points over the heroes", () => {
+    render(<DisplayView table={{ ...project(game(), 'observer'), heroPoints: 1 }} watching="Watching" />)
+    expect(screen.getByRole('region', { name: 'Heroes · 1 hero point' })).toBeInTheDocument()
+  })
+
   it('shows "Scene N", never the total, and marks the name to animate in', () => {
     render(<DisplayView table={project(game(), 'observer')} watching="Watching" />)
     expect(screen.getByText('Scene 1')).toBeInTheDocument()

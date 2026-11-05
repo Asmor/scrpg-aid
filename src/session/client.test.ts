@@ -43,12 +43,12 @@ describe("a player's device", () => {
 
   it('sends an action and shows it pending until the result, with no change before', async () => {
     const { net, client } = await setup()
-    expect(client.act({ kind: 'heroPoints', by: 1 })).toBe(true)
+    expect(client.act({ kind: 'reaction', used: true })).toBe(true)
     expect(client.getSnapshot().pending).toHaveLength(1)
-    expect(client.getSnapshot().received!.table.heroes[0]!.play.heroPoints).toBe(0)
+    expect(client.getSnapshot().received!.table.heroes[0]!.play.reactionUsed).toBe(false)
     await net.settle()
     expect(client.getSnapshot().pending).toEqual([])
-    expect(client.getSnapshot().received!.table.heroes[0]!.play.heroPoints).toBe(1)
+    expect(client.getSnapshot().received!.table.heroes[0]!.play.reactionUsed).toBe(true)
   })
 
   it("tells the player how a minion's save against their Attack went", async () => {
@@ -82,9 +82,9 @@ describe("a player's device", () => {
 
   it('shows why an action was refused', async () => {
     const { net, client } = await setup()
-    client.act({ kind: 'heroPoints', by: -1 })
+    client.act({ kind: 'removeMod', modId: 'nope' })
     await net.settle()
-    expect(client.getSnapshot().notices).toMatchObject([{ kind: 'rejected', text: 'Not applied: you have no hero points to spend.' }])
+    expect(client.getSnapshot().notices).toMatchObject([{ kind: 'rejected', text: 'Not applied: that bonus or penalty is already gone.' }])
     client.dismiss(client.getSnapshot().notices[0]!.id)
     expect(client.getSnapshot().notices).toEqual([])
   })
@@ -103,7 +103,7 @@ describe("a player's device", () => {
     const client = new PlayerClient(lossy, { room: ROOM, clientId: 'c1', name: 'Alex', heroSourceId: 'maya-src', sheet: maya() })
     await net.settle()
     drop = true
-    client.act({ kind: 'heroPoints', by: 1 })
+    client.act({ kind: 'reaction', used: true })
     await net.settle()
     vi.advanceTimersByTime(RESULT_TIMEOUT)
     const notice = client.getSnapshot().notices[0]!
@@ -114,7 +114,7 @@ describe("a player's device", () => {
     await net.settle()
     expect(client.getSnapshot().pending).toEqual([])
     expect(client.getSnapshot().notices).toEqual([])
-    expect(host.game!.heroes[0]!.play.heroPoints).toBe(1)
+    expect(host.game!.heroes[0]!.play.reactionUsed).toBe(true)
   })
 
   it('pauses actions while the GM is away, goes offline after 30 seconds, and keeps trying', async () => {
@@ -122,7 +122,7 @@ describe("a player's device", () => {
     host.leave()
     await net.settle()
     expect(client.getSnapshot().status).toBe('reconnecting')
-    expect(client.act({ kind: 'heroPoints', by: 1 })).toBe(false)
+    expect(client.act({ kind: 'reaction', used: true })).toBe(false)
     vi.advanceTimersByTime(OFFLINE_AFTER)
     expect(client.getSnapshot().status).toBe('offline')
     // The cached game stays.

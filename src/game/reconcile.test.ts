@@ -91,11 +91,10 @@ describe('reconcile, row by row', () => {
     expect(reconcile(many, minionMakerHero(), minionMakerHero())).toEqual({ play: many, adjustments: [] })
   })
 
-  it('never touches mods, twists, hero points, the reaction or the history', () => {
+  it('never touches mods, twists, the reaction or the history', () => {
     const play: PlayState = {
       ...emptyPlay(),
       health: 3,
-      heroPoints: 2,
       reactionUsed: true,
       mods: [{ id: 'm', label: 'x', value: 2 }],
       twists: [{ id: 't', kind: 'minor', text: 'Pinned' }],

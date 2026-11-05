@@ -475,7 +475,7 @@ describe('the game table', () => {
     expect(log()).toHaveTextContent('The GM revealed Ironclad.')
     // Both are copies in the game, at fresh play state.
     await waitFor(async () => expect((await saved()).villains).toMatchObject([{ sourceId: 'v1', hidden: false, playersSee: 'status', play: { reactionUsed: false, mods: [], twists: [], history: [] } }]))
-    expect((await saved()).heroes).toMatchObject([{ sourceId: expect.any(String), sheet: { details: { name: 'Maya Reyes' } }, play: { heroPoints: 0, reactionUsed: false } }])
+    expect((await saved()).heroes).toMatchObject([{ sourceId: expect.any(String), sheet: { details: { name: 'Maya Reyes' } }, play: { reactionUsed: false } }])
   })
 
   it('shows a hero’s copy with its Health, and the scene zone raises its zone', async () => {
@@ -778,11 +778,45 @@ describe('finishing the issue', () => {
   })
 })
 
+describe("the game's hero points", () => {
+  const heading = () => screen.getByRole('heading', { name: /^Heroes · / })
+
+  it('the GM changes them on the Heroes heading, logged for everyone', async () => {
+    const { saved } = await setup()
+    expect(heading()).toHaveTextContent('Heroes · 0 hero points')
+    const lower = screen.getByRole('button', { name: 'Take away a hero point' })
+    const raise = screen.getByRole('button', { name: 'Award a hero point' })
+    expect(lower).toBeDisabled()
+    await userEvent.click(raise)
+    expect(heading()).toHaveTextContent('Heroes · 1 hero point')
+    expect(log()).toHaveTextContent('The heroes gained a hero point. They have 1.')
+    await userEvent.click(raise)
+    await userEvent.click(lower)
+    expect(log()).toHaveTextContent('The heroes lost a hero point. They have 1.')
+    await waitFor(async () => expect((await saved()).heroPoints).toBe(1))
+  })
+
+  it("stops at five, and gives the GM's own heroes no way to spend them", async () => {
+    await setup((g, { hero }) => {
+      g.heroes.push(heroCopy(hero, 'h1'))
+      g.heroPoints = 5
+      g.scenes[0]!.state = 'done'
+      g.issues[0] = { ...g.issues[0]!, state: 'finished', title: 'The Saga' }
+      delete g.currentIssueId
+    })
+    expect(screen.getByRole('button', { name: 'Award a hero point' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'GM actions for Maya Reyes' }))
+    expect(screen.queryByRole('menuitem', { name: 'Spend hero points…' })).not.toBeInTheDocument()
+  })
+})
+
 describe('starting the next issue', () => {
   const paused = () =>
     setup((g, { hero }) => {
       const own = heroCopy(hero, 'h1')
-      own.play = { ...emptyPlay(), heroPoints: 3, heroPointBuys: [{ id: 'b1', size: 2 }], health: 1 }
+      own.player = { clientId: 'c1', name: 'Alex' }
+      own.play = { ...emptyPlay(), heroPointBuys: [{ id: 'b1', size: 2 }], health: 1 }
+      g.heroPoints = 5
       g.heroes.push(own)
       g.scenes[0]!.name = 'The Foundry'
       g.scenes[0]!.state = 'done'
@@ -799,7 +833,7 @@ describe('starting the next issue', () => {
     expect(dialog.getByText('Issue 1, The Saga, is finished.')).toBeInTheDocument()
     expect(dialog.getByRole('checkbox', { name: /Heroes recover/ })).toBeChecked()
     expect(dialog.getByRole('checkbox', { name: /Bonuses and penalties on the opposition/ })).toBeChecked()
-    expect(dialog.getByText(/Maya Reyes 3\. Unspent points are lost/)).toBeInTheDocument()
+    expect(dialog.getByText(/Maya Reyes 3 \(disconnected\)\. Unspent points are lost/)).toBeInTheDocument()
     expect(dialog.getByText(/Bought for issue 2: Maya Reyes \+2/)).toBeInTheDocument()
     expect(dialog.getByText('Players get a toast: "Issue 2 began: Tunnels."')).toBeInTheDocument()
     await userEvent.click(dialog.getByRole('button', { name: 'Start issue 2' }))
@@ -811,14 +845,16 @@ describe('starting the next issue', () => {
 
     expect(screen.getByRole('heading', { name: 'Tunnels' })).toBeInTheDocument()
     await waitFor(async () => expect((await saved()).currentSceneId).toBe('s2'))
-    expect((await saved()).heroes[0]!.play).toMatchObject({ heroPoints: 0, mods: [{ value: 2, source: 'heroPoint' }] })
+    expect((await saved()).heroPoints).toBe(0)
+    expect((await saved()).heroes[0]!.play).toMatchObject({ mods: [{ value: 2, source: 'heroPoint' }] })
     expect((await saved()).heroes[0]!.play.health).toBeUndefined()
     expect(log()).toHaveTextContent('Issue 2 began with scene 2: Tunnels.')
 
     await userEvent.click(within(log()).getByRole('button', { name: 'Undo starting issue 2' }))
     expect(screen.getByRole('heading', { name: 'The Saga' })).toBeInTheDocument()
     await waitFor(async () => expect((await saved()).currentIssueId).toBeUndefined())
-    expect((await saved()).heroes[0]!.play).toMatchObject({ heroPoints: 3, health: 1 })
+    expect((await saved()).heroPoints).toBe(5)
+    expect((await saved()).heroes[0]!.play).toMatchObject({ heroPointBuys: [{ size: 2 }], health: 1 })
   })
 
   it('opens the scene editor first when nothing is planned', async () => {
@@ -832,18 +868,8 @@ describe('starting the next issue', () => {
     expect(screen.getByRole('button', { name: /Save and start/ })).toBeInTheDocument()
   })
 
-  it("lets the GM spend their own hero's points, and rename a finished issue", async () => {
+  it('renames a finished issue', async () => {
     const { saved } = await paused()
-    await menuItem('GM actions for Maya Reyes', 'Spend hero points…')
-    const dialog = within(screen.getByRole('dialog', { name: "Spend Maya Reyes's hero points" }))
-    expect(dialog.getByRole('img', { name: '3 of 5 hero points left' })).toBeInTheDocument()
-    await userEvent.click(dialog.getByRole('button', { name: 'Buy a +3 bonus for 3 points' }))
-    await waitFor(async () => expect((await saved()).heroes[0]!.play.heroPoints).toBe(0))
-    expect(dialog.getByRole('button', { name: 'Buy a +4 bonus for 4 points' })).toBeDisabled()
-    await userEvent.click(dialog.getByRole('button', { name: 'Return the +2 bonus' }))
-    await waitFor(async () => expect((await saved()).heroes[0]!.play.heroPoints).toBe(2))
-    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
-
     await userEvent.click(gmScreen().getByRole('tab', { name: 'Scenes' }))
     expect(gmScreen().getByRole('button', { name: 'Issue 1 · The Saga' })).toHaveAttribute('aria-expanded', 'false')
     expect(gmScreen().queryByRole('article', { name: /The Foundry/ })).not.toBeInTheDocument()

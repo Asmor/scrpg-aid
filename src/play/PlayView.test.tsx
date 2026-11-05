@@ -61,7 +61,7 @@ describe('PlayPage', () => {
 
   it('steps Health by one, never past 0 or the max, and is Out at 0', async () => {
     await setup((h) => {
-      h.play = { health: 1, heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [] }
+      h.play = { health: 1, reactionUsed: false, mods: [], twists: [], history: [] }
     })
     await userEvent.click(screen.getByRole('button', { name: 'Lose 1 Health' }))
     expect(healthIs()).toBe('0 of 30 · Out')
@@ -143,6 +143,8 @@ describe('PlayPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Gain a hero point' }))
     await userEvent.click(screen.getByRole('button', { name: 'Spend a hero point' }))
     expect(screen.getByLabelText('1 of 5 hero points')).toHaveTextContent('1')
+    expect(screen.getByRole('region', { name: 'History' })).toHaveTextContent('Gained a hero point (now 1).')
+    expect(screen.getByRole('region', { name: 'History' })).toHaveTextContent('Spent a hero point (now 1).')
     await userEvent.click(screen.getByRole('checkbox', { name: 'Reaction used this round' }))
     expect(screen.getByRole('region', { name: 'History' })).toHaveTextContent('Used this round’s reaction.')
   })
@@ -176,7 +178,7 @@ describe('PlayPage', () => {
 
   it('starts over after asking, from the solo game’s ⋯', async () => {
     const store = await setup((h) => {
-      h.play = { health: 5, heroPoints: 3, reactionUsed: true, mods: [{ id: 'm', label: 'x', value: 2 }], twists: [], history: [] }
+      h.play = { health: 5, reactionUsed: true, mods: [{ id: 'm', label: 'x', value: 2 }], twists: [], history: [] }
     })
     expect(screen.getByText('Solo play')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /^More for .*Play page$/ }))
@@ -184,7 +186,7 @@ describe('PlayPage', () => {
     expect(screen.getByRole('dialog', { name: 'Start over?' })).toHaveTextContent('mods, twists, hero points, minions, form and the play log are cleared')
     await userEvent.click(screen.getByRole('button', { name: 'Yes, start over' }))
     expect(healthIs()).toBe('30 of 30 · Green')
-    await waitFor(async () => expect((await saved(store)).play).toEqual({ heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [] }))
+    await waitFor(async () => expect((await saved(store)).play).toEqual({ reactionUsed: false, mods: [], twists: [], history: [] }))
     // The sheet isn't touched.
     expect((await saved(store)).health).toEqual(completeHero().health)
   })
@@ -233,7 +235,7 @@ describe('PlayPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Gain a hero point' }))
     await userEvent.click(screen.getByRole('link', { name: 'Edit' }))
     await waitFor(() => expect(window.location.hash).toBe('#/hero/h1/edit'))
-    expect((await saved(store)).play?.heroPoints).toBe(1)
+    expect((await saved(store)).heroPoints).toBe(1)
   })
 
   it('switches to Sheet mode from the header', async () => {

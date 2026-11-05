@@ -45,7 +45,7 @@ import {
   setDividedForm,
   setForm,
   setHealth,
-  setHeroPoints,
+  noteHeroPoints,
   setReactionUsed,
   setSceneZone,
   statusDieFor,
@@ -241,13 +241,15 @@ interface PlayViewProps {
   hero: Hero
   /** The hero's play state in that game. */
   play: PlayState
-  /** Changes the play state; the game saves it. */
-  changePlay: (fn: (play: PlayState) => PlayState) => void
+  /** Changes the play state, and the solo game's hero points by an amount; the game saves it. */
+  changePlay: (fn: (play: PlayState) => PlayState, heroPointsBy?: number) => void
+  /** The solo game's hero points. */
+  heroPoints: number
   clock: () => Clock
   random?: () => number
 }
 
-export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProps) {
+export function PlayView({ hero, play, changePlay, heroPoints, clock, random }: PlayViewProps) {
   const id = hero.id
   const formId = useId()
   const tick = useTick()
@@ -264,7 +266,8 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
   const [tab, setTab] = useState<PhoneTab>('actions')
 
   const sheet = buildSheet(hero)
-  const change = (fn: (p: PlayState, c: Clock) => PlayState) => changePlay((p) => fn(p, clock()))
+  const change = (fn: (p: PlayState, c: Clock) => PlayState, heroPointsBy?: number) => changePlay((p) => fn(p, clock()), heroPointsBy)
+  const changePoints = (by: 1 | -1) => change((p, c) => noteHeroPoints(p, heroPoints, heroPoints + by, c), by)
   const health = currentHealth(sheet, play)
   const own = health === undefined ? undefined : healthZone(sheet, health)
   const zone = effectiveZone(sheet, play)
@@ -507,13 +510,13 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
 
       <Card title="Hero points" className="play-card--points">
         <div className="play-points">
-          <button type="button" className="button" aria-label="Spend a hero point" disabled={play.heroPoints <= 0} onClick={() => change((p, c) => setHeroPoints(p, p.heroPoints - 1, c))}>
+          <button type="button" className="button" aria-label="Spend a hero point" disabled={heroPoints <= 0} onClick={() => changePoints(-1)}>
             −
           </button>
-          <strong aria-live="polite" aria-label={`${play.heroPoints} of ${MAX_HERO_POINTS} hero points`}>
-            {play.heroPoints}
+          <strong aria-live="polite" aria-label={`${heroPoints} of ${MAX_HERO_POINTS} hero points`}>
+            {heroPoints}
           </strong>
-          <button type="button" className="button" aria-label="Gain a hero point" disabled={play.heroPoints >= MAX_HERO_POINTS} onClick={() => change((p, c) => setHeroPoints(p, p.heroPoints + 1, c))}>
+          <button type="button" className="button" aria-label="Gain a hero point" disabled={heroPoints >= MAX_HERO_POINTS} onClick={() => changePoints(1)}>
             +
           </button>
         </div>
@@ -680,7 +683,8 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
           formPicker={rolling.kind === 'ability' ? formPickerFor(rolling.text) : undefined}
           creates={rolling.kind === 'ability' ? minionCreation(rolling.text) : undefined}
           minionForms={sheet.minionForms}
-          onConfirm={(record, followUps, formChoice, made = [], choices = []) => {
+          heroPoint={{ kind: 'solo', count: heroPoints }}
+          onConfirm={(record, followUps, formChoice, made = [], choices = [], _overcoming, gainedHeroPoint = false) => {
             // A mod for one of the hero's own minions goes on it. (Solo Play has no one else to give one to.)
             let undo: RollChange | undefined
             let formBefore: Pick<PlayState, 'form' | 'dividedForm'> = {}
@@ -705,9 +709,10 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
                 const r = record.results[ch.result]
                 if (ch.to === '' && r?.action === 'defend' && r.total !== undefined) after = gainDefense(after, effectAmount(r.total), heroDisplayName(hero), c)
               }
+              if (gainedHeroPoint) after = noteHeroPoints(after, heroPoints, heroPoints + 1, c)
               undo = rollChange(p, after, record.title)
               return after
-            })
+            }, gainedHeroPoint ? 1 : undefined)
             const usedUp = record.results.flatMap((r) => r.mods).filter((m) => !m.persistent)
             setToast({
               id: ++toastCount.current,
@@ -730,7 +735,7 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
                   }
                   const { form: _form, ...rest } = undone
                   return { ...rest, ...(formBefore.form ? { form: formBefore.form } : {}) }
-                }),
+                }, gainedHeroPoint ? -1 : undefined),
             })
           }}
           // A Defend protects the hero or no one in the app: solo minions take no hits here.
@@ -765,7 +770,7 @@ export function PlayView({ hero, play, changePlay, clock, random }: PlayViewProp
             <span>Status</span>
           </div>
           <div className="play-topbar__stat">
-            <strong>{play.heroPoints}</strong>
+            <strong>{heroPoints}</strong>
             <span>Hero pts</span>
           </div>
         </div>

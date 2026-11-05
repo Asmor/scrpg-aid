@@ -90,7 +90,7 @@ describe('serialize', () => {
   })
 
   it('drops play state on load: it lives in games now', () => {
-    const play = { health: 12, heroPoints: 3, reactionUsed: true, mods: [], twists: [], history: [] }
+    const play = { health: 12, reactionUsed: true, mods: [], twists: [], history: [] }
     // A version 2 hero with play state is migrated without it.
     expect(parseSaved({ format: HERO_FORMAT, version: 2, hero: { ...hero(), play, currentHealth: 12 } })).toEqual({ ok: true, hero: hero(), migratedFrom: 2 })
     // Play state an older app wrote back into a current hero is dropped too, even malformed.

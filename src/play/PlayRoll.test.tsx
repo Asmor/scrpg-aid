@@ -31,7 +31,7 @@ const abilities = () => within(screen.getByRole('region', { name: 'Actions' }))
 /** An ability's row in its band. */
 const row = (name: string) => abilities().getByText(name, { selector: 'strong' }).closest('li')!
 const play = (h: Partial<PlayState>) => (hero: HeroWithPlay) => {
-  hero.play = { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [], ...h }
+  hero.play = { reactionUsed: false, mods: [], twists: [], history: [], ...h }
 }
 
 describe('using abilities', () => {
@@ -152,6 +152,46 @@ describe('using abilities', () => {
     await userEvent.click(within(toast).getByRole('button', { name: 'Undo' }))
     await waitFor(async () => expect((await saved(store)).play?.mods.map((m) => m.id).sort()).toEqual(['b', 'p', 'x', 'y']))
     expect((await saved(store)).play?.history).toEqual([])
+  })
+
+  describe("a principle's hero point", () => {
+    const toResolve = async () => {
+      await userEvent.click(abilities().getByRole('button', { name: 'Use Principle of the Gearhead' }))
+      const dialog = within(screen.getByRole('dialog', { name: 'Principle of the Gearhead' }))
+      await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
+      await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
+      return dialog
+    }
+
+    it('adds to the solo count when taken, and Undo takes it back', async () => {
+      const store = await setup((h) => {
+        h.heroPoints = 1
+        h.play = { reactionUsed: false, mods: [], twists: [], history: [] }
+      })
+      const dialog = await toResolve()
+      expect(dialog.getByText('This ability gains a hero point. You have 1.')).toBeInTheDocument()
+      await userEvent.click(dialog.getByRole('button', { name: 'Gain a hero point' }))
+      expect(dialog.getByText('Will gain a hero point when done.')).toBeInTheDocument()
+      await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
+      await waitFor(async () => expect((await saved(store)).heroPoints).toBe(2))
+      expect((await saved(store)).play!.history.map((h) => h.text)).toContain('Gained a hero point (now 2).')
+      await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+      await waitFor(async () => expect((await saved(store)).heroPoints).toBe(1))
+      expect((await saved(store)).play!.history).toEqual([])
+    })
+
+    it("isn't added unless taken, and isn't offered past five", async () => {
+      const store = await setup((h) => {
+        h.heroPoints = 5
+        h.play = { reactionUsed: false, mods: [], twists: [], history: [] }
+      })
+      const dialog = await toResolve()
+      expect(dialog.getByText('This ability gains a hero point, but you already have 5.')).toBeInTheDocument()
+      expect(dialog.queryByRole('button', { name: 'Gain a hero point' })).not.toBeInTheDocument()
+      await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
+      await waitFor(async () => expect((await saved(store)).play!.history.length).toBeGreaterThan(0))
+      expect((await saved(store)).heroPoints).toBe(5)
+    })
   })
 
   it('gives no defense for a Defend with no target in the app', async () => {

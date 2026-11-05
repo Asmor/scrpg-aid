@@ -9,7 +9,7 @@
  */
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { DiceText, DieIcon } from '../components/icons'
-import { modName } from '../play/state'
+import { heroPointCount, modName } from '../play/state'
 import type { PlayMod } from '../hero/model'
 import { betweenIssues, issueTitle, sceneDisplayName } from './model'
 import { heroOnTableName, viewName, type TableView } from './project'
@@ -150,7 +150,11 @@ export function DisplayView({ table, watching, status }: Props) {
         )}
 
         {heroes.length > 0 && (
-          <section aria-label="Heroes" className="dv-grid">
+          <section aria-labelledby="dv-heroes">
+            <div id="dv-heroes" className="dv-label dv-heroes">
+              Heroes · {heroPointCount(table.heroPoints)}
+            </div>
+            <div className="dv-grid">
             {heroes.map((h) => (
               <Card key={h.ref.id} name={h.name} acting={acting('hero', h.ref.id)}>
                 <div className="dv-sub">{h.sub}</div>
@@ -183,6 +187,7 @@ export function DisplayView({ table, watching, status }: Props) {
                 {h.reactionUsed && <div className="dv-sub">Reaction used</div>}
               </Card>
             ))}
+            </div>
           </section>
         )}
 

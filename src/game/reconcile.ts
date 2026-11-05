@@ -16,7 +16,7 @@
  *   lower; minions over a limit are kept.
  * - Used-up abilities and once-per-scene uses: hero play state records none per ability, so
  *   nothing is dropped. (A villain's scene advance isn't tied to an ability, so it stays too.)
- * - Mods, twists, hero points, the reaction and the history are never affected.
+ * - Mods, twists, the reaction and the history are never affected.
  *
  * Villains follow the same rules: Health above the new max is lowered, and a chosen weakness
  * tier the new status rule doesn't have is dropped (back to the rule's default).

@@ -22,7 +22,7 @@ import { MinionList } from '../play/MinionList'
 import { minionCreation } from '../play/minions'
 import { ModForm } from '../play/ModForm'
 import { RollDialog, type FormPicker, type RollSubject } from '../play/RollDialog'
-import { currentHealth, describeMod, effectiveZone, MAX_HERO_POINTS, modName, statusDieFor } from '../play/state'
+import { currentHealth, describeMod, effectiveZone, heroPointCount, modName, statusDieFor } from '../play/state'
 import type { PendingAction } from '../session/client'
 import type { HeroAction } from './actions'
 import { betweenIssues, nextIssueNumber } from './model'
@@ -35,7 +35,7 @@ import { MenuButton, ZoneChip } from './TableCenter'
 
 interface Props {
   hero: HeroOnTable
-  view: Pick<TableView, 'scene' | 'heroes' | 'villains' | 'groups' | 'pendingHits' | 'challenges' | 'currentIssueId' | 'issues'>
+  view: Pick<TableView, 'scene' | 'heroes' | 'villains' | 'groups' | 'pendingHits' | 'challenges' | 'currentIssueId' | 'issues' | 'heroPoints'>
   /** Actions sent and not answered yet. */
   pending: readonly PendingAction[]
   /** Whether the GM is connected: actions can be sent. */
@@ -187,7 +187,7 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
           </div>
         )}
 
-        {paused && <HeroPointsCard play={play} issue={nextIssueNumber(view)} gmName={gmName ?? 'the GM'} disabled={!live} onBuy={(size) => act({ kind: 'buyHeroPointBonus', size })} onReturn={(buyId) => act({ kind: 'returnHeroPointBonus', buyId })} />}
+        {paused && <HeroPointsCard total={view.heroPoints} play={play} issue={nextIssueNumber(view)} gmName={gmName ?? 'the GM'} disabled={!live} onBuy={(size) => act({ kind: 'buyHeroPointBonus', size })} onReturn={(buyId) => act({ kind: 'returnHeroPointBonus', buyId })} />}
 
         <div className="gt-player__health">
           {button('−', () => act({ kind: 'health', by: -1 }), { aria: 'Lose 1 Health', disabled: health === undefined })}
@@ -213,14 +213,7 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
             <span className="gt-label">Status die</span>
             {die ? <DieIcon die={die} /> : <span>—</span>}
           </span>
-          <span className="gt-player__stat">
-            <span className="gt-label">Hero points</span>
-            <span className="gt-row">
-              {button('−', () => act({ kind: 'heroPoints', by: -1 }), { aria: 'Spend a hero point', disabled: play.heroPoints <= 0, small: true })}
-              <strong>{play.heroPoints}</strong>
-              {button('+', () => act({ kind: 'heroPoints', by: 1 }), { aria: 'Gain a hero point', disabled: play.heroPoints >= MAX_HERO_POINTS, small: true })}
-            </span>
-          </span>
+          <span className="gt-player__stat">{heroPointCount(view.heroPoints)} · the GM awards them</span>
         </div>
         <label className="checkbox">
           <input type="checkbox" checked={play.reactionUsed} disabled={off} aria-describedby={describedBy} onChange={(e) => act({ kind: 'reaction', used: e.target.checked })} />
@@ -378,6 +371,7 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
           formPicker={rolling.kind === 'ability' ? formPickerFor(rolling.text) : undefined}
           creates={rolling.kind === 'ability' ? minionCreation(rolling.text) : undefined}
           minionForms={sheet.minionForms}
+          heroPoint={{ kind: 'table' }}
           targetsFor={(effect, opts) => targetOptions({ kind: 'hero', id: hero.id }, effect, viewTable(view), opts)}
           selfId={targetId({ kind: 'hero', id: hero.id })}
           overcomeOptions={overcomeOptions(view.challenges)}

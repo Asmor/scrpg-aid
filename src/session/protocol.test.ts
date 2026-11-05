@@ -6,8 +6,8 @@ import { completeHero } from '../test/heroes'
 import { messageVersion, readClientMessage, readHostMessage, tableViewProblem } from './protocol'
 
 const clock = { now: new Date('2026-11-03T12:00:00Z'), newId: () => 'h1' }
-const hello = { v: 8, type: 'hello', role: 'player', clientId: 'c1', name: 'Alex', heroSourceId: 'maya', sheet: completeHero() }
-const action = (a: unknown) => ({ v: 8, type: 'action', id: 'a1', heroId: 'h1', action: a, basedOn: 3 })
+const hello = { v: 9, type: 'hello', role: 'player', clientId: 'c1', name: 'Alex', heroSourceId: 'maya', sheet: completeHero() }
+const action = (a: unknown) => ({ v: 9, type: 'action', id: 'a1', heroId: 'h1', action: a, basedOn: 3 })
 const roll = {
   subject: { kind: 'ability', name: 'Non-stop Assault' },
   record: { title: 'Non-stop Assault', rolled: [{ label: 'Speed', die: 'd8', value: 5 }], results: [{ action: 'attack', use: 'max', base: 5, mods: [], total: 5 }], manual: false },
@@ -22,7 +22,7 @@ const roll = {
 describe('reading messages from players and observers', () => {
   it('reads hellos for both roles', () => {
     expect(readClientMessage(hello)).toEqual(hello)
-    const observer = { v: 8, type: 'hello', role: 'observer', clientId: 'c2', screenName: 'Living room TV' }
+    const observer = { v: 9, type: 'hello', role: 'observer', clientId: 'c2', screenName: 'Living room TV' }
     expect(readClientMessage(observer)).toEqual(observer)
     expect(readClientMessage({ ...hello, sheet: { not: 'a hero' } })).toBeUndefined()
     expect(readClientMessage({ ...hello, name: 'x'.repeat(500) })).toBeUndefined()
@@ -38,7 +38,6 @@ describe('reading messages from players and observers', () => {
       { kind: 'removeMod', modId: 'm1' },
       { kind: 'addTwist', twist: { kind: 'minor', text: 'Lost a shoe' } },
       { kind: 'removeTwist', twistId: 't1' },
-      { kind: 'heroPoints', by: -1 },
       { kind: 'reaction', used: true },
       { kind: 'form', key: '' },
       { kind: 'dividedForm', form: 'heroic' },
@@ -60,7 +59,8 @@ describe('reading messages from players and observers', () => {
       { kind: 'health', by: 1.5 },
       { kind: 'addMod', mod: { label: 'x', value: 0 } },
       { kind: 'addMod', mod: { label: 'x', value: 40 } },
-      { kind: 'heroPoints', by: 3 },
+      // Players don't change the game's hero points.
+      { kind: 'heroPoints', by: 1 },
       { kind: 'roll', roll: { ...roll, record: { ...roll.record, rolled: [{ label: 'x', die: 'd8', value: 13 }] } } },
       { kind: 'roll', roll: { ...roll, others: [{ to: { kind: 'member', groupId: 'g' }, mod: { label: 'x', value: -1 } }] } },
       { kind: 'roll', roll: { ...roll, attacks: [{ result: 12, to: { kind: 'villain', id: 'v1' } }] } },
@@ -74,12 +74,12 @@ describe('reading messages from players and observers', () => {
   })
 
   it('reads sync requests and cancels', () => {
-    expect(readClientMessage({ v: 8, type: 'syncRequest', heroId: 'h', sheet: completeHero() })).toBeDefined()
-    expect(readClientMessage({ v: 8, type: 'syncCancel', heroId: 'h' })).toBeDefined()
-    expect(readClientMessage({ v: 8, type: 'syncCancel' })).toBeUndefined()
-    expect(readClientMessage({ v: 8, type: 'issueAck', issueId: 'i', heroId: 'h', status: 'added', count: 3 })).toBeDefined()
-    expect(readClientMessage({ v: 8, type: 'issueAck', issueId: 'i', heroId: 'h', status: 'nope' })).toBeUndefined()
-    expect(readHostMessage({ v: 8, type: 'spendReminder' })).toBeDefined()
+    expect(readClientMessage({ v: 9, type: 'syncRequest', heroId: 'h', sheet: completeHero() })).toBeDefined()
+    expect(readClientMessage({ v: 9, type: 'syncCancel', heroId: 'h' })).toBeDefined()
+    expect(readClientMessage({ v: 9, type: 'syncCancel' })).toBeUndefined()
+    expect(readClientMessage({ v: 9, type: 'issueAck', issueId: 'i', heroId: 'h', status: 'added', count: 3 })).toBeDefined()
+    expect(readClientMessage({ v: 9, type: 'issueAck', issueId: 'i', heroId: 'h', status: 'nope' })).toBeUndefined()
+    expect(readHostMessage({ v: 9, type: 'spendReminder' })).toBeDefined()
     expect(readHostMessage({ v: 7, type: 'spendReminder' })).toBeUndefined()
   })
 
@@ -96,7 +96,7 @@ describe('reading messages from the GM', () => {
   const table = project(createGame({ id: 'g' }), 'player')
 
   it('reads a state with the projection, and refuses a malformed one', () => {
-    const state = { v: 8, type: 'state', room: 'ABCD-EFGH', version: 4, table, gm: 'Sam', you: { heroId: 'h', since: '2026-10-30T20:00:00Z' } }
+    const state = { v: 9, type: 'state', room: 'ABCD-EFGH', version: 4, table, gm: 'Sam', you: { heroId: 'h', since: '2026-10-30T20:00:00Z' } }
     expect(readHostMessage(state)).toEqual(state)
     expect(readHostMessage({ ...state, table: { ...table, scene: { ...table.scene, position: 99 } } })).toBeUndefined()
     expect(readHostMessage({ ...state, table: { ...table, heroes: 'x' } })).toBeUndefined()
@@ -107,11 +107,11 @@ describe('reading messages from the GM', () => {
   })
 
   it('reads results, sync results and refusals', () => {
-    expect(readHostMessage({ v: 8, type: 'result', id: 'a1', ok: true })).toBeDefined()
-    expect(readHostMessage({ v: 8, type: 'result', id: 'a1', ok: false, reason: "it isn't your turn" })).toBeDefined()
-    expect(readHostMessage({ v: 8, type: 'result', id: 'a1', ok: false })).toBeUndefined()
-    expect(readHostMessage({ v: 8, type: 'syncResult', heroId: 'h', approved: true, adjustments: ['Health 30 → 28'] })).toBeDefined()
-    expect(readHostMessage({ v: 8, type: 'refused', reason: 'full' })).toBeDefined()
-    expect(readHostMessage({ v: 8, type: 'refused', reason: 'bored' })).toBeUndefined()
+    expect(readHostMessage({ v: 9, type: 'result', id: 'a1', ok: true })).toBeDefined()
+    expect(readHostMessage({ v: 9, type: 'result', id: 'a1', ok: false, reason: "it isn't your turn" })).toBeDefined()
+    expect(readHostMessage({ v: 9, type: 'result', id: 'a1', ok: false })).toBeUndefined()
+    expect(readHostMessage({ v: 9, type: 'syncResult', heroId: 'h', approved: true, adjustments: ['Health 30 → 28'] })).toBeDefined()
+    expect(readHostMessage({ v: 9, type: 'refused', reason: 'full' })).toBeDefined()
+    expect(readHostMessage({ v: 9, type: 'refused', reason: 'bored' })).toBeUndefined()
   })
 })

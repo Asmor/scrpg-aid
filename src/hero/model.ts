@@ -424,8 +424,7 @@ export interface PlayState {
   form?: string
   /** A Divided hero in their heroic form; unset in their civilian form. */
   dividedForm?: 'heroic'
-  heroPoints: number
-  /** Bonuses bought between issues for the next one; the points are already off `heroPoints`. */
+  /** Bonuses bought between issues for the next one. Hero points themselves are the game's (`Game.heroPoints`). */
   heroPointBuys?: { id: string; size: number }[]
   reactionUsed: boolean
   mods: PlayMod[]

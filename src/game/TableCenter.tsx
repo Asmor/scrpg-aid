@@ -11,7 +11,7 @@ import { PLAY_ZONE_LABEL } from '../hero/labels'
 import type { PlayMod } from '../hero/model'
 import { PopoverMenu, type MenuItem } from '../library/Popover'
 import { usePopover } from '../library/popover-state'
-import { modName, type PlayZone } from '../play/state'
+import { heroPointCount, MAX_HERO_POINTS, modName, type PlayZone } from '../play/state'
 import { formatFull, formatWhen } from '../play/time'
 import type { Die } from '../rules/types'
 import { overcomeOutcome } from '../play/roll'
@@ -66,6 +66,8 @@ export interface VillainView {
 /** The GM's controls on the shared center. */
 export interface GmControls {
   setPosition: (index: number) => void
+  /** The game's hero points: the GM's − and + on the Heroes heading. */
+  changeHeroPoints: (by: 1 | -1) => void
   sceneMenu: MenuItem[]
   revealEnvironment: () => void
   startRound: (first: ActorRef) => void
@@ -768,7 +770,17 @@ export function TableCenter({ game, heroes, villains, now, gm, hideLog = false, 
       )}
       <section aria-labelledby="gt-heroes">
         <div className="gt-section-head">
-          <h2 id="gt-heroes">Heroes</h2>
+          <h2 id="gt-heroes">Heroes · {heroPointCount(game.heroPoints)}</h2>
+          {gm && (
+            <span className="gt-row">
+              <button type="button" className="button button--small" aria-label="Take away a hero point" disabled={game.heroPoints <= 0} onClick={() => gm.changeHeroPoints(-1)}>
+                −
+              </button>
+              <button type="button" className="button button--small" aria-label="Award a hero point" disabled={game.heroPoints >= MAX_HERO_POINTS} onClick={() => gm.changeHeroPoints(1)}>
+                +
+              </button>
+            </span>
+          )}
         </div>
         {heroes.length === 0 ? (
           <p className="sheet-empty">No heroes yet.{gm && ' Bring one in from your library in the GM screen.'}</p>

@@ -1,15 +1,18 @@
 /**
  * Spending hero points between issues (docs/design/issues/spec.md, section 4a): buy generic,
  * exclusive bonuses for the next issue, each costing its size (ruling 70), and take them back until
- * it starts. On a player's panel, and in a dialog for the GM's own heroes.
+ * it starts. On a player's panel: the GM's own heroes are NPCs, with no hero points.
  */
 import type { PlayState } from '../hero/model'
+import { heroPointsLeft } from '../play/state'
 
 /** Where a reminder sends focus. */
 export const HERO_POINTS_ID = 'gt-hero-points'
 
 interface Props {
-  play: Pick<PlayState, 'heroPoints' | 'heroPointBuys'>
+  /** The game's hero points. */
+  total: number
+  play: Pick<PlayState, 'heroPointBuys'>
   /** The issue they're for. */
   issue: number
   /** Who starts it: "Sam", "you". */
@@ -19,10 +22,9 @@ interface Props {
   onReturn: (buyId: string) => void
 }
 
-export function HeroPointsCard({ play, issue, gmName, disabled = false, onBuy, onReturn }: Props) {
+export function HeroPointsCard({ total, play, issue, gmName, disabled = false, onBuy, onReturn }: Props) {
   const buys = play.heroPointBuys ?? []
-  const left = play.heroPoints
-  const total = left + buys.reduce((n, b) => n + b.size, 0)
+  const left = heroPointsLeft(total, play)
   const heading = (
     <h3 id={HERO_POINTS_ID} tabIndex={-1} className="gt-grow gt-points__head">
       Hero points

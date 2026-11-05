@@ -30,8 +30,9 @@ describe('HeroSheetView', () => {
 
     // The record strip.
     const strip = screen.getByText(/Back issues/).closest('p')!
-    // Play state isn't on the sheet: hero points are kept in Play.
-    expect(strip).toHaveTextContent('Hero points tracked in Play')
+    // Hero points belong to each game: on the sheet, only the printed page's blank line.
+    expect(strip.querySelector('.print-only')).toHaveTextContent('Hero points')
+    expect(strip).not.toHaveTextContent('tracked in Play')
     expect(strip).toHaveTextContent('Back issues 0 of 6')
     expect(strip).toHaveTextContent('Collections 0')
     expect(within(strip).getByRole('link', { name: 'Advancement' })).toHaveAttribute('href', '#adv')

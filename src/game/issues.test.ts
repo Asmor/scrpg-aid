@@ -3,7 +3,7 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { emptyPlay, type Clock } from '../play/state'
 import { applyHeroAction } from './actions'
-import { backIssueStatuses, defaultIssueTitle, finishIssue, finishRows, issueStartFacts, issueToPrompt, oppositionStaying, recordIssueAck, scenesByIssue, scenesPlayed, setIssueRecord, startIssue } from './issues'
+import { changeHeroPoints, backIssueStatuses, defaultIssueTitle, finishIssue, finishRows, issueStartFacts, issueToPrompt, oppositionStaying, recordIssueAck, scenesByIssue, scenesPlayed, setIssueRecord, startIssue } from './issues'
 import { betweenIssues, createGame, createScene, currentIssue, heroCopy, villainCopy, type Game } from './model'
 import { project } from './project'
 import { duplicateGame, startScene, defaultChoices, draftOfNew, savePlannedScene, startPlan } from './scenes'
@@ -250,7 +250,7 @@ describe('the next issue', () => {
   function between(): Game {
     const start = table()
     start.scenes.push(createScene({ id: 's2', name: 'Tunnels' }))
-    start.heroes[0]!.play = { ...start.heroes[0]!.play, heroPoints: 5 }
+    start.heroPoints = 5
     return finishIssue(start, choices, clock)
   }
   const go = (g: Game, recover = true) => startIssue(g, 's2', { ...defaultChoices(startPlan(g, 's2')), recover }, clock)
@@ -263,19 +263,70 @@ describe('the next issue', () => {
 
   it('players can buy and return bonuses only between issues, and it is logged', () => {
     const g = bought(between(), 3)
-    expect(g.heroes[0]!.play).toMatchObject({ heroPoints: 2, heroPointBuys: [{ size: 3 }] })
+    expect(g.heroes[0]!.play).toMatchObject({ heroPointBuys: [{ size: 3 }] })
+    expect(g.heroPoints).toBe(5)
     expect(g.feed.at(-1)).toMatchObject({ by: 'Afterimage', text: 'Afterimage bought a +3 bonus for issue 2.' })
     expect(act(g, { kind: 'buyHeroPointBonus', size: 3 })).toEqual({ ok: false, reason: "you don't have that many hero points left" })
     const back = act(g, { kind: 'returnHeroPointBonus', buyId: g.heroes[0]!.play.heroPointBuys![0]!.id })
     expect(back).toMatchObject({ ok: true })
-    expect(back.ok && back.game.heroes[0]!.play.heroPoints).toBe(5)
+    expect(back.ok && back.game.heroes[0]!.play.heroPointBuys).toEqual([])
     expect(back.ok && back.game.feed.at(-1)?.text).toBe('Afterimage returned a +3 bonus for issue 2.')
     expect(act(g, { kind: 'returnHeroPointBonus', buyId: 'nope' })).toMatchObject({ ok: false })
     expect(act(table(), { kind: 'buyHeroPointBonus', size: 1 })).toEqual({ ok: false, reason: 'hero points are spent between issues' })
   })
 
+  it("each player's hero spends the count separately", () => {
+    const g = between()
+    g.heroes.push(heroCopy({ ...completeHero(), id: 'jo-src' }, 'h3', { clientId: 'c3', name: 'Jo' }))
+    const r = applyHeroAction(bought(g, 4), 'h3', { kind: 'buyHeroPointBonus', size: 5 }, { basedOn: 0, versions: {} }, clock)
+    expect(r).toMatchObject({ ok: true })
+    expect(r.ok && r.game.heroPoints).toBe(5)
+    expect(r.ok && r.game.heroes.map((h) => h.play.heroPointBuys?.map((b) => b.size))).toEqual([[4], undefined, [5]])
+  })
+
+  it("the GM's own heroes are NPCs: nothing to spend, lose or be listed for", () => {
+    const g = between()
+    expect(applyHeroAction(g, 'h2', { kind: 'buyHeroPointBonus', size: 1 }, { basedOn: 0, versions: {} }, clock)).toEqual({ ok: false, reason: "only players' heroes have hero points" })
+    expect(issueStartFacts(g, new Set()).unspent.map((u) => u.name)).toEqual(['Afterimage'])
+    const started = go(g)
+    expect(started.feed.at(-2)?.text).toBe('Unspent hero points lost: Afterimage 5.')
+    expect(started.heroes[1]!.play.history.map((h) => h.text).join()).not.toContain('hero point')
+  })
+
+  it('the GM changes the count, logged for everyone, between 0 and 5', () => {
+    let g = changeHeroPoints(table(), 1, clock)
+    expect(g.heroPoints).toBe(1)
+    expect(g.feed.at(-1)).toMatchObject({ text: 'The heroes gained a hero point. They have 1.' })
+    expect(g.feed.at(-1)?.gmOnly).toBeUndefined()
+    g = changeHeroPoints(g, -1, clock)
+    expect(g.feed.at(-1)?.text).toBe('The heroes lost a hero point. They have 0.')
+    expect(changeHeroPoints(g, -1, clock)).toBe(g)
+    const full = { ...g, heroPoints: 5 }
+    expect(changeHeroPoints(full, 1, clock)).toBe(full)
+    expect(project(changeHeroPoints(g, 1, clock), 'player', 'h1').heroPoints).toBe(1)
+  })
+
+  it("lowered below what's bought, a hero's newest bonuses go back until it fits", () => {
+    const g = bought(bought(between(), 2), 3)
+    const lower = (x: Game, times: number): Game => (times ? lower(changeHeroPoints(x, -1, clock), times - 1) : x)
+    const four = lower(g, 1)
+    expect(four.heroPoints).toBe(4)
+    expect(four.heroes[0]!.play.heroPointBuys).toMatchObject([{ size: 2 }])
+    expect(four.feed.at(-2)?.text).toBe('The heroes lost a hero point. They have 4.')
+    expect(four.feed.at(-1)?.text).toBe('Bonuses returned for the lower count: Afterimage +3.')
+    expect(four.heroes[0]!.play.history.at(-1)?.text).toBe('Returned a +3 bonus for issue 2.')
+    const one = lower(four, 3)
+    expect(one.heroes[0]!.play.heroPointBuys).toEqual([])
+    // Raising it doesn't bring them back.
+    expect(changeHeroPoints(one, 1, clock).heroes[0]!.play.heroPointBuys).toEqual([])
+  })
+
+  it('a duplicate starts with no hero points', () => {
+    expect(duplicateGame(between()).heroPoints).toBe(0)
+  })
+
   it('a +5 is allowed (ruling 70)', () => {
-    expect(bought(between(), 5).heroes[0]!.play.heroPoints).toBe(0)
+    expect(bought(between(), 5).heroes[0]!.play.heroPointBuys).toMatchObject([{ size: 5 }])
   })
 
   it('opens a new issue with the planned scene, keeping the finished scene as it was', () => {
@@ -293,7 +344,7 @@ describe('the next issue', () => {
   it('turns bought bonuses into exclusive ones, and unspent points are lost', () => {
     const g = go(bought(between(), 2))
     expect(g.heroes[0]!.play.mods).toMatchObject([{ label: 'Hero point', value: 2, exclusive: true, source: 'heroPoint' }])
-    expect(g.heroes[0]!.play.heroPoints).toBe(0)
+    expect(g.heroPoints).toBe(0)
     expect(g.heroes[0]!.play.heroPointBuys).toBeUndefined()
     expect(g.feed.at(-2)?.text).toBe('Hero point bonuses: Afterimage +2. Unspent hero points lost: Afterimage 3.')
   })
@@ -302,11 +353,11 @@ describe('the next issue', () => {
     const hurt = between()
     hurt.heroes[0]!.play = { ...hurt.heroes[0]!.play, health: 1, twists: [{ id: 't', kind: 'major', text: 'x' }], form: 'mode:1', reactionUsed: true, minions: [] }
     const on = go(hurt).heroes[0]!.play
-    expect(on).toMatchObject({ twists: [], reactionUsed: false, heroPoints: 0 })
+    expect(on).toMatchObject({ twists: [], reactionUsed: false })
     expect(on.health).toBeUndefined()
     expect(on.form).toBeUndefined()
     const off = go(hurt, false).heroes[0]!.play
-    expect(off).toMatchObject({ health: 1, heroPoints: 0, twists: [{ id: 't' }] })
+    expect(off).toMatchObject({ health: 1, twists: [{ id: 't' }] })
   })
 
   it("hero point bonuses survive a new scene in the issue, and go when it finishes", () => {

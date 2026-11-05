@@ -51,7 +51,8 @@ describe('the saved game format', () => {
     const h = withHero.heroes[0]!
     expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, heroes: [{ id: 'h', sourceId: 'hero' }] } }).ok).toBe(false)
     expect(parseSavedGame({ ...gameToSaved(g), game: { ...withHero, heroes: [{ ...h, sheet: { ...h.sheet, method: 'magic' } }] } })).toEqual({ ok: false, error: 'game.heroes[0].sheet.method has an unknown value' })
-    expect(parseSavedGame({ ...gameToSaved(g), game: { ...withHero, heroes: [{ ...h, play: { ...h.play, heroPoints: 'x' } }] } })).toEqual({ ok: false, error: 'game.heroes[0].play.heroPoints should be a whole number' })
+    expect(parseSavedGame({ ...gameToSaved(g), game: { ...withHero, heroes: [{ ...h, play: { ...h.play, reactionUsed: 'x' } }] } })).toEqual({ ok: false, error: 'game.heroes[0].play.reactionUsed should be true or false' })
+    expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, heroPoints: -1 } })).toEqual({ ok: false, error: 'game.heroPoints should be at least 0' })
     expect(parseSavedGame({ ...gameToSaved(g), game: { ...withHero, heroes: [{ ...h, play: { ...h.play, minions: [{ id: 'm', name: 'Drone', die: 'd8', action: 'attack', mods: [], needsForm: false }] } }] } })).toEqual({ ok: false, error: 'game.heroes[0].play.minions[0].needsForm has an unknown value' })
     const withVillain = addVillain(g, adaptiveBruiser(), clock)
     const v = withVillain.villains[0]!

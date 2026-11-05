@@ -109,7 +109,7 @@ describe('embedded JSON', () => {
   it('carries the sheet only, and play state an older app embedded is dropped on import', () => {
     const hero = createHero('guided', { id: 'h1' })
     expect(JSON.parse(embeddableJson(hero)).hero).not.toHaveProperty('play')
-    const old = { ...hero, play: { health: 3, heroPoints: 1, reactionUsed: false, mods: [], twists: [], history: [] } }
+    const old = { ...hero, play: { health: 3, reactionUsed: false, mods: [], twists: [], history: [] } }
     expect(readImport(heroMarkdown(old))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
   })
 

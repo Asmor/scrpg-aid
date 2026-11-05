@@ -385,7 +385,7 @@ export function UpdateDialog({ name, changes, adjustments, healthLine, onUpdate,
           <li key={line}>{line}</li>
         ))}
       </ul>
-      <p className="hint">{review ? 'Kept as they are: mods, twists, hero points, reaction and the play log.' : `Only this game's ${name} changes. Other games keep their own copy.`}</p>
+      <p className="hint">{review ? 'Kept as they are: mods, twists, reaction and the play log.' : `Only this game's ${name} changes. Other games keep their own copy.`}</p>
       <div className="button-row gt-dialog-actions">
         <button
           type="button"

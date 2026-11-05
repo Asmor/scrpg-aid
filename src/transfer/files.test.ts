@@ -31,7 +31,7 @@ describe('heroJson', () => {
 describe('play state', () => {
   it('is dropped from a hero file or backup made by an older app: games hold it now', () => {
     const plain = hero('a', 'Ann')
-    const old = { ...plain, play: { health: 4, heroPoints: 2, reactionUsed: false, mods: [], twists: [], history: [] } }
+    const old = { ...plain, play: { health: 4, reactionUsed: false, mods: [], twists: [], history: [] } }
     expect(readImport(heroJson(old))).toEqual({ ok: true, heroes: [plain], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
     expect(readImport(backupJson({ heroes: [old] }, now))).toEqual({ ok: true, heroes: [plain], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
   })

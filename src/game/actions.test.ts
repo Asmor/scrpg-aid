@@ -89,19 +89,6 @@ describe('applying a player action', () => {
     expect(apply(g, maya, { kind: 'addTwist', twist: { kind: 'minor', text: '  ' } }).ok).toBe(false)
   })
 
-  it('spends and gains hero points within 0 to 5', () => {
-    const { g, maya } = table()
-    expect(apply(g, maya, { kind: 'heroPoints', by: -1 })).toEqual({ ok: false, reason: 'you have no hero points to spend' })
-    let game = g
-    for (let i = 0; i < 5; i++) {
-      const r = apply(game, maya, { kind: 'heroPoints', by: 1 })
-      if (!r.ok) throw new Error(r.reason)
-      game = r.game
-    }
-    expect(hero(game, maya).play.heroPoints).toBe(5)
-    expect(apply(game, maya, { kind: 'heroPoints', by: 1 })).toEqual({ ok: false, reason: 'you already have 5 hero points' })
-  })
-
   it('marks the reaction used', () => {
     const { g, maya } = table()
     const r = apply(g, maya, { kind: 'reaction', used: true })

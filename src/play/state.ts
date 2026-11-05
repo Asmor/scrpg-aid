@@ -1,6 +1,6 @@
 /**
- * The game aid's state for a hero (Phase 3): current Health and zone, the scene zone, hero
- * points, the reaction, mods, twists, and a timestamped history. Every change returns the
+ * The game aid's state for a hero (Phase 3): current Health and zone, the scene zone, the
+ * reaction, mods, twists, and a timestamped history. Every change returns the
  * new state with a history entry describing it ("Lost 4 HP (17 → 13). Entered Yellow
  * status."). Pure: the caller supplies the time and new ids.
  */
@@ -19,7 +19,7 @@ const ZONE_NAME: Record<PlayZone, string> = { green: 'Green', yellow: 'Yellow', 
 export const MAX_HERO_POINTS = 5
 
 export function emptyPlay(): PlayState {
-  return { heroPoints: 0, reactionUsed: false, mods: [], twists: [], history: [] }
+  return { reactionUsed: false, mods: [], twists: [], history: [] }
 }
 
 /** Current Health: the recorded value, or the max until one is recorded. */
@@ -160,11 +160,9 @@ export function removeMod<P extends PlayCore>(play: P, id: string, clock: Clock,
   return withEntry({ ...play, mods: play.mods.filter((m) => m.id !== id) }, entry(clock, `${why} ${describeMod(mod)}.`))
 }
 
-export function setHeroPoints(play: PlayState, value: number, clock: Clock): PlayState {
-  const next = Math.max(0, Math.min(MAX_HERO_POINTS, Math.round(value)))
-  if (next === play.heroPoints) return play
-  const text = next > play.heroPoints ? `Gained ${next - play.heroPoints === 1 ? 'a hero point' : `${next - play.heroPoints} hero points`} (now ${next}).` : `Spent ${play.heroPoints - next === 1 ? 'a hero point' : `${play.heroPoints - next} hero points`} (now ${next}).`
-  return withEntry({ ...play, heroPoints: next }, entry(clock, text))
+/** Notes in a solo hero's history a change to the solo game's hero points. */
+export function noteHeroPoints(play: PlayState, before: number, after: number, clock: Clock): PlayState {
+  return withEntry(play, entry(clock, `${after > before ? 'Gained' : 'Spent'} a hero point (now ${after}).`))
 }
 
 export function setReactionUsed<P extends PlayCore>(play: P, used: boolean, clock: Clock): P {
@@ -186,7 +184,7 @@ export function removeTwist<P extends PlayCore>(play: P, id: string, clock: Cloc
 
 /**
  * Start over (standalone Play, docs/design/game-table/spec.md section 12): fresh play state, so
- * Health at max with no mods, twists, hero points, minions, form or mode, and an empty history.
+ * Health at max with no mods, twists, minions, form or mode, and an empty history.
  */
 export function startOver(): PlayState {
   return emptyPlay()
@@ -194,33 +192,41 @@ export function startOver(): PlayState {
 
 /**
  * Heroes recover for a new issue (docs/design/issues/spec.md, section 5): full Health, no mods,
- * twists, minions or defenses, the base form or default mode, and the reaction ready. Hero points
- * and what they bought are the issue's own business.
+ * twists, minions or defenses, the base form or default mode, and the reaction ready. What hero
+ * points bought is the issue's own business.
  */
 export function heroRecovers(play: PlayState, clock: Clock): PlayState {
-  const { heroPoints, heroPointBuys, history } = play
-  return { ...emptyPlay(), heroPoints, ...(heroPointBuys ? { heroPointBuys } : {}), history: [...history, entry(clock, 'Recovered for the new issue: Health restored; mods, twists and minions cleared.')] }
+  const { heroPointBuys, history } = play
+  return { ...emptyPlay(), ...(heroPointBuys ? { heroPointBuys } : {}), history: [...history, entry(clock, 'Recovered for the new issue: Health restored; mods, twists and minions cleared.')] }
+}
+
+/** "3 hero points". */
+export const heroPointCount = (n: number) => `${n} hero ${n === 1 ? 'point' : 'points'}`
+
+/** What a hero has left to spend: the game's count less what they've bought. */
+export function heroPointsLeft(count: number, play: Pick<PlayState, 'heroPointBuys'>): number {
+  return Math.max(0, count - (play.heroPointBuys ?? []).reduce((n, b) => n + b.size, 0))
 }
 
 /** Buys a bonus for the next issue: it costs its size. Unchanged if there aren't the points. */
-export function buyHeroPointBonus(play: PlayState, size: number, issue: number, clock: Clock): PlayState {
-  if (!Number.isInteger(size) || size < 1 || size > play.heroPoints) return play
-  return withEntry({ ...play, heroPoints: play.heroPoints - size, heroPointBuys: [...(play.heroPointBuys ?? []), { id: clock.newId(), size }] }, entry(clock, `Bought a +${size} bonus for issue ${issue}.`))
+export function buyHeroPointBonus(play: PlayState, count: number, size: number, issue: number, clock: Clock): PlayState {
+  if (!Number.isInteger(size) || size < 1 || size > heroPointsLeft(count, play)) return play
+  return withEntry({ ...play, heroPointBuys: [...(play.heroPointBuys ?? []), { id: clock.newId(), size }] }, entry(clock, `Bought a +${size} bonus for issue ${issue}.`))
 }
 
-/** Returns a bought bonus, and its points. */
+/** Takes back a bought bonus. */
 export function returnHeroPointBonus(play: PlayState, buyId: string, issue: number, clock: Clock): PlayState {
   const buy = play.heroPointBuys?.find((b) => b.id === buyId)
   if (!buy) return play
-  return withEntry({ ...play, heroPoints: play.heroPoints + buy.size, heroPointBuys: play.heroPointBuys!.filter((b) => b !== buy) }, entry(clock, `Returned a +${buy.size} bonus for issue ${issue}.`))
+  return withEntry({ ...play, heroPointBuys: play.heroPointBuys!.filter((b) => b !== buy) }, entry(clock, `Returned a +${buy.size} bonus for issue ${issue}.`))
 }
 
-/** Turns what was bought into exclusive, used-up-when-used bonuses, and any points left go. */
-export function spendHeroPoints(play: PlayState, clock: Clock): PlayState {
+/** Turns what was bought into exclusive, used-up-when-used bonuses, and any points left (`lost`) go. */
+export function spendHeroPoints(play: PlayState, lost: number, clock: Clock): PlayState {
   const { heroPointBuys = [], ...rest } = play
-  let next: PlayState = { ...rest, heroPoints: 0 }
+  let next: PlayState = rest
   for (const buy of heroPointBuys) next = addMod(next, { label: 'Hero point', value: buy.size, exclusive: true, source: 'heroPoint' }, clock)
-  return play.heroPoints > 0 ? withEntry(next, entry(clock, `Lost ${play.heroPoints === 1 ? 'an unspent hero point' : `${play.heroPoints} unspent hero points`}.`)) : next
+  return lost > 0 ? withEntry(next, entry(clock, `Lost ${lost === 1 ? 'an unspent hero point' : `${lost} unspent hero points`}.`)) : next
 }
 
 // ---- Defenses in solo play (ruling 65; the table's are in ../game/hits.ts) ----

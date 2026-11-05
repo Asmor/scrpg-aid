@@ -11,7 +11,7 @@ export const GAME_FORMAT = 'scrpg-game'
  * challenges labeled steps and players' requests (docs/design/villains-and-challenges/spec.md).
  * Version 5 gave challenges an owner. Version 6 put scenes in issues (docs/design/issues/spec.md).
  */
-export const GAME_VERSION = 6
+export const GAME_VERSION = 7
 
 export interface SavedGame {
   format: typeof GAME_FORMAT

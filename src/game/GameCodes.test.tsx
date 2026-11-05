@@ -145,7 +145,7 @@ describe('the GM’s New code…', () => {
       const t = net.connect(OLD)
       const got: unknown[] = []
       t.onMessage((m) => got.push(m))
-      t.send({ v: 8, type: 'hello', ...hello })
+      t.send({ v: 9, type: 'hello', ...hello })
       return { t, got }
     }
     const hero = (id: string, name: string) => ({ ...completeHero(), id, details: { ...completeHero().details, name } })

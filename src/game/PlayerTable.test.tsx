@@ -156,13 +156,30 @@ describe('a player at the table', () => {
     expect(card()).not.toHaveTextContent('Waiting for the GM')
   })
 
+  it("shows the game's hero points read-only, on the heading and the panel, and points a principle to the GM", async () => {
+    const { host, settle } = await setup()
+    await join(settle)
+    host.apply((g) => ({ ...g, heroPoints: 3 }))
+    await settle()
+    expect(screen.getByRole('heading', { name: 'Heroes · 3 hero points' })).toBeInTheDocument()
+    expect(panel().getByText('3 hero points · the GM awards them')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Award a hero point' })).not.toBeInTheDocument()
+    expect(panel().queryByRole('button', { name: 'Gain a hero point' })).not.toBeInTheDocument()
+    await userEvent.click(panel().getByRole('button', { name: 'Use Principle of the Gearhead' }))
+    const roll = within(screen.getByRole('dialog', { name: 'Principle of the Gearhead' }))
+    await userEvent.click(roll.getByRole('button', { name: 'Roll' }))
+    await userEvent.click(roll.getByRole('button', { name: 'Confirm' }))
+    expect(roll.getByText('Hero points go to the whole table. Ask the GM.')).toBeInTheDocument()
+    expect(roll.queryByRole('button', { name: 'Gain a hero point' })).not.toBeInTheDocument()
+  })
+
   it('sends an action and shows the result from the GM', async () => {
     const { host, settle } = await setup()
     await join(settle)
-    await userEvent.click(panel().getByRole('button', { name: 'Gain a hero point' }))
+    await userEvent.click(panel().getByRole('checkbox', { name: 'Reaction used this round' }))
     await settle()
-    expect(host.game!.heroes[0]!.play.heroPoints).toBe(1)
-    await waitFor(() => expect(panel().getByRole('button', { name: 'Spend a hero point' })).toBeEnabled())
+    expect(host.game!.heroes[0]!.play.reactionUsed).toBe(true)
+    await waitFor(() => expect(panel().getByRole('checkbox', { name: 'Reaction used this round' })).toBeChecked())
   })
 
   it('shows "18 → 15, Sending…" until the GM answers', async () => {
@@ -214,7 +231,7 @@ describe('a player at the table', () => {
     host.leave()
     await settle()
     expect(await screen.findByText('Reconnecting to the GM… Actions are paused.')).toBeInTheDocument()
-    const gain = panel().getByRole('button', { name: 'Gain a hero point' })
+    const gain = panel().getByRole('button', { name: 'Gain 1 Health' })
     expect(gain).toBeDisabled()
     expect(gain).toHaveAccessibleDescription('Needs the GM')
   })
@@ -428,7 +445,7 @@ describe('spending hero points', () => {
   const rich = async () => {
     const page = await setup()
     await join(page.settle)
-    page.host.apply((g) => ({ ...g, heroes: g.heroes.map((h) => ({ ...h, play: { ...h.play, heroPoints: 3 } })), scenes: [...g.scenes, createScene({ id: 's2', name: 'Tunnels' })] }))
+    page.host.apply((g) => ({ ...g, heroPoints: 3, scenes: [...g.scenes, createScene({ id: 's2', name: 'Tunnels' })] }))
     page.host.apply((g) => finishIssue(g, { title: 'Saga', summary: '', heroIds: [] }, clock()))
     await page.settle()
     return page
@@ -444,7 +461,8 @@ describe('spending hero points', () => {
     expect(panel().getByRole('button', { name: 'Buy a +3 bonus for 3 points' })).toBeDisabled()
     await userEvent.click(panel().getByRole('button', { name: 'Return the +2 bonus' }))
     await settle()
-    expect(host.game!.heroes[0]!.play.heroPoints).toBe(3)
+    expect(host.game!.heroes[0]!.play.heroPointBuys).toEqual([])
+    expect(host.game!.heroPoints).toBe(3)
 
     host.remindUnspent()
     await settle()
@@ -465,7 +483,7 @@ describe('a reminder about hero points', () => {
   it("doesn't come back at the end of a later issue", async () => {
     const { host, settle } = await setup()
     await join(settle)
-    const points = (g: Parameters<typeof finishIssue>[0]) => ({ ...g, heroes: g.heroes.map((h) => ({ ...h, play: { ...h.play, heroPoints: 2 } })), scenes: [...g.scenes, createScene({ id: `s${g.scenes.length + 1}` })] })
+    const points = (g: Parameters<typeof finishIssue>[0]) => ({ ...g, heroPoints: 2, scenes: [...g.scenes, createScene({ id: `s${g.scenes.length + 1}` })] })
     const finish = (g: Parameters<typeof finishIssue>[0]) => finishIssue(g, { title: 'Saga', summary: '', heroIds: [] }, clock())
     host.apply((g) => finish(points(g)))
     await settle()

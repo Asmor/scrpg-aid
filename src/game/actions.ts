@@ -16,7 +16,7 @@ import { heroDisplayName, type Hero, type PlayMinion, type PlayMod, type PlaySta
 import { addMinion, addMinionMod, recordMinionRoll, removeMinion, removeMinionMod, setMinionForm, shrinkMinion, type MinionRoll } from '../play/minions'
 import { availabilityContext, basicActionBlocked, currentForm, playAbilities, playForms } from '../play/forms'
 import { confirmRoll, effectAmount, type RollRecord } from '../play/roll'
-import { addMod, addTwist, buyHeroPointBonus, currentHealth, returnHeroPointBonus, effectiveZone, MAX_HERO_POINTS, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, type Clock } from '../play/state'
+import { addMod, addTwist, buyHeroPointBonus, currentHealth, returnHeroPointBonus, effectiveZone, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setReactionUsed, type Clock } from '../play/state'
 import type { BasicAction } from '../rules/types'
 import { applyAttack, giveMod, protect, targetHidden, targetName } from './resolve'
 import { defend } from './hits'
@@ -56,7 +56,6 @@ export type HeroAction =
   | { kind: 'removeMod'; modId: string }
   | { kind: 'addTwist'; twist: Omit<PlayTwist, 'id'> }
   | { kind: 'removeTwist'; twistId: string }
-  | { kind: 'heroPoints'; by: 1 | -1 }
   /** Between issues only: a bonus for the next issue, or taking one back (docs/design/issues/spec.md, section 4a). */
   | { kind: 'buyHeroPointBonus'; size: number }
   | { kind: 'returnHeroPointBonus'; buyId: string }
@@ -123,8 +122,10 @@ export function applyHeroAction(game: Game, heroId: string, action: HeroAction, 
   const name = heroDisplayName(hero.sheet)
   if (action.kind === 'buyHeroPointBonus' || action.kind === 'returnHeroPointBonus') {
     if (!betweenIssues(game)) return refuse('hero points are spent between issues')
+    // The GM's own heroes are NPCs, with no hero points.
+    if (!hero.player) return refuse("only players' heroes have hero points")
     const next = nextIssueNumber(game)
-    const play = action.kind === 'buyHeroPointBonus' ? buyHeroPointBonus(hero.play, action.size, next, clock) : returnHeroPointBonus(hero.play, action.buyId, next, clock)
+    const play = action.kind === 'buyHeroPointBonus' ? buyHeroPointBonus(hero.play, game.heroPoints, action.size, next, clock) : returnHeroPointBonus(hero.play, action.buyId, next, clock)
     if (play === hero.play) return refuse(action.kind === 'buyHeroPointBonus' ? "you don't have that many hero points left" : 'that bonus is already gone')
     const text = action.kind === 'buyHeroPointBonus' ? `${name} bought a +${action.size} bonus for issue ${next}.` : `${name} returned a +${hero.play.heroPointBuys!.find((b) => b.id === action.buyId)!.size} bonus for issue ${next}.`
     return { ok: true, game: withLog(changeHeroPlay(game, heroId, () => play, clock, false), [{ id: clock.newId(), at: clock.now.toISOString(), by: name, text }]) }
@@ -153,12 +154,6 @@ export function applyHeroAction(game: Game, heroId: string, action: HeroAction, 
     case 'removeTwist':
       if (!hero.play.twists.some((t) => t.id === action.twistId)) return refuse('that twist is already resolved')
       return change((p) => removeTwist(p, action.twistId, clock))
-    case 'heroPoints': {
-      const next = hero.play.heroPoints + action.by
-      if (next < 0) return refuse('you have no hero points to spend')
-      if (next > MAX_HERO_POINTS) return refuse(`you already have ${MAX_HERO_POINTS} hero points`)
-      return change((p) => setHeroPoints(p, p.heroPoints + action.by, clock))
-    }
     case 'reaction':
       return change((p) => setReactionUsed(p, action.used, clock))
     case 'form': {
