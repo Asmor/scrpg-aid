@@ -4,7 +4,8 @@
  * heroes, which the game never changes, so adding them is the caller's.
  */
 import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
-import { heroDisplayName } from '../hero/model'
+import { heroDisplayName, type Hero } from '../hero/model'
+import { holdsIssue } from '../advancement/records'
 import { villainDisplayName } from '../villain/model'
 import { clearHeroMods, modSizes, type Clock } from '../play/state'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
@@ -120,4 +121,36 @@ export function oppositionStaying(game: Pick<Game, 'villains' | 'groups' | 'chal
   const count = (n: number, word: string) => (n ? [`${n} ${word}${n === 1 ? '' : 's'}`] : [])
   const parts = [...game.villains.map((v) => villainDisplayName(v.sheet)), ...count(game.groups.length, 'group'), ...count(game.challenges.length, 'challenge')]
   return parts.length ? nameList(parts) : undefined
+}
+
+/** A row of the GM's Back issues card. */
+export interface BackIssueStatus {
+  heroId: string
+  name: string
+  who: string
+  text: string
+  added: boolean
+}
+
+/** Who has recorded the last finished issue, from players' answers. Unchecked heroes aren't listed. */
+export function backIssueStatuses(game: Pick<Game, 'issues' | 'heroes'>, connected: ReadonlySet<string>): BackIssueStatus[] {
+  const issue = game.issues.at(-1)
+  if (issue?.state !== 'finished') return []
+  return (issue.offeredTo ?? []).map((o) => {
+    const hero = game.heroes.find((h) => h.id === o.heroId)
+    const ack = issue.acks?.[o.heroId]
+    const who = !hero ? 'left the game' : hero.player ? `${hero.player.name || 'A player'}${connected.has(hero.player.clientId) ? '' : ' · disconnected'}` : 'your hero'
+    const text = !ack ? 'Not seen yet' : ack.status === 'later' ? 'Later' : `Added${ack.count !== undefined ? ` · ${ack.count} of ${BACK_ISSUES_PER_COLLECTION}` : ''}`
+    return { heroId: o.heroId, name: o.name, who, text, added: ack?.status === 'added' }
+  })
+}
+
+/** What a player's device asks about next: the oldest issue offered to this hero and not answered. */
+export function issueToPrompt<I extends { id: string; state: 'now' | 'finished'; offeredTo?: readonly { sourceId: string }[] }>(issues: readonly I[], sourceId: string, hero: Pick<Hero, 'backIssues' | 'collections' | 'dismissedIssues'> | undefined, prompts: Readonly<Record<string, string>>): I | undefined {
+  return offeredIssues(issues, sourceId).find((i) => !prompts[i.id] && !hero?.dismissedIssues?.includes(i.id) && !(hero && holdsIssue(hero, i.id)))
+}
+
+/** Every finished issue offered to this hero. */
+export function offeredIssues<I extends { state: 'now' | 'finished'; offeredTo?: readonly { sourceId: string }[] }>(issues: readonly I[], sourceId: string): I[] {
+  return issues.filter((i) => i.state === 'finished' && i.offeredTo?.some((o) => o.sourceId === sourceId))
 }

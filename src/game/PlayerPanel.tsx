@@ -10,6 +10,7 @@
 import { defenseText } from '../play/defense'
 import { ChooseDefense } from './ChooseDefense'
 import { useId, useState, type ReactNode } from 'react'
+import { BackIssuePips } from '../components/BackIssuePips'
 import { DieIcon } from '../components/icons'
 import { buildSheet } from '../creation/sheet'
 import { outerLayer, secondaryLayer } from '../creation/layers'
@@ -47,6 +48,8 @@ interface Props {
   /** The first-join note, once per hero per game: the game's name, and Got it. */
   note?: { gameName: string; dismiss: () => void }
   random?: () => number
+  /** The back issues on the player's library hero, when it's on this device. */
+  backIssues?: { count: number; advancementHref: string; notRecorded: readonly { id: string; title: string; onAdd: () => void }[] }
 }
 
 /** Why controls are off, for each one's accessible description. */
@@ -60,7 +63,7 @@ function WhyOff({ id, text }: { id: string; text: string }) {
 
 const PAUSED_LABEL = 'Paused between issues'
 
-export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu, onCancelSync, onOpenSheet, note, random }: Props) {
+export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu, onCancelSync, onOpenSheet, note, random, backIssues }: Props) {
   const id = useId()
   const needs = `${id}-needs`
   const [rolling, setRolling] = useState<RollSubject | null>(null)
@@ -157,6 +160,29 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
         )}
         {!live && <p className="gt-sub">Needs the GM: changes wait until the GM is connected.</p>}
         {paused && <p className="gt-paused">{PAUSED_LABEL}</p>}
+
+        {backIssues && (paused || backIssues.notRecorded.length > 0) && (
+          <div className="gt-player__back">
+            <div className="gt-row">
+              <span className="gt-label">Back issues</span>
+              <BackIssuePips count={backIssues.count} adding={false} />
+              <span className="gt-grow" />
+              <a className="button button--small" href={backIssues.advancementHref}>
+                Open Advancement
+              </a>
+            </div>
+            {backIssues.notRecorded.map((i) => (
+              <div key={i.id} className="gt-waiting">
+                <p>
+                  <strong>Not recorded yet:</strong> {i.title}
+                </p>
+                <button type="button" className="button button--small" aria-label={`Add back issue: ${i.title}`} onClick={i.onAdd}>
+                  Add back issue…
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="gt-player__health">
           {button('−', () => act({ kind: 'health', by: -1 }), { aria: 'Lose 1 Health', disabled: health === undefined })}

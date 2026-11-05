@@ -3,9 +3,11 @@
  * joined game"): from this device's cache, so it shows what the player last saw. Hidden things
  * never appear, since players never receive them.
  */
-import { useId } from 'react'
+import { useEffect, useId, useState } from 'react'
+import { useStore } from '../app/store-context'
+import { issueToPrompt } from './issues'
 import { buildSheet } from '../creation/sheet'
-import { heroDisplayName } from '../hero/model'
+import { heroDisplayName, type Hero } from '../hero/model'
 import { formatFull } from '../play/time'
 import { currentHealth, effectiveZone } from '../play/state'
 import type { JoinedGame } from './joined-store'
@@ -27,6 +29,20 @@ export function JoinedCard({ joined, live, onOpen, onRemove }: { joined: JoinedG
   const zone = sheet && play ? effectiveZone(sheet, play) : undefined
   const health = sheet && play ? currentHealth(sheet, play) : undefined
   const others = view.heroes.filter((h) => h.id !== joined.heroId)
+  // "Back issue to add": from the library hero, which says what's been added.
+  const heroStore = useStore()
+  const [library, setLibrary] = useState<Hero | undefined>()
+  useEffect(() => {
+    let live = true
+    heroStore.get(joined.heroSourceId).then(
+      (r) => live && r.status === 'found' && setLibrary(r.hero),
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [heroStore, joined.heroSourceId])
+  const toAdd = library && issueToPrompt(view.issues, joined.heroSourceId, library, joined.issuePrompts ?? {})
   return (
     <article className="card games-card" aria-labelledby={`${id}-name`}>
       <div className="gt-row">
@@ -42,6 +58,7 @@ export function JoinedCard({ joined, live, onOpen, onRemove }: { joined: JoinedG
           <span className="gt-pill">GM offline</span>
         )}
         {betweenIssues(view) && <span className="gt-pill">{finishedPill(view.issues)}</span>}
+        {toAdd && <span className="gt-pill gt-pill--live">Back issue to add</span>}
       </div>
       <p className="gt-sub">
         GM: {joined.gm} · you play {mine ? heroDisplayName(mine.sheet) : 'a hero who has left'}

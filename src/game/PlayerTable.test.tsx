@@ -302,7 +302,7 @@ describe('between issues', () => {
   it('shows players the end card, and turns off what changes play', async () => {
     const { host, settle } = await setup()
     await join(settle)
-    host.apply((g) => finishIssue(g, { title: 'The Gravelord Saga', summary: 'He got away.', heroIds: g.heroes.map((h) => h.id) }, clock()))
+    host.apply((g) => finishIssue(g, { title: 'The Gravelord Saga', summary: 'He got away.', heroIds: [] }, clock()))
     await settle()
     expect(await screen.findByRole('heading', { name: 'The Gravelord Saga' })).toBeInTheDocument()
     expect(screen.getByText('END OF ISSUE 1')).toBeInTheDocument()
@@ -316,6 +316,110 @@ describe('between issues', () => {
     // Sheet updates carry on.
     await userEvent.click(screen.getByRole('button', { name: /^More for/ }))
     expect(await screen.findByRole('menuitem', { name: 'Update from my sheet…' })).toBeEnabled()
+  })
+})
+
+describe('the back issue prompt', () => {
+  const finish = (host: HostSession) => host.apply((g) => finishIssue(g, { title: 'The Gravelord Saga', summary: '', heroIds: g.heroes.map((h) => h.id) }, clock()))
+  const issues = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `b${i}`, title: `T${i}`, at: '2026-10-08T12:00:00Z' }))
+  const stored = async (heroes: MemoryHeroStore) => {
+    const r = await heroes.get('maya')
+    if (r.status !== 'found') throw new Error('no hero')
+    return r.hero
+  }
+
+  it('adds the back issue to the library hero, and tells the GM', async () => {
+    const { host, settle, heroes } = await setup()
+    await join(settle)
+    finish(host)
+    await settle()
+    const dialog = within(await screen.findByRole('dialog', { name: `Add "The Gravelord Saga" to Maya Reyes's back issues?` }))
+    expect(dialog.getByText('Sam finished the issue. It becomes back issue 1, from Thursday game.')).toBeInTheDocument()
+    expect(dialog.getByRole('img', { name: '0 of 6 back issues, 1 after this' })).toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: 'Add back issue' })).toHaveFocus()
+    await userEvent.click(dialog.getByRole('button', { name: 'Add back issue' }))
+    expect(await screen.findByText('Added. Maya Reyes has 1 of 6 back issues.')).toBeInTheDocument()
+    expect((await stored(heroes)).backIssues[0]).toMatchObject({ title: 'The Gravelord Saga', gameName: 'Thursday game', issueNumber: 1 })
+    await settle()
+    expect(host.game!.issues[0]!.acks?.[host.game!.heroes[0]!.id]).toMatchObject({ status: 'added', count: 1 })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('Later closes it for good, and the panel can reopen it', async () => {
+    const { host, settle, heroes } = await setup()
+    await join(settle)
+    finish(host)
+    await settle()
+    const dialog = within(await screen.findByRole('dialog', { name: /^Add "The Gravelord Saga"/ }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Later' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await settle()
+    expect(host.game!.issues[0]!.acks?.[host.game!.heroes[0]!.id]).toMatchObject({ status: 'later' })
+    expect(panel().getByText('The Gravelord Saga', { exact: false })).toHaveTextContent('Not recorded yet: The Gravelord Saga')
+    await userEvent.click(panel().getByRole('button', { name: 'Add back issue: The Gravelord Saga' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: /^Add "The Gravelord Saga"/ })).getByRole('button', { name: 'Add back issue' }))
+    await waitFor(async () => expect((await stored(heroes)).backIssues).toHaveLength(1))
+    expect(panel().queryByText(/Not recorded yet/)).not.toBeInTheDocument()
+  })
+
+  it('at five offers a collection, or just adding it', async () => {
+    const { host, settle, heroes } = await setup({ ...maya(), backIssues: issues(5) })
+    await join(settle)
+    finish(host)
+    await settle()
+    const dialog = within(await screen.findByRole('dialog', { name: /^Add "The Gravelord Saga"/ }))
+    expect(dialog.getByText(/It becomes Maya Reyes's sixth back issue/)).toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: 'Add and record collection' })).toBeDisabled()
+    expect(dialog.getByRole('button', { name: 'Add and record collection' })).toHaveAccessibleDescription('Needs a collection name')
+    await userEvent.click(dialog.getByRole('button', { name: 'Just add it' }))
+    expect(await screen.findByText(/Maya Reyes has 6 of 6 back issues\. Name a collection/)).toBeInTheDocument()
+    expect((await stored(heroes)).backIssues).toHaveLength(6)
+  })
+
+  it('at six records the collection first', async () => {
+    const { host, settle, heroes } = await setup({ ...maya(), backIssues: issues(6) })
+    await join(settle)
+    finish(host)
+    await settle()
+    const dialog = within(await screen.findByRole('dialog', { name: 'Maya Reyes already has six back issues' }))
+    await userEvent.type(dialog.getByLabelText('Collection name'), 'The Arc')
+    await userEvent.click(dialog.getByRole('button', { name: 'Record collection and add' }))
+    expect(await screen.findByText('Recorded the collection and added The Gravelord Saga. Maya Reyes has 1 of 6.')).toBeInTheDocument()
+    const hero = await stored(heroes)
+    expect(hero.collections[0]!.name).toBe('The Arc')
+    expect(hero.backIssues).toMatchObject([{ title: 'The Gravelord Saga' }])
+  })
+
+  it("says so when the library hero isn't on this device, and closes when the GM undoes", async () => {
+    const { host, settle, heroes } = await setup()
+    await join(settle)
+    await heroes.remove('maya')
+    const before = structuredClone(host.game!)
+    finish(host)
+    await settle()
+    // The hero was looked up on joining: it's found until it's needed, then the dialog changes.
+    await userEvent.click(within(await screen.findByRole('dialog', { name: /^Add "The Gravelord Saga"/ })).getByRole('button', { name: 'Add back issue' }))
+    expect(await screen.findByText(/isn't in this device's library/)).toBeInTheDocument()
+    host.apply(() => before)
+    await settle()
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it("waits while the player is typing", async () => {
+    const { host, settle } = await setup()
+    await join(settle)
+    // A field of the player's, somewhere that pausing doesn't take away.
+    const field = document.body.appendChild(document.createElement('input'))
+    field.focus()
+    finish(host)
+    await settle()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await act(async () => {
+      field.blur()
+      await new Promise((r) => setTimeout(r))
+    })
+    expect(await screen.findByRole('dialog', { name: /^Add "The Gravelord Saga"/ })).toBeInTheDocument()
+    field.remove()
   })
 })
 

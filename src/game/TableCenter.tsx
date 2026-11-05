@@ -17,6 +17,7 @@ import type { Die } from '../rules/types'
 import { overcomeOutcome } from '../play/roll'
 import { betweenIssues, challengeDone, issueTitle, logByline, sceneDisplayName, type ActorRef, type Challenge, type GameFeedEntry, type HasTracker, type NpcGroup, type PlayersSee } from './model'
 import { actedText, actorKey, boxLabel, groupSummary, memberLabel, memberName, nextStep, roundOver, sameActor, sceneZone, stepsText, turnStrip, waiting, type ItemRef } from './table'
+import type { BackIssueStatus } from './issues'
 import { heroOnTableName, viewHidden, viewName, type TableView } from './project'
 import { Modal } from '../components/Modal'
 
@@ -91,6 +92,8 @@ export interface GmControls {
   logUndo?: LogUndo
   /** Between issues, what the end card says comes next: "Next up: scene 4, Into the Tunnels (planned)." */
   nextUp?: string
+  /** Between issues, who has recorded the issue. */
+  backIssues?: readonly BackIssueStatus[]
 }
 
 export function ZoneChip({ zone, label }: { zone: PlayZone; label?: string }) {
@@ -291,6 +294,26 @@ function EndCard({ game, gm, gmName }: { game: TableView; gm?: GmControls | unde
           {scenes} {gm ? gm.nextUp : `The table is paused until ${gmName ?? 'the GM'} starts the next issue.`}
         </span>
       </div>
+    </section>
+  )
+}
+
+/** The GM's Back issues card: for information, since players decide on their own device. */
+function BackIssuesCard({ rows }: { rows: readonly BackIssueStatus[] }) {
+  return (
+    <section className="card gt-card" aria-labelledby="gt-back-issues">
+      <h2 id="gt-back-issues">Back issues</h2>
+      <p className="gt-sub">Players decide on their own device; this is for your information.</p>
+      <ul className="gt-finish__facts">
+        {rows.map((r) => (
+          <li key={r.heroId} className="gt-row">
+            <span className="gt-grow">
+              <strong>{r.name}</strong> <span className="gt-sub">{r.who}</span>
+            </span>
+            <span className={r.added ? 'tag tag--strong' : 'tag'}>{r.text}</span>
+          </li>
+        ))}
+      </ul>
     </section>
   )
 }
@@ -722,7 +745,10 @@ export function TableCenter({ game, heroes, villains, now, gm, hideLog = false, 
   return (
     <div className={compact ? 'gt-center gt-center--compact' : 'gt-center'}>
       {betweenIssues(game) ? (
-        <EndCard game={game} gm={gm} gmName={gmName} />
+        <>
+          <EndCard game={game} gm={gm} gmName={gmName} />
+          {gm?.backIssues && gm.backIssues.length > 0 && <BackIssuesCard rows={gm.backIssues} />}
+        </>
       ) : (
         <>
           <SceneCard game={game} gm={gm} />

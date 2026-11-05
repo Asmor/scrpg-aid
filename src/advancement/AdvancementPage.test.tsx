@@ -11,6 +11,10 @@ import { MemoryHeroStore } from '../hero/store'
 import type { Clock } from '../play/state'
 import { completeHero } from '../test/heroes'
 import { AdvancementPage } from './AdvancementPage'
+import { JoinedStoreContext } from '../app/joined-store-context'
+import { finishIssue } from '../game/issues'
+import { MemoryJoinedStore, type JoinedGame } from '../game/joined-store'
+import { project } from '../game/project'
 
 let n = 0
 const clock = (): Clock => ({ now: new Date('2026-10-22T12:00:00Z'), newId: () => `id${++n}` })
@@ -61,7 +65,8 @@ describe('the Advancement page', () => {
     const { saved } = await setup()
     expect(screen.getByRole('img', { name: '0 of 6 back issues' })).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('option', { name: 'Thursday game' })).toBeInTheDocument())
-    expect(screen.getByLabelText('From a game')).toHaveValue('g1')
+    expect(screen.getByLabelText('From an issue')).toHaveValue('another')
+    expect(screen.getByLabelText('Game')).toHaveValue('g1')
     await add('The Bank Job')
     expect(screen.getByRole('img', { name: '1 of 6 back issues' })).toBeInTheDocument()
     expect(screen.getByText('1 of 6')).toBeInTheDocument()
@@ -75,7 +80,7 @@ describe('the Advancement page', () => {
   it('adds one with None, and needs a title', async () => {
     const { saved } = await setup(maya(), false)
     expect(screen.getByRole('button', { name: 'Add back issue' })).toBeDisabled()
-    expect(screen.getByLabelText('From a game')).toHaveValue('')
+    expect(screen.getByLabelText('Game')).toHaveValue('')
     await add('No game here')
     await waitFor(async () => expect((await saved()).backIssues[0]).not.toHaveProperty('gameId'))
   })
@@ -273,3 +278,83 @@ describe('the Advancement page', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("Your last change couldn't be saved: disk full")
   })
 })
+
+describe('issues on the Advancement page', () => {
+  async function finished(hero: Hero = maya(), joined: Partial<JoinedGame> | null = null) {
+    const heroes = new MemoryHeroStore()
+    const games = new MemoryGameStore()
+    const joinedStore = new MemoryJoinedStore()
+    await heroes.save(hero)
+    const game = finishIssue(addHero(createGame({ id: 'g1', name: 'Thursday game' }), hero, clock()), { title: 'The Gravelord Saga', summary: '', heroIds: [] }, clock())
+    const offered = { ...game, issues: game.issues.map((i) => ({ ...i, offeredTo: [{ heroId: game.heroes[0]!.id, sourceId: hero.id, name: 'Maya Reyes' }] })) }
+    if (joined) await joinedStore.save({ id: 'g1', room: 'ABCD-EFGH', gm: 'Sam', heroId: offered.heroes[0]!.id, heroSourceId: hero.id, sheet: hero, name: 'Alex', since: 'x', updatedAt: 'x', version: 1, table: project(offered, 'player', offered.heroes[0]!.id), ...joined })
+    else await games.save(offered)
+    render(
+      <StoreContext.Provider value={heroes}>
+        <GameStoreContext.Provider value={games}>
+          <JoinedStoreContext.Provider value={joinedStore}>
+            <AdvancementPage id="h1" clock={clock} />
+          </JoinedStoreContext.Provider>
+        </GameStoreContext.Provider>
+      </StoreContext.Provider>,
+    )
+    await screen.findByRole('heading', { level: 1 })
+    const saved = async () => {
+      const r = await heroes.get('h1')
+      if (r.status !== 'found') throw new Error('not saved')
+      return r.hero
+    }
+    return { saved, joinedStore }
+  }
+
+  it('lists a finished issue as not recorded, and Add records it with the issue', async () => {
+    const { saved } = await finished()
+    await userEvent.click(await screen.findByRole('button', { name: 'Add The Gravelord Saga' }))
+    expect(screen.getByText('Added. Maya Reyes has 1 of 6 back issues.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add The Gravelord Saga' })).not.toBeInTheDocument()
+    await waitFor(async () => expect((await saved()).backIssues[0]).toMatchObject({ title: 'The Gravelord Saga', gameName: 'Thursday game', issueNumber: 1 }))
+    expect(screen.getByText('The Gravelord Saga').closest('li')).toHaveTextContent('Thursday game · Issue 1')
+  })
+
+  it('asks about a collection at five and six', async () => {
+    const { saved } = await finished(withIssues(6))
+    await userEvent.click(await screen.findByRole('button', { name: 'Add The Gravelord Saga' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Maya Reyes already has six back issues' }))
+    expect(dialog.getByRole('button', { name: 'Record collection and add' })).toBeDisabled()
+    await userEvent.type(dialog.getByLabelText('Collection name'), 'The Arc')
+    await userEvent.click(dialog.getByRole('button', { name: 'Record collection and add' }))
+    await waitFor(async () => expect((await saved()).backIssues).toMatchObject([{ title: 'The Gravelord Saga' }]))
+    expect((await saved()).collections[0]!.name).toBe('The Arc')
+  })
+
+  it('Dismiss on a game you run stays with the hero', async () => {
+    const { saved } = await finished()
+    await userEvent.click(await screen.findByRole('button', { name: 'Dismiss The Gravelord Saga' }))
+    expect(screen.queryByRole('button', { name: 'Add The Gravelord Saga' })).not.toBeInTheDocument()
+    await waitFor(async () => expect((await saved()).dismissedIssues).toHaveLength(1))
+  })
+
+  it('Dismiss on a joined game stays with the joined game', async () => {
+    const { joinedStore } = await finished(maya(), {})
+    await userEvent.click(await screen.findByRole('button', { name: 'Dismiss The Gravelord Saga' }))
+    expect(screen.queryByRole('button', { name: 'Add The Gravelord Saga' })).not.toBeInTheDocument()
+    await waitFor(async () => expect(Object.values((await joinedStore.get('g1'))!.issuePrompts ?? {})).toEqual(['dismissed']))
+  })
+
+  it('From an issue fills the title and carries the issue; one already held says so', async () => {
+    const { saved } = await finished()
+    const select = await screen.findByLabelText('From an issue')
+    await waitFor(() => expect(within(select).getByRole('option', { name: /The Gravelord Saga/ })).toBeInTheDocument())
+    const pick = () => userEvent.selectOptions(select, within(select).getByRole('option', { name: /The Gravelord Saga/ }))
+    await pick()
+    expect(screen.getByLabelText('Issue title')).toHaveValue('The Gravelord Saga')
+    expect(screen.queryByLabelText('Game')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Add back issue' }))
+    await waitFor(async () => expect((await saved()).backIssues[0]).toMatchObject({ issueNumber: 1 }))
+    await pick()
+    await userEvent.click(screen.getByRole('button', { name: 'Add back issue' }))
+    expect(screen.getByText('Already recorded.')).toBeInTheDocument()
+    expect((await saved()).backIssues).toHaveLength(1)
+  })
+})
+

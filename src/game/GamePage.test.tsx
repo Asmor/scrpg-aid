@@ -758,6 +758,7 @@ describe('finishing the issue', () => {
     expect(screen.queryByRole('group', { name: 'Scene tracker' })).not.toBeInTheDocument()
     expect(await screen.findByText("Added The Gravelord Saga to Maya Reyes's back issues (1 of 6).")).toBeInTheDocument()
     await waitFor(async () => expect((await saved()).issues[0]!.acks?.h1).toMatchObject({ status: 'added', count: 1 }))
+    expect(within(screen.getByRole('region', { name: 'Back issues' })).getByText('Added · 1 of 6')).toBeInTheDocument()
     expect((await libraryHero()).backIssues[0]).toMatchObject({ title: 'The Gravelord Saga', gameName: 'Thursday game', issueNumber: 1 })
 
     await userEvent.click(within(log()).getByRole('button', { name: 'Undo finishing issue 1' }))

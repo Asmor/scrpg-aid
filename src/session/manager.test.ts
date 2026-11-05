@@ -158,19 +158,26 @@ describe('the device’s session', () => {
       const save = vi.spyOn(joined, 'save')
       const manager = new SessionManager(net.connect, localSessionStore(memoryStorage()), clock, undefined, joined)
       manager.joinGame({ room: host.room, name: 'Alex', hero: { ...completeHero(), id: 'maya' } })
+      // A write first reads what the device answered about issues.
+      const written = async () => {
+        for (let i = 0; i < 20; i++) await Promise.resolve()
+      }
       await net.settle()
+      await written()
       expect(save).toHaveBeenCalledTimes(1)
       host.apply((g) => ({ ...g, name: 'One' }))
       host.apply((g) => ({ ...g, name: 'Two' }))
       await net.settle()
       expect(save).toHaveBeenCalledTimes(1)
       vi.advanceTimersByTime(CACHE_EVERY)
+      await written()
       expect(save).toHaveBeenCalledTimes(2)
       expect(save.mock.calls.at(-1)![0].table.name).toBe('Two')
       // Leaving writes anything still waiting.
       host.apply((g) => ({ ...g, name: 'Three' }))
       await net.settle()
       manager.leaveGame()
+      await written()
       expect(save.mock.calls.at(-1)![0].table.name).toBe('Three')
     } finally {
       vi.useRealTimers()

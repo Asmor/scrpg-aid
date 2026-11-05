@@ -7,7 +7,7 @@ import type { GameStore } from '../game/store'
 import type { Hero } from '../hero/model'
 import type { Clock } from '../play/state'
 import { PlayerClient, type PlayingSaved, type Received } from './client'
-import type { JoinedGame, JoinedStore } from '../game/joined-store'
+import { cacheJoined, type JoinedGame, type JoinedStore } from '../game/joined-store'
 import { newRoomCode } from './code'
 import { HostSession, type CodeChange, type HostSaved } from './host'
 import { setGameCode } from '../game/table'
@@ -316,7 +316,7 @@ export class SessionManager {
     const record = this.cachePending
     this.cachePending = undefined
     // A cache that can't be written just isn't there offline.
-    if (record) this.joined?.save(record).catch(() => {})
+    if (record && this.joined) cacheJoined(this.joined, record).catch(() => {})
   }
 
   private disconnect(): void {

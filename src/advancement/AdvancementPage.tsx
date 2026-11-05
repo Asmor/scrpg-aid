@@ -18,7 +18,10 @@ import { heroDisplayName, isDraft, newId, type BackIssue, type Hero, type HeroDe
 import { continueStep } from '../hero/wizard-steps'
 import { PopoverGroup } from '../library/Popover'
 import type { Clock } from '../play/state'
-import { addBackIssue, addStartingCollection, changeCosmetic, collectionsText, cosmeticFields, editBackIssue, recordCollection, removeBackIssue, shortDate, undoable, undoLast, type CosmeticKind, type IssueGame } from './records'
+import { useOptionalJoinedStore } from '../app/joined-store-context'
+import { BackIssuePrompt } from '../game/BackIssuePrompt'
+import { setIssuePrompt, type JoinedGame } from '../game/joined-store'
+import { addBackIssue, addOfferedIssue, addStartingCollection, backIssueOffer, changeCosmetic, collectionsText, cosmeticFields, dismissIssue, editBackIssue, heroIssues, holdsIssue, recordCollection, removeBackIssue, shortDate, undoable, undoLast, type CosmeticKind, type HeroIssue, type IssueGame, type IssueSource } from './records'
 import { openRewrite, startRewrite } from './rewrite'
 import { swapAbility, swapPrinciple, swapTrait } from './swaps'
 import { AbilitySwapDialog, PrincipleSwapDialog, TraitSwapDialog } from './SwapDialogs'
@@ -87,6 +90,53 @@ function EditIssueDialog({ issue, games, onSave, onClose }: { issue: BackIssue; 
   )
 }
 
+const ANOTHER_GAME = 'another'
+const issueOption = (i: HeroIssue) => `issue:${i.game.id}:${i.id}`
+
+/** The "From an issue" select: the finished issues this hero played, another game holding it, or None. */
+function IssueSelect({ id, issues, value, onChange }: { id: string; issues: readonly HeroIssue[]; value: string; onChange: (value: string) => void }) {
+  return (
+    <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+      {issues.map((i) => (
+        <option key={issueOption(i)} value={issueOption(i)}>
+          {i.game.name} · Issue {i.number}: {i.title}
+        </option>
+      ))}
+      <option value={ANOTHER_GAME}>Another game…</option>
+      <option value={NO_GAME}>None</option>
+    </select>
+  )
+}
+
+/** "Not recorded yet": finished issues offered to the hero, with Add and Dismiss. */
+function NotRecorded({ issues, onAdd, onDismiss }: { issues: readonly HeroIssue[]; onAdd: (issue: HeroIssue) => void; onDismiss: (issue: HeroIssue) => void }) {
+  if (!issues.length) return null
+  return (
+    <div className="adv-unrecorded">
+      <span className="gt-label">Not recorded yet</span>
+      <ul className="adv-issues">
+        {issues.map((i) => (
+          <li key={issueOption(i)} className="gt-row">
+            <span className="gt-grow">
+              <strong>{i.title}</strong>
+              <span className="gt-sub">
+                {' '}
+                · {i.game.name} · Issue {i.number}
+              </span>
+            </span>
+            <button type="button" className="button button--small button--primary" aria-label={`Add ${i.title}`} onClick={() => onAdd(i)}>
+              Add
+            </button>
+            <button type="button" className="button button--small button--quiet" aria-label={`Dismiss ${i.title}`} onClick={() => onDismiss(i)}>
+              Dismiss
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function StartingCollectionDialog({ onAdd, onClose }: { onAdd: (name: string) => void; onClose: () => void }) {
   const id = useId()
   const [name, setName] = useState('')
@@ -120,10 +170,13 @@ function StartingCollectionDialog({ onAdd, onClose }: { onAdd: (name: string) =>
 }
 
 /** The first section: the pips, the list, and the form until six, then Record collection. */
-function BackIssues({ hero, games, apply, clock }: { hero: Hero; games: readonly IssueGame[]; apply: (fn: (h: Hero) => Hero) => void; clock: () => Clock }) {
+function BackIssues({ hero, games, issues, onDismiss, apply, clock }: { hero: Hero; games: readonly IssueGame[]; issues: readonly HeroIssue[]; onDismiss: (issue: HeroIssue) => void; apply: (fn: (h: Hero) => Hero) => void; clock: () => Clock }) {
   const id = useId()
   const [title, setTitle] = useState('')
   const [game, setGame] = useState<string | null>(null)
+  const [from, setFrom] = useState(ANOTHER_GAME)
+  const [notice, setNotice] = useState('')
+  const [adding, setAdding] = useState<HeroIssue | null>(null)
   const [collection, setCollection] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
   const count = hero.backIssues.length
@@ -139,9 +192,28 @@ function BackIssues({ hero, games, apply, clock }: { hero: Hero; games: readonly
   const add = (e: FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
+    const picked = issues.find((i) => issueOption(i) === from)
+    if (picked && holdsIssue(hero, picked.id)) {
+      setNotice('Already recorded.')
+      return
+    }
+    setNotice('')
     justFilled.current = count === BACK_ISSUES_PER_COLLECTION - 1
-    apply((h) => addBackIssue(h, { title, ...(games.some((g) => g.id === gameId) ? { game: games.find((g) => g.id === gameId)! } : {}) }, clock()))
+    const source = picked ? { game: picked.game, issue: { id: picked.id, number: picked.number } } : from === ANOTHER_GAME && games.some((g) => g.id === gameId) ? { game: games.find((g) => g.id === gameId)! } : {}
+    apply((h) => addBackIssue(h, { title, ...source }, clock()))
     setTitle('')
+    setFrom(ANOTHER_GAME)
+  }
+  const pick = (value: string) => {
+    setFrom(value)
+    const picked = issues.find((i) => issueOption(i) === value)
+    if (picked) setTitle(picked.title)
+  }
+  /** Add follows the prompt's rules: at five or six it asks about a collection first. */
+  const addOffered = (i: HeroIssue, collection?: string) => {
+    setAdding(null)
+    setNotice(addOfferedIssue(hero, i, collection, clock()).text)
+    apply((h) => addOfferedIssue(h, i, collection, clock()).hero)
   }
   const record = (e: FormEvent) => {
     e.preventDefault()
@@ -166,13 +238,17 @@ function BackIssues({ hero, games, apply, clock }: { hero: Hero; games: readonly
         </strong>
       </div>
       <p className="gt-sub">Each finished issue is a back issue. At six, name a collection to record them.</p>
+      <NotRecorded issues={issues.filter((i) => !i.dismissed && !holdsIssue(hero, i.id))} onAdd={(i) => (backIssueOffer(hero, i.id).situation === 'adds' ? addOffered(i) : setAdding(i))} onDismiss={onDismiss} />
+      <p className="gt-sub" role="status">
+        {notice}
+      </p>
       {count > 0 && (
         <ol className="adv-issues">
           {hero.backIssues.map((b) => (
             <li key={b.id} className="gt-row">
               <span className="gt-grow">
                 <strong>{b.title}</strong>
-                <span className="gt-sub"> · {[b.gameName, shortDate(b.at)].filter(Boolean).join(' · ')}</span>
+                <span className="gt-sub"> · {[b.gameName, b.issueNumber ? `Issue ${b.issueNumber}` : '', shortDate(b.at)].filter(Boolean).join(' · ')}</span>
               </span>
               <MenuButton
                 label={`More for ${b.title}`}
@@ -192,10 +268,16 @@ function BackIssues({ hero, games, apply, clock }: { hero: Hero; games: readonly
             <span>Issue title</span>
             <input id={`${id}-title`} type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
           </label>
-          <label className="field" htmlFor={`${id}-game`}>
-            <span>From a game</span>
-            <GameSelect id={`${id}-game`} games={games} value={gameId} onChange={setGame} />
+          <label className="field" htmlFor={`${id}-from`}>
+            <span>From an issue</span>
+            <IssueSelect id={`${id}-from`} issues={issues} value={from} onChange={pick} />
           </label>
+          {from === ANOTHER_GAME && (
+            <label className="field" htmlFor={`${id}-game`}>
+              <span>Game</span>
+              <GameSelect id={`${id}-game`} games={games} value={gameId} onChange={setGame} />
+            </label>
+          )}
           <button type="submit" className="button button--primary" disabled={!title.trim()}>
             Add back issue
           </button>
@@ -215,6 +297,19 @@ function BackIssues({ hero, games, apply, clock }: { hero: Hero; games: readonly
           </form>
         )}
       </div>
+      {adding && (
+        <BackIssuePrompt
+          number={adding.number}
+          title={adding.title}
+          hero={hero}
+          issueId={adding.id}
+          who={adding.gm ?? 'You'}
+          gameName={adding.game.name}
+          laterLabel="Cancel"
+          onAdd={(collection) => addOffered(adding, collection)}
+          onLater={() => setAdding(null)}
+        />
+      )}
       {issue && <EditIssueDialog issue={issue} games={games} onSave={(t, g) => apply((h) => editBackIssue(h, issue.id, { title: t, ...(g ? { game: g } : {}) }))} onClose={() => setEditing(null)} />}
     </section>
   )
@@ -243,7 +338,7 @@ function Collections({ hero, apply, clock }: { hero: Hero; apply: (fn: (h: Hero)
               {c.issues.map((issue, i) => (
                 <li key={i}>
                   {issue.title}
-                  <span className="gt-sub"> · {[issue.gameName, shortDate(issue.at)].filter(Boolean).join(' · ')}</span>
+                  <span className="gt-sub"> · {[issue.gameName, issue.issueNumber ? `Issue ${issue.issueNumber}` : '', shortDate(issue.at)].filter(Boolean).join(' · ')}</span>
                 </li>
               ))}
             </ol>
@@ -413,6 +508,19 @@ function History({ hero, apply }: { hero: Hero; apply: (fn: (h: Hero) => Hero) =
 export function AdvancementPage({ id, clock = defaultClock }: { id: string; clock?: () => Clock }) {
   const { state, update, saveError, flush } = useHeroEditor(id)
   const listed = useListedGames()
+  // Games joined as a player, for the issues they finished.
+  const joinedStore = useOptionalJoinedStore()
+  const [joined, setJoined] = useState<JoinedGame[]>([])
+  useEffect(() => {
+    let live = true
+    joinedStore?.list().then(
+      (list) => live && setJoined(list),
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [joinedStore])
   /** Leaves once the changes made so far are saved, so the next page shows them. */
   const leave = (path: string) => (e: MouseEvent<HTMLAnchorElement>) => {
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
@@ -451,6 +559,16 @@ export function AdvancementPage({ id, clock = defaultClock }: { id: string; cloc
     .slice()
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map((g) => ({ id: g.id, name: gameDisplayName(g) }))
+  const sources: IssueSource[] = [
+    ...(listed.games ?? []).map((g) => ({ game: { id: g.id, name: gameDisplayName(g) }, joined: false, issues: g.issues })),
+    ...joined.filter((j) => j.heroSourceId === hero.id).map((j) => ({ game: { id: j.id, name: gameDisplayName(j.table) }, gm: j.gm, joined: true, issues: j.table.issues, ...(j.issuePrompts ? { prompts: j.issuePrompts } : {}) })),
+  ]
+  const issues = heroIssues(hero, sources)
+  const dismiss = (issue: HeroIssue) => {
+    if (!issue.joined) return apply((h) => dismissIssue(h, issue.id))
+    setJoined((list) => list.map((j) => (j.id === issue.game.id ? { ...j, issuePrompts: { ...j.issuePrompts, [issue.id]: 'dismissed' } } : j)))
+    if (joinedStore) setIssuePrompt(joinedStore, issue.game.id, issue.id, 'dismissed').catch(() => {})
+  }
   return (
     <PopoverGroup>
       <div className="adv-page">
@@ -477,7 +595,7 @@ export function AdvancementPage({ id, clock = defaultClock }: { id: string; cloc
         )}
         <div className="adv-cols">
           <main className="adv-main">
-            <BackIssues hero={hero} games={games} apply={apply} clock={clock} />
+            <BackIssues hero={hero} games={games} issues={issues} onDismiss={dismiss} apply={apply} clock={clock} />
             <ChangeHero
               hero={hero}
               apply={apply}

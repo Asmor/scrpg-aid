@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createHero } from '../hero/model'
 import { parseSaved, toSaved } from '../hero/serialize'
 import type { Clock } from '../play/state'
-import { addBackIssue, addStartingCollection, backIssueOffer, collectionsText, editBackIssue, followed, recordCollection, removeBackIssue } from './records'
+import { addBackIssue, addOfferedIssue, addStartingCollection, backIssueOffer, dismissIssue, heroIssues, collectionsText, editBackIssue, followed, recordCollection, removeBackIssue } from './records'
 
 const c: Clock = (() => {
   let n = 0
@@ -111,3 +111,55 @@ describe('back issues from a finished issue', () => {
     expect(editBackIssue(hero, 'b0', { title: 'New' }).backIssues[0]).not.toHaveProperty('issueId')
   })
 })
+
+describe('adding an offered issue', () => {
+  const offered = { id: 'i1', number: 1, title: 'Saga', game }
+  const hero = (n: number) => {
+    const h = withIssues(n)
+    return { ...h, details: { ...h.details, name: 'Afterimage' } }
+  }
+
+  it('adds one', () => {
+    const r = addOfferedIssue(hero(4), offered, undefined, c)
+    expect(r.hero.backIssues).toHaveLength(5)
+    expect(r.text).toBe('Added. Afterimage has 5 of 6 back issues.')
+  })
+
+  it('reaches six, with or without a collection', () => {
+    expect(addOfferedIssue(hero(5), offered, undefined, c).text).toBe('Added. Afterimage has 6 of 6 back issues. Name a collection on the Advancement page.')
+    const r = addOfferedIssue(hero(5), offered, 'Arc', c)
+    expect(r.text).toBe('Added, and recorded the collection. Afterimage starts again at 0 of 6.')
+    expect(r.hero.backIssues).toEqual([])
+    expect(r.hero.collections[0]!.issues.at(-1)).toMatchObject({ issueId: 'i1' })
+  })
+
+  it('at six records first, and needs a name', () => {
+    const six = hero(6)
+    expect(addOfferedIssue(six, offered, ' ', c).hero).toBe(six)
+    const r = addOfferedIssue(six, offered, 'Arc', c)
+    expect(r.text).toBe('Recorded the collection and added Saga. Afterimage has 1 of 6.')
+    expect(r.hero.backIssues).toMatchObject([{ issueId: 'i1' }])
+  })
+
+  it('never adds the same issue twice', () => {
+    const once = addOfferedIssue(hero(1), offered, undefined, c).hero
+    expect(addOfferedIssue(once, offered, undefined, c)).toEqual({ hero: once, text: 'Already recorded.' })
+  })
+})
+
+describe("a hero's issues", () => {
+  const source = (prompts = {}) => ({ game, joined: true, prompts, issues: [{ id: 'i1', number: 1, title: 'Saga', state: 'finished' as const, offeredTo: [{ sourceId: 'h' }] }, { id: 'i2', number: 2, state: 'finished' as const, offeredTo: [{ sourceId: 'other' }] }, { id: 'i3', number: 3, state: 'now' as const }] })
+
+  it('are the finished ones offered to it', () => {
+    const list = heroIssues({ id: 'h' }, [source()])
+    expect(list).toMatchObject([{ id: 'i1', title: 'Saga', dismissed: false }])
+  })
+
+  it('know when they were dismissed, on the joined game or the hero', () => {
+    expect(heroIssues({ id: 'h' }, [source({ i1: 'dismissed' })])[0]!.dismissed).toBe(true)
+    expect(heroIssues({ id: 'h' }, [source({ i1: 'later' })])[0]!.dismissed).toBe(false)
+    const hero = dismissIssue(withIssues(0), 'i1')
+    expect(heroIssues(hero, [source()])[0]!.dismissed).toBe(true)
+  })
+})
+

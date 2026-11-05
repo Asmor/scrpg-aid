@@ -36,7 +36,11 @@ export interface JoinedGame {
   updatedAt: string
   version: number
   table: TableView
+  /** What this device did about each issue's back issue, unless it added it: that's read from the hero (docs/design/issues/spec.md, section 7). */
+  issuePrompts?: IssuePrompts
 }
+
+export type IssuePrompts = Record<string, 'later' | 'dismissed'>
 
 const joinedShape = object({
   id: nonEmptyString,
@@ -50,6 +54,14 @@ const joinedShape = object({
   updatedAt: string,
   version: integer,
   table: (v, path) => tableViewProblem(v) && `${path} is malformed`,
+  'issuePrompts?': (v, path) => {
+    if (!isRecord(v)) return `${path} should be an object`
+    for (const [key, value] of Object.entries(v)) {
+      const problem = oneOf('later', 'dismissed')(value, `${path}.${key}`)
+      if (problem) return problem
+    }
+    return undefined
+  },
 })
 
 /** A cached game as the state it was last received in, to show until the GM answers. */
@@ -111,6 +123,31 @@ export class IndexedDbJoinedStore extends IndexedDbRecords implements JoinedStor
   async remove(id: string) {
     await this.deleteRecord(id)
   }
+}
+
+/** Changes to one store happen one after another, so a new state from the GM can't overwrite an answer. */
+const queues = new WeakMap<JoinedStore, Promise<unknown>>()
+
+function inTurn<T>(store: JoinedStore, job: () => Promise<T>): Promise<T> {
+  const run = (queues.get(store) ?? Promise.resolve()).then(job, job)
+  queues.set(store, run.catch(() => {}))
+  return run
+}
+
+/** Caches the latest state of a game, keeping what this device answered about its issues. */
+export function cacheJoined(store: JoinedStore, record: JoinedGame): Promise<void> {
+  return inTurn(store, async () => {
+    const before = await store.get(record.id)
+    await store.save(before?.issuePrompts ? { ...record, issuePrompts: before.issuePrompts } : record)
+  })
+}
+
+/** Remembers what this device did about an issue's back issue. */
+export function setIssuePrompt(store: JoinedStore, gameId: string, issueId: string, answer: 'later' | 'dismissed'): Promise<void> {
+  return inTurn(store, async () => {
+    const before = await store.get(gameId)
+    if (before) await store.save({ ...before, issuePrompts: { ...before.issuePrompts, [issueId]: answer } })
+  })
 }
 
 /** The store the app uses: IndexedDB when the browser has it, otherwise memory (nothing persists). */

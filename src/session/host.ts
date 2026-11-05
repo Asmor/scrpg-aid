@@ -11,6 +11,7 @@
  */
 import { applyHeroAction, trackChanges, type FieldVersions } from '../game/actions'
 import { logStatusChanges } from '../game/villain-status'
+import { recordIssueAck } from '../game/issues'
 import type { Game, HeroInGame } from '../game/model'
 import { project, type TableView } from '../game/project'
 import type { GameStore } from '../game/store'
@@ -321,6 +322,9 @@ export class HostSession extends Subscribable<HostSnapshot> {
         return this.syncRequest(msg, from)
       case 'syncCancel':
         return this.syncCancel(msg, from)
+      case 'issueAck':
+        if (this.owns(from, msg.heroId)) this.apply((g) => recordIssueAck(g, msg.issueId, msg.heroId, { status: msg.status, ...(msg.count !== undefined ? { count: msg.count } : {}) }, this.clock()))
+        return
     }
   }
 

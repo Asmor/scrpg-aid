@@ -135,6 +135,14 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
     return true
   }
 
+  /** Tells the GM what this player did about a back issue. Nothing comes back. */
+  issueAck(issueId: string, status: 'added' | 'later', count?: number): boolean {
+    const heroId = this.heroId
+    if (!this.live || !heroId) return false
+    this.toGm({ v: PROTOCOL_VERSION, type: 'issueAck', issueId, heroId, status, ...(count !== undefined ? { count } : {}) } satisfies ClientMessage)
+    return true
+  }
+
   /** Forgets a notice once shown, and a timed-out action with it. */
   dismiss(noticeId: string): void {
     const notice = this.snapshot.notices.find((n) => n.id === noticeId)

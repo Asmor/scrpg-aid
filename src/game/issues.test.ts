@@ -3,7 +3,7 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { emptyPlay, type Clock } from '../play/state'
 import { applyHeroAction } from './actions'
-import { defaultIssueTitle, finishIssue, finishRows, oppositionStaying, recordIssueAck, scenesPlayed } from './issues'
+import { backIssueStatuses, defaultIssueTitle, finishIssue, finishRows, issueToPrompt, oppositionStaying, recordIssueAck, scenesPlayed } from './issues'
 import { betweenIssues, createGame, createScene, currentIssue, heroCopy, villainCopy, type Game } from './model'
 import { project } from './project'
 import { duplicateGame, startScene, defaultChoices, startPlan } from './scenes'
@@ -213,3 +213,35 @@ describe('the Finish dialog rows', () => {
     expect(oppositionStaying({ villains: g.villains, groups: [{}, {}] as never, challenges: [{}] as never })).toMatch(/, 2 groups and 1 challenge$/)
   })
 })
+
+describe('who has recorded the issue', () => {
+  it('reads each offered hero from the answers', () => {
+    const g = finishIssue(table(), { ...choices, heroIds: ['h1', 'h2'] }, clock)
+    const id = g.issues[0]!.id
+    expect(backIssueStatuses(g, new Set())).toMatchObject([{ name: 'Afterimage', who: 'Alex · disconnected', text: 'Not seen yet', added: false }, { name: 'Redline', who: 'your hero', text: 'Not seen yet' }])
+    const later = recordIssueAck(g, id, 'h1', { status: 'later' }, clock)
+    expect(backIssueStatuses(later, new Set(['c1']))[0]).toMatchObject({ who: 'Alex', text: 'Later', added: false })
+    const added = recordIssueAck(later, id, 'h2', { status: 'added', count: 3 }, clock)
+    expect(backIssueStatuses(added, new Set())[1]).toMatchObject({ text: 'Added · 3 of 6', added: true })
+    expect(backIssueStatuses(table(), new Set())).toEqual([])
+  })
+})
+
+describe('what a player is asked about', () => {
+  const issues = [{ id: 'i1', state: 'finished' as const, offeredTo: [{ sourceId: 's' }] }, { id: 'i2', state: 'finished' as const, offeredTo: [{ sourceId: 's' }] }]
+  const hero = { backIssues: [], collections: [] }
+
+  it('is the oldest offered issue with no answer', () => {
+    expect(issueToPrompt(issues, 's', hero, {})?.id).toBe('i1')
+    expect(issueToPrompt(issues, 's', hero, { i1: 'later' })?.id).toBe('i2')
+    expect(issueToPrompt(issues, 's', hero, { i1: 'later', i2: 'dismissed' })).toBeUndefined()
+    expect(issueToPrompt(issues, 'other', hero, {})).toBeUndefined()
+    expect(issueToPrompt(issues, 's', undefined, {})?.id).toBe('i1')
+  })
+
+  it("skips one already on the hero, or dismissed there", () => {
+    expect(issueToPrompt(issues, 's', { ...hero, backIssues: [{ id: 'b', title: 'x', issueId: 'i1', at: 'x' }] }, {})?.id).toBe('i2')
+    expect(issueToPrompt(issues, 's', { ...hero, dismissedIssues: ['i1'] }, {})?.id).toBe('i2')
+  })
+})
+

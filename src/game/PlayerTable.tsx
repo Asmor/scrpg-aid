@@ -11,17 +11,21 @@
  * - Toasts for rejected actions, actions that didn't reach the GM, and the GM's answer to a
  *   sheet update request.
  */
-import { useEffect, useId, useRef, useState } from 'react'
-import { gamesPath, heroPath, joinPath, navigate, tablePath } from '../app/route'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { advancementPath, gamesPath, heroPath, joinPath, navigate, tablePath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
-import { receivedFrom, type JoinedGame } from './joined-store'
+import { receivedFrom, setIssuePrompt, type IssuePrompts, type JoinedGame } from './joined-store'
+import { addOfferedIssue, holdsIssue } from '../advancement/records'
+import { BackIssuePrompt } from './BackIssuePrompt'
+import { useNotTyping } from './useNotTyping'
+import { issueToPrompt, offeredIssues } from './issues'
 import { HeroSheetView } from '../components/HeroSheetView'
 import { Modal } from '../components/Modal'
 import { Toasts, type ToastData } from '../components/Toasts'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { buildSheet } from '../creation/sheet'
-import { heroDisplayName, isDraft, type Hero } from '../hero/model'
+import { heroDisplayName, isDraft, newId, type Hero } from '../hero/model'
 import { PopoverGroup, type MenuItem } from '../library/Popover'
 import { useTick } from '../play/useTick'
 import type { Notice } from '../session/client'
@@ -29,9 +33,9 @@ import { normalizeRoomCode } from '../session/code'
 import { usePlayingSnapshot, useSession } from '../session/context'
 import { refusedText } from '../session/refused'
 import type { HeroAction } from './actions'
-import { betweenIssues, gameDisplayName, sceneDisplayName } from './model'
+import { betweenIssues, gameDisplayName, issueTitle, sceneDisplayName } from './model'
 import { finishedPill } from './summary'
-import { heroOnTableName, viewName, type HeroOnTable, type TableView } from './project'
+import { heroOnTableName, viewName, type HeroOnTable, type IssueOnTable, type TableView } from './project'
 import { PlayerPanel } from './PlayerPanel'
 import { healthLine, reconcile } from './reconcile'
 import { sheetDiff, type DiffSection } from './sheet-diff'
@@ -149,7 +153,9 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
   }, [clientRoom, room])
   const now = useTick()
   const phone = useMediaQuery('(max-width: 759px)', false)
-  const [library, setLibrary] = useState<Hero | undefined>()
+  // The player's library hero: undefined until looked up; `hero` unset when it isn't on this device.
+  const [loaded, setLoaded] = useState<{ hero?: Hero } | undefined>()
+  const library = loaded?.hero && !isDraft(loaded.hero) ? loaded.hero : undefined
   // The sheet-changed prompt: shown by itself once on joining (when the sheet changed), or from the panel's ⋯.
   const [prompt, setPrompt] = useState<'auto' | 'shown' | 'done'>('auto')
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -167,7 +173,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     if (!sourceId) return
     let live = true
     heroStore.get(sourceId).then(
-      (r) => live && setLibrary(r.status === 'found' && !isDraft(r.hero) ? r.hero : undefined),
+      (r) => live && setLoaded(r.status === 'found' ? { hero: r.hero } : {}),
       () => {},
     )
     return () => {
@@ -256,9 +262,49 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     if (!mine) setReactionBack(false)
   }, [mine, copy])
 
+  // This device's answers about back issues (docs/design/issues/spec.md, section 3).
+  const gameId = table?.id
+  const [prompts, setPrompts] = useState<IssuePrompts>({})
+  useEffect(() => {
+    if (!gameId || !joinedStore) return
+    let live = true
+    joinedStore.get(gameId).then(
+      (j) => live && j?.issuePrompts && setPrompts((p) => ({ ...j.issuePrompts, ...p })),
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [gameId, joinedStore])
+  const answer = (issueId: string, value: 'later' | 'dismissed') => {
+    setPrompts((p) => ({ ...p, [issueId]: value }))
+    if (gameId && joinedStore) setIssuePrompt(joinedStore, gameId, issueId, value).catch(() => {})
+  }
+  const issues = useMemo(() => table?.issues ?? [], [table])
+  const asked = sourceId && loaded ? issueToPrompt(issues, sourceId, loaded.hero, prompts) : undefined
+  const [reopened, setReopened] = useState<string | undefined>()
+  const free = useNotTyping(Boolean(asked))
+  const issue = issues.find((i) => i.id === reopened && i.state === 'finished') ?? (free ? asked : undefined)
+  const [backToast, setBackToast] = useState<ToastData | null>(null)
+
+  // The GM's list hears what's been done, once for each answer. It stays right after the GM's Undo, or a reconnect.
+  const sentAcks = useRef(new Set<string>())
+  const heroNow = loaded?.hero
+  useEffect(() => {
+    if (!live || !client || !sourceId || !heroNow) return
+    for (const i of offeredIssues(issues, sourceId)) {
+      const status = holdsIssue(heroNow, i.id) ? ('added' as const) : prompts[i.id] ? ('later' as const) : undefined
+      if (!status) continue
+      const count = heroNow.backIssues.length
+      const key = `${i.id}:${i.finishedAt}:${status}:${count}`
+      if (sentAcks.current.has(key)) continue
+      if (client.issueAck(i.id, status, count)) sentAcks.current.add(key)
+    }
+  }, [live, client, sourceId, heroNow, issues, prompts])
+
   // On joining or rejoining: if the library sheet has changed, offer to ask the GM to update the game's copy.
   const change = copy && library ? sheetChange(copy, library) : undefined
-  const prompting = Boolean(change) && (prompt === 'shown' || (prompt === 'auto' && live && !snap?.syncWaiting))
+  const prompting = Boolean(change) && !issue && (prompt === 'shown' || (prompt === 'auto' && live && !snap?.syncWaiting))
 
   if (!client) {
     return (
@@ -326,6 +372,26 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     return waiting(table).map((ref) => ({ label: name(ref), onSelect: () => act({ kind: 'handOff', to: ref }) }))
   }
 
+  // Put off with Later, and not added since.
+  const notRecordedHere = sourceId && heroNow ? offeredIssues(issues, sourceId).filter((i) => prompts[i.id] === 'later' && !heroNow.dismissedIssues?.includes(i.id) && !holdsIssue(heroNow, i.id)) : []
+
+  /** Adds the back issue to the library hero: the latest copy, since the Advancement page may have changed it. */
+  const addIssue = (i: IssueOnTable, collection?: string) => {
+    setReopened(undefined)
+    const fail = (e: unknown) => setBackToast({ id: `back-${i.id}`, text: `Couldn't add the back issue: ${e instanceof Error ? e.message : String(e)}`, warn: true })
+    heroStore.get(client.info.heroSourceId).then((r) => {
+      if (r.status !== 'found') return setLoaded({})
+      const c = { now: new Date(), newId: () => newId() }
+      const result = addOfferedIssue(r.hero, { id: i.id, number: i.number, title: issueTitle(i), game: { id: gameId!, name: gameName } }, collection, c)
+      if (result.hero === r.hero) return setBackToast({ id: `back-${i.id}`, text: result.text })
+      const after = { ...result.hero, updatedAt: c.now.toISOString() }
+      return heroStore.save(after).then(() => {
+        setLoaded({ hero: after })
+        setBackToast({ id: `back-${i.id}`, text: result.text })
+      })
+    }).catch(fail)
+  }
+
   const panel = copy && table && (
     <PlayerPanel
       hero={copy}
@@ -349,6 +415,15 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
           }
         : {})}
       random={random}
+      {...(heroNow
+        ? {
+            backIssues: {
+              count: heroNow.backIssues.length,
+              advancementHref: advancementPath(heroNow.id),
+              notRecorded: notRecordedHere.map((i) => ({ id: i.id, title: issueTitle(i), onAdd: () => setReopened(i.id) })),
+            },
+          }
+        : {})}
     />
   )
 
@@ -461,6 +536,31 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
           </div>
         )}
       </div>
+      {issue &&
+        (loaded?.hero ? (
+          <BackIssuePrompt
+            number={issue.number}
+            title={issueTitle(issue)}
+            hero={loaded.hero}
+            issueId={issue.id}
+            who={received?.gm || 'The GM'}
+            gameName={gameName}
+            onAdd={(collection) => addIssue(issue, collection)}
+            onLater={() => {
+              setReopened(undefined)
+              if (!prompts[issue.id]) answer(issue.id, 'later')
+            }}
+          />
+        ) : (
+          <Modal title={`End of issue ${issue.number}`} onClose={() => (setReopened(undefined), answer(issue.id, 'later'))}>
+            <p>{copy ? heroName : 'Your hero'} isn't in this device's library, so the back issue can't be added here.</p>
+            <div className="button-row gt-dialog-actions">
+              <button type="button" className="button button--primary" onClick={() => (setReopened(undefined), answer(issue.id, 'later'))}>
+                Close
+              </button>
+            </div>
+          </Modal>
+        ))}
       {prompting && change && copy && (
         <SheetChanged name={heroName} changes={change.changes} inGame={change.inGame} onAsk={() => library && client.requestSync(library)} onKeep={() => setPrompt('done')} />
       )}
@@ -489,7 +589,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
           </div>
         </Modal>
       )}
-      <Toasts toasts={[...(snap?.notices ?? []).map((n) => noticeToast(n, (id) => client.retry(id))), ...(sceneToast ? [sceneToast] : []), ...(closedToast ? [closedToast] : [])]} onDismiss={(id) => (id === sceneToast?.id ? setSceneToast(null) : id === closedToast?.id ? setClosedToast(null) : client.dismiss(id))} />
+      <Toasts toasts={[...(snap?.notices ?? []).map((n) => noticeToast(n, (id) => client.retry(id))), ...(sceneToast ? [sceneToast] : []), ...(closedToast ? [closedToast] : []), ...(backToast ? [backToast] : [])]} onDismiss={(id) => (id === sceneToast?.id ? setSceneToast(null) : id === closedToast?.id ? setClosedToast(null) : id === backToast?.id ? setBackToast(null) : client.dismiss(id))} />
     </PopoverGroup>
   )
 }

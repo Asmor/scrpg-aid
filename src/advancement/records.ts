@@ -45,6 +45,73 @@ export function backIssueOffer(hero: Pick<Hero, 'backIssues' | 'collections'>, i
   return { situation, count }
 }
 
+/** A finished issue offered to a hero. */
+export interface OfferedIssue extends IssueRef {
+  title: string
+  game: IssueGame
+}
+
+/**
+ * Adds an offered issue as the prompt's three situations do (docs/design/issues/spec.md, section
+ * 3): `collection` names a collection, recorded after the sixth or before a seventh. Returns the
+ * hero and what the toast says. Unchanged, and saying so, when the hero already holds it, or is at
+ * six with no name given.
+ */
+export function addOfferedIssue(hero: Hero, offered: OfferedIssue, collection: string | undefined, clock: Clock): { hero: Hero; text: string } {
+  const name = hero.details.name.trim() || 'Your hero'
+  const named = collection?.trim()
+  const add = (h: Hero) => addBackIssue(h, { title: offered.title, game: offered.game, issue: { id: offered.id, number: offered.number } }, clock)
+  const { situation } = backIssueOffer(hero, offered.id)
+  switch (situation) {
+    case 'recorded':
+      return { hero, text: 'Already recorded.' }
+    case 'alreadySix': {
+      if (!named) return { hero, text: `${name} already has six back issues. Name a collection first.` }
+      const after = add(recordCollection(hero, named, clock))
+      return { hero: after, text: `Recorded the collection and added ${offered.title}. ${name} has ${after.backIssues.length} of ${BACK_ISSUES_PER_COLLECTION}.` }
+    }
+    case 'reachesSix': {
+      const added = add(hero)
+      if (named) return { hero: recordCollection(added, named, clock), text: `Added, and recorded the collection. ${name} starts again at 0 of ${BACK_ISSUES_PER_COLLECTION}.` }
+      return { hero: added, text: `Added. ${name} has ${BACK_ISSUES_PER_COLLECTION} of ${BACK_ISSUES_PER_COLLECTION} back issues. Name a collection on the Advancement page.` }
+    }
+    case 'adds': {
+      const added = add(hero)
+      return { hero: added, text: `Added. ${name} has ${added.backIssues.length} of ${BACK_ISSUES_PER_COLLECTION} back issues.` }
+    }
+  }
+}
+
+/** Where a hero's finished issues come from: a game this device runs, or one it has joined. */
+export interface IssueSource {
+  game: IssueGame
+  /** Who finished it, for the prompt: the GM's name, or nothing when it's this device's own game. */
+  gm?: string
+  joined: boolean
+  issues: readonly { id: string; number: number; title?: string; state: 'now' | 'finished'; offeredTo?: readonly { sourceId: string }[] }[]
+  prompts?: Readonly<Record<string, 'later' | 'dismissed'>>
+}
+
+export interface HeroIssue extends OfferedIssue {
+  gm?: string
+  joined: boolean
+  dismissed: boolean
+}
+
+/** Every finished issue offered to this hero, newest game first as `sources` has them. */
+export function heroIssues(hero: Pick<Hero, 'id' | 'dismissedIssues'>, sources: readonly IssueSource[]): HeroIssue[] {
+  return sources.flatMap((s) =>
+    s.issues.flatMap((i) => {
+      if (i.state !== 'finished' || !i.offeredTo?.some((o) => o.sourceId === hero.id)) return []
+      const dismissed = s.prompts?.[i.id] === 'dismissed' || Boolean(hero.dismissedIssues?.includes(i.id))
+      return [{ id: i.id, number: i.number, title: i.title?.trim() || `Issue ${i.number}`, game: s.game, ...(s.gm ? { gm: s.gm } : {}), joined: s.joined, dismissed }]
+    }),
+  )
+}
+
+/** Takes an issue from a game this device runs off the list for good. */
+export const dismissIssue = (hero: Hero, issueId: string): Hero => (hero.dismissedIssues?.includes(issueId) ? hero : { ...hero, dismissedIssues: [...(hero.dismissedIssues ?? []), issueId] })
+
 /** Changes a back issue's title and game. `game` undefined means None. */
 export function editBackIssue(hero: Hero, id: string, input: { title: string; game?: IssueGame }): Hero {
   const title = input.title.trim()

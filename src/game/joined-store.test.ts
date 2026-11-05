@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { describe, expect, it } from 'vitest'
 import { completeHero } from '../test/heroes'
-import { IndexedDbJoinedStore, joinedToSaved, MemoryJoinedStore, parseSavedJoined, type JoinedGame } from './joined-store'
+import { cacheJoined, IndexedDbJoinedStore, joinedToSaved, MemoryJoinedStore, parseSavedJoined, setIssuePrompt, type JoinedGame } from './joined-store'
 import { createGame } from './model'
 import { project } from './project'
 
@@ -44,3 +44,26 @@ describe('joined games on a player’s device', () => {
     })
   }
 })
+
+describe('what a device answered about issues', () => {
+  it('survives a new state from the GM', async () => {
+    const store = new MemoryJoinedStore()
+    const game = joined()
+    await store.save(game)
+    await setIssuePrompt(store, game.id, 'i1', 'later')
+    await cacheJoined(store, { ...game, version: 5 })
+    expect(await store.get(game.id)).toMatchObject({ version: 5, issuePrompts: { i1: 'later' } })
+  })
+
+  it('does nothing for a game that has gone', async () => {
+    const store = new MemoryJoinedStore()
+    await setIssuePrompt(store, 'nope', 'i1', 'later')
+    expect(await store.list()).toEqual([])
+  })
+
+  it('reads an answer it knows, and rejects one it does not', () => {
+    expect(parseSavedJoined({ v: 1, joined: { ...joined(), issuePrompts: { i1: 'dismissed' } } }).ok).toBe(true)
+    expect(parseSavedJoined({ v: 1, joined: { ...joined(), issuePrompts: { i1: 'yes' } } }).ok).toBe(false)
+  })
+})
+

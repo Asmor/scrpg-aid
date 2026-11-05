@@ -31,7 +31,7 @@ import { applyAttack, applyGroupRoll, giveMod, protect } from './resolve'
 import { parseTarget } from './roll-targets'
 import { applyHeroChange, type HeroChange } from './hero-changes'
 import { betweenIssues, currentIssue, currentScene, gameDisplayName, issueTitle, sceneName, sceneNumber, sceneOnTable, type ActorRef, type Issue, type OfferedHero, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
-import { finishIssue, recordIssueAck, type FinishChoices, type OwnHeroState } from './issues'
+import { backIssueStatuses, finishIssue, recordIssueAck, type FinishChoices, type OwnHeroState } from './issues'
 import { FinishIssueDialog } from './FinishIssueDialog'
 import { finishedPill } from './summary'
 import { addBackIssue, backIssueOffer } from '../advancement/records'
@@ -330,6 +330,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const gm: GmControls = {
     ...(logUndo ? { logUndo } : {}),
     nextUp,
+    ...(between ? { backIssues: backIssueStatuses(game, connected) } : {}),
     setPosition: (i) => apply((g) => T.setTrackerPosition(g, i, clock())),
     sceneMenu: [
       { label: 'Edit this scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'current' } }) },
