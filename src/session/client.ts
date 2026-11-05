@@ -48,6 +48,8 @@ export interface ClientSnapshot extends LinkSnapshot {
   notices: Notice[]
   /** A sheet update request is waiting for the GM. */
   syncWaiting: boolean
+  /** The GM asked this player to spend their hero points. */
+  spendReminder: boolean
 }
 
 export interface ClientInfo {
@@ -82,7 +84,7 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
   private n = 0
 
   constructor(connect: Connect, info: ClientInfo, options: ClientOptions = {}) {
-    super(connect, info.room, { status: 'connecting', pending: [], notices: [], syncWaiting: options.syncWaiting ?? false, ...(options.cached ? { received: options.cached } : {}) }, options.now)
+    super(connect, info.room, { status: 'connecting', pending: [], notices: [], syncWaiting: options.syncWaiting ?? false, spendReminder: false, ...(options.cached ? { received: options.cached } : {}) }, options.now)
     this.base = info
     this.options = options
     this.start()
@@ -143,6 +145,11 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
     return true
   }
 
+  /** The GM's reminder has been answered. */
+  dismissReminder(): void {
+    if (this.snapshot.spendReminder) this.publish({ ...this.snapshot, spendReminder: false })
+  }
+
   /** Forgets a notice once shown, and a timed-out action with it. */
   dismiss(noticeId: string): void {
     const notice = this.snapshot.notices.find((n) => n.id === noticeId)
@@ -169,6 +176,8 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
   }
 
   protected override onState(received: Received): void {
+    // The issue has started: a reminder about it is over, answered or not.
+    if (this.snapshot.spendReminder && received.table.currentIssueId) this.publish({ ...this.snapshot, spendReminder: false })
     this.options.onReceive?.(received)
   }
 
@@ -184,6 +193,9 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
         this.publish({ ...this.snapshot, pending, notices })
         return
       }
+      case 'spendReminder':
+        this.publish({ ...this.snapshot, spendReminder: true })
+        return
       case 'syncResult': {
         if (msg.heroId !== this.heroId) return
         this.setSyncWaiting(false)

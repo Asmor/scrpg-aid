@@ -389,6 +389,8 @@ export interface PlayMod {
   value: number
   persistent?: true
   exclusive?: true
+  /** Bought with hero points: it lasts the issue, through scene changes (docs/design/issues/spec.md, section 4a). */
+  source?: 'heroPoint'
 }
 
 export interface PlayTwist {
@@ -423,6 +425,8 @@ export interface PlayState {
   /** A Divided hero in their heroic form; unset in their civilian form. */
   dividedForm?: 'heroic'
   heroPoints: number
+  /** Bonuses bought between issues for the next one; the points are already off `heroPoints`. */
+  heroPointBuys?: { id: string; size: number }[]
   reactionUsed: boolean
   mods: PlayMod[]
   twists: PlayTwist[]

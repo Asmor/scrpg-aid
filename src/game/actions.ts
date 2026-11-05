@@ -16,11 +16,11 @@ import { heroDisplayName, type Hero, type PlayMinion, type PlayMod, type PlaySta
 import { addMinion, addMinionMod, recordMinionRoll, removeMinion, removeMinionMod, setMinionForm, shrinkMinion, type MinionRoll } from '../play/minions'
 import { availabilityContext, basicActionBlocked, currentForm, playAbilities, playForms } from '../play/forms'
 import { confirmRoll, effectAmount, type RollRecord } from '../play/roll'
-import { addMod, addTwist, currentHealth, effectiveZone, MAX_HERO_POINTS, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, type Clock } from '../play/state'
+import { addMod, addTwist, buyHeroPointBonus, currentHealth, returnHeroPointBonus, effectiveZone, MAX_HERO_POINTS, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, type Clock } from '../play/state'
 import type { BasicAction } from '../rules/types'
 import { applyAttack, giveMod, protect, targetHidden, targetName } from './resolve'
 import { defend } from './hits'
-import { betweenIssues, challengeDone, sceneOnTable, type ActorRef, type Game, type HeroInGame } from './model'
+import { betweenIssues, challengeDone, nextIssueNumber, sceneOnTable, type ActorRef, type Game, type HeroInGame } from './model'
 import { changeHeroPlay, findHero, handOff, heroPlayInScene, isHidden, itemName, resolveHit, roundOver, sameActor, startRound, waiting, withLog } from './table'
 
 export type ModInput = Omit<PlayMod, 'id'>
@@ -57,6 +57,9 @@ export type HeroAction =
   | { kind: 'addTwist'; twist: Omit<PlayTwist, 'id'> }
   | { kind: 'removeTwist'; twistId: string }
   | { kind: 'heroPoints'; by: 1 | -1 }
+  /** Between issues only: a bonus for the next issue, or taking one back (docs/design/issues/spec.md, section 4a). */
+  | { kind: 'buyHeroPointBonus'; size: number }
+  | { kind: 'returnHeroPointBonus'; buyId: string }
   | { kind: 'reaction'; used: boolean }
   | { kind: 'form'; key: string }
   | { kind: 'dividedForm'; form: 'civilian' | 'heroic' }
@@ -117,8 +120,16 @@ function inScene(game: Game, hero: HeroInGame) {
 export function applyHeroAction(game: Game, heroId: string, action: HeroAction, ctx: ActionContext, clock: Clock): ActionResult {
   const hero = findHero(game, heroId)
   if (!hero) return refuse("your hero isn't in this game any more")
-  if (betweenIssues(game)) return refuse(PAUSED_REASON)
   const name = heroDisplayName(hero.sheet)
+  if (action.kind === 'buyHeroPointBonus' || action.kind === 'returnHeroPointBonus') {
+    if (!betweenIssues(game)) return refuse('hero points are spent between issues')
+    const next = nextIssueNumber(game)
+    const play = action.kind === 'buyHeroPointBonus' ? buyHeroPointBonus(hero.play, action.size, next, clock) : returnHeroPointBonus(hero.play, action.buyId, next, clock)
+    if (play === hero.play) return refuse(action.kind === 'buyHeroPointBonus' ? "you don't have that many hero points left" : 'that bonus is already gone')
+    const text = action.kind === 'buyHeroPointBonus' ? `${name} bought a +${action.size} bonus for issue ${next}.` : `${name} returned a +${hero.play.heroPointBuys!.find((b) => b.id === action.buyId)!.size} bonus for issue ${next}.`
+    return { ok: true, game: withLog(changeHeroPlay(game, heroId, () => play, clock, false), [{ id: clock.newId(), at: clock.now.toISOString(), by: name, text }]) }
+  }
+  if (betweenIssues(game)) return refuse(PAUSED_REASON)
   const change = (fn: (play: PlayState, sheet: Hero) => PlayState): ActionResult => ({ ok: true, game: changeHeroPlay(game, heroId, fn, clock) })
 
   switch (action.kind) {

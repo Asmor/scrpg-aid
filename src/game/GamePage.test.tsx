@@ -778,3 +778,93 @@ describe('finishing the issue', () => {
   })
 })
 
+describe('starting the next issue', () => {
+  const paused = () =>
+    setup((g, { hero }) => {
+      const own = heroCopy(hero, 'h1')
+      own.play = { ...emptyPlay(), heroPoints: 3, heroPointBuys: [{ id: 'b1', size: 2 }], health: 1 }
+      g.heroes.push(own)
+      g.scenes[0]!.name = 'The Foundry'
+      g.scenes[0]!.state = 'done'
+      g.scenes[0]!.summary = 'Ended after round 4.'
+      g.issues[0] = { ...g.issues[0]!, state: 'finished', title: 'The Saga', finishedAt: '2026-11-05T12:00:00Z', offeredTo: [] }
+      delete g.currentIssueId
+      g.scenes.push(createScene({ id: 's2', name: 'Tunnels' }))
+    })
+
+  it('runs the dialog, confirms unspent points, and undoes', async () => {
+    const { saved } = await paused()
+    await userEvent.click(screen.getByRole('button', { name: 'Start issue 2…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Start issue 2 with scene 2: Tunnels?' }))
+    expect(dialog.getByText('Issue 1, The Saga, is finished.')).toBeInTheDocument()
+    expect(dialog.getByRole('checkbox', { name: /Heroes recover/ })).toBeChecked()
+    expect(dialog.getByRole('checkbox', { name: /Bonuses and penalties on the opposition/ })).toBeChecked()
+    expect(dialog.getByText(/Maya Reyes 3\. Unspent points are lost/)).toBeInTheDocument()
+    expect(dialog.getByText(/Bought for issue 2: Maya Reyes \+2/)).toBeInTheDocument()
+    expect(dialog.getByText('Players get a toast: "Issue 2 began: Tunnels."')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Start issue 2' }))
+    const confirm = within(screen.getByRole('dialog', { name: '3 hero points will be lost' }))
+    await userEvent.click(confirm.getByRole('button', { name: 'Wait for them' }))
+    expect(screen.queryByRole('dialog', { name: '3 hero points will be lost' })).not.toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Start issue 2' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: '3 hero points will be lost' })).getByRole('button', { name: 'Start anyway' }))
+
+    expect(screen.getByRole('heading', { name: 'Tunnels' })).toBeInTheDocument()
+    await waitFor(async () => expect((await saved()).currentSceneId).toBe('s2'))
+    expect((await saved()).heroes[0]!.play).toMatchObject({ heroPoints: 0, mods: [{ value: 2, source: 'heroPoint' }] })
+    expect((await saved()).heroes[0]!.play.health).toBeUndefined()
+    expect(log()).toHaveTextContent('Issue 2 began with scene 2: Tunnels.')
+
+    await userEvent.click(within(log()).getByRole('button', { name: 'Undo starting issue 2' }))
+    expect(screen.getByRole('heading', { name: 'The Saga' })).toBeInTheDocument()
+    await waitFor(async () => expect((await saved()).currentIssueId).toBeUndefined())
+    expect((await saved()).heroes[0]!.play).toMatchObject({ heroPoints: 3, health: 1 })
+  })
+
+  it('opens the scene editor first when nothing is planned', async () => {
+    await setup((g) => {
+      g.scenes[0]!.state = 'done'
+      g.issues[0] = { ...g.issues[0]!, state: 'finished', title: 'The Saga' }
+      delete g.currentIssueId
+    })
+    expect(screen.getByText(/Nothing planned yet\./)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Start issue 2…' }))
+    expect(screen.getByRole('button', { name: /Save and start/ })).toBeInTheDocument()
+  })
+
+  it("lets the GM spend their own hero's points, and rename a finished issue", async () => {
+    const { saved } = await paused()
+    await menuItem('GM actions for Maya Reyes', 'Spend hero points…')
+    const dialog = within(screen.getByRole('dialog', { name: "Spend Maya Reyes's hero points" }))
+    expect(dialog.getByRole('img', { name: '3 of 5 hero points left' })).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Buy a +3 bonus for 3 points' }))
+    await waitFor(async () => expect((await saved()).heroes[0]!.play.heroPoints).toBe(0))
+    expect(dialog.getByRole('button', { name: 'Buy a +4 bonus for 4 points' })).toBeDisabled()
+    await userEvent.click(dialog.getByRole('button', { name: 'Return the +2 bonus' }))
+    await waitFor(async () => expect((await saved()).heroes[0]!.play.heroPoints).toBe(2))
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    await userEvent.click(gmScreen().getByRole('tab', { name: 'Scenes' }))
+    expect(gmScreen().getByRole('button', { name: 'Issue 1 · The Saga' })).toHaveAttribute('aria-expanded', 'false')
+    expect(gmScreen().queryByRole('article', { name: /The Foundry/ })).not.toBeInTheDocument()
+    await userEvent.click(gmScreen().getByRole('button', { name: 'Issue 1 · The Saga' }))
+    expect(gmScreen().getByRole('article', { name: /The Foundry/ })).toBeInTheDocument()
+    await menuItem('More for issue 1', 'Rename…')
+    const rename = within(screen.getByRole('dialog', { name: 'Rename issue 1' }))
+    await userEvent.clear(rename.getByLabelText('Title'))
+    await userEvent.type(rename.getByLabelText('Title'), 'A new name')
+    await userEvent.click(rename.getByRole('button', { name: 'Save' }))
+    await waitFor(async () => expect((await saved()).issues[0]!.title).toBe('A new name'))
+  })
+})
+
+describe('an issue named early', () => {
+  it('keeps its name in the Finish dialog', async () => {
+    await setup((g) => {
+      g.issues[0]!.title = 'Named early'
+    })
+    await menuItem('Scene menu', 'Finish the issue…')
+    expect(within(screen.getByRole('dialog', { name: 'Finish issue 1?' })).getByRole('textbox', { name: 'Title' })).toHaveValue('Named early')
+  })
+})
+

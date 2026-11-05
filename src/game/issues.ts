@@ -7,11 +7,11 @@ import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 import { heroDisplayName, type Hero } from '../hero/model'
 import { holdsIssue } from '../advancement/records'
 import { villainDisplayName } from '../villain/model'
-import { clearHeroMods, modSizes, type Clock } from '../play/state'
+import { clearHeroMods, heroRecovers, modSizes, spendHeroPoints, type Clock } from '../play/state'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
 import { nameList } from './names'
-import { currentIssue, gameDisplayName, type Game, type GameFeedEntry, type HeroInGame, type Issue, type IssueAck, type Scene } from './model'
-import { draftOfCurrent, sceneEndSummary } from './scenes'
+import { betweenIssues, createIssue, currentIssue, gameDisplayName, nextIssueNumber, sceneName, sceneNumber, type Game, type GameFeedEntry, type HeroInGame, type Issue, type IssueAck, type Scene } from './model'
+import { draftOfCurrent, enterScene, sceneEndSummary, type StartChoices } from './scenes'
 import { GM, heroLabel, resolveHit, withLog } from './table'
 
 /** A new issue's title: the game's name for its first, and "Issue N" otherwise. */
@@ -154,3 +154,90 @@ export function issueToPrompt<I extends { id: string; state: 'now' | 'finished';
 export function offeredIssues<I extends { state: 'now' | 'finished'; offeredTo?: readonly { sourceId: string }[] }>(issues: readonly I[], sourceId: string): I[] {
   return issues.filter((i) => i.state === 'finished' && i.offeredTo?.some((o) => o.sourceId === sourceId))
 }
+
+export interface IssueStartChoices extends StartChoices {
+  /** Heroes recover: Health to max; twists, bonuses and penalties and minions cleared; forms back to their default. */
+  recover: boolean
+}
+
+/**
+ * Starts the next issue with a planned scene (docs/design/issues/spec.md, section 5): a new current
+ * issue, the scene start steps, the hero resets, then bought bonuses become exclusive ones and any
+ * points left are lost, whatever was chosen. The scene's "Bonuses and penalties" is the opposition's.
+ */
+export function startIssue(game: Game, sceneId: string, choices: IssueStartChoices, clock: Clock): Game {
+  if (!betweenIssues(game) || game.solo) return game
+  const number = nextIssueNumber(game)
+  const issue = createIssue(clock.newId(), number)
+  const opened = { ...game, issues: [...game.issues, issue], currentIssueId: issue.id }
+  const entered = enterScene(opened, sceneId, choices, clock, false)
+  if (entered === opened) return game
+  const bought = game.heroes.flatMap((h) => (h.play.heroPointBuys?.length ? [`${heroLabel(game.heroes, h)} ${h.play.heroPointBuys.map((b) => `+${b.size}`).join(', ')}`] : []))
+  const lost = game.heroes.flatMap((h) => (h.play.heroPoints > 0 ? [`${heroLabel(game.heroes, h)} ${h.play.heroPoints}`] : []))
+  const heroes = entered.heroes.map((h) => ({ ...h, play: spendHeroPoints(choices.recover ? heroRecovers(h.play, clock) : h.play, clock) }))
+  const points = [...(bought.length ? [`Hero point bonuses: ${bought.join('; ')}.`] : []), ...(lost.length ? [`Unspent hero points lost: ${lost.join(', ')}.`] : [])].join(' ')
+  const scene = entered.scenes.find((s) => s.id === sceneId)!
+  const name = scene.name.trim()
+  return withLog({ ...entered, heroes }, [...(points ? [logLine(clock, points)] : []), logLine(clock, `Issue ${number} began with scene ${sceneNumber(entered, sceneId)}${name ? `: ${name}` : ''}.`)])
+}
+
+/** What "Before you start" says about the game (section 5). */
+export interface IssueStartFacts {
+  /** Heroes with hero points left, disconnected ones marked. */
+  unspent: { name: string; points: number; away: boolean }[]
+  /** "Afterimage +2, +3". */
+  bought: string[]
+  syncs: { heroId: string; name: string; player: string }[]
+  /** Heroes offered the last issue who haven't recorded it. */
+  notRecorded: string[]
+}
+
+export function issueStartFacts(game: Pick<Game, 'heroes' | 'pendingSyncs' | 'issues'>, connected: ReadonlySet<string>): IssueStartFacts {
+  const last = game.issues.at(-1)
+  return {
+    unspent: game.heroes.flatMap((h) => (h.play.heroPoints > 0 ? [{ name: heroLabel(game.heroes, h), points: h.play.heroPoints, away: Boolean(h.player && !connected.has(h.player.clientId)) }] : [])),
+    bought: game.heroes.flatMap((h) => (h.play.heroPointBuys?.length ? [`${heroLabel(game.heroes, h)} ${h.play.heroPointBuys.map((b) => `+${b.size}`).join(', ')}`] : [])),
+    syncs: game.pendingSyncs.flatMap((r) => {
+      const hero = game.heroes.find((h) => h.id === r.heroId)
+      return hero ? [{ heroId: r.heroId, name: heroLabel(game.heroes, hero), player: hero.player?.name || 'The player' }] : []
+    }),
+    notRecorded: (last?.offeredTo ?? []).filter((o) => last?.acks?.[o.heroId]?.status !== 'added').map((o) => o.name),
+  }
+}
+
+/** One heading of the Scenes tab, and the scenes under it. */
+export interface IssueGroup {
+  /** Unset for the issue that hasn't started. */
+  issue?: Issue
+  number: number
+  state: 'finished' | 'now' | 'next'
+  scenes: Scene[]
+}
+
+/** Scenes under their issues: finished ones, then the current or next one, which has everything else, planned scenes included. */
+export function scenesByIssue(game: Pick<Game, 'scenes' | 'issues' | 'currentIssueId'>): IssueGroup[] {
+  const finished = game.issues.filter((i) => i.state === 'finished')
+  const finishedIds = new Set(finished.map((i) => i.id))
+  const groups: IssueGroup[] = finished.map((issue) => ({ issue, number: issue.number, state: 'finished', scenes: game.scenes.filter((s) => s.issueId === issue.id) }))
+  const rest = game.scenes.filter((s) => !s.issueId || !finishedIds.has(s.issueId))
+  const current = currentIssue(game)
+  return [...groups, current ? { issue: current, number: current.number, state: 'now', scenes: rest } : { number: nextIssueNumber(game), state: 'next', scenes: rest }]
+}
+
+/** Names or describes an issue. A finished issue always has a title; renaming doesn't change back issues already added. */
+export function setIssueRecord(game: Game, issueId: string, record: { title?: string; summary?: string }): Game {
+  return {
+    ...game,
+    issues: game.issues.map((i) => {
+      if (i.id !== issueId) return i
+      const { title: _t, summary: _s, ...rest } = i
+      const title = record.title === undefined ? i.title : record.title.trim().slice(0, MAX_NAME) || (i.state === 'finished' ? i.title : undefined)
+      const summary = record.summary === undefined ? i.summary : record.summary.trim().slice(0, MAX_TEXT)
+      return { ...rest, ...(title ? { title } : {}), ...(summary ? { summary } : {}) }
+    }),
+  }
+}
+
+/** The table's toast for a new issue. */
+export const issueBeganText = (number: number, scene: Pick<Scene, 'name'>) => `Issue ${number} began: ${sceneName(scene)}.`
+

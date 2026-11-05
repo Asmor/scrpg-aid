@@ -8827,3 +8827,49 @@ ol.vw-conditions li {
   flex-direction: column;
   gap: 0.25rem;
 }
+
+.gt-end__head {
+  align-items: flex-start;
+}
+
+.gt-issue-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gt-issue-group__title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.gt-points {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ui-border);
+}
+
+.gt-points__head {
+  margin: 0;
+}
+
+.gt-points__left {
+  font-family: var(--font-heading);
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dv-end {
+  color: var(--ui-accent);
+  letter-spacing: 0.12em;
+}
+
+.dv-tracker--faded {
+  opacity: 0.45;
+}

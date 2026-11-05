@@ -25,7 +25,8 @@ import { RollDialog, type FormPicker, type RollSubject } from '../play/RollDialo
 import { currentHealth, describeMod, effectiveZone, MAX_HERO_POINTS, modName, statusDieFor } from '../play/state'
 import type { PendingAction } from '../session/client'
 import type { HeroAction } from './actions'
-import { betweenIssues } from './model'
+import { betweenIssues, nextIssueNumber } from './model'
+import { HeroPointsCard } from './HeroPointsCard'
 import type { HeroOnTable, TableView } from './project'
 import { rollAction, targetId } from './roll-targets'
 import { targetOptions, viewTable } from './target-options'
@@ -34,7 +35,7 @@ import { MenuButton, ZoneChip } from './TableCenter'
 
 interface Props {
   hero: HeroOnTable
-  view: Pick<TableView, 'scene' | 'heroes' | 'villains' | 'groups' | 'pendingHits' | 'challenges' | 'currentIssueId'>
+  view: Pick<TableView, 'scene' | 'heroes' | 'villains' | 'groups' | 'pendingHits' | 'challenges' | 'currentIssueId' | 'issues'>
   /** Actions sent and not answered yet. */
   pending: readonly PendingAction[]
   /** Whether the GM is connected: actions can be sent. */
@@ -50,6 +51,8 @@ interface Props {
   random?: () => number
   /** The back issues on the player's library hero, when it's on this device. */
   backIssues?: { count: number; advancementHref: string; notRecorded: readonly { id: string; title: string; onAdd: () => void }[] }
+  /** The GM's name, for the Hero points card. */
+  gmName?: string
 }
 
 /** Why controls are off, for each one's accessible description. */
@@ -63,7 +66,7 @@ function WhyOff({ id, text }: { id: string; text: string }) {
 
 const PAUSED_LABEL = 'Paused between issues'
 
-export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu, onCancelSync, onOpenSheet, note, random, backIssues }: Props) {
+export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu, onCancelSync, onOpenSheet, note, random, backIssues, gmName }: Props) {
   const id = useId()
   const needs = `${id}-needs`
   const [rolling, setRolling] = useState<RollSubject | null>(null)
@@ -183,6 +186,8 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
             ))}
           </div>
         )}
+
+        {paused && <HeroPointsCard play={play} issue={nextIssueNumber(view)} gmName={gmName ?? 'the GM'} disabled={!live} onBuy={(size) => act({ kind: 'buyHeroPointBonus', size })} onReturn={(buyId) => act({ kind: 'returnHeroPointBonus', buyId })} />}
 
         <div className="gt-player__health">
           {button('−', () => act({ kind: 'health', by: -1 }), { aria: 'Lose 1 Health', disabled: health === undefined })}

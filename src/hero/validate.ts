@@ -4,7 +4,7 @@
  * rule problems are warnings, but a malformed document can't be opened at all.
  */
 import { DETAIL_FIELDS } from './model'
-import { type Check, arrayOf, boolean, either, integer, nonEmptyString, nullable, object, oneOf, recordOf, string } from '../shape'
+import { type Check, arrayOf, boolean, either, integer, nonEmptyString, nullable, object, oneOf, recordOf, string, positiveInteger } from '../shape'
 
 export const die = oneOf('d4', 'd6', 'd8', 'd10', 'd12')
 
@@ -112,8 +112,9 @@ export const playStateShape = object({
   'form?': nonEmptyString,
   'dividedForm?': oneOf('heroic'),
   heroPoints: integer,
+  'heroPointBuys?': arrayOf(object({ id: nonEmptyString, size: positiveInteger })),
   reactionUsed: boolean,
-  mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
+  mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true), 'source?': oneOf('heroPoint') })),
   twists: arrayOf(object({ id: nonEmptyString, kind: oneOf('minor', 'major'), text: string })),
   'defenses?': arrayOf(object({ id: nonEmptyString, value: integer, from: string })),
   history: arrayOf(object({ id: nonEmptyString, at: nonEmptyString, text: string, 'details?': arrayOf(string), 'roll?': oneOf(true) })),
@@ -126,7 +127,7 @@ export const playStateShape = object({
       'form?': string,
       'needsForm?': oneOf(true),
       'defenses?': arrayOf(object({ id: nonEmptyString, value: integer, from: string })),
-      mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })),
+      mods: arrayOf(object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true), 'source?': oneOf('heroPoint') })),
     }),
   ),
 })

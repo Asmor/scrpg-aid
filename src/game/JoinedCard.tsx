@@ -59,6 +59,11 @@ export function JoinedCard({ joined, live, onOpen, onRemove }: { joined: JoinedG
         )}
         {betweenIssues(view) && <span className="gt-pill">{finishedPill(view.issues)}</span>}
         {toAdd && <span className="gt-pill gt-pill--live">Back issue to add</span>}
+        {betweenIssues(view) && mine && mine.play.heroPoints > 0 && (
+          <span className="gt-pill gt-pill--live">
+            {mine.play.heroPoints} hero {mine.play.heroPoints === 1 ? 'point' : 'points'} to spend
+          </span>
+        )}
       </div>
       <p className="gt-sub">
         GM: {joined.gm} · you play {mine ? heroDisplayName(mine.sheet) : 'a hero who has left'}

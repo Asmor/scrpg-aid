@@ -23,7 +23,7 @@ interface Props {
 export function FinishIssueDialog({ game, connected, own, onFinish, onClose }: Props) {
   const id = useId()
   const issue = currentIssue(game)
-  const [title, setTitle] = useState(() => (issue ? defaultIssueTitle(game, issue) : ''))
+  const [title, setTitle] = useState(() => (issue ? issue.title?.trim() || defaultIssueTitle(game, issue) : ''))
   const [summary, setSummary] = useState('')
   // Everyone starts checked, except a GM's hero whose library document is gone.
   const [unchecked, setUnchecked] = useState<ReadonlySet<string>>(new Set())

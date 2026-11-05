@@ -1,0 +1,77 @@
+/**
+ * Spending hero points between issues (docs/design/issues/spec.md, section 4a): buy generic,
+ * exclusive bonuses for the next issue, each costing its size (ruling 70), and take them back until
+ * it starts. On a player's panel, and in a dialog for the GM's own heroes.
+ */
+import type { PlayState } from '../hero/model'
+
+/** Where a reminder sends focus. */
+export const HERO_POINTS_ID = 'gt-hero-points'
+
+interface Props {
+  play: Pick<PlayState, 'heroPoints' | 'heroPointBuys'>
+  /** The issue they're for. */
+  issue: number
+  /** Who starts it: "Sam", "you". */
+  gmName: string
+  disabled?: boolean
+  onBuy: (size: number) => void
+  onReturn: (buyId: string) => void
+}
+
+export function HeroPointsCard({ play, issue, gmName, disabled = false, onBuy, onReturn }: Props) {
+  const buys = play.heroPointBuys ?? []
+  const left = play.heroPoints
+  const total = left + buys.reduce((n, b) => n + b.size, 0)
+  const heading = (
+    <h3 id={HERO_POINTS_ID} tabIndex={-1} className="gt-grow gt-points__head">
+      Hero points
+    </h3>
+  )
+  if (total === 0) {
+    return (
+      <section className="gt-points" aria-labelledby={HERO_POINTS_ID}>
+        {heading}
+        <p className="gt-sub">No hero points to spend.</p>
+      </section>
+    )
+  }
+  return (
+    <section className="gt-points" aria-labelledby={HERO_POINTS_ID}>
+      <div className="gt-row">
+        {heading}
+        <span className="gt-points__left" role="img" aria-label={`${left} of ${total} hero points left`}>
+          {left}
+        </span>
+      </div>
+      <p className="gt-sub">
+        Buy bonuses for issue {issue}. A bonus costs its size. Each one is exclusive and used up when you use it. Points you don't spend are lost when {gmName} {gmName === 'you' ? 'start' : 'starts'} issue {issue}.
+      </p>
+      <div className="gt-row" role="group" aria-label="Buy a bonus">
+        {Array.from({ length: total }, (_, i) => i + 1).map((size) => (
+          <button key={size} type="button" className="button button--small" disabled={disabled || size > left} aria-label={`Buy a +${size} bonus for ${size} ${size === 1 ? 'point' : 'points'}`} onClick={() => onBuy(size)}>
+            +{size}
+          </button>
+        ))}
+      </div>
+      <div className="gt-row">
+        <span className="gt-sub">For issue {issue}:</span>
+        {buys.length === 0 ? (
+          <span className="gt-sub">nothing yet</span>
+        ) : (
+          <ul className="gt-chips">
+            {buys.map((b) => (
+              <li key={b.id} className="gt-mod">
+                +{b.size}
+                <button type="button" className="gt-chip-x" disabled={disabled} aria-label={`Return the +${b.size} bonus`} onClick={() => onReturn(b.id)}>
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <p className="gt-sub">You can change these until the issue starts.</p>
+    </section>
+  )
+}

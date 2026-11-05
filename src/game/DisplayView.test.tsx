@@ -4,6 +4,7 @@ import type { Hero } from '../hero/model'
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { DisplayView } from './DisplayView'
+import { finishIssue } from './issues'
 import { createGame, type Game } from './model'
 import { project } from './project'
 import { addChallenge, addGroup, addHero, addVillain, setHidden, setPlayersSee, startRound } from './table'
@@ -62,3 +63,16 @@ describe('the display view', () => {
     expect(screen.getByText('Reconnecting to the GM…')).toBeInTheDocument()
   })
 })
+
+describe('the display view between issues', () => {
+  it('shows the end card, marked to animate in, and no turn order or round', () => {
+    const finished = finishIssue(game(), { title: 'The Gravelord Saga', summary: 'He got away.', heroIds: [] }, clock())
+    render(<DisplayView table={project(finished, 'observer')} watching="Watching" />)
+    expect(screen.getByText('END OF ISSUE 1')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'The Gravelord Saga' })).toHaveClass('dv-scene--enter')
+    expect(screen.getByText('He got away.')).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Turn order this round' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Round 1')).not.toBeInTheDocument()
+  })
+})
+

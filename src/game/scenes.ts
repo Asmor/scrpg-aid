@@ -625,11 +625,12 @@ function withoutDanger(villain: VillainInGame): VillainInGame {
 }
 
 /** Applies the checked resets. `arrived` keep their bonuses and penalties: they were prepped, or left with them. */
-function applyResets(game: Game, resets: SceneResets, arrived: ReadonlySet<string>): Game {
+function applyResets(game: Game, resets: SceneResets, arrived: ReadonlySet<string>, heroMods: boolean): Game {
   const heroes = game.heroes.map((h) => {
     let play = h.play
     if (resets.round) play = { ...clearDefenses(play), reactionUsed: false, ...(play.minions ? { minions: play.minions.map((m) => clearDefenses(m)) } : {}) }
-    if (resets.mods) play = { ...play, mods: [], ...(play.minions ? { minions: play.minions.map((m) => ({ ...m, mods: [] })) } : {}) }
+    // Hero point bonuses last the issue (docs/design/issues/spec.md, section 4a).
+    if (resets.mods && heroMods) play = { ...play, mods: play.mods.filter((m) => m.source === 'heroPoint'), ...(play.minions ? { minions: play.minions.map((m) => ({ ...m, mods: [] })) } : {}) }
     return { ...h, play }
   })
   const villains = game.villains.map((v) => {
@@ -664,8 +665,21 @@ export const sceneEndSummary = (game: Pick<Game, 'round'>) => (game.round > 0 ? 
  * tracker sits at its first box. The log gets one line: what became of things is the GM's.
  */
 export function startScene(game: Game, nextId: string, choices: StartChoices, clock: Clock): Game {
+  if (betweenIssues(game)) return game
+  const entered = enterScene(game, nextId, choices, clock)
+  if (entered === game) return game
+  const name = entered.scenes.find((s) => s.id === nextId)!.name.trim()
+  return withLog(entered, [logLine(clock, `Scene ${sceneNumber(entered, nextId)} began${name ? `: ${name}` : ''}.`, false)])
+}
+
+/**
+ * Moves the table to a planned scene, with no line in the log. `heroMods: false` leaves heroes'
+ * bonuses and penalties to the caller (a new issue's Heroes recover). A scene already over, because
+ * its issue finished, keeps its record.
+ */
+export function enterScene(game: Game, nextId: string, choices: StartChoices, clock: Clock, heroMods = true): Game {
   const next = game.scenes.find((s) => s.id === nextId)
-  if (!next || next.state !== 'planned' || betweenIssues(game)) return game
+  if (!next || next.state !== 'planned') return game
   const plan = startPlan(game, nextId)
   const previous = currentScene(game)
   const previousNumber = sceneNumber(game, previous.id)
@@ -711,14 +725,12 @@ export function startScene(game: Game, nextId: string, choices: StartChoices, cl
   // The scenes themselves.
   const summary = sceneEndSummary(game)
   const scenes = g.scenes.map((s): Scene => {
-    if (s.id === previous.id) return { ...s, state: 'done', summary, opposition: record, ...(game.environment ? { environmentId: game.environment.id, environmentHidden: game.environment.hidden } : {}) }
+    if (s.id === previous.id && previous.state === 'now') return { ...s, state: 'done', summary, opposition: record, ...(game.environment ? { environmentId: game.environment.id, environmentHidden: game.environment.hidden } : {}) }
     if (s.id === nextId) return { ...s, state: 'now', position: 0, ...(game.currentIssueId ? { issueId: game.currentIssueId } : {}), opposition: next.opposition.map((row) => ({ ...row, startHidden: hiddenOf(row.ref, row.startHidden) })) }
     return s
   })
-  g = syncTurnOrder(applyResets({ ...g, scenes, currentSceneId: nextId }, choices.resets, arrived))
-  const name = next.name.trim()
-  const text = `Scene ${sceneNumber(g, nextId)} began${name ? `: ${name}` : ''}.`
-  return gcOffTable(withLog({ ...g, feed: game.feed }, [logLine(clock, text, false)]))
+  g = syncTurnOrder(applyResets({ ...g, scenes, currentSceneId: nextId }, choices.resets, arrived, heroMods))
+  return gcOffTable({ ...g, feed: game.feed })
 }
 
 /** What players will see of the new scene, for the dialog's preview. */

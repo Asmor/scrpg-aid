@@ -94,6 +94,8 @@ export interface GmControls {
   nextUp?: string
   /** Between issues, who has recorded the issue. */
   backIssues?: readonly BackIssueStatus[]
+  /** Between issues, opens Start issue N…. */
+  startIssue?: () => void
 }
 
 export function ZoneChip({ zone, label }: { zone: PlayZone; label?: string }) {
@@ -285,7 +287,16 @@ function EndCard({ game, gm, gmName }: { game: TableView; gm?: GmControls | unde
   const scenes = `${issue.sceneCount} ${issue.sceneCount === 1 ? 'scene' : 'scenes'} · finished ${finishedOn(issue.finishedAt)}.`
   return (
     <section className="card gt-card gt-end" aria-labelledby="gt-end">
-      <EndOfIssue number={issue.number} title={issueTitle(issue)} summary={issue.summary} headingId="gt-end" />
+      <div className="gt-row gt-end__head">
+        <div className="gt-grow">
+          <EndOfIssue number={issue.number} title={issueTitle(issue)} summary={issue.summary} headingId="gt-end" />
+        </div>
+        {gm?.startIssue && (
+          <button type="button" className="button button--primary" onClick={gm.startIssue}>
+            Start issue {issue.number + 1}…
+          </button>
+        )}
+      </div>
       <div className="gt-row">
         <div className="gt-end__tracker">
           <Tracker game={game} />

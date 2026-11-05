@@ -391,6 +391,9 @@ export const currentIssue = (game: Pick<Game, 'issues' | 'currentIssueId'>) => g
 /** The game is between issues: the table is paused until the GM starts the next one. */
 export const betweenIssues = (game: { currentIssueId?: string }) => !game.currentIssueId
 
+/** The number the next issue will have, between issues. */
+export const nextIssueNumber = (game: { issues: readonly Pick<Issue, 'number'>[] }) => (game.issues.at(-1)?.number ?? 0) + 1
+
 /** An issue's name: its title, or "Issue 2" until it has one. */
 export const issueTitle = (issue: Pick<Issue, 'title' | 'number'>) => issue.title?.trim() || `Issue ${issue.number}`
 

@@ -265,6 +265,15 @@ export class HostSession extends Subscribable<HostSnapshot> {
     this.sendToHero(heroId, { v: PROTOCOL_VERSION, type: 'syncResult', heroId, approved: false, adjustments: [] })
   }
 
+  /** Asks each connected player whose hero has hero points left to spend them (docs/design/issues/spec.md, section 4a). */
+  remindUnspent(): void {
+    const game = this.snapshot.game
+    if (!game) return
+    for (const [peer, p] of this.peers) {
+      if (p.role === 'player' && (findHero(game, p.heroId)?.play.heroPoints ?? 0) > 0) this.send({ v: PROTOCOL_VERSION, type: 'spendReminder' }, peer)
+    }
+  }
+
   /** Removes a player and their hero from the game. They can't come back to it. */
   removePlayer(heroId: string): void {
     const hero = this.snapshot.game && findHero(this.snapshot.game, heroId)

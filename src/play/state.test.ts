@@ -1,7 +1,8 @@
+import type { PlayState } from '../hero/model'
 import { describe, expect, it } from 'vitest'
 import { buildSheet } from '../creation/sheet'
 import { completeHero } from '../test/heroes'
-import { abilityAvailable, addMod, clearHeroDefenses, dropDefense, gainDefense, takeDamage, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, newIssue, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
+import { abilityAvailable, addMod, clearHeroDefenses, dropDefense, gainDefense, takeDamage, addTwist, currentHealth, describeMod, effectiveZone, emptyPlay, healthZone, buyHeroPointBonus, heroRecovers, returnHeroPointBonus, spendHeroPoints, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setHeroPoints, setReactionUsed, setSceneZone, statusDieFor, type Clock } from './state'
 
 // completeHero: Max Health 30; Green 30–23, Yellow 22–12, Red 11–1; Lone Wolf d8/d8/d8.
 const sheet = buildSheet(completeHero())
@@ -107,14 +108,40 @@ describe('changes and their history', () => {
     expect(texts(play)).toEqual(['Took a minor twist: Sprained ankle.', 'Cleared the minor twist: Sprained ankle.'])
   })
 
-  it('starts a new issue, keeping the history', () => {
+  it('recovers for a new issue, keeping the history and hero points', () => {
     const c = clock()
-    let play = setHealth(addMod(emptyPlay(), { label: 'x', value: 1 }, c), sheet, 10, c)
-    play = newIssue(play, c)
+    const start: PlayState = { ...emptyPlay(), heroPoints: 2, heroPointBuys: [{ id: 'b', size: 1 }], form: 'mode:1', dividedForm: 'heroic', reactionUsed: true }
+    const play = heroRecovers(setHealth(addMod(start, { label: 'x', value: 1 }, c), sheet, 10, c), c)
     expect(play.mods).toEqual([])
     expect(play.health).toBeUndefined()
-    expect(texts(play).at(-1)).toMatch(/^Started a new issue/)
+    expect(play).not.toHaveProperty('form')
+    expect(play).not.toHaveProperty('dividedForm')
+    expect(play).toMatchObject({ heroPoints: 2, heroPointBuys: [{ size: 1 }], reactionUsed: false })
+    expect(texts(play).at(-1)).toMatch(/^Recovered for the new issue/)
     expect(play.history).toHaveLength(3)
+  })
+
+  it('buys and returns hero point bonuses, each costing its size', () => {
+    const c = clock()
+    const start = { ...emptyPlay(), heroPoints: 5 }
+    const bought = buyHeroPointBonus(start, 5, 2, c)
+    expect(bought).toMatchObject({ heroPoints: 0, heroPointBuys: [{ size: 5 }] })
+    expect(texts(bought)).toEqual(['Bought a +5 bonus for issue 2.'])
+    expect(buyHeroPointBonus(bought, 1, 2, c)).toBe(bought)
+    expect(buyHeroPointBonus(start, 0, 2, c)).toBe(start)
+    const back = returnHeroPointBonus(bought, bought.heroPointBuys![0]!.id, 2, c)
+    expect(back).toMatchObject({ heroPoints: 5, heroPointBuys: [] })
+    expect(returnHeroPointBonus(back, 'nope', 2, c)).toBe(back)
+  })
+
+  it('turns bought bonuses into exclusive mods, and loses the rest', () => {
+    const c = clock()
+    const play = spendHeroPoints({ ...emptyPlay(), heroPoints: 2, heroPointBuys: [{ id: 'b', size: 3 }] }, c)
+    expect(play.mods).toMatchObject([{ label: 'Hero point', value: 3, exclusive: true, source: 'heroPoint' }])
+    expect(play.mods[0]).not.toHaveProperty('persistent')
+    expect(play.heroPoints).toBe(0)
+    expect(play).not.toHaveProperty('heroPointBuys')
+    expect(texts(play).at(-1)).toBe('Lost 2 unspent hero points.')
   })
 })
 
@@ -130,11 +157,6 @@ describe('forms', () => {
     expect(heroic).toMatchObject({ dividedForm: 'heroic', history: [{ text: 'Changed to heroic form.' }] })
     expect(setDividedForm(heroic, 'civilian', clock)).not.toHaveProperty('dividedForm')
     expect(setDividedForm(emptyPlay(), 'civilian', clock).history).toEqual([])
-  })
-
-  it('stays in the same form for a new issue', () => {
-    expect(newIssue({ ...emptyPlay(), form: 'mode:1', dividedForm: 'heroic', heroPoints: 2 }, clock)).toMatchObject({ form: 'mode:1', dividedForm: 'heroic', heroPoints: 0 })
-    expect(newIssue(emptyPlay(), clock)).not.toHaveProperty('form')
   })
 })
 

@@ -3,10 +3,10 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { emptyPlay, type Clock } from '../play/state'
 import { applyHeroAction } from './actions'
-import { backIssueStatuses, defaultIssueTitle, finishIssue, finishRows, issueToPrompt, oppositionStaying, recordIssueAck, scenesPlayed } from './issues'
+import { backIssueStatuses, defaultIssueTitle, finishIssue, finishRows, issueStartFacts, issueToPrompt, oppositionStaying, recordIssueAck, scenesByIssue, scenesPlayed, setIssueRecord, startIssue } from './issues'
 import { betweenIssues, createGame, createScene, currentIssue, heroCopy, villainCopy, type Game } from './model'
 import { project } from './project'
-import { duplicateGame, startScene, defaultChoices, startPlan } from './scenes'
+import { duplicateGame, startScene, defaultChoices, draftOfNew, savePlannedScene, startPlan } from './scenes'
 import { gameToSaved, parseSavedGame } from './serialize'
 import { handOff, startRound } from './table'
 
@@ -242,6 +242,127 @@ describe('what a player is asked about', () => {
   it("skips one already on the hero, or dismissed there", () => {
     expect(issueToPrompt(issues, 's', { ...hero, backIssues: [{ id: 'b', title: 'x', issueId: 'i1', at: 'x' }] }, {})?.id).toBe('i2')
     expect(issueToPrompt(issues, 's', { ...hero, dismissedIssues: ['i1'] }, {})?.id).toBe('i2')
+  })
+})
+
+describe('the next issue', () => {
+  /** A finished table with hero points, and a planned scene. */
+  function between(): Game {
+    const start = table()
+    start.scenes.push(createScene({ id: 's2', name: 'Tunnels' }))
+    start.heroes[0]!.play = { ...start.heroes[0]!.play, heroPoints: 5 }
+    return finishIssue(start, choices, clock)
+  }
+  const go = (g: Game, recover = true) => startIssue(g, 's2', { ...defaultChoices(startPlan(g, 's2')), recover }, clock)
+  const act = (g: Game, action: Parameters<typeof applyHeroAction>[2]) => applyHeroAction(g, 'h1', action, { basedOn: 0, versions: {} }, clock)
+  const bought = (g: Game, size: number) => {
+    const r = act(g, { kind: 'buyHeroPointBonus', size })
+    if (!r.ok) throw new Error(r.reason)
+    return r.game
+  }
+
+  it('players can buy and return bonuses only between issues, and it is logged', () => {
+    const g = bought(between(), 3)
+    expect(g.heroes[0]!.play).toMatchObject({ heroPoints: 2, heroPointBuys: [{ size: 3 }] })
+    expect(g.feed.at(-1)).toMatchObject({ by: 'Afterimage', text: 'Afterimage bought a +3 bonus for issue 2.' })
+    expect(act(g, { kind: 'buyHeroPointBonus', size: 3 })).toEqual({ ok: false, reason: "you don't have that many hero points left" })
+    const back = act(g, { kind: 'returnHeroPointBonus', buyId: g.heroes[0]!.play.heroPointBuys![0]!.id })
+    expect(back).toMatchObject({ ok: true })
+    expect(back.ok && back.game.heroes[0]!.play.heroPoints).toBe(5)
+    expect(back.ok && back.game.feed.at(-1)?.text).toBe('Afterimage returned a +3 bonus for issue 2.')
+    expect(act(g, { kind: 'returnHeroPointBonus', buyId: 'nope' })).toMatchObject({ ok: false })
+    expect(act(table(), { kind: 'buyHeroPointBonus', size: 1 })).toEqual({ ok: false, reason: 'hero points are spent between issues' })
+  })
+
+  it('a +5 is allowed (ruling 70)', () => {
+    expect(bought(between(), 5).heroes[0]!.play.heroPoints).toBe(0)
+  })
+
+  it('opens a new issue with the planned scene, keeping the finished scene as it was', () => {
+    const before = between()
+    const g = go(before)
+    expect(g.issues).toHaveLength(2)
+    expect(currentIssue(g)).toMatchObject({ number: 2, state: 'now' })
+    expect(g.currentSceneId).toBe('s2')
+    expect(g.scenes[1]).toMatchObject({ state: 'now', issueId: g.currentIssueId, position: 0 })
+    expect(g.scenes[0]).toEqual(before.scenes[0])
+    expect(g.feed.at(-1)?.text).toBe('Issue 2 began with scene 2: Tunnels.')
+    expect(parseSavedGame(gameToSaved(g))).toMatchObject({ ok: true })
+  })
+
+  it('turns bought bonuses into exclusive ones, and unspent points are lost', () => {
+    const g = go(bought(between(), 2))
+    expect(g.heroes[0]!.play.mods).toMatchObject([{ label: 'Hero point', value: 2, exclusive: true, source: 'heroPoint' }])
+    expect(g.heroes[0]!.play.heroPoints).toBe(0)
+    expect(g.heroes[0]!.play.heroPointBuys).toBeUndefined()
+    expect(g.feed.at(-2)?.text).toBe('Hero point bonuses: Afterimage +2. Unspent hero points lost: Afterimage 3.')
+  })
+
+  it('Heroes recover resets them, but hero points go either way', () => {
+    const hurt = between()
+    hurt.heroes[0]!.play = { ...hurt.heroes[0]!.play, health: 1, twists: [{ id: 't', kind: 'major', text: 'x' }], form: 'mode:1', reactionUsed: true, minions: [] }
+    const on = go(hurt).heroes[0]!.play
+    expect(on).toMatchObject({ twists: [], reactionUsed: false, heroPoints: 0 })
+    expect(on.health).toBeUndefined()
+    expect(on.form).toBeUndefined()
+    const off = go(hurt, false).heroes[0]!.play
+    expect(off).toMatchObject({ health: 1, heroPoints: 0, twists: [{ id: 't' }] })
+  })
+
+  it("hero point bonuses survive a new scene in the issue, and go when it finishes", () => {
+    const g = go(bought(between(), 2))
+    const planned = savePlannedScene(g, 's3', draftOfNew(g), clock).game
+    const next = startScene(planned, 's3', defaultChoices(startPlan(planned, 's3')), clock)
+    expect(next.heroes[0]!.play.mods).toMatchObject([{ source: 'heroPoint' }])
+    const other = { ...g, heroes: g.heroes.map((h, i) => (i === 0 ? { ...h, play: { ...h.play, mods: [...h.play.mods, { id: 'x', label: 'a', value: 1 }] } } : h)) }
+    const planned2 = savePlannedScene(other, 's3', draftOfNew(other), clock).game
+    expect(startScene(planned2, 's3', defaultChoices(startPlan(planned2, 's3')), clock).heroes[0]!.play.mods).toHaveLength(1)
+    expect(finishIssue(next, choices, clock).heroes[0]!.play.mods).toEqual([])
+  })
+
+  it('needs a planned scene, between issues', () => {
+    const g = between()
+    const none = { ...g, scenes: g.scenes.filter((s) => s.id !== 's2') }
+    expect(go(none)).toBe(none)
+    const running = table()
+    expect(startIssue(running, 's2', { ...defaultChoices({ leaving: [], coming: [] }), recover: true }, clock)).toBe(running)
+  })
+
+  it('the second issue finishes as issue 2, with a title of its own', () => {
+    const g = finishIssue(go(between()), { title: 'Issue 2', summary: '', heroIds: [] }, clock)
+    expect(g.issues[1]).toMatchObject({ number: 2, title: 'Issue 2', state: 'finished' })
+    expect(defaultIssueTitle(g, { number: 3 })).toBe('Issue 3')
+  })
+
+  it('says what stands before starting', () => {
+    const g = bought(between(), 2)
+    const facts = issueStartFacts({ ...g, pendingSyncs: [{ heroId: 'h1', sheet: g.heroes[0]!.sheet, at: 'x' }] }, new Set())
+    expect(facts).toMatchObject({ unspent: [{ name: 'Afterimage', points: 3, away: true }], bought: ['Afterimage +2'], syncs: [{ heroId: 'h1', player: 'Alex' }], notRecorded: ['Afterimage'] })
+    expect(issueStartFacts(recordIssueAck(g, g.issues[0]!.id, 'h1', { status: 'added', count: 1 }, clock), new Set(['c1']))).toMatchObject({ notRecorded: [], unspent: [{ away: false }] })
+  })
+
+  it('groups scenes by issue, planned ones under the next', () => {
+    const g = between()
+    expect(scenesByIssue(table())).toMatchObject([{ number: 1, state: 'now' }])
+    const groups = scenesByIssue(g)
+    expect(groups.map((x) => [x.number, x.state, x.scenes.map((s) => s.name)])).toEqual([
+      [1, 'finished', ['The Foundry']],
+      [2, 'next', ['Tunnels']],
+    ])
+    expect(scenesByIssue(go(g)).map((x) => [x.number, x.state])).toEqual([
+      [1, 'finished'],
+      [2, 'now'],
+    ])
+  })
+
+  it('renames and describes an issue; a finished one keeps a title', () => {
+    const g = between()
+    const id = g.issues[0]!.id
+    expect(setIssueRecord(g, id, { title: 'New' }).issues[0]!.title).toBe('New')
+    expect(setIssueRecord(g, id, { title: ' ' }).issues[0]!.title).toBe('The Gravelord Saga')
+    expect(setIssueRecord(g, id, { summary: '' }).issues[0]).not.toHaveProperty('summary')
+    const running = table()
+    expect(setIssueRecord(setIssueRecord(running, running.issues[0]!.id, { title: 'Early' }), running.issues[0]!.id, { title: '' }).issues[0]).not.toHaveProperty('title')
   })
 })
 

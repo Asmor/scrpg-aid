@@ -193,6 +193,19 @@ export function SceneRecordDialog({ title, summary, notes, onSave, onClose }: { 
   )
 }
 
+/** An issue's title or summary (the Scenes tab's ⋯). A finished issue always keeps a title. */
+export function IssueTextDialog({ title, label, value, multiline, required, onSave, onClose }: { title: string; label: string; value: string; multiline: boolean; required: boolean; onSave: (value: string) => void; onClose: () => void }) {
+  const [text, setText] = useState(value)
+  return (
+    <Modal title={title} onClose={onClose}>
+      <form className="gt-form" onSubmit={submitWith(() => (!required || text.trim()) && (onSave(text), onClose()))}>
+        <Field label={label}>{(id) => (multiline ? <textarea id={id} rows={3} value={text} onChange={(e) => setText(e.target.value)} /> : <input id={id} type="text" value={text} onChange={(e) => setText(e.target.value)} />)}</Field>
+        <Actions submit="Save" onCancel={onClose} disabled={required && !text.trim()} />
+      </form>
+    </Modal>
+  )
+}
+
 export function HealthDialog({ name, health, maxHealth, onSet, onClose }: { name: string; health: number; maxHealth?: number; onSet: (value: number) => void; onClose: () => void }) {
   const [value, setValue] = useState(String(health))
   const n = whole(value, 0, maxHealth ?? 999)

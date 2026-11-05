@@ -135,7 +135,7 @@ export function describeMod(mod: Pick<PlayMod, 'label' | 'value' | 'persistent' 
 /** Adds a bonus or penalty; `from` names who gave it, and `id` sets its id (both from a game session). */
 export function addMod<P extends PlayCore>(play: P, mod: Omit<PlayMod, 'id'>, clock: Clock, given: { id?: string; from?: string } = {}): P {
   if (!Number.isInteger(mod.value) || mod.value === 0) return play
-  const added: PlayMod = { id: given.id ?? clock.newId(), label: mod.label.trim(), value: mod.value, ...(mod.persistent ? { persistent: true } : {}), ...(mod.exclusive ? { exclusive: true } : {}) }
+  const added: PlayMod = { id: given.id ?? clock.newId(), label: mod.label.trim(), value: mod.value, ...(mod.persistent ? { persistent: true } : {}), ...(mod.exclusive ? { exclusive: true } : {}), ...(mod.source ? { source: mod.source } : {}) }
   return withEntry({ ...play, mods: [...play.mods, added] }, entry(clock, `Gained ${describeMod(added)}${given.from ? ` from ${given.from}` : ''}.`))
 }
 
@@ -193,12 +193,34 @@ export function startOver(): PlayState {
 }
 
 /**
- * A fresh start for a new issue: full Health, no mods, twists, or hero points; the history
- * keeps a marker. The hero stays in the form or mode they're in.
+ * Heroes recover for a new issue (docs/design/issues/spec.md, section 5): full Health, no mods,
+ * twists, minions or defenses, the base form or default mode, and the reaction ready. Hero points
+ * and what they bought are the issue's own business.
  */
-export function newIssue(play: PlayState, clock: Clock): PlayState {
-  const { form, dividedForm } = play
-  return { ...emptyPlay(), ...(form ? { form } : {}), ...(dividedForm ? { dividedForm } : {}), history: [...play.history, entry(clock, 'Started a new issue: Health restored; mods, twists, hero points and minions cleared.')] }
+export function heroRecovers(play: PlayState, clock: Clock): PlayState {
+  const { heroPoints, heroPointBuys, history } = play
+  return { ...emptyPlay(), heroPoints, ...(heroPointBuys ? { heroPointBuys } : {}), history: [...history, entry(clock, 'Recovered for the new issue: Health restored; mods, twists and minions cleared.')] }
+}
+
+/** Buys a bonus for the next issue: it costs its size. Unchanged if there aren't the points. */
+export function buyHeroPointBonus(play: PlayState, size: number, issue: number, clock: Clock): PlayState {
+  if (!Number.isInteger(size) || size < 1 || size > play.heroPoints) return play
+  return withEntry({ ...play, heroPoints: play.heroPoints - size, heroPointBuys: [...(play.heroPointBuys ?? []), { id: clock.newId(), size }] }, entry(clock, `Bought a +${size} bonus for issue ${issue}.`))
+}
+
+/** Returns a bought bonus, and its points. */
+export function returnHeroPointBonus(play: PlayState, buyId: string, issue: number, clock: Clock): PlayState {
+  const buy = play.heroPointBuys?.find((b) => b.id === buyId)
+  if (!buy) return play
+  return withEntry({ ...play, heroPoints: play.heroPoints + buy.size, heroPointBuys: play.heroPointBuys!.filter((b) => b !== buy) }, entry(clock, `Returned a +${buy.size} bonus for issue ${issue}.`))
+}
+
+/** Turns what was bought into exclusive, used-up-when-used bonuses, and any points left go. */
+export function spendHeroPoints(play: PlayState, clock: Clock): PlayState {
+  const { heroPointBuys = [], ...rest } = play
+  let next: PlayState = { ...rest, heroPoints: 0 }
+  for (const buy of heroPointBuys) next = addMod(next, { label: 'Hero point', value: buy.size, exclusive: true, source: 'heroPoint' }, clock)
+  return play.heroPoints > 0 ? withEntry(next, entry(clock, `Lost ${play.heroPoints === 1 ? 'an unspent hero point' : `${play.heroPoints} unspent hero points`}.`)) : next
 }
 
 // ---- Defenses in solo play (ruling 65; the table's are in ../game/hits.ts) ----

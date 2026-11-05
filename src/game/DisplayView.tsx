@@ -11,7 +11,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { DiceText, DieIcon } from '../components/icons'
 import { modName } from '../play/state'
 import type { PlayMod } from '../hero/model'
-import { sceneDisplayName } from './model'
+import { betweenIssues, issueTitle, sceneDisplayName } from './model'
 import { heroOnTableName, viewName, type TableView } from './project'
 import { actorKey, boxLabel, groupSummary, sameActor, sceneZone, stepsText, turnStrip } from './table'
 import { STAGE_HEIGHT, STAGE_WIDTH, stageScale } from './display'
@@ -92,6 +92,8 @@ export function DisplayView({ table, watching, status }: Props) {
   const { ref, fit } = useFit()
   const { scene } = table
   const strip = turnStrip(table)
+  const paused = betweenIssues(table)
+  const finished = table.issues.at(-1)
   const name = (r: Parameters<typeof viewName>[1]) => viewName(table, r, heroOnTableName)
   const acting = (kind: 'hero' | 'villain' | 'group', id: string) => Boolean(table.turn.current && sameActor(table.turn.current, { kind, id }))
   const heroes = table.heroes.map((h) => heroView(h, table))
@@ -101,16 +103,28 @@ export function DisplayView({ table, watching, status }: Props) {
       <div ref={ref} className="dv-stage" style={{ transform: `scale(${fit.scale})`, left: fit.left, top: fit.top }}>
         <header className="dv-top">
           <div className="dv-grow">
-            <div className="dv-label">Scene {scene.number}</div>
-            {/* Keyed by number, so a new scene's name animates in. */}
-            <h1 key={scene.number} className="dv-scene dv-scene--enter">
-              {sceneDisplayName(table)}
-            </h1>
-            {table.environment && <div className="dv-sub">Environment: {table.environment.name}</div>}
+            {paused && finished ? (
+              <>
+                <div className="dv-label dv-end">END OF ISSUE {finished.number}</div>
+                <h1 key={`issue-${finished.id}`} className="dv-scene dv-scene--enter">
+                  {issueTitle(finished)}
+                </h1>
+                {finished.summary && <div className="dv-sub">{finished.summary}</div>}
+              </>
+            ) : (
+              <>
+                <div className="dv-label">Scene {scene.number}</div>
+                {/* Keyed by number, so a new scene's name animates in. */}
+                <h1 key={scene.number} className="dv-scene dv-scene--enter">
+                  {sceneDisplayName(table)}
+                </h1>
+                {table.environment && <div className="dv-sub">Environment: {table.environment.name}</div>}
+              </>
+            )}
           </div>
           <div>
             <div className="dv-label">Scene tracker</div>
-            <div className="dv-tracker" role="img" aria-label={`Scene tracker at ${boxLabel(scene.tracker, scene.position)} of ${scene.tracker.length}`}>
+            <div className={paused ? 'dv-tracker dv-tracker--faded' : 'dv-tracker'} role="img" aria-label={`Scene tracker at ${boxLabel(scene.tracker, scene.position)} of ${scene.tracker.length}`}>
               {scene.tracker.map((z, i) => (
                 <span key={i} className={`dv-box zone-${z}${i < scene.position ? ' dv-box--past' : ''}${i === scene.position ? ' dv-box--now' : ''}`} aria-hidden="true" />
               ))}
@@ -120,10 +134,10 @@ export function DisplayView({ table, watching, status }: Props) {
             <div className="dv-label">Scene zone</div>
             <ZoneChip zone={sceneZone(table)} />
           </div>
-          <div className="dv-round">{table.round === 0 ? 'Not started' : `Round ${table.round}`}</div>
+          {!paused && <div className="dv-round">{table.round === 0 ? 'Not started' : `Round ${table.round}`}</div>}
         </header>
 
-        {strip.length > 0 && (
+        {!paused && strip.length > 0 && (
           <ol className="dv-turns" aria-label="Turn order this round">
             {strip.map(({ ref: r, state }) => (
               <li key={actorKey(r)} className={`dv-actor dv-actor--${state}`}>

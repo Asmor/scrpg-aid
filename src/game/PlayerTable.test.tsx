@@ -14,7 +14,8 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { MemoryVillainStore } from '../villain/store'
 import { createGame } from './model'
-import { finishIssue } from './issues'
+import { finishIssue, startIssue } from './issues'
+import { createScene } from './model'
 import { MemoryGameStore } from './store'
 import { addChallenge, addVillain, setChallengeStep, changeHeroPlay, handOff, startRound } from './table'
 
@@ -420,6 +421,63 @@ describe('the back issue prompt', () => {
     })
     expect(await screen.findByRole('dialog', { name: /^Add "The Gravelord Saga"/ })).toBeInTheDocument()
     field.remove()
+  })
+})
+
+describe('spending hero points', () => {
+  const rich = async () => {
+    const page = await setup()
+    await join(page.settle)
+    page.host.apply((g) => ({ ...g, heroes: g.heroes.map((h) => ({ ...h, play: { ...h.play, heroPoints: 3 } })), scenes: [...g.scenes, createScene({ id: 's2', name: 'Tunnels' })] }))
+    page.host.apply((g) => finishIssue(g, { title: 'Saga', summary: '', heroIds: [] }, clock()))
+    await page.settle()
+    return page
+  }
+
+  it('buys, returns and hears about them, then the issue starts', async () => {
+    const { host, settle } = await rich()
+    expect(await screen.findByText('You have 3 hero points to spend on bonuses for issue 2.')).toBeInTheDocument()
+    expect(panel().getByRole('img', { name: '3 of 3 hero points left' })).toBeInTheDocument()
+    await userEvent.click(panel().getByRole('button', { name: 'Buy a +2 bonus for 2 points' }))
+    await settle()
+    expect(host.game!.heroes[0]!.play.heroPointBuys).toMatchObject([{ size: 2 }])
+    expect(panel().getByRole('button', { name: 'Buy a +3 bonus for 3 points' })).toBeDisabled()
+    await userEvent.click(panel().getByRole('button', { name: 'Return the +2 bonus' }))
+    await settle()
+    expect(host.game!.heroes[0]!.play.heroPoints).toBe(3)
+
+    host.remindUnspent()
+    await settle()
+    const remind = within(await screen.findByRole('dialog', { name: 'Spend your hero points' }))
+    expect(remind.getByText("Sam is about to start issue 2. You have 3 unspent hero points. Spend them now, or they're lost.")).toBeInTheDocument()
+    await userEvent.click(remind.getByRole('button', { name: 'Spend now' }))
+    await waitFor(() => expect(panel().getByRole('heading', { name: 'Hero points' })).toHaveFocus())
+
+    host.apply((g) => startIssue(g, 's2', { fates: {}, hidden: {}, resets: { round: true, mods: true, once: true, twists: true }, recover: true }, clock()))
+    await settle()
+    expect(await screen.findByText('Issue 2 began: Tunnels.')).toBeInTheDocument()
+    expect(panel().queryByRole('heading', { name: 'Hero points' })).not.toBeInTheDocument()
+    expect(panel().getByRole('button', { name: 'Lose 1 Health' })).toBeEnabled()
+  })
+})
+
+describe('a reminder about hero points', () => {
+  it("doesn't come back at the end of a later issue", async () => {
+    const { host, settle } = await setup()
+    await join(settle)
+    const points = (g: Parameters<typeof finishIssue>[0]) => ({ ...g, heroes: g.heroes.map((h) => ({ ...h, play: { ...h.play, heroPoints: 2 } })), scenes: [...g.scenes, createScene({ id: `s${g.scenes.length + 1}` })] })
+    const finish = (g: Parameters<typeof finishIssue>[0]) => finishIssue(g, { title: 'Saga', summary: '', heroIds: [] }, clock())
+    host.apply((g) => finish(points(g)))
+    await settle()
+    host.remindUnspent()
+    await settle()
+    expect(await screen.findByRole('dialog', { name: 'Spend your hero points' })).toBeInTheDocument()
+    host.apply((g) => startIssue(g, 's2', { fates: {}, hidden: {}, resets: { round: true, mods: true, once: true, twists: true }, recover: true }, clock()))
+    await settle()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Spend your hero points' })).not.toBeInTheDocument())
+    host.apply((g) => finish(points(g)))
+    await settle()
+    expect(screen.queryByRole('dialog', { name: 'Spend your hero points' })).not.toBeInTheDocument()
   })
 })
 

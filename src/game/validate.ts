@@ -9,7 +9,7 @@ import { MAX_BOXES, type Game, type TrackerCounts } from './model'
 
 const zone = oneOf('green', 'yellow', 'red')
 const actor = object({ kind: oneOf('hero', 'villain', 'group', 'environment'), id: nonEmptyString })
-const mod = object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true) })
+const mod = object({ id: nonEmptyString, label: string, value: integer, 'persistent?': oneOf(true), 'exclusive?': oneOf(true), 'source?': oneOf('heroPoint') })
 /** 'any', or a list of basic actions. */
 export const groupActions: Check = (v, path) => (v === 'any' ? undefined : arrayOf(oneOf('attack', 'defend', 'boost', 'hinder', 'overcome'))(v, path))
 const attachedGroup = object({ kind: oneOf('minion', 'lieutenant'), templateId: nonEmptyString, name: string, die, actions: groupActions, groupSize: integer })

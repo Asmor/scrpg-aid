@@ -6,9 +6,11 @@
  */
 import { Fragment, useState, type DragEvent, type KeyboardEvent } from 'react'
 import type { MenuItem } from '../library/Popover'
-import { betweenIssues, currentIssue, sceneName, sceneNumber, trackerFromCounts, type Game, type OppositionRef, type Scene } from './model'
+import { currentIssue, sceneName, sceneNumber, trackerFromCounts, type Game, type OppositionRef, type Scene } from './model'
 import { asideChips, plannedForText, refKey, sceneChips, sceneDetail, trackerLine, type AsideChip } from './scenes'
 import { MenuButton } from './TableCenter'
+import { scenesByIssue } from './issues'
+import { shortDate } from '../advancement/records'
 
 export interface SceneActions {
   edit: (sceneId: string) => void
@@ -25,6 +27,9 @@ export interface SceneActions {
   removeAside: (chip: AsideChip) => void
   /** The Finish dialog, for the current issue. */
   finish?: () => void
+  /** An issue's title or summary. */
+  renameIssue?: (issueId: string) => void
+  editIssueSummary?: (issueId: string) => void
 }
 
 /** A tracker's boxes, small; `at` marks the current box (none for a planned scene). */
@@ -107,7 +112,7 @@ function SceneRow({ game, scene, next, actions, sheets, lifted, onHandleKey, onD
             Edit
           </button>
         )}
-        {next && !betweenIssues(game) && (
+        {next && (
           <button type="button" className="button button--primary button--small" aria-label={`Start ${name}`} onClick={() => actions.start(scene.id)}>
             Start this scene…
           </button>
@@ -147,6 +152,8 @@ export function ScenesTab({ game, actions, sheets = false }: { game: Game; actio
   const next = game.scenes.find((s) => s.state === 'planned')
   const aside = asideChips(game)
   const issue = currentIssue(game)
+  // Finished issues are collapsed until opened.
+  const [opened, setOpened] = useState<ReadonlySet<number>>(new Set())
   const [lifted, setLifted] = useState<string | null>(null)
   const [announce, setAnnounce] = useState('')
   const [dragging, setDragging] = useState<string | null>(null)
@@ -172,35 +179,73 @@ export function ScenesTab({ game, actions, sheets = false }: { game: Game; actio
       <p className="visually-hidden" role="status" aria-live="polite">
         {announce}
       </p>
-      {game.scenes.map((s, i) => (
-        <Fragment key={s.id}>
-        <SceneRow
-          game={game}
-          scene={s}
-          next={s.id === next?.id}
-          actions={actions}
-          sheets={sheets}
-          lifted={lifted === s.id}
-          onHandleKey={handleKey(s)}
-          onDragStart={(e) => {
-            setDragging(s.id)
-            e.dataTransfer.effectAllowed = 'move'
-            e.dataTransfer.setData('text/plain', s.id)
-          }}
-          onDrop={(e) => {
-            e.preventDefault()
-            if (dragging) actions.move(dragging, i)
-            setDragging(null)
-          }}
-          onDragEnd={() => setDragging(null)}
-        />
-        {s.state === 'now' && issue && actions.finish && (
-          <button type="button" className="button" onClick={actions.finish}>
-            Finish issue {issue.number}…
-          </button>
-        )}
-        </Fragment>
-      ))}
+      {scenesByIssue(game).map((group) => {
+        const closed = group.state === 'finished' && !opened.has(group.number)
+        const title = group.issue?.title?.trim()
+        const heading = `Issue ${group.number}${title ? ` · ${title}` : ''}`
+        const menu: MenuItem[] = group.issue
+          ? [
+              ...(actions.renameIssue ? [{ label: 'Rename…', onSelect: () => actions.renameIssue!(group.issue!.id) }] : []),
+              ...(group.state === 'finished' && actions.editIssueSummary ? [{ label: 'Edit summary…', onSelect: () => actions.editIssueSummary!(group.issue!.id) }] : []),
+            ]
+          : []
+        return (
+          <section key={group.number} className="gt-issue-group" aria-label={heading}>
+            <div className="gt-row gt-issue-group__head">
+              {group.state === 'finished' ? (
+                <button
+                  type="button"
+                  className="link-button gt-grow gt-issue-group__title"
+                  aria-expanded={!closed}
+                  onClick={() => {
+                    const next2 = new Set(opened)
+                    if (closed) next2.add(group.number)
+                    else next2.delete(group.number)
+                    setOpened(next2)
+                  }}
+                >
+                  {heading}
+                </button>
+              ) : (
+                <h3 className="gt-grow gt-issue-group__title">{heading}</h3>
+              )}
+              <span className={group.state === 'finished' ? 'gt-pill' : 'gt-pill gt-scene-pill--now'}>{group.state === 'finished' ? 'Finished' : group.state === 'now' ? 'Now' : 'Next'}</span>
+              {group.issue?.finishedAt && <span className="gt-sub">{shortDate(group.issue.finishedAt)}</span>}
+              <MenuButton label={`More for issue ${group.number}`} items={menu} sheets={sheets} />
+            </div>
+            {!closed &&
+              group.scenes.map((s) => (
+                <Fragment key={s.id}>
+                  <SceneRow
+                    game={game}
+                    scene={s}
+                    next={s.id === next?.id}
+                    actions={actions}
+                    sheets={sheets}
+                    lifted={lifted === s.id}
+                    onHandleKey={handleKey(s)}
+                    onDragStart={(e) => {
+                      setDragging(s.id)
+                      e.dataTransfer.effectAllowed = 'move'
+                      e.dataTransfer.setData('text/plain', s.id)
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      if (dragging) actions.move(dragging, sceneNumber(game, s.id) - 1)
+                      setDragging(null)
+                    }}
+                    onDragEnd={() => setDragging(null)}
+                  />
+                  {s.state === 'now' && issue && actions.finish && (
+                    <button type="button" className="button" onClick={actions.finish}>
+                      Finish issue {issue.number}…
+                    </button>
+                  )}
+                </Fragment>
+              ))}
+          </section>
+        )
+      })}
       <button type="button" className="button" onClick={actions.plan}>
         + Plan a scene
       </button>

@@ -11,7 +11,7 @@
  * - Toasts for rejected actions, actions that didn't reach the GM, and the GM's answer to a
  *   sheet update request.
  */
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { advancementPath, gamesPath, heroPath, joinPath, navigate, tablePath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
@@ -33,7 +33,8 @@ import { normalizeRoomCode } from '../session/code'
 import { usePlayingSnapshot, useSession } from '../session/context'
 import { refusedText } from '../session/refused'
 import type { HeroAction } from './actions'
-import { betweenIssues, gameDisplayName, issueTitle, sceneDisplayName } from './model'
+import { betweenIssues, gameDisplayName, issueTitle, nextIssueNumber, sceneDisplayName } from './model'
+import { HERO_POINTS_ID } from './HeroPointsCard'
 import { finishedPill } from './summary'
 import { heroOnTableName, viewName, type HeroOnTable, type IssueOnTable, type TableView } from './project'
 import { PlayerPanel } from './PlayerPanel'
@@ -223,14 +224,20 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
 
   // A new scene is a toast. The first number seen, and going back (the GM's Undo), aren't.
   const sceneNow = table?.scene.number
+  const issueNow = table?.currentIssueId ? table.issues.find((i) => i.id === table.currentIssueId)?.number : undefined
   const sceneNowName = table ? sceneDisplayName(table) : ''
   const seenScene = useRef<number | undefined>(undefined)
+  const seenIssue = useRef<number | undefined>(undefined)
   const [sceneToast, setSceneToast] = useState<ToastData | null>(null)
   useEffect(() => {
     if (sceneNow === undefined) return
-    if (seenScene.current !== undefined && sceneNow > seenScene.current) setSceneToast({ id: `scene-${sceneNow}`, text: `New scene: ${sceneNowName}` })
+    if (seenScene.current !== undefined && sceneNow > seenScene.current) {
+      const newIssue = issueNow !== undefined && seenIssue.current !== undefined && issueNow > seenIssue.current
+      setSceneToast({ id: `scene-${sceneNow}`, text: newIssue ? `Issue ${issueNow} began: ${sceneNowName}.` : `New scene: ${sceneNowName}` })
+    }
     seenScene.current = sceneNow
-  }, [sceneNow, sceneNowName])
+    if (issueNow !== undefined) seenIssue.current = issueNow
+  }, [sceneNow, sceneNowName, issueNow])
 
   // Handoffs are announced as they happen (players never receive hidden ones).
   const seenLines = useRef<Set<string> | undefined>(undefined)
@@ -286,6 +293,22 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
   const free = useNotTyping(Boolean(asked))
   const issue = issues.find((i) => i.id === reopened && i.state === 'finished') ?? (free ? asked : undefined)
   const [backToast, setBackToast] = useState<ToastData | null>(null)
+
+  // Once the prompt is out of the way, a hero with points is told they can spend them.
+  const lastIssue = issues.at(-1)
+  const pointsLeft = copy?.play.heroPoints ?? 0
+  const remindedFor = useRef<string | undefined>(undefined)
+  const [pointsToast, setPointsToast] = useState<ToastData | null>(null)
+  const focusPoints = useCallback(() => {
+    setTab('hero')
+    setTimeout(() => document.getElementById(HERO_POINTS_ID)?.focus())
+  }, [])
+  const remindNow = paused && Boolean(lastIssue) && pointsLeft > 0 && !asked && !issue
+  useEffect(() => {
+    if (!remindNow || !lastIssue || remindedFor.current === lastIssue.id) return
+    remindedFor.current = lastIssue.id
+    setPointsToast({ id: `points-${lastIssue.id}`, text: `You have ${pointsLeft} hero ${pointsLeft === 1 ? 'point' : 'points'} to spend on bonuses for issue ${lastIssue.number + 1}.`, action: { label: 'Spend', onClick: focusPoints } })
+  }, [remindNow, lastIssue, pointsLeft, focusPoints])
 
   // The GM's list hears what's been done, once for each answer. It stays right after the GM's Undo, or a reconnect.
   const sentAcks = useRef(new Set<string>())
@@ -415,6 +438,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
           }
         : {})}
       random={random}
+      {...(received ? { gmName: received.gm } : {})}
       {...(heroNow
         ? {
             backIssues: {
@@ -561,6 +585,28 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
             </div>
           </Modal>
         ))}
+      {snap?.spendReminder && paused && !issue && (
+        <Modal title="Spend your hero points" onClose={() => client.dismissReminder()}>
+          <p>
+            {received?.gm || 'The GM'} is about to start issue {nextIssueNumber(table!)}. You have {pointsLeft} unspent hero {pointsLeft === 1 ? 'point' : 'points'}. Spend them now, or they're lost.
+          </p>
+          <div className="button-row gt-dialog-actions">
+            <button type="button" className="button" onClick={() => client.dismissReminder()}>
+              Not now
+            </button>
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={() => {
+                client.dismissReminder()
+                focusPoints()
+              }}
+            >
+              Spend now
+            </button>
+          </div>
+        </Modal>
+      )}
       {prompting && change && copy && (
         <SheetChanged name={heroName} changes={change.changes} inGame={change.inGame} onAsk={() => library && client.requestSync(library)} onKeep={() => setPrompt('done')} />
       )}
@@ -589,7 +635,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
           </div>
         </Modal>
       )}
-      <Toasts toasts={[...(snap?.notices ?? []).map((n) => noticeToast(n, (id) => client.retry(id))), ...(sceneToast ? [sceneToast] : []), ...(closedToast ? [closedToast] : []), ...(backToast ? [backToast] : [])]} onDismiss={(id) => (id === sceneToast?.id ? setSceneToast(null) : id === closedToast?.id ? setClosedToast(null) : id === backToast?.id ? setBackToast(null) : client.dismiss(id))} />
+      <Toasts toasts={[...(snap?.notices ?? []).map((n) => noticeToast(n, (id) => client.retry(id))), ...(sceneToast ? [sceneToast] : []), ...(closedToast ? [closedToast] : []), ...(backToast ? [backToast] : []), ...(pointsToast ? [pointsToast] : [])]} onDismiss={(id) => (id === pointsToast?.id ? setPointsToast(null) : id === sceneToast?.id ? setSceneToast(null) : id === closedToast?.id ? setClosedToast(null) : id === backToast?.id ? setBackToast(null) : client.dismiss(id))} />
     </PopoverGroup>
   )
 }

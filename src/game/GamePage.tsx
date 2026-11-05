@@ -23,15 +23,18 @@ import { useTick } from '../play/useTick'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
 import { recalculateHealth, villainHealth } from '../villain/play'
 import { BringInVillainDialog, RecalculateHealthDialog } from './VillainDialogs'
-import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EditStepsDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, SceneRecordDialog, TwistDialog, UpdateDialog } from './dialogs'
+import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EditStepsDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, IssueTextDialog, ModDialog, SceneRecordDialog, TwistDialog, UpdateDialog } from './dialogs'
 import { GmScreen, type GmTab, type QuickAddKind, type VillainAttacks } from './GmScreen'
 import type { GroupActions } from './RunningGroup'
 import { applySaves } from './npc'
 import { applyAttack, applyGroupRoll, giveMod, protect } from './resolve'
 import { parseTarget } from './roll-targets'
 import { applyHeroChange, type HeroChange } from './hero-changes'
-import { betweenIssues, currentIssue, currentScene, gameDisplayName, issueTitle, sceneName, sceneNumber, sceneOnTable, type ActorRef, type Issue, type OfferedHero, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
-import { backIssueStatuses, finishIssue, recordIssueAck, type FinishChoices, type OwnHeroState } from './issues'
+import { betweenIssues, currentIssue, currentScene, gameDisplayName, issueTitle, nextIssueNumber, sceneName, sceneNumber, sceneOnTable, type ActorRef, type Issue, type OfferedHero, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
+import { backIssueStatuses, finishIssue, issueStartFacts, recordIssueAck, setIssueRecord, startIssue, type FinishChoices, type OwnHeroState } from './issues'
+import { applyHeroAction, type HeroAction } from './actions'
+import { HeroPointsCard } from './HeroPointsCard'
+import { Modal } from '../components/Modal'
 import { FinishIssueDialog } from './FinishIssueDialog'
 import { finishedPill } from './summary'
 import { addBackIssue, backIssueOffer } from '../advancement/records'
@@ -71,6 +74,8 @@ type Dialog =
   | { kind: 'scene'; target: EditorTarget }
   | { kind: 'sceneStart'; sceneId: string }
   | { kind: 'finishIssue' }
+  | { kind: 'issueText'; issueId: string; field: 'title' | 'summary' }
+  | { kind: 'spend'; heroId: string }
   | { kind: 'sceneRecord'; sceneId: string }
   | { kind: 'sceneDelete'; sceneId: string; number: number }
   | { kind: 'asideRemove'; ref: OppositionRef; name: string }
@@ -143,6 +148,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   // The game before a scene started, kept until the undo window closes.
   const [sceneUndo, setSceneUndo] = useState<{ entryId: string; before: Game; label: string; undone: string; toast?: string } | null>(null)
   const [toasts, setToasts] = useState<ToastData[]>([])
+  // A sheet update opened from the Start issue dialog, over it.
+  const [startReview, setStartReview] = useState<string | null>(null)
   useEffect(() => {
     if (!sceneUndo) return
     const timer = setTimeout(() => setSceneUndo(null), SCENE_UNDO_MS)
@@ -330,7 +337,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const gm: GmControls = {
     ...(logUndo ? { logUndo } : {}),
     nextUp,
-    ...(between ? { backIssues: backIssueStatuses(game, connected) } : {}),
+    ...(between ? { backIssues: backIssueStatuses(game, connected), startIssue: () => setDialog(nextScene ? { kind: 'sceneStart', sceneId: nextScene.id } : { kind: 'scene', target: { kind: 'new' } }) } : {}),
     setPosition: (i) => apply((g) => T.setTrackerPosition(g, i, clock())),
     sceneMenu: [
       { label: 'Edit this scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'current' } }) },
@@ -364,6 +371,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       return [
         ...(newer ? [{ label: `Library sheet changed ${formatAgoInline(newer.updatedAt, now)}`, note: true as const, onSelect: () => {} }, { label: 'Update from library…', onSelect: () => setDialog({ kind: 'update', ref: { kind: 'hero', id: hero.ref.id }, sheet: newer }) }] : []),
         ...(request ? [{ label: 'Review sheet update…', onSelect: () => setDialog({ kind: 'review', heroId: hero.ref.id }) }] : []),
+        ...(between && copy && !copy.player ? [{ label: 'Spend hero points…', onSelect: () => setDialog({ kind: 'spend', heroId: hero.ref.id }) }] : []),
         { label: 'Change Health…', onSelect: () => setDialog({ kind: 'heroHealth', hero }) },
         { label: 'Give a bonus or penalty…', onSelect: () => setDialog({ kind: 'heroMod', hero }) },
         { label: 'Add a twist…', onSelect: () => setDialog({ kind: 'heroTwist', hero }) },
@@ -515,6 +523,18 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     },
   }
 
+  /** Reviewing a player's sheet update. */
+  const reviewDialog = (heroId: string, close: () => void) => {
+    const request = game.pendingSyncs.find((r) => r.heroId === heroId)
+    const copy = T.findHero(game, heroId)
+    if (!request || !copy) return null
+    const preview = updatePreview(copy, request.sheet)
+    const who = copy.player?.name ?? 'the player'
+    const approve = () => (host ? host.approveSync(copy.id) : apply((g) => T.updateSheet(g, { kind: 'hero', id: copy.id, sheet: request.sheet }, clock(), "at the player's request")))
+    const decline = () => (host ? host.declineSync(copy.id) : apply((g) => ({ ...g, pendingSyncs: g.pendingSyncs.filter((r) => r.heroId !== copy.id) })))
+    return <UpdateDialog {...preview} review={{ title: `Update ${preview.name} to ${who}'s sheet?`, requested: `Requested ${formatAgo(request.at, now).replace(/^./, (c) => c.toLowerCase())}.`, onDecline: decline }} onUpdate={approve} onClose={close} />
+  }
+
   const screen = (
     <GmScreen
       game={game}
@@ -536,6 +556,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         addAside: (ref, sceneId) => apply((g) => addAsideTo(g, ref, sceneId, clock())),
         removeAside: (chip) => setDialog({ kind: 'asideRemove', ref: chip.ref, name: chip.name }),
         finish: () => setDialog({ kind: 'finishIssue' }),
+        renameIssue: (issueId) => setDialog({ kind: 'issueText', issueId, field: 'title' }),
+        editIssueSummary: (issueId) => setDialog({ kind: 'issueText', issueId, field: 'summary' }),
       }}
       requests={game.pendingSyncs.flatMap((r) => {
         const copy = T.findHero(game, r.heroId)
@@ -725,7 +747,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           game={game}
           sceneId={dialog.sceneId}
           onEdit={() => setDialog({ kind: 'scene', target: { kind: 'planned', sceneId: dialog.sceneId } })}
-          onStart={(choices) => {
+          {...(between ? { issue: { facts: issueStartFacts(game, connected), ...(host ? { onRemind: () => host.remindUnspent() } : {}), onReview: setStartReview } } : {})}
+          onStart={(choices, recover) => {
             const { sceneId } = dialog
             setDialog(null)
             setRunning(null)
@@ -733,11 +756,11 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
             let undo: { entryId: string; before: Game; label: string; undone: string } | null = null
             let line = ''
             apply((g) => {
-              const next = startScene(g, sceneId, choices, c)
+              const next = between ? startIssue(g, sceneId, { ...choices, recover }, c) : startScene(g, sceneId, choices, c)
               const entry = next.feed.at(-1)
               if (next !== g && entry) {
                 // A copy: both the editor's draft and what the host hands over can change afterwards.
-                undo = { entryId: entry.id, before: structuredClone(g), label: `Undo starting scene ${sceneNumber(next, sceneId)}`, undone: 'Scene change undone.' }
+                undo = { entryId: entry.id, before: structuredClone(g), label: between ? `Undo starting issue ${nextIssueNumber(g)}` : `Undo starting scene ${sceneNumber(next, sceneId)}`, undone: between ? 'Issue start undone.' : 'Scene change undone.' }
                 line = entry.text
               }
               return next
@@ -761,6 +784,38 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           onClose={() => setDialog(null)}
         />
       )}
+      {dialog?.kind === 'issueText' &&
+        (() => {
+          const target = game.issues.find((i) => i.id === dialog.issueId)
+          if (!target) return null
+          const isTitle = dialog.field === 'title'
+          return (
+            <IssueTextDialog
+              title={isTitle ? `Rename issue ${target.number}` : `Summary of issue ${target.number}`}
+              label={isTitle ? 'Title' : 'What happened'}
+              value={(isTitle ? target.title : target.summary) ?? ''}
+              multiline={!isTitle}
+              required={isTitle && target.state === 'finished'}
+              onSave={(value) => apply((g) => setIssueRecord(g, target.id, { [dialog.field]: value }))}
+              onClose={() => setDialog(null)}
+            />
+          )
+        })()}
+      {dialog?.kind === 'spend' &&
+        (() => {
+          const copy = T.findHero(game, dialog.heroId)
+          if (!copy) return null
+          const act = (action: HeroAction) => apply((g) => {
+            const result = applyHeroAction(g, copy.id, action, { basedOn: 0, versions: {} }, clock())
+            return result.ok ? result.game : g
+          })
+          return (
+            <Modal title={`Spend ${heroDisplayName(copy.sheet)}'s hero points`} onClose={() => setDialog(null)}>
+              <HeroPointsCard play={copy.play} issue={nextIssueNumber(game)} gmName="you" onBuy={(size) => act({ kind: 'buyHeroPointBonus', size })} onReturn={(buyId) => act({ kind: 'returnHeroPointBonus', buyId })} />
+            </Modal>
+          )
+        })()}
+      {startReview && reviewDialog(startReview, () => setStartReview(null))}
       {dialog?.kind === 'sceneRecord' &&
         (() => {
           const scene = game.scenes.find((s) => s.id === dialog.sceneId)
@@ -854,24 +909,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           const ref = dialog.ref.kind === 'hero' ? { kind: 'hero' as const, id: copy.id, sheet: dialog.sheet as Hero } : { kind: 'villain' as const, id: copy.id, sheet: dialog.sheet as Villain }
           return <UpdateDialog {...preview} onUpdate={() => apply((g) => T.updateSheet(g, ref, clock()))} onClose={() => setDialog(null)} />
         })()}
-      {dialog?.kind === 'review' &&
-        (() => {
-          const request = game.pendingSyncs.find((r) => r.heroId === dialog.heroId)
-          const copy = T.findHero(game, dialog.heroId)
-          if (!request || !copy) return null
-          const preview = updatePreview(copy, request.sheet)
-          const who = copy.player?.name ?? 'the player'
-          const approve = () => (host ? host.approveSync(copy.id) : apply((g) => T.updateSheet(g, { kind: 'hero', id: copy.id, sheet: request.sheet }, clock(), "at the player's request")))
-          const decline = () => (host ? host.declineSync(copy.id) : apply((g) => ({ ...g, pendingSyncs: g.pendingSyncs.filter((r) => r.heroId !== copy.id) })))
-          return (
-            <UpdateDialog
-              {...preview}
-              review={{ title: `Update ${preview.name} to ${who}'s sheet?`, requested: `Requested ${formatAgo(request.at, now).replace(/^./, (c) => c.toLowerCase())}.`, onDecline: decline }}
-              onUpdate={approve}
-              onClose={() => setDialog(null)}
-            />
-          )
-        })()}
+      {dialog?.kind === 'review' && reviewDialog(dialog.heroId, () => setDialog(null))}
       {dialog?.kind === 'startHosting' && <StartHostingDialog name={session.name} onStart={startHosting} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'invite' && (host || game.code) && (
         <InviteDialog
