@@ -22,7 +22,7 @@ import { buildVillainSheet, villainTraits } from './sheet'
 import { continueVillainStep } from './wizard-steps'
 import { statusSummary } from './status'
 import { useVillainEditor } from './useVillainEditor'
-import { AlsoIn, SoloPlayActions } from '../game/SoloPlay'
+import { AlsoIn, SoloPlayActions, UnreadablePlayState } from '../game/SoloPlay'
 import { soloVillain, startOverSolo } from '../game/solo'
 import { changeVillainPlay } from '../game/table'
 import { gamesHolding, useListedGames, useSoloGame } from '../game/useGameEditor'
@@ -77,7 +77,7 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
           <a href={listPath}>← Home</a>
         </p>
         {(state.status === 'loading' || (state.status === 'ready' && solo.state.status === 'loading')) && <p>Loading…</p>}
-        {solo.state.status === 'unreadable' && <p role="alert">This villain's play state couldn't be read: {solo.state.error}</p>}
+        {solo.state.status === 'unreadable' && <UnreadablePlayState who="villain" error={solo.state.error} onDiscard={solo.discard} />}
         {solo.state.status === 'error' && <p role="alert">Something went wrong loading this villain's play state: {solo.state.message}</p>}
         {state.status === 'missing' && <p role="alert">There's no saved villain with that link. It may have been deleted.</p>}
         {state.status === 'unreadable' && <p role="alert">This villain couldn't be read: {state.error}</p>}

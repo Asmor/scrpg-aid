@@ -17,7 +17,7 @@ import { ExportMenu } from './ExportMenu'
 import { HeroSheetView } from './HeroSheetView'
 import { IssueBanner, ModeSwitch, type CharacterMode } from './CharacterHead'
 import { SheetTags } from '../library/SheetTags'
-import { AlsoIn, SoloPlayActions } from '../game/SoloPlay'
+import { AlsoIn, SoloPlayActions, UnreadablePlayState } from '../game/SoloPlay'
 import { soloHero, startOverSolo } from '../game/solo'
 import { changeHeroPlay } from '../game/table'
 import { gamesHolding, useListedGames, useSoloGame } from '../game/useGameEditor'
@@ -122,7 +122,7 @@ export function HeroPage({ id, mode = 'sheet', clock = defaultClock, random }: {
                 <ExportMenu hero={hero} />
               </>
             ) : (
-              <SoloPlayActions name={heroDisplayName(hero)} onStartOver={() => solo.apply(startOverSolo)} />
+              copy && <SoloPlayActions name={heroDisplayName(hero)} onStartOver={() => solo.apply(startOverSolo)} />
             )}
           </div>
         </div>
@@ -149,7 +149,7 @@ export function HeroPage({ id, mode = 'sheet', clock = defaultClock, random }: {
       ) : copy ? (
         <PlayView hero={copy.sheet} play={copy.play} changePlay={(fn) => solo.apply((g) => changeHeroPlay(g, copy.id, (p) => fn(p), clock(), false))} clock={clock} random={random} />
       ) : solo.state.status === 'unreadable' ? (
-        <p role="alert">This hero's play state couldn't be read: {solo.state.error}</p>
+        <UnreadablePlayState who="hero" error={solo.state.error} onDiscard={solo.discard} />
       ) : solo.state.status === 'error' ? (
         <p role="alert">Something went wrong loading this hero's play state: {solo.state.message}</p>
       ) : (

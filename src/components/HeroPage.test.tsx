@@ -168,6 +168,25 @@ describe('HeroPage', () => {
     expect(within(screen.getByRole('group', { name: 'Mode' })).getByRole('button', { name: 'Play' })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it("offers one working Start over when the hero's play state can't be read", async () => {
+    const games = new MemoryGameStore()
+    await (games as unknown as { putRecord: (r: unknown) => Promise<void> }).putRecord({ id: 'solo-hero-x', saved: { format: 'scrpg-game', version: 2, game: {} } })
+    render(
+      <StoreContext.Provider value={storeReturning(async () => ({ status: 'found', hero: exampleHero({ id: 'x' }) }))}>
+        <GameStoreContext.Provider value={games}>
+          <HeroPage id="x" mode="play" />
+        </GameStoreContext.Provider>
+      </StoreContext.Provider>,
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent("This hero's play state couldn't be read: no migration from format 2")
+    // Not the ⋯ menu's Start over: that one changes a loaded game, and there isn't one.
+    expect(screen.queryByRole('button', { name: "More for Maya Reyes's Play page" })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Start over…' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, start over' }))
+    expect(await screen.findByRole('button', { name: "More for Maya Reyes's Play page" })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('exports the hero as JSON that imports back', async () => {
     vi.mocked(downloadFile).mockClear()
     const hero = exampleHero({ id: 'x' })

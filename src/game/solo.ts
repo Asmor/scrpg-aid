@@ -20,6 +20,9 @@ export type SoloKind = 'hero' | 'villain'
 /** The id of a character's solo game. */
 export const soloGameId = (kind: SoloKind, sourceId: string) => `solo-${kind}-${sourceId}`
 
+/** Whether an id is a solo game's: all there is to go on when the game itself can't be read. */
+export const isSoloGameId = (id: string) => id.startsWith('solo-')
+
 /** A new solo game for a character, its copy at fresh play state. */
 export function createSoloGame(kind: 'hero', doc: Hero, clock: Clock): Game
 export function createSoloGame(kind: 'villain', doc: Villain, clock: Clock): Game

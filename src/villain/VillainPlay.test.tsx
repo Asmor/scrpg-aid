@@ -5,6 +5,7 @@ import { PlayProviders } from '../test/play'
 import { playStores, savedVillain, seedVillain, type PlayStores, type VillainWithPlay } from '../test/play-stores'
 import { adaptiveBruiser } from '../test/villains'
 import { readable } from '../test/readable'
+import { soloGameId } from '../game/solo'
 import { VillainPlayPage } from './VillainPlayPage'
 
 let n = 0
@@ -28,6 +29,24 @@ const saved = (store: PlayStores) => savedVillain(store, 'v1')
 const region = (name: string) => within(screen.getByRole('region', { name }))
 
 describe('a villain in the game aid', () => {
+  it("offers Start over when its play state can't be read", async () => {
+    const store = playStores()
+    await seedVillain(store, adaptiveBruiser())
+    const id = soloGameId('villain', 'v1')
+    await (store.games as unknown as { putRecord: (r: unknown) => Promise<void> }).putRecord({ id, saved: { format: 'scrpg-game', version: 2, game: {} } })
+    render(
+      <PlayProviders stores={store}>
+        <VillainPlayPage id="v1" clock={clock} random={() => 0.999} />
+      </PlayProviders>,
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent("This villain's play state couldn't be read")
+    await userEvent.click(screen.getByRole('button', { name: 'Start over…' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, start over' }))
+    expect(await screen.findByRole('region', { name: 'Abilities' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect((await store.games.get(id)).status).toBe('missing')
+  })
+
   it('loses Health, changing zone and (for a Bruiser) its status die', async () => {
     const store = await setup()
     expect(screen.getByRole('region', { name: 'Health' })).toHaveTextContent('55 / 55 Green')

@@ -39,13 +39,19 @@ export function useGameEditor(id: string): GameEditor {
   return withApply(useDocumentEditor(id, load, save))
 }
 
+export interface SoloGameEditor extends GameEditor {
+  /** Deletes the saved game and starts a fresh one: the way out when it can't be read. */
+  discard: () => Promise<void>
+}
+
 /**
  * A character's solo game (./solo.ts), for its standalone Play page: loaded, or made (and saved
  * on the first change) the first time. Whenever the library sheet `doc` changes, the game's copy
  * is brought up to date. Until `doc` is loaded the game stays loading.
  */
-export function useSoloGame(kind: SoloKind, doc: Hero | Villain | undefined, clock: () => Clock): GameEditor {
+export function useSoloGame(kind: SoloKind, doc: Hero | Villain | undefined, clock: () => Clock): SoloGameEditor {
   const store = useGameStore()
+  const [attempt, setAttempt] = useState(0)
   const docRef = useRef(doc)
   const clockRef = useRef(clock)
   useEffect(() => {
@@ -61,7 +67,9 @@ export function useSoloGame(kind: SoloKind, doc: Hero | Villain | undefined, clo
     const source = docRef.current
     if (r.status === 'missing' && source) return { status: 'found', doc: createSoloGame(kind, source, clockRef.current()), unsaved: true }
     return r
-  }, [store, kind])
+    // `attempt` loads it again after discard().
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store, kind, attempt])
   const save = useCallback((g: Game) => store.save(g), [store])
   const editor = withApply(useDocumentEditor(id, load, save))
   const game = editor.state.status === 'ready' ? editor.state.doc : undefined
@@ -73,7 +81,8 @@ export function useSoloGame(kind: SoloKind, doc: Hero | Villain | undefined, clo
     // `apply` is new each render; the check above makes running again harmless.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, doc])
-  return editor
+  const discard = () => store.remove(id).then(() => setAttempt((n) => n + 1))
+  return { ...editor, discard }
 }
 
 /** Every game listed on the Games page (no solo games), and how loading them went. */

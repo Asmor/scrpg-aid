@@ -7,7 +7,41 @@ import { useState } from 'react'
 import { gamePath } from '../app/route'
 import { Modal } from '../components/Modal'
 import { gameDisplayName, type Game } from './model'
+import { ConfirmDialog } from './dialogs'
 import { MenuButton } from './TableCenter'
+
+/** A solo game that can't be read (an older format, say), with the way out: start over. */
+export function UnreadablePlayState({ who, error, onDiscard }: { who: string; error: string; onDiscard: () => Promise<void> }) {
+  const [confirm, setConfirm] = useState(false)
+  const [failed, setFailed] = useState<string | null>(null)
+  return (
+    <>
+      <p role="alert">
+        This {who}'s play state couldn't be read: {error}
+      </p>
+      <button type="button" className="button" onClick={() => setConfirm(true)}>
+        Start over…
+      </button>
+      {failed && (
+        <p role="alert" className="error">
+          Couldn't start over: {failed}
+        </p>
+      )}
+      {confirm && (
+        <ConfirmDialog
+          title="Start over?"
+          text={`The saved play state is deleted and this ${who} starts fresh. The sheet isn't touched.`}
+          confirm="Yes, start over"
+          onConfirm={() => {
+            setFailed(null)
+            onDiscard().catch((e: unknown) => setFailed(e instanceof Error ? e.message : String(e)))
+          }}
+          onClose={() => setConfirm(false)}
+        />
+      )}
+    </>
+  )
+}
 
 /** "Solo play" and the Play page's ⋯ menu. */
 export function SoloPlayActions({ name, onStartOver, clears = 'mods, twists, hero points, minions, form and the play log are cleared' }: { name: string; onStartOver: () => void; clears?: string }) {

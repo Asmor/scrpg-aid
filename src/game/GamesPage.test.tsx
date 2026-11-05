@@ -26,9 +26,13 @@ const clock = { now: new Date(), newId: () => `id${++n}` }
 /** A game with its scene named. */
 const named = (g: Game, name: string): Game => ({ ...g, scenes: g.scenes.map((s) => ({ ...s, name })) })
 
-async function setup(games: Game[], sessionStorage = memoryStorage(), joined: JoinedGame[] = []) {
+/** A saved game this version of the app can't read. */
+const plantUnreadable = (store: MemoryGameStore, id: string) => (store as unknown as { putRecord: (r: unknown) => Promise<void> }).putRecord({ id, saved: { format: 'scrpg-game', version: 2, game: {} } })
+
+async function setup(games: Game[], sessionStorage = memoryStorage(), joined: JoinedGame[] = [], unreadable: string[] = []) {
   const store = new MemoryGameStore()
   for (const g of games) await store.save(g)
+  for (const id of unreadable) await plantUnreadable(store, id)
   const joinedStore = new MemoryJoinedStore()
   for (const j of joined) await joinedStore.save(j)
   window.location.hash = '#/games'
@@ -89,6 +93,16 @@ afterEach(() => {
 })
 
 describe('the Games page', () => {
+  it("lists games it can't read, without solo ones, and deletes them", async () => {
+    const store = await setup([], memoryStorage(), [], ['old-game', 'solo-hero-maya'])
+    const section = within(await screen.findByRole('region', { name: "One saved game couldn't be read" }))
+    expect(section.getByText(/^Game old-game: /)).toBeInTheDocument()
+    expect(screen.queryByText(/solo-hero-maya/)).not.toBeInTheDocument()
+    await userEvent.click(section.getByRole('button', { name: 'Delete unreadable game old-game' }))
+    await waitFor(() => expect(screen.queryByRole('region', { name: /couldn't be read/ })).not.toBeInTheDocument())
+    expect((await store.list()).unreadable.map((u) => u.id)).toEqual(['solo-hero-maya'])
+  })
+
   it('shows an empty state with New game and Join as a player', async () => {
     // A solo game isn't listed.
     await setup([createSoloGame('hero', completeHero(), clock)])

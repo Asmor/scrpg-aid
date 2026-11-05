@@ -37,6 +37,7 @@ import type { ThemePreference } from '../theme/theme'
 import { downloadFile } from '../transfer/download'
 import { gameFileName, gameJson } from '../transfer/files'
 import { duplicateGame } from './scenes'
+import { isSoloGameId } from './solo'
 import { createGame, currentScene, gameDisplayName, isListedGame, sceneName, sceneOnTable, type Game } from './model'
 import { oppositionText, sceneLine } from './summary'
 import { MenuButton, Tracker } from './TableCenter'
@@ -200,6 +201,8 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
   const phone = useMediaQuery('(max-width: 759.98px)', false)
   const now = useTick()
   const [games, setGames] = useState<Game[] | null>(null)
+  // Solo games belong to their characters' Play pages, even when they can't be read.
+  const [unreadable, setUnreadable] = useState<{ id: string; error: string }[]>([])
   const [error, setError] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [dialog, setDialog] = useState<Dialog | null>(null)
@@ -224,7 +227,11 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
   useEffect(() => {
     let live = true
     store.list().then(
-      (list) => live && setGames(list.games.filter(isListedGame)),
+      (list) => {
+        if (!live) return
+        setGames(list.games.filter(isListedGame))
+        setUnreadable(list.unreadable.filter((u) => !isSoloGameId(u.id)))
+      },
       (e: unknown) => live && setError(`Couldn't read your games: ${errorText(e)}`),
     )
     return () => {
@@ -399,6 +406,35 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
                   <JoinedCard key={j.id} joined={j} live={isLive(j)} onOpen={() => openJoined(j)} onRemove={() => setDialog({ kind: 'leaveJoined', id: j.id })} />
                 ))}
               </div>
+            </section>
+          )}
+          {unreadable.length > 0 && (
+            <section className="unreadable" aria-labelledby="games-unreadable">
+              <h2 id="games-unreadable">{unreadable.length === 1 ? 'One saved game' : `${unreadable.length} saved games`} couldn't be read</h2>
+              <p>They may have been saved by a different version of the app. Deleting one can't be undone.</p>
+              <ul className="hero-cards">
+                {unreadable.map((u) => (
+                  <li key={u.id} className="hero-card">
+                    <span>
+                      Game {u.id}: {u.error}
+                    </span>
+                    <button
+                      type="button"
+                      className="button"
+                      disabled={busy}
+                      aria-label={`Delete unreadable game ${u.id}`}
+                      onClick={() =>
+                        void run('delete the game', async () => {
+                          await store.remove(u.id)
+                          setUnreadable((list) => list.filter((x) => x.id !== u.id))
+                        })
+                      }
+                    >
+                      Delete
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
         </main>
