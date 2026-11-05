@@ -45,8 +45,9 @@ describe('VillainStatusPanel', () => {
     expect(on[0]).toHaveTextContent('5–8')
     expect(shown()).toBe('d10')
 
-    await userEvent.click(screen.getByRole('button', { name: 'One fewer' }))
-    await userEvent.click(screen.getByRole('button', { name: 'One fewer' }))
+    expect(screen.getByRole('button', { name: 'One more GM minion or lieutenant' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'One fewer GM minion or lieutenant' }))
+    await userEvent.click(screen.getByRole('button', { name: /^One fewer/ }))
     expect(screen.getByText('Counted by hand. The table says 5.')).toBeInTheDocument()
     expect(shown()).toBe('d8')
 
@@ -58,9 +59,9 @@ describe('VillainStatusPanel', () => {
   it('counted by hand: no way back, since there is no table count', async () => {
     render(<Panel initial={start('predator')} />)
     expect(screen.getByText('Heroes engaged with Gravelord')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'One fewer' })).toBeDisabled()
-    await userEvent.click(screen.getByRole('button', { name: 'One more' }))
-    await userEvent.click(screen.getByRole('button', { name: 'One more' }))
+    expect(screen.getByRole('button', { name: /^One fewer/ })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: /^One more/ }))
+    await userEvent.click(screen.getByRole('button', { name: /^One more/ }))
     expect(shown()).toBe('d8')
     expect(screen.queryByRole('button', { name: 'Back to automatic' })).not.toBeInTheDocument()
   })
@@ -76,7 +77,7 @@ describe('VillainStatusPanel', () => {
 
   it('clearing the select keeps a count by hand', async () => {
     render(<Panel initial={start('overlord')} />)
-    await userEvent.click(screen.getByRole('button', { name: 'One more' }))
+    await userEvent.click(screen.getByRole('button', { name: /^One more/ }))
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Set the status die by hand' }), 'd12')
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Set the status die by hand' }), '')
     expect(screen.getByText('Counted by hand. The table says 0.')).toBeInTheDocument()

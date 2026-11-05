@@ -306,7 +306,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       ...(ref.kind === 'villain' ? [{ label: 'Recalculate Health…', onSelect: () => setDialog({ kind: 'recalculate', villainId: ref.id }) }] : []),
       ...(ref.kind === 'challenge' ? [{ label: 'Edit steps…', onSelect: () => setDialog({ kind: 'editSteps', challengeId: ref.id }) }, { label: 'Reset', onSelect: () => apply((g) => T.resetChallenge(g, ref.id, clock())) }] : []),
       // A Titan's challenge is hidden or shown with its villain.
-      ...(ref.kind === 'challenge' && game.challenges.find((c) => c.id === ref.id)?.linkedVillainId ? [] : hidden ? [{ label: 'Reveal', onSelect: () => reveal(ref) }] : ref.kind === 'villain' ? [] : [{ label: 'Hide from players', onSelect: () => hide(ref) }]),
+      ...(ref.kind === 'challenge' && game.challenges.find((c) => c.id === ref.id)?.linkedVillainId ? [] : hidden ? [{ label: 'Reveal', onSelect: () => reveal(ref) }] : [{ label: 'Hide from players', onSelect: () => hide(ref) }]),
       { label: 'Remove from the game…', danger: true, onSelect: () => setDialog({ kind: 'removeItem', ref, name: nameOf(ref) }) },
     ],
     setPlayersSee: (villainId, value) => apply((g) => T.setPlayersSee(g, villainId, value)),
@@ -730,7 +730,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         (() => {
           const challenge = game.challenges.find((c) => c.id === dialog.challengeId)
           if (!challenge) return null
-          return <EditStepsDialog name={challenge.name} labels={challenge.steps.map((s) => s.label)} onSave={(labels) => apply((g) => T.renameChallengeSteps(g, challenge.id, labels))} onClose={() => setDialog(null)} />
+          return <EditStepsDialog name={challenge.name} labels={challenge.steps.map((s) => s.label)} description={challenge.description} whenDone={challenge.whenDone} onSave={(edit) => apply((g) => T.editChallenge(g, challenge.id, edit))} onClose={() => setDialog(null)} />
         })()}
       {dialog?.kind === 'removeItem' && (
         <ConfirmDialog

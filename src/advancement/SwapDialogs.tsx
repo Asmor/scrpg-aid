@@ -9,7 +9,9 @@ import { byCategory, traitKey, parseTraitKey, type TraitRef } from '../rules/cat
 import { AbilityPicker } from '../editor/AbilityPicker'
 import { PrinciplePicker } from '../editor/PrinciplePicker'
 import { advancedHero } from '../creation/advancement'
-import { principleOf } from '../creation/principles'
+import { principleChoiceIssues, principleOf } from '../creation/principles'
+import { fillPrinciple } from '../creation/sheet'
+import { IssueScope } from '../editor/inline-issues'
 import { deriveTraits } from '../creation/traits'
 import { ZONE_LABEL } from '../hero/labels'
 import type { AbilityPick, Hero, PrincipleChoice } from '../hero/model'
@@ -170,7 +172,7 @@ function PrincipleCard({ heading, choice }: { heading: string; choice: Principle
       {principle ? (
         <>
           <strong>{principleName(choice)}</strong>
-          <p className="gt-sub">{principle.roleplaying}</p>
+          <p className="gt-sub">{fillPrinciple(principle.roleplaying, choice)}</p>
         </>
       ) : (
         <p className="gt-sub">Choose the new principle to compare.</p>
@@ -187,7 +189,8 @@ export function PrincipleSwapDialog({ hero, onSwap, onClose }: { hero: Hero; onS
   const [choice, setChoice] = useState<PrincipleChoice | undefined>()
   const old = held.find((h) => h.replace === replace)
   const ready = Boolean(old && choice && principleOf(choice))
-  const summary = !old ? 'Choose the principle to replace.' : !ready ? 'Choose a new principle.' : `${principleName(old.choice)} becomes ${principleName(choice)}.`
+  const issues = principleChoiceIssues(choice)
+  const summary = !old ? 'Choose the principle to replace.' : !ready ? 'Choose a new principle.' : `${principleName(old.choice)} becomes ${principleName(choice)}.${issues.length ? ` ${issues.length === 1 ? '1 rule issue' : `${issues.length} rule issues`}; you can swap anyway.` : ''}`
   return (
     <SwapShell title="Swap a principle" summary={summary} canSwap={ready} onSwap={() => old && choice && onSwap(old.replace, choice)} onClose={onClose}>
       <SwapSection n={1} title="Which principle goes?">
@@ -201,7 +204,13 @@ export function PrincipleSwapDialog({ hero, onSwap, onClose }: { hero: Hero; onS
         </div>
       </SwapSection>
       <SwapSection n={2} title="What replaces it?">
-        {old ? <PrinciplePicker category={undefined} label="New principle" choice={choice} onChange={setChoice} swap={principleOptions(hero)} /> : <p className="gt-sub">Choose the principle first.</p>}
+        {old ? (
+          <IssueScope issues={issues}>
+            <PrinciplePicker category={undefined} label="New principle" choice={choice} onChange={setChoice} swap={principleOptions(hero)} />
+          </IssueScope>
+        ) : (
+          <p className="gt-sub">Choose the principle first.</p>
+        )}
       </SwapSection>
       <SwapSection n={3} title="Old and new">
         {old ? (

@@ -38,6 +38,19 @@ const draw = (g: Game, audience: 'gm' | 'player' | 'observer', gm?: GmControls) 
 const card = () => screen.getByRole('article', { name: 'Shut down the furnace' })
 
 describe('the challenge card', () => {
+  it("shows the GM the outcome table's reading of a request", () => {
+    draw(game(), 'gm', controls())
+    expect(within(card()).getByText('Full success')).toBeInTheDocument()
+  })
+
+  it('a finished challenge with no "when it\'s done" text has no Done line', () => {
+    let g = addChallenge(createGame({ id: 'g' }), { name: 'Shut down the furnace', steps: 1, hidden: false }, c)
+    g = setChallengeStep(g, g.challenges[0]!.id, 0, true, c)
+    draw(g, 'gm', controls())
+    expect(within(card()).getByText('Done')).toBeInTheDocument()
+    expect(within(card()).queryByText('Done.')).toBeNull()
+  })
+
   it("the GM's: checkboxes, progress, and a request with Check off and Not this time", async () => {
     const gm = controls()
     draw(game(), 'gm', gm)

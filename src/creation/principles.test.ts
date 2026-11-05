@@ -51,6 +51,7 @@ describe('principles', () => {
     expect(heroPrinciples(hero)).toEqual({ background: { id: 'business' }, archetype: { id: 'destiny' } })
     hero.retcon.with = { id: 'energy-element' }
     expect(messages(hero)).toEqual(['Fill in [Energy/Element] for Principle of [Energy/Element].'])
+    expect(checkPrinciples(hero).find((w) => w.code === 'principle-blank')?.field).toMatch(/^principle-blank:/)
     hero.retcon = { id: 'change-principle', kind: 'changePrinciple', replace: 'background', with: { id: 'business' } }
     expect(messages(hero)).toEqual(['This retcon should replace a principle with a different one.'])
   })

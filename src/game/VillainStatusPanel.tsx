@@ -11,7 +11,7 @@ import { villainHealth, villainZone } from '../villain/play'
 import { buildVillainSheet } from '../villain/sheet'
 import type { Challenge, Game, VillainInGame } from './model'
 import { ZoneChip } from './TableCenter'
-import { countLabel, linkedChallenge, statusLadder, statusRuleLine, tableCount, villainStatus } from './villain-status'
+import { countLabel, countUnit, linkedChallenge, statusLadder, statusRuleLine, tableCount, villainStatus } from './villain-status'
 
 export interface VillainStatusActions {
   /** Sets or clears the villain's overrides. */
@@ -25,7 +25,7 @@ export interface VillainStatusActions {
 
 const ZONES: readonly Zone[] = ['green', 'yellow', 'red']
 
-function Stepper({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+function Stepper({ label, unit, value, onChange }: { label: string; unit: string; value: number; onChange: (n: number) => void }) {
   const id = useId()
   return (
     <div className="gt-row">
@@ -33,11 +33,11 @@ function Stepper({ label, value, onChange }: { label: string; value: number; onC
         {label}
       </span>
       <div className="stepper" role="group" aria-labelledby={id}>
-        <button type="button" aria-label="One fewer" disabled={value <= 0} onClick={() => onChange(Math.max(0, value - 1))}>
+        <button type="button" aria-label={`One fewer ${unit}`} disabled={value <= 0} onClick={() => onChange(Math.max(0, value - 1))}>
           −
         </button>
         <output aria-live="polite">{value}</output>
-        <button type="button" aria-label="One more" onClick={() => onChange(value + 1)}>
+        <button type="button" aria-label={`One more ${unit}`} onClick={() => onChange(value + 1)}>
           +
         </button>
       </div>
@@ -91,7 +91,7 @@ export function VillainStatusPanel({ game, copy, actions }: { game: Game; copy: 
       {/* Set by hand wins, whatever the rule says. */}
       {!manualDie && rule.basis === 'count' && (
         <>
-          <Stepper label={countLabel(copy)} value={count} onChange={setCount} />
+          <Stepper label={countLabel(copy)} unit={countUnit(copy)} value={count} onChange={setCount} />
           <p className="gt-sub">
             {!counted
               ? "The app can't see this, so you count. Kept until you change it."

@@ -251,6 +251,43 @@ describe('logStatusChanges', () => {
     expect(project(next, 'player').feed.some((e) => e.statusOf)).toBe(false)
   })
 
+  describe('setting the die by hand', () => {
+    const die = (g: Game, override: { die?: 'd4' | 'd10' | 'd12' } | undefined, at: number) => logStatusChanges(g, setStatusOverride(g, main(g).id, override), later(at))
+    const texts = (g: Game) => statusLines(g).map((e) => e.text)
+    const auto = "Gravelord's status die is now d10 (5 GM minions and lieutenants)."
+    const manual = (d: string) => `Gravelord's status die is now ${d} (Set by hand).`
+    const atD10 = () => {
+      const g = minions(table('overlord'), 4)
+      return logStatusChanges(g, lieutenants(g, 1), later(0))
+    }
+
+    it('logs setting it and going back, GM only, however fast', () => {
+      const set = die(atD10(), { die: 'd12' }, 200)
+      expect(texts(set)).toEqual([auto, manual('d12')])
+      expect(statusLines(set).every((e) => e.gmOnly)).toBe(true)
+      expect(texts(die(set, undefined, 400))).toEqual([auto, manual('d12'), auto])
+    })
+
+    it('logs choosing the die it already has, since the reason changed', () => {
+      expect(texts(die(atD10(), { die: 'd10' }, 5000))).toEqual([auto, manual('d10')])
+    })
+
+    it('never logs the same line twice in a row', () => {
+      // The die moved away with no line, and comes back: the last line already says this.
+      const g = atD10()
+      expect(texts(logStatusChanges(setStatusOverride(g, main(g).id, { count: 1 }), g, later(9000)))).toEqual([auto])
+    })
+  })
+
+  it('a burst that ends where it started leaves no line', () => {
+    const start = minions(table('overlord'), 4)
+    const g = logStatusChanges(start, lieutenants(start, 1), later(0))
+    const up = logStatusChanges(g, setStatusOverride(g, main(g).id, { count: 3 }), later(5000))
+    expect(statusLines(up).map((e) => e.text)).toHaveLength(2)
+    const back = logStatusChanges(up, setStatusOverride(up, main(up).id, undefined), later(5500))
+    expect(statusLines(back).map((e) => e.text)).toEqual(["Gravelord's status die is now d10 (5 GM minions and lieutenants)."])
+  })
+
   it('logs nothing when the count moves within a tier, or nothing changed', () => {
     const g = minions(table('overlord'), 5)
     expect(statusLines(logStatusChanges(g, minions(g, 1, false, 'More'), c))).toEqual([])

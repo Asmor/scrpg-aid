@@ -728,6 +728,13 @@ export function renameChallengeSteps(game: Game, challengeId: string, labels: re
   return changeChallenge(game, challengeId, (c) => ({ ...c, steps: c.steps.map((s, i) => ({ ...s, label: (labels[i] ?? s.label).trim().slice(0, MAX_NAME) || `Step ${i + 1}` })) }))
 }
 
+/** ⋯ Edit steps…: the step names, and the optional description and "when it's done" text. */
+export function editChallenge(game: Game, challengeId: string, edit: { labels: readonly string[]; description: string; whenDone: string }): Game {
+  const description = edit.description.trim().slice(0, MAX_TEXT)
+  const whenDone = edit.whenDone.trim().slice(0, MAX_TEXT)
+  return changeChallenge(renameChallengeSteps(game, challengeId, edit.labels), challengeId, ({ description: _d, whenDone: _w, ...c }) => ({ ...c, ...(description ? { description } : {}), ...(whenDone ? { whenDone } : {}) }))
+}
+
 // ---- Turn order (popcorn) ----
 
 /** Who hasn't acted this round and isn't acting now. */

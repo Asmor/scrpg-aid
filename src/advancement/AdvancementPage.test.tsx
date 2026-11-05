@@ -206,6 +206,23 @@ describe('the Advancement page', () => {
     expect(screen.getByText(/^Swapped .* for Principle of Destiny\.$/)).toBeInTheDocument()
   })
 
+  it('a principle with a blank fills its preview as you type, and an empty field is an issue there', async () => {
+    await setup()
+    await userEvent.click(screen.getByRole('button', { name: 'Swap a principle…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Swap a principle' }))
+    await userEvent.click(within(dialog.getByRole('radiogroup', { name: 'Principle to replace' })).getAllByRole('radio')[0]!)
+    await userEvent.selectOptions(dialog.getByLabelText('New principle'), 'Principle of [Energy/Element]')
+    const field = dialog.getByLabelText(/^Energy\/Element/)
+    expect(dialog.getAllByText(/\[energy\/element\]/).length).toBeGreaterThan(0)
+    expect(field).toBeInvalid()
+    expect(field).toHaveAccessibleDescription('Fill in [Energy/Element] for Principle of [Energy/Element].')
+    expect(dialog.getByText(/1 rule issue; you can swap anyway\./)).toBeInTheDocument()
+    await userEvent.type(field, 'Lava')
+    expect(field).toBeValid()
+    expect(dialog.queryByText(/\[energy\/element\]/)).toBeNull()
+    expect(dialog.getAllByText(/lava/i).length).toBeGreaterThan(0)
+  })
+
   it('swaps an ability from the same list, with the same trait filled in', async () => {
     await setup()
     await userEvent.click(screen.getByRole('button', { name: 'Swap an ability…' }))

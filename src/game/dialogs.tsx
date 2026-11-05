@@ -11,7 +11,7 @@ import type { Die } from '../rules/types'
 import { MAX_GROUP_SIZE, MAX_STEPS, type ActorRef, type Game, type NpcGroup } from './model'
 import { actorKey, sameActor } from './table'
 import type { DiffSection } from './sheet-diff'
-import { MAX_NAME } from '../session/protocol'
+import { MAX_NAME, MAX_TEXT } from '../session/protocol'
 
 function Actions({ submit, onCancel, disabled = false }: { submit: string; onCancel: () => void; disabled?: boolean }) {
   return (
@@ -121,17 +121,21 @@ export function AddChallengeDialog({ onAdd, onClose, canSave = false, submit = '
   )
 }
 
-/** ⋯ Edit steps…: renames a challenge's steps. */
-export function EditStepsDialog({ name, labels, onSave, onClose }: { name: string; labels: readonly string[]; onSave: (labels: string[]) => void; onClose: () => void }) {
+/** ⋯ Edit steps…: a challenge's step names, and its optional description and "when it's done" text. */
+export function EditStepsDialog({ name, labels, description, whenDone, onSave, onClose }: { name: string; labels: readonly string[]; description?: string | undefined; whenDone?: string | undefined; onSave: (edit: { labels: string[]; description: string; whenDone: string }) => void; onClose: () => void }) {
   const [draft, setDraft] = useState([...labels])
+  const [about, setAbout] = useState(description ?? '')
+  const [done, setDone] = useState(whenDone ?? '')
   return (
     <Modal title={`Steps of ${name}`} onClose={onClose}>
-      <form className="gt-form" onSubmit={submitWith(() => (onSave(draft), onClose()))}>
+      <form className="gt-form" onSubmit={submitWith(() => (onSave({ labels: draft, description: about, whenDone: done }), onClose()))}>
+        <Field label="Description (optional)">{(id) => <textarea id={id} rows={2} maxLength={MAX_TEXT} value={about} onChange={(e) => setAbout(e.target.value)} />}</Field>
         {draft.map((label, i) => (
           <Field key={i} label={`Step ${i + 1}`}>
             {(id) => <input id={id} type="text" maxLength={MAX_NAME} value={label} onChange={(e) => setDraft((all) => all.map((l, j) => (j === i ? e.target.value : l)))} />}
           </Field>
         ))}
+        <Field label="When it's done (optional)">{(id) => <textarea id={id} rows={2} maxLength={MAX_TEXT} value={done} onChange={(e) => setDone(e.target.value)} />}</Field>
         <Actions submit="Save" onCancel={onClose} />
       </form>
     </Modal>

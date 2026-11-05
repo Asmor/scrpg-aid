@@ -86,6 +86,16 @@ export function overcomeOutcome(value: number): string {
   return OUTCOMES[band(value)]!
 }
 
+/** Whether this Overcome only succeeds by taking a major twist. */
+export function overcomeNeedsMajorTwist(value: number): boolean {
+  return band(value) === 1
+}
+
+/** Whether a villain's Overcome with this value fails: it never takes the major twist that would save it (p. 155). */
+export function villainOvercomeFails(value: number): boolean {
+  return band(value) <= 1
+}
+
 /**
  * The mods checked when a roll starts (docs/design/hero-sheet/spec.md, "Roll flow"; the user
  * chose this over GOAL.md's older defaults): every non-exclusive penalty and the largest

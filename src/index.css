@@ -8202,6 +8202,18 @@ ol.vw-conditions li {
   background: var(--ui-surface-2);
 }
 
+/*
+ * The text takes the spare room while the control fits beside it. When it doesn't, the control
+ * wraps under the text and fills the row.
+ */
+.gt-status-box > .gt-grow {
+  flex: 999 1 10rem;
+}
+
+.gt-status-box > select {
+  flex: 1 1 auto;
+}
+
 .gt-ladder {
   display: flex;
   flex-wrap: wrap;
@@ -8335,6 +8347,14 @@ ol.vw-conditions li {
   border: 1px solid var(--ui-border);
   border-radius: 10px;
   font-size: 0.875rem;
+}
+
+.gt-danger > .gt-grow {
+  flex: 999 1 14rem;
+}
+
+.gt-danger > .button {
+  flex: 1 1 auto;
 }
 
 .gt-twists {

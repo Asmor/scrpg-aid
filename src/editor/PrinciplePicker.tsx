@@ -9,7 +9,9 @@ import type { PrincipleCategoryId } from '../rules/types'
 import { CUSTOM_PRINCIPLE_ID, type CustomPrinciple, type PrincipleChoice } from '../hero/model'
 import { ACTION_LABEL, ACTIONS, textEffects, type Action } from '../creation/effects'
 import type { AbilityEffect, EffectUse } from '../rules/types'
-import { SectionIssues } from './inline-issues'
+import { fillPrinciple } from '../creation/sheet'
+import { principleBlankField } from '../creation/principles'
+import { IssueField, SectionIssues } from './inline-issues'
 
 interface PrinciplePickerProps {
   /** Leave out to offer every principle (the change-principle retcon). */
@@ -165,16 +167,22 @@ export function PrinciplePicker({ category, label = 'Principle', choice, onChang
       {principle && choice && (
         <div className="principle-picker__detail">
           {principle.customization && (
-            <label className="field">
-              <span>{principle.customization}</span>
-              <input
-                type="text"
-                value={choice.customization ?? ''}
-                onChange={(e) => onChange({ ...choice, customization: e.target.value })}
-              />
-            </label>
+            <IssueField field={principleBlankField(principle.id)}>
+              {(f) => (
+                <label className="field">
+                  <span>{principle.customization}</span>
+                  <input
+                    type="text"
+                    value={choice.customization ?? ''}
+                    onChange={(e) => onChange({ ...choice, customization: e.target.value })}
+                    {...f.control}
+                  />
+                  {f.list}
+                </label>
+              )}
+            </IssueField>
           )}
-          <p>{principle.roleplaying}</p>
+          <p>{fillPrinciple(principle.roleplaying, choice)}</p>
           <p className="page-ref">{formatEntryRef(principle)}</p>
         </div>
       )}

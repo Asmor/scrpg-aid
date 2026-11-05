@@ -297,6 +297,9 @@ export interface Game {
 
 export type { TrackerCounts }
 
+/** Who a log line is by, to show before it; nothing when the line already opens with that name. */
+export const logByline = (entry: Pick<GameFeedEntry, 'by' | 'text'>): string | undefined => (entry.text.startsWith(`${entry.by} `) || entry.text.startsWith(`${entry.by}'s `) ? undefined : entry.by)
+
 /** Every step of a challenge is done. */
 export const challengeDone = (challenge: Pick<Challenge, 'steps'>) => challenge.steps.length > 0 && challenge.steps.every((s) => s.done)
 

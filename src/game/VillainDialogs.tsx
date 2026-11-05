@@ -3,10 +3,11 @@
  * heroes at this table with a stepper (defaulting to the game's hero count), the Health that
  * gives, and, when bringing it in, the templates it comes with, each checked, with how many.
  */
-import { useEffect, useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useOptionalTemplateStores } from '../app/template-store-context'
 import { DieIcon } from '../components/icons'
 import { Modal } from '../components/Modal'
+import { overcomeNeedsMajorTwist, overcomeOutcome, villainOvercomeFails } from '../play/roll'
 import { MAX_GROUP_SIZE, templateName, type LieutenantTemplate, type MinionTemplate } from '../template/model'
 import { villainDisplayName, type Villain, type VillainAttachment } from '../villain/model'
 import { villainHealth } from '../villain/sheet'
@@ -228,18 +229,29 @@ export function VillainTwistDialog({ name, onMinor, onCaptured, onEscapes, onClo
   )
 }
 
-/** After the tracker Overcome's roll: the GM reads the result and says how it went. */
+/**
+ * After the tracker Overcome's roll: the outcome table's reading, then the GM says how it went. A
+ * result that needs a major twist is a failure for a villain (p. 155), so that's the suggestion.
+ */
 export function DangerResultDialog({ name, total, onResult, onClose }: { name: string; total: number | undefined; onResult: (success: boolean) => void; onClose: () => void }) {
+  const fails = total !== undefined && villainOvercomeFails(total)
+  const suggested = useRef<HTMLButtonElement>(null)
   return (
-    <Modal title="Make the scene more dangerous" onClose={onClose}>
-      <p>
-        {name} rolled {total ?? 'an Overcome'}. Did it succeed? Either way, the use is spent.
-      </p>
+    <Modal title="Make the scene more dangerous" onClose={onClose} initialFocus={suggested}>
+      {total === undefined ? (
+        <p>{name} rolled an Overcome.</p>
+      ) : (
+        <p>
+          {name} rolled {total}: <strong>{overcomeOutcome(total)}.</strong>
+          {overcomeNeedsMajorTwist(total) ? " Villains don't take major twists, so that's a failure." : ''}
+        </p>
+      )}
+      <p>Did it succeed? Either way, the use is spent.</p>
       <div className="button-row gt-dialog-actions">
-        <button type="button" className="button button--primary" onClick={() => onResult(true)}>
+        <button ref={fails ? undefined : suggested} type="button" className={fails ? 'button' : 'button button--primary'} onClick={() => onResult(true)}>
           Success: advance the tracker
         </button>
-        <button type="button" className="button" onClick={() => onResult(false)}>
+        <button ref={fails ? suggested : undefined} type="button" className={fails ? 'button button--primary' : 'button'} onClick={() => onResult(false)}>
           Failure
         </button>
       </div>

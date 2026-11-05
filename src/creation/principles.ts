@@ -46,6 +46,16 @@ function categoryName(id: PrincipleCategoryId): string {
   return principleCategories.find((c) => c.id === id)?.name ?? id
 }
 
+/** The field a principle's [blank] is filled in, as its issue names it. */
+export const principleBlankField = (principleId: string) => `principle-blank:${principleId}`
+
+/** A principle chosen outside a step (swapping one at advancement): what's wrong with it. */
+export function principleChoiceIssues(choice: PrincipleChoice | undefined): RuleWarning[] {
+  const warnings: RuleWarning[] = []
+  if (choice) checkChoice(choice, undefined, 'archetype', warnings)
+  return warnings
+}
+
 /** Checks one principle choice: it exists, fits the category (if one applies), and has its blank filled. */
 function checkChoice(choice: PrincipleChoice, category: PrincipleCategoryId | undefined, step: StepId, warnings: RuleWarning[]): void {
   const principle = principleOf(choice)
@@ -73,7 +83,7 @@ function checkChoice(choice: PrincipleChoice, category: PrincipleCategoryId | un
     )
   }
   if (principle.customization && !choice.customization?.trim()) {
-    warnings.push(warning(step, 'principle-blank', `Fill in [${principle.customization}] for ${principle.name}.`))
+    warnings.push(warning(step, 'principle-blank', `Fill in [${principle.customization}] for ${principle.name}.`, principleBlankField(principle.id)))
   }
 }
 

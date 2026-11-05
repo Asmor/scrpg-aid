@@ -8,7 +8,7 @@ import { applyHeroAction } from './actions'
 import { challengeDone, createGame, type Game } from './model'
 import { project } from './project'
 import { parseSavedGame, gameToSaved } from './serialize'
-import { addChallenge, addHero, addVillain, answerRequest, removeFromTable, renameChallengeSteps, resetChallenge, setChallengeStep, setHidden, stepsText, titanStepLabels, updateSheet } from './table'
+import { addChallenge, addHero, addVillain, answerRequest, editChallenge, removeFromTable, renameChallengeSteps, resetChallenge, setChallengeStep, setHidden, stepsText, titanStepLabels, updateSheet } from './table'
 import { defaultChoices, duplicateGame, draftAddVillain, draftOfNew, moveToTable, savePlannedScene, setAside, startPlan, startScene, refKey } from './scenes'
 import { villainStatus } from './villain-status'
 
@@ -296,5 +296,18 @@ describe("the Titan's challenge", () => {
     expect(g.challenges[0]!.linkedVillainId).toBeUndefined()
     g = updateSheet(g, { kind: 'villain', id, sheet: titan() }, c)
     expect(g.challenges.filter((x) => x.linkedVillainId === id)).toHaveLength(1)
+  })
+})
+
+describe('editChallenge', () => {
+  const clock: Clock = { now: new Date('2026-11-04T12:00:00Z'), newId: () => 'x' }
+  it('sets the steps and the optional texts, and clears a text left blank', () => {
+    let g = addChallenge(createGame({ id: 'g' }), { name: 'Furnace', steps: 2, hidden: false }, clock)
+    const id = g.challenges[0]!.id
+    g = editChallenge(g, id, { labels: ['Vent', ''], description: ' It will blow. ', whenDone: 'It sputters out.' })
+    expect(g.challenges[0]).toMatchObject({ description: 'It will blow.', whenDone: 'It sputters out.', steps: [{ label: 'Vent' }, { label: 'Step 2' }] })
+    g = editChallenge(g, id, { labels: ['Vent', 'Burn'], description: ' ', whenDone: '' })
+    expect(g.challenges[0]).not.toHaveProperty('description')
+    expect(g.challenges[0]).not.toHaveProperty('whenDone')
   })
 })

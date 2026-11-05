@@ -75,24 +75,26 @@ function otherVillains(villain: VillainInGame, table: StatusTable): TableCount {
 interface CountWords {
   label: (name: string) => string
   rule: string
-  count: (n: number) => string
+  /** What's counted: one, for the stepper's buttons and a count of 1, and many. */
+  one: string
+  many: string
 }
 
-const plural = (one: string, many: string) => (n: number) => `${n} ${n === 1 ? one : many}`
+const counted = (words: CountWords, n: number) => `${n} ${n === 1 ? words.one : words.many}`
 
 const COUNT_WORDS: Readonly<Record<string, CountWords>> = {
-  overlord: { label: () => 'GM minions and lieutenants in the scene', rule: 'GM minions and lieutenants in the scene', count: plural('GM minion or lieutenant', 'GM minions and lieutenants') },
-  legion: { label: () => 'GM minions in the scene', rule: 'GM minions in the scene', count: plural('GM minion', 'GM minions') },
-  domain: { label: () => "The environment's minions and lieutenants, and challenges not yet done", rule: "the environment's minions, lieutenants and challenges in the scene", count: plural('environment minion, lieutenant or challenge', 'environment minions, lieutenants and challenges') },
-  squad: { label: () => 'Other villains in the scene', rule: 'other villains in the scene', count: plural('other villain', 'other villains') },
-  loner: { label: () => 'Other villains in the scene', rule: 'other villains in the scene', count: plural('other villain', 'other villains') },
-  inhibitor: { label: () => 'Heroes with at least one penalty', rule: 'heroes with at least one penalty', count: plural('hero with a penalty', 'heroes with a penalty') },
-  guerrilla: { label: (name) => `Opponents engaged with ${name}`, rule: 'opponents engaged with it', count: plural('opponent engaged', 'opponents engaged') },
-  predator: { label: (name) => `Heroes engaged with ${name}`, rule: 'heroes engaged with it', count: plural('hero engaged', 'heroes engaged') },
-  inventor: { label: () => 'Bonuses and penalties made with Inventions or Science, and inventions in the scene', rule: 'its inventions in play', count: plural('invention in play', 'inventions in play') },
+  overlord: { label: () => 'GM minions and lieutenants in the scene', rule: 'GM minions and lieutenants in the scene', one: 'GM minion or lieutenant', many: 'GM minions and lieutenants' },
+  legion: { label: () => 'GM minions in the scene', rule: 'GM minions in the scene', one: 'GM minion', many: 'GM minions' },
+  domain: { label: () => "The environment's minions and lieutenants, and challenges not yet done", rule: "the environment's minions, lieutenants and challenges in the scene", one: 'environment minion, lieutenant or challenge', many: 'environment minions, lieutenants and challenges' },
+  squad: { label: () => 'Other villains in the scene', rule: 'other villains in the scene', one: 'other villain', many: 'other villains' },
+  loner: { label: () => 'Other villains in the scene', rule: 'other villains in the scene', one: 'other villain', many: 'other villains' },
+  inhibitor: { label: () => 'Heroes with at least one penalty', rule: 'heroes with at least one penalty', one: 'hero with a penalty', many: 'heroes with a penalty' },
+  guerrilla: { label: (name) => `Opponents engaged with ${name}`, rule: 'opponents engaged with it', one: 'opponent engaged', many: 'opponents engaged' },
+  predator: { label: (name) => `Heroes engaged with ${name}`, rule: 'heroes engaged with it', one: 'hero engaged', many: 'heroes engaged' },
+  inventor: { label: () => 'Bonuses and penalties made with Inventions or Science, and inventions in the scene', rule: 'its inventions in play', one: 'invention in play', many: 'inventions in play' },
 }
 
-const FALLBACK_WORDS: CountWords = { label: () => 'The count', rule: 'its count', count: plural('counted', 'counted') }
+const FALLBACK_WORDS: CountWords = { label: () => 'The count', rule: 'its count', one: 'counted', many: 'counted' }
 
 const wordsFor = (archetypeId: string | undefined) => COUNT_WORDS[archetypeId ?? ''] ?? FALLBACK_WORDS
 
@@ -109,6 +111,9 @@ export function tableCount(villain: VillainInGame, table: StatusTable): TableCou
 export const countLabel = (villain: VillainInGame) => wordsFor(villain.sheet.archetype?.id).label(villainDisplayName(villain.sheet))
 
 const ZONE_NAME: Record<Zone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red' }
+
+/** What the stepper counts, for its buttons: "GM minion or lieutenant". */
+export const countUnit = (villain: VillainInGame) => wordsFor(villain.sheet.archetype?.id).one
 
 /** The rule in one line, for the Running panel: "Overlord · by GM minions and lieutenants in the scene". */
 export function statusRuleLine(villain: VillainInGame): string {
@@ -180,12 +185,12 @@ function byRule(villain: VillainInGame, rule: VillainStatusRule, table: StatusTa
     }
     case 'count': {
       const words = wordsFor(villain.sheet.archetype?.id)
-      const counted = tableCount(villain, table)
+      const fromTable = tableCount(villain, table)
       const override = villain.statusOverride?.count
       // Counted by hand, either by choice or because the app can't see what's counted.
-      const count = counted ? (override ?? counted.count) : Math.max(0, villain.play.statusCount ?? 0)
+      const count = fromTable ? (override ?? fromTable.count) : Math.max(0, villain.play.statusCount ?? 0)
       const tier = tierFor(rule.tiers, count)
-      return { ...(tier ? { die: tier.die } : {}), source: counted && override === undefined ? 'auto' : 'count', reason: words.count(count), count }
+      return { ...(tier ? { die: tier.die } : {}), source: fromTable && override === undefined ? 'auto' : 'count', reason: counted(words, count), count }
     }
     case 'weakness': {
       const tier = rule.tiers[villain.play.weaknessTier ?? rule.tiers.length - 1] ?? rule.tiers.at(-1)
@@ -242,9 +247,11 @@ export const STATUS_COALESCE_MS = 1000
 const statusLine = (name: string, status: VillainStatus) => `${name}'s status die is now ${status.die} (${status.reason}).`
 
 /**
- * Logs each villain whose status die a change moved, GM only. A villain's changes within a second
- * share one line, so removing several minions at once logs once. A villain just arriving, or
- * leaving, has no change to log.
+ * Logs each villain whose status die a change moved, or whose die the GM set or cleared by hand,
+ * GM only. A villain's changes within a second share one line, so removing several minions at once
+ * logs once; a change by hand is a choice of its own, so it always gets its own line. A line that
+ * would only repeat the one before it isn't kept. A villain just arriving, or leaving, has no
+ * change to log.
  */
 export function logStatusChanges(before: Game, after: Game, clock: Clock): Game {
   if (before === after || after.solo || !after.villains.length) return after
@@ -254,14 +261,17 @@ export function logStatusChanges(before: Game, after: Game, clock: Clock): Game 
     if (!old) continue
     const was = villainStatus(old, before)?.die
     const status = villainStatus(villain, after)
-    if (!status?.die || status.die === was) continue
-    const name = villainDisplayName(villain.sheet)
+    const byHand = old.statusOverride?.die !== villain.statusOverride?.die
+    if (!status?.die || (status.die === was && !byHand)) continue
+    const text = statusLine(villainDisplayName(villain.sheet), status)
     const at = clock.now.toISOString()
-    const recent = [...next.feed].reverse().find((e) => e.statusOf === villain.id)
-    if (recent && clock.now.getTime() - new Date(recent.at).getTime() < STATUS_COALESCE_MS) {
-      next = { ...next, feed: next.feed.map((e) => (e === recent ? { ...e, at, text: statusLine(name, status) } : e)) }
-    } else {
-      const entry: GameFeedEntry = { id: clock.newId(), at, by: 'GM', text: statusLine(name, status), gmOnly: true, statusOf: villain.id }
+    const lines = next.feed.filter((e) => e.statusOf === villain.id)
+    const recent = lines.at(-1)
+    if (!byHand && recent && clock.now.getTime() - new Date(recent.at).getTime() < STATUS_COALESCE_MS) {
+      // Back where it was before this burst of changes: no line at all.
+      next = lines.at(-2)?.text === text ? { ...next, feed: next.feed.filter((e) => e !== recent) } : { ...next, feed: next.feed.map((e) => (e === recent ? { ...e, at, text } : e)) }
+    } else if (recent?.text !== text) {
+      const entry: GameFeedEntry = { id: clock.newId(), at, by: 'GM', text, gmOnly: true, statusOf: villain.id }
       next = withLog(next, [entry])
     }
   }

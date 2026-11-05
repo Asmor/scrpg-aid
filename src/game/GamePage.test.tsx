@@ -625,6 +625,14 @@ describe('the game table', () => {
     expect((await savedHero()).play.mods[0]!.value).toBeLessThan(0)
   })
 
+  it("hides a revealed villain from its ⋯ menu", async () => {
+    const { saved } = await setup()
+    await bringIn('Ironclad')
+    await userEvent.click(within(screen.getByRole('article', { name: 'Ironclad' })).getByRole('button', { name: 'Reveal' }))
+    await menuItem('More for Ironclad', 'Hide from players')
+    await waitFor(async () => expect((await saved()).villains[0]!.hidden).toBe(true))
+  })
+
   it('sets what players see of a revealed villain', async () => {
     const { saved } = await setup()
     await bringIn('Ironclad')

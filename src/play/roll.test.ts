@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PlayMod } from '../hero/model'
 import type { AbilityEffect } from '../rules/types'
 import { emptyPlay } from './state'
-import { activePlans, chosenMods, modFlagsFor, confirmRoll, defaultAssignment, defaultModChoice, defaultPlans, toggleMod, rollChange, undoRoll, describeEffect, describeRolls, effectLineAction, hasDoubles, modSize, overcomeOutcome, poolDice, results, sortRolls, useValue, type Rolled } from './roll'
+import { activePlans, chosenMods, modFlagsFor, confirmRoll, defaultAssignment, defaultModChoice, defaultPlans, toggleMod, rollChange, undoRoll, describeEffect, describeRolls, effectLineAction, hasDoubles, modSize, overcomeNeedsMajorTwist, overcomeOutcome, poolDice, results, sortRolls, useValue, villainOvercomeFails, type Rolled } from './roll'
 
 const r = (label: string, die: Rolled['die'], value: number): Rolled => ({ label, die, value })
 // Speed d12 rolls 7, Fitness d10 rolls 3, Green status d8 rolls 5.
@@ -30,6 +30,11 @@ describe('the roll', () => {
   it('sizes Boosts and Hinders, and Overcome outcomes, in bands of four (p. 25–26)', () => {
     expect([0, 1, 3, 4, 7, 8, 11, 12, 20].map(modSize)).toEqual([0, 1, 1, 2, 2, 3, 3, 4, 4])
     expect([-1, 2, 5, 9, 13].map(overcomeOutcome)).toEqual(['Spectacular failure', 'Failure, or success with a major twist', 'Success with a minor twist', 'Full success', 'Success with an extra benefit'])
+  })
+
+  it('a villain fails rather than take the major twist a low Overcome needs', () => {
+    expect([0, 1, 3, 4, 8].map(overcomeNeedsMajorTwist)).toEqual([false, true, true, false, false])
+    expect([0, 1, 3, 4, 8].map(villainOvercomeFails)).toEqual([true, true, true, false, false])
   })
 })
 

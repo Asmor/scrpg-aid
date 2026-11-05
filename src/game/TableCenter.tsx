@@ -14,7 +14,8 @@ import { usePopover } from '../library/popover-state'
 import { modName, type PlayZone } from '../play/state'
 import { formatFull, formatWhen } from '../play/time'
 import type { Die } from '../rules/types'
-import { challengeDone, sceneDisplayName, type ActorRef, type Challenge, type GameFeedEntry, type HasTracker, type NpcGroup, type PlayersSee } from './model'
+import { overcomeOutcome } from '../play/roll'
+import { challengeDone, logByline, sceneDisplayName, type ActorRef, type Challenge, type GameFeedEntry, type HasTracker, type NpcGroup, type PlayersSee } from './model'
 import { actedText, actorKey, boxLabel, groupSummary, memberLabel, memberName, nextStep, roundOver, sameActor, sceneZone, stepsText, turnStrip, waiting, type ItemRef } from './table'
 import { heroOnTableName, viewHidden, viewName, type TableView } from './project'
 import { Modal } from '../components/Modal'
@@ -580,6 +581,7 @@ function ChallengeCard({ challenge, game, gm }: { challenge: Challenge; game: Ta
             <p>
               <strong>{heroName(r.heroId)}</strong> rolled <strong>{r.total}</strong> to Overcome on this challenge{r.trait ? `, using ${r.trait}` : ''}.
             </p>
+            <p>{overcomeOutcome(r.total)}</p>
             {nextIndex >= 0 && (
               <div className="button-row">
                 <button type="button" className="button button--primary button--small" aria-label={`Check off ${challenge.steps[nextIndex]!.label} for ${heroName(r.heroId)}`} onClick={() => gm.answerRequest(challenge, r.id, true)}>
@@ -598,10 +600,9 @@ function ChallengeCard({ challenge, game, gm }: { challenge: Challenge; game: Ta
           </p>
         ),
       )}
-      {done && (
+      {done && challenge.whenDone && (
         <p className="gt-done">
-          <strong>Done.</strong>
-          {challenge.whenDone ? ` ${challenge.whenDone}` : ''}
+          <strong>Done.</strong> {challenge.whenDone}
         </p>
       )}
     </article>
@@ -629,7 +630,8 @@ export function TableLog({ entries, now, gm, undo }: { entries: readonly GameFee
             {formatWhen(e.at, now)}
           </time>
           <span>
-            <strong>{e.by}:</strong> <DiceText text={e.text} />
+            {logByline(e) && <strong>{logByline(e)}: </strong>}
+            <DiceText text={e.text} />
             {e.gmOnly && <span className="gt-flag"> (only you see this)</span>}
             {gm && undo?.entryId === e.id && (
               <>
