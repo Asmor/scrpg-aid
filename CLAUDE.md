@@ -16,7 +16,7 @@ A progressive web app for creating, editing, saving, sharing, and exporting (PDF
 - `src/`: the app. React 19 + TypeScript (strict) + Vite, with `vite-plugin-pwa` for offline support. Rules logic lives in `src/rules/` (pure, UI-independent); tests sit next to the code as `*.test.ts(x)` and run in Vitest with jsdom and Testing Library.
 - `src/session/`: peer-to-peer game sessions (Phase 4). The GM's browser is the authority; Trystero (loaded on demand) connects peers, and `fakeNetwork()` in `transport.ts` stands in for it in tests. Messages and saved sessions are versioned and validated in `types.ts`, since they come from other people's browsers.
 - Storage: heroes are saved in the browser only (IndexedDB) for Phase 1, behind a storage interface so cloud storage (Drive, OneDrive, Dropbox) can be added later.
-- `.github/workflows/deploy.yml`: runs `npm run check` on every push and PR, and deploys `main` to GitHub Pages. `BASE_PATH` sets the URL prefix (`/<repo>/` on Pages, `/` locally).
+- `.github/workflows/deploy.yml`: runs `npm run check` on every push and PR, and deploys `main` to GitHub Pages, stamping `package.json` with a calendar version (`2026.11.5-42`: UTC date and run number) for that build only. `BASE_PATH` sets the URL prefix (`/<repo>/` on Pages, `/` locally).
 
 ## Commands
 

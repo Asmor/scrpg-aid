@@ -29,6 +29,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Calendar version for what gets published: 2026.11.5-42 is the UTC date and the workflow's run
+      # number, so two deploys in a day still differ. It's set here only and never committed. It goes
+      # before the build, which reads it from package.json for the About dialog.
+      - if: github.ref == 'refs/heads/main'
+        run: npm version "$(date -u +%Y.%-m.%-d)-${{ github.run_number }}" --no-git-tag-version
       - run: npm run check
       - if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v4
