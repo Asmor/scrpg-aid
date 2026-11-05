@@ -401,6 +401,18 @@ These came from questions the user put to the rules-expert agent about an action
 - **Decision:** Any that can add minions or a lieutenant to the scene: Summon Mob and Powerful Ally (Creator), Rapid Deployment (Overlord), Divide and Conquer, Parts of the Whole and Split Up (Legion), Alert! (Mook Squad), Minion Deployment (a Villainous Vehicle ability) and Brainwashing Zone. They carry `makesMinions: true` in the data.
 - **Basis:** Interpretation (the user's ruling).
 
+### 67. What counts for a Domain villain's status die
+- **Pages:** Domain (p. 222).
+- **Question:** The data counts "environment minions, lieutenants, and/or challenges in the scene". Does that take in every challenge on the table, or only the environment's?
+- **Decision:** Only the environment's minions, lieutenants and challenges. Challenges the GM added don't count unless given to the environment, and a Titan villain's challenge never counts.
+- **Basis:** Interpretation (the user's ruling).
+
+### 68. Whether knocked-out villains count as other villains
+- **Pages:** Loner (p. 230), Squad (p. 233).
+- **Question:** The data counts "other villains in the scene". Does a villain at 0 Health still count?
+- **Decision:** Yes. Knocked-out characters are still in play.
+- **Basis:** Interpretation (the user's ruling).
+
 ## Minions and lieutenants (p. 16–17, 204–207)
 
 ### 58. What makes a minion's save successful
