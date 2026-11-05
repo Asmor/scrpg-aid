@@ -9,9 +9,9 @@ export const GAME_FORMAT = 'scrpg-game'
  * Version 3 made a game a list of scenes (docs/design/scenes/spec.md). There are no real saves
  * yet, so older versions aren't carried forward: they read as unreadable. Version 4 gave
  * challenges labeled steps and players' requests (docs/design/villains-and-challenges/spec.md).
- * Version 5 gave challenges an owner.
+ * Version 5 gave challenges an owner. Version 6 put scenes in issues (docs/design/issues/spec.md).
  */
-export const GAME_VERSION = 5
+export const GAME_VERSION = 6
 
 export interface SavedGame {
   format: typeof GAME_FORMAT

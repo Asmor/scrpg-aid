@@ -29,7 +29,8 @@ import { normalizeRoomCode } from '../session/code'
 import { usePlayingSnapshot, useSession } from '../session/context'
 import { refusedText } from '../session/refused'
 import type { HeroAction } from './actions'
-import { gameDisplayName, sceneDisplayName } from './model'
+import { betweenIssues, gameDisplayName, sceneDisplayName } from './model'
+import { finishedPill } from './summary'
 import { heroOnTableName, viewName, type HeroOnTable, type TableView } from './project'
 import { PlayerPanel } from './PlayerPanel'
 import { healthLine, reconcile } from './reconcile'
@@ -211,7 +212,8 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
   const heroId = received?.you?.heroId
   const copy = table?.heroes.find((h) => h.id === heroId)
   const live = snap?.status === 'live'
-  const mine = Boolean(heroId && table && sameActor(table.turn.current, { kind: 'hero', id: heroId }))
+  const paused = Boolean(table && betweenIssues(table))
+  const mine = Boolean(heroId && table && !paused && sameActor(table.turn.current, { kind: 'hero', id: heroId }))
 
   // A new scene is a toast. The first number seen, and going back (the GM's Undo), aren't.
   const sceneNow = table?.scene.number
@@ -405,7 +407,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
             </a>
             <div className="gt-grow">
               <h1 className="gt-title">{gameName}</h1>
-              {table && <p className="gt-sub gt-header__line">{[table.round > 0 ? `Round ${table.round}` : 'Not started', sceneDisplayName(table)].join(' · ')}</p>}
+              {table && <p className="gt-sub gt-header__line">{paused ? finishedPill(table.issues) : [table.round > 0 ? `Round ${table.round}` : 'Not started', sceneDisplayName(table)].join(' · ')}</p>}
             </div>
             {table && <ZoneChip zone={sceneZone(table)} label={`SCENE ${sceneZone(table).toUpperCase()}`} />}
           </header>
@@ -449,12 +451,12 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
               ))}
             </div>
             <div id="gt-ptabpanel" role="tabpanel" aria-labelledby={`gt-ptab-${tab}`} className="gt-phone-panel">
-              {tab === 'table' ? <TableCenter game={table} heroes={heroes} villains={villains} now={now} compact /> : panel}
+              {tab === 'table' ? <TableCenter game={table} heroes={heroes} villains={villains} now={now} compact {...(received ? { gmName: received.gm } : {})} /> : panel}
             </div>
           </>
         ) : (
           <div className="gt-layout">
-            <TableCenter game={table} heroes={heroes} villains={villains} now={now} />
+            <TableCenter game={table} heroes={heroes} villains={villains} now={now} {...(received ? { gmName: received.gm } : {})} />
             {panel}
           </div>
         )}

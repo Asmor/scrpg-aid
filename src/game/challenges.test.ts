@@ -194,7 +194,7 @@ describe('what each audience receives', () => {
   })
 
   it('the action reads through the protocol', () => {
-    const base = { v: 5, type: 'action', id: 'a', heroId: 'h', basedOn: 0 }
+    const base = { v: 6, type: 'action', id: 'a', heroId: 'h', basedOn: 0 }
     expect(readClientMessage({ ...base, action: { kind: 'overcomeChallenge', challengeId: 'c', total: 9, trait: 'Agility' } })).toBeDefined()
     expect(readClientMessage({ ...base, action: { kind: 'overcomeChallenge', challengeId: 'c', total: 9999 } })).toBeUndefined()
   })

@@ -440,8 +440,14 @@ These came from questions the user put to the rules-expert agent about an action
 - **Pages:** Hero points and collections (p. 31–32).
 - **Question:** Hero points become bonuses at the end of an issue, and unused points and bonuses don't carry over. When can those bonuses be used, and when do they end?
 - **Decision:**
-  - At the end of each issue, a hero loses all current bonuses, wherever they came from.
+  - At the end of each issue, a hero loses all current bonuses and penalties, wherever they came from.
   - The hero then spends hero points on bonuses for the next issue.
+- **Basis:** Interpretation (the user's ruling).
+
+### 70. How big a Hero Point Reward can be
+- **Pages:** Hero points and collections (p. 31–32).
+- **Question:** The data read "+1 to +4", but a hero can hold 5 hero points. Can a hero buy a +5 bonus?
+- **Decision:** Yes. A bonus costs its size, and the limit is the points the hero has. The book's +1 to +4 are examples, not a limit.
 - **Basis:** Interpretation (the user's ruling).
 
 ## Data corrections

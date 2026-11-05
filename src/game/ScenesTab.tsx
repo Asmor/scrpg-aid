@@ -4,9 +4,9 @@
  * with the keyboard (Space to pick up, arrows to move, Space to drop); phones use Move up and
  * Move down in each row's ⋯.
  */
-import { useState, type DragEvent, type KeyboardEvent } from 'react'
+import { Fragment, useState, type DragEvent, type KeyboardEvent } from 'react'
 import type { MenuItem } from '../library/Popover'
-import { sceneName, sceneNumber, trackerFromCounts, type Game, type OppositionRef, type Scene } from './model'
+import { betweenIssues, currentIssue, sceneName, sceneNumber, trackerFromCounts, type Game, type OppositionRef, type Scene } from './model'
 import { asideChips, plannedForText, refKey, sceneChips, sceneDetail, trackerLine, type AsideChip } from './scenes'
 import { MenuButton } from './TableCenter'
 
@@ -23,6 +23,8 @@ export interface SceneActions {
   record: (sceneId: string) => void
   addAside: (ref: OppositionRef, sceneId: string) => void
   removeAside: (chip: AsideChip) => void
+  /** The Finish dialog, for the current issue. */
+  finish?: () => void
 }
 
 /** A tracker's boxes, small; `at` marks the current box (none for a planned scene). */
@@ -105,7 +107,7 @@ function SceneRow({ game, scene, next, actions, sheets, lifted, onHandleKey, onD
             Edit
           </button>
         )}
-        {next && (
+        {next && !betweenIssues(game) && (
           <button type="button" className="button button--primary button--small" aria-label={`Start ${name}`} onClick={() => actions.start(scene.id)}>
             Start this scene…
           </button>
@@ -144,6 +146,7 @@ function AsideItem({ game, chip, actions, sheets }: { game: Game; chip: AsideChi
 export function ScenesTab({ game, actions, sheets = false }: { game: Game; actions: SceneActions; sheets?: boolean }) {
   const next = game.scenes.find((s) => s.state === 'planned')
   const aside = asideChips(game)
+  const issue = currentIssue(game)
   const [lifted, setLifted] = useState<string | null>(null)
   const [announce, setAnnounce] = useState('')
   const [dragging, setDragging] = useState<string | null>(null)
@@ -170,8 +173,8 @@ export function ScenesTab({ game, actions, sheets = false }: { game: Game; actio
         {announce}
       </p>
       {game.scenes.map((s, i) => (
+        <Fragment key={s.id}>
         <SceneRow
-          key={s.id}
           game={game}
           scene={s}
           next={s.id === next?.id}
@@ -191,6 +194,12 @@ export function ScenesTab({ game, actions, sheets = false }: { game: Game; actio
           }}
           onDragEnd={() => setDragging(null)}
         />
+        {s.state === 'now' && issue && actions.finish && (
+          <button type="button" className="button" onClick={actions.finish}>
+            Finish issue {issue.number}…
+          </button>
+        )}
+        </Fragment>
       ))}
       <button type="button" className="button" onClick={actions.plan}>
         + Plan a scene

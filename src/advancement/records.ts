@@ -16,19 +16,48 @@ export interface IssueGame {
 
 const gameFields = (game: IssueGame | undefined) => (game ? { gameId: game.id, gameName: game.name } : {})
 
-/** Adds a back issue, if there's a title and room: a hero can't hold a seventh. */
-export function addBackIssue(hero: Hero, input: { title: string; game?: IssueGame }, clock: Clock): Hero {
+/** The finished issue a back issue comes from. */
+export interface IssueRef {
+  id: string
+  number: number
+}
+
+const issueFields = (issue: IssueRef | undefined) => (issue ? { issueId: issue.id, issueNumber: issue.number } : {})
+
+/** Whether the hero already holds this issue, as a back issue or in a collection. */
+export const holdsIssue = (hero: Pick<Hero, 'backIssues' | 'collections'>, issueId: string) => hero.backIssues.some((b) => b.issueId === issueId) || hero.collections.some((c) => c.issues.some((i) => i.issueId === issueId))
+
+/** Adds a back issue, if there's a title and room: a hero can't hold a seventh, or the same issue twice. */
+export function addBackIssue(hero: Hero, input: { title: string; game?: IssueGame; issue?: IssueRef }, clock: Clock): Hero {
   const title = input.title.trim()
-  if (!title || hero.backIssues.length >= BACK_ISSUES_PER_COLLECTION) return hero
-  const issue: BackIssue = { id: clock.newId(), title, ...gameFields(input.game), at: clock.now.toISOString() }
+  if (!title || hero.backIssues.length >= BACK_ISSUES_PER_COLLECTION || (input.issue && holdsIssue(hero, input.issue.id))) return hero
+  const issue: BackIssue = { id: clock.newId(), title, ...gameFields(input.game), ...issueFields(input.issue), at: clock.now.toISOString() }
   return { ...hero, backIssues: [...hero.backIssues, issue] }
+}
+
+/** What adding an issue's back issue would do: the prompt's three situations, or nothing at all. */
+export type BackIssueSituation = 'adds' | 'reachesSix' | 'alreadySix' | 'recorded'
+
+/** Which situation applies to this hero and issue, and its count now. */
+export function backIssueOffer(hero: Pick<Hero, 'backIssues' | 'collections'>, issueId: string): { situation: BackIssueSituation; count: number } {
+  const count = hero.backIssues.length
+  const situation = holdsIssue(hero, issueId) ? 'recorded' : count >= BACK_ISSUES_PER_COLLECTION ? 'alreadySix' : count === BACK_ISSUES_PER_COLLECTION - 1 ? 'reachesSix' : 'adds'
+  return { situation, count }
 }
 
 /** Changes a back issue's title and game. `game` undefined means None. */
 export function editBackIssue(hero: Hero, id: string, input: { title: string; game?: IssueGame }): Hero {
   const title = input.title.trim()
   if (!title) return hero
-  return { ...hero, backIssues: hero.backIssues.map((b) => (b.id === id ? { id: b.id, title, ...gameFields(input.game), at: b.at } : b)) }
+  return {
+    ...hero,
+    backIssues: hero.backIssues.map((b) => {
+      if (b.id !== id) return b
+      // It still came from that issue while it still names that game.
+      const issue = b.issueId && b.issueNumber !== undefined && input.game?.id === b.gameId ? { issueId: b.issueId, issueNumber: b.issueNumber } : {}
+      return { id: b.id, title, ...gameFields(input.game), ...issue, at: b.at }
+    }),
+  }
 }
 
 export function removeBackIssue(hero: Hero, id: string): Hero {
@@ -45,7 +74,7 @@ export function recordCollection(hero: Hero, name: string, clock: Clock): Hero {
   const named = name.trim()
   if (!named || hero.backIssues.length < BACK_ISSUES_PER_COLLECTION) return hero
   const at = clock.now.toISOString()
-  const issues = hero.backIssues.map((b) => ({ title: b.title, ...(b.gameName ? { gameName: b.gameName } : {}), at: b.at }))
+  const issues = hero.backIssues.map((b) => ({ title: b.title, ...(b.gameName ? { gameName: b.gameName } : {}), ...(b.issueId && b.issueNumber !== undefined ? { issueId: b.issueId, issueNumber: b.issueNumber } : {}), at: b.at }))
   return {
     ...hero,
     backIssues: [],

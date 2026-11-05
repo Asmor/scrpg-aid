@@ -139,6 +139,15 @@ export function addMod<P extends PlayCore>(play: P, mod: Omit<PlayMod, 'id'>, cl
   return withEntry({ ...play, mods: [...play.mods, added] }, entry(clock, `Gained ${describeMod(added)}${given.from ? ` from ${given.from}` : ''}.`))
 }
 
+/** "+2, −1": mods' sizes, for a line in the log. */
+export const modSizes = (mods: readonly Pick<PlayMod, 'value'>[]) => mods.map((m) => (m.value > 0 ? `+${m.value}` : `−${-m.value}`)).join(', ')
+
+/** Drops every bonus and penalty on the hero and their minions, noted in the history (the end of an issue, ruling 69). */
+export function clearHeroMods(play: PlayState, text: string, clock: Clock): PlayState {
+  if (!play.mods.length && !play.minions?.some((m) => m.mods.length)) return play
+  return withEntry({ ...play, mods: [], ...(play.minions ? { minions: play.minions.map((m) => ({ ...m, mods: [] })) } : {}) }, entry(clock, text))
+}
+
 /** Notes in the history a bonus or penalty given to another hero in a game session. */
 export function noteGivenMod<P extends PlayCore>(play: P, mod: Omit<PlayMod, 'id'>, to: string, clock: Clock): P {
   return withEntry(play, entry(clock, `Gave ${describeMod(mod)} to ${to}.`))

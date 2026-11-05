@@ -17,7 +17,7 @@ import { villainSummary } from '../villain/play'
 import type { PlayMod, PlayTwist } from '../hero/model'
 import type { PlayZone } from '../play/state'
 import type { Die } from '../rules/types'
-import { challengeDone, sceneOnTable, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type NpcGroup, type PendingHit, type PlayersSee, type SceneOnTable } from './model'
+import { challengeDone, sceneOnTable, type ActorRef, type Issue, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type NpcGroup, type PendingHit, type PlayersSee, type SceneOnTable } from './model'
 import { groupLabel, isHidden, sameActor } from './table'
 import { villainStatus } from './villain-status'
 
@@ -50,10 +50,19 @@ export interface VillainOnTable {
   twists?: PlayTwist[]
 }
 
+/** An issue as everyone sees it: never what players have answered, or anything planned. */
+export interface IssueOnTable extends Omit<Issue, 'acks'> {
+  /** How many scenes it holds so far. */
+  sceneCount: number
+}
+
 /** A game as one audience sees it. */
 export interface TableView {
   id: string
   name: string
+  issues: IssueOnTable[]
+  /** Unset between issues. */
+  currentIssueId?: string
   /** The current scene. Planned scenes, set aside items and scene notes are in no view but the GM's own game. */
   scene: SceneOnTable
   environment?: EnvironmentOnTable
@@ -102,6 +111,12 @@ function challengeFor(challenge: Challenge, heroId: string | undefined): Challen
   return { ...rest, ...(whenDone && challengeDone(challenge) ? { whenDone } : {}), requests: heroId ? challenge.requests.filter((r) => r.heroId === heroId) : [] }
 }
 
+function issueOnTable(issue: Issue, game: Game): IssueOnTable {
+  const copy = { ...issue }
+  delete copy.acks
+  return { ...copy, sceneCount: game.scenes.filter((s) => s.issueId === issue.id).length }
+}
+
 /** The game as `audience` sees it; a player's view is for their hero, `heroId`. */
 export function project(game: Game, audience: Audience, heroId?: string): TableView {
   const gm = audience === 'gm'
@@ -112,6 +127,8 @@ export function project(game: Game, audience: Audience, heroId?: string): TableV
   return {
     id: game.id,
     name: game.name,
+    issues: game.issues.map((issue) => issueOnTable(issue, game)),
+    ...(game.currentIssueId ? { currentIssueId: game.currentIssueId } : {}),
     // "Scene 3 of 4" is the GM's: how many are planned is private.
     scene: gm && total !== undefined ? { ...scene, total } : scene,
     ...(game.environment && (gm || !game.environment.hidden) ? { environment: gm ? game.environment : environmentForPlayers(game.environment) } : {}),

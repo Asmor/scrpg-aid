@@ -24,6 +24,7 @@ import { RollDialog, type FormPicker, type RollSubject } from '../play/RollDialo
 import { currentHealth, describeMod, effectiveZone, MAX_HERO_POINTS, modName, statusDieFor } from '../play/state'
 import type { PendingAction } from '../session/client'
 import type { HeroAction } from './actions'
+import { betweenIssues } from './model'
 import type { HeroOnTable, TableView } from './project'
 import { rollAction, targetId } from './roll-targets'
 import { targetOptions, viewTable } from './target-options'
@@ -32,7 +33,7 @@ import { MenuButton, ZoneChip } from './TableCenter'
 
 interface Props {
   hero: HeroOnTable
-  view: Pick<TableView, 'scene' | 'heroes' | 'villains' | 'groups' | 'pendingHits' | 'challenges'>
+  view: Pick<TableView, 'scene' | 'heroes' | 'villains' | 'groups' | 'pendingHits' | 'challenges' | 'currentIssueId'>
   /** Actions sent and not answered yet. */
   pending: readonly PendingAction[]
   /** Whether the GM is connected: actions can be sent. */
@@ -48,14 +49,16 @@ interface Props {
   random?: () => number
 }
 
-/** "Needs the GM", for a control's accessible description while it's disabled. */
-function NeedsGm({ id }: { id: string }) {
+/** Why controls are off, for each one's accessible description. */
+function WhyOff({ id, text }: { id: string; text: string }) {
   return (
     <span id={id} className="visually-hidden">
-      Needs the GM
+      {text}
     </span>
   )
 }
+
+const PAUSED_LABEL = 'Paused between issues'
 
 export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu, onCancelSync, onOpenSheet, note, random }: Props) {
   const id = useId()
@@ -63,7 +66,8 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
   const [rolling, setRolling] = useState<RollSubject | null>(null)
   const [adding, setAdding] = useState<'mod' | 'twist' | null>(null)
   const [twist, setTwist] = useState('')
-  const off = !live
+  const paused = betweenIssues(view)
+  const off = !live || paused
   const describedBy = off ? needs : undefined
 
   const sheet = buildSheet(hero.sheet)
@@ -109,7 +113,7 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
 
   return (
     <aside className="gt-side" aria-label="My hero">
-      {off && <NeedsGm id={needs} />}
+      {off && <WhyOff id={needs} text={paused ? PAUSED_LABEL : 'Needs the GM'} />}
       {note && (
         <section className="card gt-card gt-note" aria-label="About the game's copy">
           <p>
@@ -145,10 +149,14 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
         {syncWaiting && (
           <div className="gt-waiting" role="status">
             <p>Waiting for the GM to approve your sheet update. You can keep playing meanwhile.</p>
-            {button('Cancel request', onCancelSync, { small: true })}
+            {/* Sheet updates carry on between issues. */}
+            <button type="button" className="button button--small" disabled={!live} aria-describedby={!live ? needs : undefined} onClick={onCancelSync}>
+              Cancel request
+            </button>
           </div>
         )}
-        {off && <p className="gt-sub">Needs the GM: changes wait until the GM is connected.</p>}
+        {!live && <p className="gt-sub">Needs the GM: changes wait until the GM is connected.</p>}
+        {paused && <p className="gt-paused">{PAUSED_LABEL}</p>}
 
         <div className="gt-player__health">
           {button('−', () => act({ kind: 'health', by: -1 }), { aria: 'Lose 1 Health', disabled: health === undefined })}
@@ -329,7 +337,7 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
         {sending && <p className="gt-sub" role="status">Sending…</p>}
       </section>
 
-      {rolling && (
+      {rolling && !off && (
         <RollDialog
           subject={rolling}
           dice={dice}

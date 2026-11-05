@@ -19,7 +19,7 @@ import { MAX_NAME, MAX_TEXT } from '../session/protocol'
 import type { TemplateAbility } from '../template/model'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
 import { buildVillainSheet } from '../villain/sheet'
-import { challengeDone, heroCopy, MAX_ABILITIES, MAX_GROUP_SIZE, MAX_STEPS, sceneOnTable, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type HasTracker, type HeroInGame, type NpcGroup, type OppositionRef, type PendingHit, type PlayersSee, type Scene, type SceneOnTable, type TrackerCounts, type VillainInGame } from './model'
+import { betweenIssues, challengeDone, heroCopy, MAX_ABILITIES, MAX_GROUP_SIZE, MAX_STEPS, sceneOnTable, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type HasTracker, type HeroInGame, type NpcGroup, type OppositionRef, type PendingHit, type PlayersSee, type Scene, type SceneOnTable, type TrackerCounts, type VillainInGame } from './model'
 import { reconcile, reconcileVillain } from './reconcile'
 import { validCounts } from './validate'
 
@@ -799,7 +799,7 @@ export const roundOver = (game: Pick<Game, 'turn' | 'round'>) => game.round > 0 
 
 /** Whoever is acting hands off to someone who hasn't acted this round. */
 export function handOff(game: Game, to: ActorRef, clock: Clock): Game {
-  if (game.round === 0 || !waiting(game).some((w) => sameActor(w, to))) return game
+  if (betweenIssues(game) || game.round === 0 || !waiting(game).some((w) => sameActor(w, to))) return game
   const from = game.turn.current
   const acted = from ? [...game.turn.acted, from] : game.turn.acted
   const next = { ...game, turn: { ...game.turn, acted, current: to } }
@@ -811,7 +811,7 @@ export function handOff(game: Game, to: ActorRef, clock: Clock): Game {
 
 /** Starts the next round (or the first) with `first` acting: allowed before round 1 and once a round is over. */
 export function startRound(game: Game, first: ActorRef, clock: Clock): Game {
-  if (!(game.round === 0 || roundOver(game)) || !game.turn.order.some((o) => sameActor(o, first))) return game
+  if (betweenIssues(game) || !(game.round === 0 || roundOver(game)) || !game.turn.order.some((o) => sameActor(o, first))) return game
   const round = game.round + 1
   const next = { ...game, round, turn: { ...game.turn, acted: [], current: first } }
   const gmOnly = isHidden(game, first)

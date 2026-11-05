@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createHero } from '../hero/model'
 import { parseSaved, toSaved } from '../hero/serialize'
 import type { Clock } from '../play/state'
-import { addBackIssue, addStartingCollection, collectionsText, editBackIssue, followed, recordCollection, removeBackIssue } from './records'
+import { addBackIssue, addStartingCollection, backIssueOffer, collectionsText, editBackIssue, followed, recordCollection, removeBackIssue } from './records'
 
 const c: Clock = (() => {
   let n = 0
@@ -81,5 +81,33 @@ describe('collections', () => {
   it('survive a save and read', () => {
     const h = recordCollection(withIssues(6), 'Saga', c)
     expect(parseSaved(JSON.parse(JSON.stringify(toSaved(addBackIssue(h, { title: 'Next' }, c)))))).toMatchObject({ ok: true, hero: { collections: [{ name: 'Saga' }], backIssues: [{ title: 'Next' }] } })
+  })
+})
+
+describe('back issues from a finished issue', () => {
+  const issue = { id: 'i1', number: 2 }
+  const t = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `b${i}`, title: `T${i}`, at: 'x' }))
+
+  it('carries the issue, never twice', () => {
+    const hero = createHero('guided', { id: 'h' })
+    const once = addBackIssue(hero, { title: 'Saga', game: { id: 'g', name: 'Thursday' }, issue }, c)
+    expect(once.backIssues[0]).toMatchObject({ title: 'Saga', gameId: 'g', issueId: 'i1', issueNumber: 2 })
+    expect(addBackIssue(once, { title: 'Again', issue }, c)).toBe(once)
+  })
+
+  it('tells which situation applies', () => {
+    const hero = createHero('guided', { id: 'h' })
+    expect(backIssueOffer({ backIssues: t(4), collections: [] }, 'i1')).toEqual({ situation: 'adds', count: 4 })
+    expect(backIssueOffer({ backIssues: t(5), collections: [] }, 'i1').situation).toBe('reachesSix')
+    expect(backIssueOffer({ backIssues: t(6), collections: [] }, 'i1').situation).toBe('alreadySix')
+    expect(backIssueOffer({ backIssues: [{ ...t(1)[0]!, issueId: 'i1' }], collections: [] }, 'i1').situation).toBe('recorded')
+    expect(backIssueOffer({ ...hero, backIssues: [], collections: [{ id: 'c', name: 'C', at: 'x', issues: [{ title: 'T', issueId: 'i1', issueNumber: 1, at: 'x' }] }] }, 'i1').situation).toBe('recorded')
+  })
+
+  it('keeps the issue in a collection, and while an edit keeps the game', () => {
+    const hero = { ...createHero('guided', { id: 'h' }), backIssues: [{ ...t(1)[0]!, gameId: 'g', gameName: 'G', issueId: 'i1', issueNumber: 1 }, ...t(6).slice(1)] }
+    expect(recordCollection(hero, 'Saga', c).collections[0]!.issues[0]).toMatchObject({ issueId: 'i1', issueNumber: 1 })
+    expect(editBackIssue(hero, 'b0', { title: 'New', game: { id: 'g', name: 'G' } }).backIssues[0]).toMatchObject({ title: 'New', issueId: 'i1' })
+    expect(editBackIssue(hero, 'b0', { title: 'New' }).backIssues[0]).not.toHaveProperty('issueId')
   })
 })

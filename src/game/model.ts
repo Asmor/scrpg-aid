@@ -9,6 +9,10 @@
  * planned scene or set aside for later are in `offTable`, GM-only, so nothing that reads the
  * table can show them and a projection (./project.ts) can't send them.
  *
+ * Scenes belong to numbered issues (docs/design/issues/spec.md). One issue is current, or the game
+ * is between issues: `currentIssueId` is unset, no scene is current (`currentSceneId` still names
+ * the last one played, so the table can show its tracker faded), and the table is paused.
+ *
  * Every hero and villain on the table is a copy: the sheet copied from the library when it came
  * in, plus its play state. Damage stays in this game; the library document and other games never
  * change. The same character can be in several games, each with its own state. Groups of minions
@@ -251,6 +255,38 @@ export interface Scene {
   state: 'planned' | 'now' | 'done'
   /** A done scene's one-line summary. */
   summary?: string
+  /** The issue it was played in. A planned scene has none: it belongs to whichever issue is played next. */
+  issueId?: string
+}
+
+/** A hero offered a back issue when an issue finished. `sourceId` is how a player finds their own. */
+export interface OfferedHero {
+  heroId: string
+  sourceId: string
+  name: string
+}
+
+/** What a player did about a back issue: for the GM's information, never a change to the game's hero. */
+export interface IssueAck {
+  status: 'added' | 'later'
+  /** The hero's back issues now. */
+  count?: number
+  at: string
+}
+
+/** A numbered part of a game, holding scenes in order. */
+export interface Issue {
+  id: string
+  /** 1, 2, 3… */
+  number: number
+  /** Required once finished. */
+  title?: string
+  summary?: string
+  state: 'now' | 'finished'
+  finishedAt?: string
+  offeredTo?: OfferedHero[]
+  /** By hero id. The GM's only. */
+  acks?: Record<string, IssueAck>
 }
 
 /** Something set aside at the end of a scene, for a later one. */
@@ -279,6 +315,10 @@ export interface Game {
   /** Every scene in order: done, then the current one, then planned. Exactly one is current. */
   scenes: Scene[]
   currentSceneId: string
+  /** Every issue in order. */
+  issues: Issue[]
+  /** Unset between issues. */
+  currentIssueId?: string
   /** Set aside, kept in the game for a later scene (the copies are in `offTable`); the GM's only. */
   aside: AsideEntry[]
   offTable: OffTable
@@ -345,6 +385,18 @@ export function currentScene(game: Pick<Game, 'scenes' | 'currentSceneId'>): Sce
 /** A scene's number: its place in the list, from 1. */
 export const sceneNumber = (game: Pick<Game, 'scenes'>, sceneId: string) => game.scenes.findIndex((s) => s.id === sceneId) + 1
 
+/** The issue being played, if the game isn't between issues. */
+export const currentIssue = (game: Pick<Game, 'issues' | 'currentIssueId'>) => game.issues.find((i) => i.id === game.currentIssueId)
+
+/** The game is between issues: the table is paused until the GM starts the next one. */
+export const betweenIssues = (game: { currentIssueId?: string }) => !game.currentIssueId
+
+/** An issue's name: its title, or "Issue 2" until it has one. */
+export const issueTitle = (issue: Pick<Issue, 'title' | 'number'>) => issue.title?.trim() || `Issue ${issue.number}`
+
+/** A new issue, current. */
+export const createIssue = (id: string, number: number): Issue => ({ id, number, state: 'now' })
+
 /** The current scene as the table draws it. `total`, how many scenes there are, is the GM's only: the plan is private. */
 export interface SceneOnTable {
   name: string
@@ -371,7 +423,8 @@ export function sceneOnTable(game: Pick<Game, 'scenes' | 'currentSceneId'>): Sce
 /** Creates a new game at the first box of its first scene's tracker. `now` and `id` are injectable for tests. */
 export function createGame(options: { id?: string; now?: Date; name?: string } = {}): Game {
   const timestamp = (options.now ?? new Date()).toISOString()
-  const first = createScene({ state: 'now' })
+  const issue = createIssue(newId(), 1)
+  const first = { ...createScene({ state: 'now' }), issueId: issue.id }
   return {
     id: options.id ?? newId(),
     createdAt: timestamp,
@@ -380,6 +433,8 @@ export function createGame(options: { id?: string; now?: Date; name?: string } =
     name: options.name ?? '',
     scenes: [first],
     currentSceneId: first.id,
+    issues: [issue],
+    currentIssueId: issue.id,
     aside: [],
     offTable: emptyOffTable(),
     round: 0,

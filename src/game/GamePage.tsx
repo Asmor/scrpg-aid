@@ -10,6 +10,7 @@ import { gameDisplayPath, gamesPath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
 import { RenameHeading } from '../components/RenameHeading'
+import { Toasts, type ToastData } from '../components/Toasts'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { buildSheet } from '../creation/sheet'
 import type { Lookup } from '../editor/useDocumentEditor'
@@ -29,7 +30,12 @@ import { applySaves } from './npc'
 import { applyAttack, applyGroupRoll, giveMod, protect } from './resolve'
 import { parseTarget } from './roll-targets'
 import { applyHeroChange, type HeroChange } from './hero-changes'
-import { currentScene, gameDisplayName, sceneName, sceneNumber, sceneOnTable, type ActorRef, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
+import { betweenIssues, currentIssue, currentScene, gameDisplayName, issueTitle, sceneName, sceneNumber, sceneOnTable, type ActorRef, type Issue, type OfferedHero, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
+import { finishIssue, recordIssueAck, type FinishChoices, type OwnHeroState } from './issues'
+import { FinishIssueDialog } from './FinishIssueDialog'
+import { finishedPill } from './summary'
+import { addBackIssue, backIssueOffer } from '../advancement/records'
+import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 import { healthLine, reconcile, reconcileVillain } from './reconcile'
 import { SceneEditor, type EditorTarget } from './SceneEditor'
 import type { SceneDraft } from './scenes'
@@ -64,6 +70,7 @@ type Dialog =
   | { kind: 'environment' }
   | { kind: 'scene'; target: EditorTarget }
   | { kind: 'sceneStart'; sceneId: string }
+  | { kind: 'finishIssue' }
   | { kind: 'sceneRecord'; sceneId: string }
   | { kind: 'sceneDelete'; sceneId: string; number: number }
   | { kind: 'asideRemove'; ref: OppositionRef; name: string }
@@ -134,7 +141,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const templates = useOptionalTemplateStores()
   // Display windows of this game on this device (Open display view) get what observers see.
   // The game before a scene started, kept until the undo window closes.
-  const [sceneUndo, setSceneUndo] = useState<{ entryId: string; before: Game } | null>(null)
+  const [sceneUndo, setSceneUndo] = useState<{ entryId: string; before: Game; label: string; undone: string; toast?: string } | null>(null)
+  const [toasts, setToasts] = useState<ToastData[]>([])
   useEffect(() => {
     if (!sceneUndo) return
     const timer = setTimeout(() => setSceneUndo(null), SCENE_UNDO_MS)
@@ -186,15 +194,68 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
 
   // The host logs status changes itself, since players' actions go straight to it.
   const apply = host ? (fn: (g: Game) => Game) => host.apply(fn) : (fn: (g: Game) => Game) => editor.apply((g) => logStatusChanges(g, fn(g), clock()))
+  const between = betweenIssues(game)
+  const issue = currentIssue(game)
   const turnKey = `${game.round}:${game.turn.current ? T.actorKey(game.turn.current) : ''}`
   if (turnKey !== seenTurn) {
     setSeenTurn(turnKey)
     const current = game.turn.current
-    if (current?.kind === 'environment' && game.round > 0) {
+    if (current?.kind === 'environment' && game.round > 0 && !between) {
       setRunning({ kind: 'environment', id: current.id })
       if (phone) setTab('gm')
     }
   }
+  const addToast = (text: string, warn = false) => setToasts((t) => [...t, { id: clock().newId(), text, ...(warn ? { warn: true } : {}) }])
+
+  /** What the Finish dialog needs to know about the GM's own heroes' library documents. */
+  const ownHeroState = (sourceId: string): OwnHeroState => {
+    const entry = libraryHeroes.entries.get(sourceId)
+    if (entry?.status === 'missing') return { gone: true }
+    return entry?.status === 'ready' ? { gone: false, backIssues: entry.doc.backIssues.length } : { gone: false }
+  }
+
+  /** A back issue on one of the GM's own library heroes: what the toast says, and the status for the Back issues card. */
+  const addOwnBackIssue = async (finished: Issue, offered: OfferedHero) => {
+    const title = issueTitle(finished)
+    const r = await heroStore.get(offered.sourceId)
+    if (r.status !== 'found') return
+    const { situation, count } = backIssueOffer(r.hero, finished.id)
+    if (situation === 'recorded') return
+    if (situation === 'alreadySix') {
+      addToast(`${offered.name} already has six back issues. Name a collection on the Advancement page, then add ${title} from there.`)
+      apply((g) => recordIssueAck(g, finished.id, offered.heroId, { status: 'later', count }, clock()))
+      return
+    }
+    const c = clock()
+    const after = addBackIssue(r.hero, { title, game: { id: game.id, name: gameDisplayName(game) }, issue: { id: finished.id, number: finished.number } }, c)
+    await heroStore.save({ ...after, updatedAt: c.now.toISOString() })
+    addToast(`Added ${title} to ${offered.name}'s back issues (${count + 1} of ${BACK_ISSUES_PER_COLLECTION}).`)
+    apply((g) => recordIssueAck(g, finished.id, offered.heroId, { status: 'added', count: count + 1 }, clock()))
+  }
+
+  /** Finishes the issue, with Undo on its log line; the GM's own heroes get their back issues straight away. */
+  const finish = (choices: FinishChoices) => {
+    let finished: Issue | undefined
+    let undo: NonNullable<typeof sceneUndo> | null = null
+    apply((g) => {
+      const next = finishIssue(g, choices, clock())
+      const entry = next.feed.at(-1)
+      if (next !== g && entry) {
+        finished = next.issues.find((i) => i.id === g.currentIssueId)
+        undo = { entryId: entry.id, before: structuredClone(g), label: `Undo finishing issue ${finished!.number}`, undone: 'Issue finish undone.', toast: 'Undone. Back issues already added stay; remove them on the Advancement page if needed.' }
+      }
+      return next
+    })
+    setSceneUndo(undo)
+    const done = finished as Issue | undefined
+    if (!done) return
+    setAnnounce(`Issue ${done.number} finished: ${issueTitle(done)}.`)
+    for (const offered of done.offeredTo ?? []) {
+      if (T.findHero(game, offered.heroId)?.player) continue
+      addOwnBackIssue(done, offered).catch((e: unknown) => addToast(`Couldn't add the back issue to ${offered.name}: ${errorText(e)}`, true))
+    }
+  }
+
   const startHosting = (name: string) => {
     setHostError(null)
     void session.hostGame(game.id, name).then((why) => why && setHostError(why))
@@ -251,13 +312,29 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const nextScene = planned[0]
   // Someone joining or leaving since makes "restore it exactly" wrong for them, so Undo goes.
   const sameHeroes = (a: Game, b: Game) => a.heroes.map((h) => h.id).join() === b.heroes.map((h) => h.id).join()
-  const logUndo = sceneUndo && sameHeroes(sceneUndo.before, game) ? { entryId: sceneUndo.entryId, label: `Undo starting scene ${sceneNumber(game, game.currentSceneId)}`, onUndo: () => { const { before } = sceneUndo; setSceneUndo(null); apply(() => before); setAnnounce('Scene change undone.') } } : undefined
+  const logUndo =
+    sceneUndo && sameHeroes(sceneUndo.before, game)
+      ? {
+          entryId: sceneUndo.entryId,
+          label: sceneUndo.label,
+          onUndo: () => {
+            const { before, undone, toast } = sceneUndo
+            setSceneUndo(null)
+            apply(() => before)
+            setAnnounce(undone)
+            if (toast) addToast(toast)
+          },
+        }
+      : undefined
+  const nextUp = nextScene ? `Next up: scene ${sceneNumber(game, nextScene.id)}, ${sceneName(nextScene)} (planned).` : 'Nothing planned yet.'
   const gm: GmControls = {
     ...(logUndo ? { logUndo } : {}),
+    nextUp,
     setPosition: (i) => apply((g) => T.setTrackerPosition(g, i, clock())),
     sceneMenu: [
       { label: 'Edit this scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'current' } }) },
       nextScene ? { label: `Start the next scene: ${sceneName(nextScene)}…`, onSelect: () => setDialog({ kind: 'sceneStart', sceneId: nextScene.id }) } : { label: 'Plan the next scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'new' } }) },
+      { label: 'Finish the issue…', onSelect: () => setDialog({ kind: 'finishIssue' }) },
       {
         label: 'Plan scenes',
         onSelect: () => {
@@ -457,6 +534,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         record: (sceneId) => setDialog({ kind: 'sceneRecord', sceneId }),
         addAside: (ref, sceneId) => apply((g) => addAsideTo(g, ref, sceneId, clock())),
         removeAside: (chip) => setDialog({ kind: 'asideRemove', ref: chip.ref, name: chip.name }),
+        finish: () => setDialog({ kind: 'finishIssue' }),
       }}
       requests={game.pendingSyncs.flatMap((r) => {
         const copy = T.findHero(game, r.heroId)
@@ -473,7 +551,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   )
   const center = <TableCenter game={table} heroes={heroes} villains={villains} now={now} gm={gm} hideLog={phone} />
   const saveError = editor.saveError
-  const details = `${game.round > 0 ? `Round ${game.round}` : 'Not started'} · ${sceneName(currentScene(game))}`
+  const details = between ? finishedPill(game.issues) : `${game.round > 0 ? `Round ${game.round}` : 'Not started'} · ${sceneName(currentScene(game))}`
 
   return (
     <PopoverGroup>
@@ -651,20 +729,33 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
             setDialog(null)
             setRunning(null)
             const c = clock()
-            let undo: { entryId: string; before: Game } | null = null
+            let undo: { entryId: string; before: Game; label: string; undone: string } | null = null
             let line = ''
             apply((g) => {
               const next = startScene(g, sceneId, choices, c)
               const entry = next.feed.at(-1)
               if (next !== g && entry) {
                 // A copy: both the editor's draft and what the host hands over can change afterwards.
-                undo = { entryId: entry.id, before: structuredClone(g) }
+                undo = { entryId: entry.id, before: structuredClone(g), label: `Undo starting scene ${sceneNumber(next, sceneId)}`, undone: 'Scene change undone.' }
                 line = entry.text
               }
               return next
             })
             setSceneUndo(undo)
             if (line) setAnnounce(line)
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.kind === 'finishIssue' && issue && (
+        <FinishIssueDialog
+          game={game}
+          connected={connected}
+          own={ownHeroState}
+          onFinish={(choices) => {
+            setDialog(null)
+            setRunning(null)
+            finish(choices)
           }}
           onClose={() => setDialog(null)}
         />
@@ -806,6 +897,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           onClose={() => setDialog(null)}
         />
       )}
+      {toasts.length > 0 && <Toasts toasts={toasts} onDismiss={(id) => setToasts((t) => t.filter((x) => x.id !== id))} />}
       {dialog?.kind === 'fix' && (
         <FixTurnDialog
           part={dialog.part}

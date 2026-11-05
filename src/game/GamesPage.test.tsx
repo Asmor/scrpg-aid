@@ -12,7 +12,8 @@ import { adaptiveBruiser } from '../test/villains'
 import { downloadFile } from '../transfer/download'
 import { backupJson, readImport } from '../transfer/files'
 import { MemoryVillainStore } from '../villain/store'
-import { createGame, type Game } from './model'
+import { createGame, createScene, type Game } from './model'
+import { finishIssue } from './issues'
 import { MemoryJoinedStore, type JoinedGame } from './joined-store'
 import { project } from './project'
 import { createSoloGame } from './solo'
@@ -354,3 +355,15 @@ describe('the Games page', () => {
     })
   })
 })
+
+describe('a game between issues on the Games page', () => {
+  it('says the issue is finished and what comes next', async () => {
+    const game = named(createGame({ id: 'g1', name: 'Thursday game' }), 'The Foundry')
+    game.scenes.push(createScene({ id: 's2', name: 'Into the Tunnels' }))
+    await setup([finishIssue(game, { title: 'Saga', summary: '', heroIds: [] }, clock)])
+    const card = within(await screen.findByRole('article', { name: 'Thursday game' }))
+    expect(card.getByText('Issue 1 finished')).toBeInTheDocument()
+    expect(card.getByText('Next: Into the Tunnels')).toBeInTheDocument()
+  })
+})
+

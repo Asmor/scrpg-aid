@@ -15,7 +15,7 @@ import { modName, type PlayZone } from '../play/state'
 import { formatFull, formatWhen } from '../play/time'
 import type { Die } from '../rules/types'
 import { overcomeOutcome } from '../play/roll'
-import { challengeDone, logByline, sceneDisplayName, type ActorRef, type Challenge, type GameFeedEntry, type HasTracker, type NpcGroup, type PlayersSee } from './model'
+import { betweenIssues, challengeDone, issueTitle, logByline, sceneDisplayName, type ActorRef, type Challenge, type GameFeedEntry, type HasTracker, type NpcGroup, type PlayersSee } from './model'
 import { actedText, actorKey, boxLabel, groupSummary, memberLabel, memberName, nextStep, roundOver, sameActor, sceneZone, stepsText, turnStrip, waiting, type ItemRef } from './table'
 import { heroOnTableName, viewHidden, viewName, type TableView } from './project'
 import { Modal } from '../components/Modal'
@@ -87,8 +87,10 @@ export interface GmControls {
   answerRequest: (challenge: Challenge, requestId: string, check: boolean) => void
   /** Bottom sheets for menus (phones). */
   sheets: boolean
-  /** Undo for the scene just started. */
+  /** Undo for the scene just started or the issue just finished. */
   logUndo?: LogUndo
+  /** Between issues, what the end card says comes next: "Next up: scene 4, Into the Tunnels (planned)." */
+  nextUp?: string
 }
 
 export function ZoneChip({ zone, label }: { zone: PlayZone; label?: string }) {
@@ -251,6 +253,44 @@ function SceneCard({ game, gm }: { game: Pick<TableView, 'scene' | 'environment'
         Advances when the environment takes its turn.{gm && ' Click a box to correct it.'}
       </p>
       {gm && <MenuButton label="Scene menu" items={gm.sceneMenu} sheets={gm.sheets} />}
+    </section>
+  )
+}
+
+// ---- The end of an issue ----
+
+/** "Nov 5". */
+const finishedOn = (at: string | undefined) => (at ? new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '')
+
+/** The title and summary of the issue just finished, for the table and the Finish dialog's preview. */
+export function EndOfIssue({ number, title, summary, headingId }: { number: number; title: string; summary?: string | undefined; headingId?: string }) {
+  return (
+    <>
+      <div className="gt-end__over">END OF ISSUE {number}</div>
+      <h2 id={headingId} className="gt-end__title">
+        {title}
+      </h2>
+      {summary && <p className="gt-end__summary">{summary}</p>}
+    </>
+  )
+}
+
+/** Replaces the scene card and the turn order while the game is between issues (docs/design/issues/spec.md, section 4). */
+function EndCard({ game, gm, gmName }: { game: TableView; gm?: GmControls | undefined; gmName?: string | undefined }) {
+  const issue = game.issues.at(-1)
+  if (!issue) return null
+  const scenes = `${issue.sceneCount} ${issue.sceneCount === 1 ? 'scene' : 'scenes'} · finished ${finishedOn(issue.finishedAt)}.`
+  return (
+    <section className="card gt-card gt-end" aria-labelledby="gt-end">
+      <EndOfIssue number={issue.number} title={issueTitle(issue)} summary={issue.summary} headingId="gt-end" />
+      <div className="gt-row">
+        <div className="gt-end__tracker">
+          <Tracker game={game} />
+        </div>
+        <span className="gt-sub">
+          {scenes} {gm ? gm.nextUp : `The table is paused until ${gmName ?? 'the GM'} starts the next issue.`}
+        </span>
+      </div>
     </section>
   )
 }
@@ -668,9 +708,11 @@ interface CenterProps {
   hideLog?: boolean
   /** Heroes and opposition as tight rows, one per line (a player's phone). */
   compact?: boolean
+  /** The GM's name, for what players read between issues. */
+  gmName?: string
 }
 
-export function TableCenter({ game, heroes, villains, now, gm, hideLog = false, compact = false }: CenterProps) {
+export function TableCenter({ game, heroes, villains, now, gm, hideLog = false, compact = false, gmName }: CenterProps) {
   const current = game.turn.current
   // Hidden items are the GM's alone.
   const shownVillains = gm ? villains : villains.filter((v) => !v.hidden)
@@ -679,8 +721,14 @@ export function TableCenter({ game, heroes, villains, now, gm, hideLog = false, 
   const opposition = shownVillains.length + groups.length + challenges.length
   return (
     <div className={compact ? 'gt-center gt-center--compact' : 'gt-center'}>
-      <SceneCard game={game} gm={gm} />
-      <TurnCard game={game} gm={gm} />
+      {betweenIssues(game) ? (
+        <EndCard game={game} gm={gm} gmName={gmName} />
+      ) : (
+        <>
+          <SceneCard game={game} gm={gm} />
+          <TurnCard game={game} gm={gm} />
+        </>
+      )}
       <section aria-labelledby="gt-heroes">
         <div className="gt-section-head">
           <h2 id="gt-heroes">Heroes</h2>

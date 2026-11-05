@@ -254,6 +254,9 @@ export interface BackIssue {
   title: string
   gameId?: string
   gameName?: string
+  /** The finished issue it came from, if any (docs/design/issues/spec.md, section 6). A hero never holds one twice. */
+  issueId?: string
+  issueNumber?: number
   at: string
 }
 
@@ -262,7 +265,7 @@ export interface Collection {
   id: string
   name: string
   at: string
-  issues: { title: string; gameName?: string; at: string }[]
+  issues: { title: string; gameName?: string; issueId?: string; issueNumber?: number; at: string }[]
   starting?: true
 }
 

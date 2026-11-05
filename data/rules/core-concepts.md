@@ -88,7 +88,7 @@ The book leaves some of this open, especially for actions with more than one eff
 ## Hero points and collections (p. 31–32)
 
 - When a hero uses a principle in an Overcome action, every hero on the team gains a hero point. Meaningful social scenes also award hero points. Each hero can earn at most 5 per issue.
-- At the end of an issue, a hero loses all current bonuses, wherever they came from (ruling 69). Hero points then become exclusive bonuses (+1 to +4) for the next issue, whose sizes add up to the points spent. These are the "Hero Point Rewards" on the sheet. Unused points don't carry over.
+- At the end of an issue, a hero loses all current bonuses and penalties, wherever they came from (ruling 69). Hero points then become exclusive bonuses for the next issue, each costing its size, with no limit but the points the hero has (ruling 70). These are the "Hero Point Rewards" on the sheet. Unused points don't carry over.
 - After six back issues, the issues are combined into a named **collection**. Each collection can be used once per session to set one die to any value after a roll, to establish a fact from a past issue, or in place of taking a minor twist.
 
 ## Opposition basics (p. 16–17)

@@ -1,10 +1,14 @@
 /** What the Games page's cards say about a game (docs/design/game-table/spec.md, section 3). Pure. */
-import type { Game } from './model'
+import { betweenIssues, type Game, type Issue } from './model'
 import { heroOnTableName, viewName, type TableView } from './project'
 import { itemName } from './table'
 
+/** "Issue 1 finished", for a game between issues. */
+export const finishedPill = (issues: readonly Pick<Issue, 'number'>[]) => `Issue ${issues.at(-1)?.number ?? 1} finished`
+
 /** "Round 2 · Maya Reyes is acting", or "Set up, no rounds yet". */
 export function sceneLine(game: Game): string {
+  if (betweenIssues(game)) return finishedPill(game.issues)
   if (game.round === 0) return 'Set up, no rounds yet'
   const current = game.turn.current
   return [`Round ${game.round}`, current ? `${itemName(game, current)} is acting` : ''].filter(Boolean).join(' · ')
@@ -20,6 +24,7 @@ export function oppositionText(game: Game): { names: string; hidden?: string } |
 
 /** sceneLine for a game as a player sees it. */
 export function viewSceneLine(view: TableView): string {
+  if (betweenIssues(view)) return finishedPill(view.issues)
   if (view.round === 0) return 'Not started'
   const current = view.turn.current
   return [`Round ${view.round}`, current ? `${viewName(view, current, heroOnTableName)} is acting` : ''].filter(Boolean).join(' · ')

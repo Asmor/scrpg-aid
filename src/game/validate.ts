@@ -57,6 +57,25 @@ const sceneShape = object({
   notes: string,
   state: oneOf('planned', 'now', 'done'),
   'summary?': string,
+  'issueId?': nonEmptyString,
+})
+const issueShape = object({
+  id: nonEmptyString,
+  number: positiveInteger,
+  'title?': string,
+  'summary?': string,
+  state: oneOf('now', 'finished'),
+  'finishedAt?': string,
+  'offeredTo?': arrayOf(object({ heroId: nonEmptyString, sourceId: nonEmptyString, name: string })),
+  'acks?': (v, path) => {
+    if (!isRecord(v)) return `${path} should be an object`
+    const ack = object({ status: oneOf('added', 'later'), 'count?': integer, at: string })
+    for (const [key, value] of Object.entries(v)) {
+      const problem = ack(value, `${path}.${key}`)
+      if (problem) return problem
+    }
+    return undefined
+  },
 })
 
 const gameShape = object({
@@ -68,6 +87,8 @@ const gameShape = object({
   'solo?': object({ kind: oneOf('hero', 'villain'), sourceId: nonEmptyString }),
   scenes: arrayOf(sceneShape),
   currentSceneId: nonEmptyString,
+  issues: arrayOf(issueShape),
+  'currentIssueId?': nonEmptyString,
   aside: arrayOf(object({ ref: opposition, 'afterScene?': integer })),
   offTable: object({ villains: arrayOf(villainInGame), groups: arrayOf(groupShape), challenges: arrayOf(challengeShape), environments: arrayOf(environmentShape) }),
   'environment?': environmentShape,
@@ -94,9 +115,18 @@ export function validCounts(counts: TrackerCounts): boolean {
 export function gameProblem(value: unknown): string | undefined {
   const problem = gameShape(value, 'game')
   if (problem) return problem
-  const { scenes, currentSceneId } = value as Pick<Game, 'scenes' | 'currentSceneId'>
+  const { scenes, currentSceneId, issues, currentIssueId } = value as Pick<Game, 'scenes' | 'currentSceneId' | 'issues' | 'currentIssueId'>
   const now = scenes.filter((s) => s.state === 'now')
-  if (now.length !== 1 || now[0]!.id !== currentSceneId) return 'game.scenes should have exactly one current scene, game.currentSceneId'
+  const nowIssues = issues.filter((i) => i.state === 'now')
+  if (new Set(issues.map((i) => i.id)).size !== issues.length) return 'game.issues has two issues with one id'
+  if (currentIssueId === undefined) {
+    // Between issues: nothing is current, and the last scene played is what the table shows.
+    if (now.length || nowIssues.length) return 'a game between issues should have no current scene or issue'
+    if (scenes.find((s) => s.id === currentSceneId)?.state !== 'done') return 'game.currentSceneId should be the last scene played'
+  } else {
+    if (now.length !== 1 || now[0]!.id !== currentSceneId) return 'game.scenes should have exactly one current scene, game.currentSceneId'
+    if (nowIssues.length !== 1 || nowIssues[0]!.id !== currentIssueId) return 'game.issues should have exactly one current issue, game.currentIssueId'
+  }
   if (new Set(scenes.map((s) => s.id)).size !== scenes.length) return 'game.scenes has two scenes with one id'
   for (const scene of scenes) {
     if (!validCounts(scene.tracker)) return `scene ${scene.id} has box counts out of range`

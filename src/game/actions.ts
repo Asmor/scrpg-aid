@@ -20,7 +20,7 @@ import { addMod, addTwist, currentHealth, effectiveZone, MAX_HERO_POINTS, noteGi
 import type { BasicAction } from '../rules/types'
 import { applyAttack, giveMod, protect, targetHidden, targetName } from './resolve'
 import { defend } from './hits'
-import { challengeDone, sceneOnTable, type ActorRef, type Game, type HeroInGame } from './model'
+import { betweenIssues, challengeDone, sceneOnTable, type ActorRef, type Game, type HeroInGame } from './model'
 import { changeHeroPlay, findHero, handOff, heroPlayInScene, isHidden, itemName, resolveHit, roundOver, sameActor, startRound, waiting, withLog } from './table'
 
 export type ModInput = Omit<PlayMod, 'id'>
@@ -97,6 +97,9 @@ export interface ActionContext {
 /** The most Overcomes that wait on one challenge. */
 export const MAX_REQUESTS = 50
 
+/** Follows "Not applied: ". */
+export const PAUSED_REASON = 'the issue is over. Play is paused until the GM starts the next issue'
+
 const refuse = (reason: string): ActionResult => ({ ok: false, reason })
 
 /** The hero's play state as the rules see it in this game (with the scene's zone). */
@@ -114,6 +117,7 @@ function inScene(game: Game, hero: HeroInGame) {
 export function applyHeroAction(game: Game, heroId: string, action: HeroAction, ctx: ActionContext, clock: Clock): ActionResult {
   const hero = findHero(game, heroId)
   if (!hero) return refuse("your hero isn't in this game any more")
+  if (betweenIssues(game)) return refuse(PAUSED_REASON)
   const name = heroDisplayName(hero.sheet)
   const change = (fn: (play: PlayState, sheet: Hero) => PlayState): ActionResult => ({ ok: true, game: changeHeroPlay(game, heroId, fn, clock) })
 

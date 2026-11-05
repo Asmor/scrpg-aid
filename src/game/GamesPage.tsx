@@ -38,8 +38,8 @@ import { downloadFile } from '../transfer/download'
 import { gameFileName, gameJson } from '../transfer/files'
 import { duplicateGame } from './scenes'
 import { isSoloGameId } from './solo'
-import { createGame, currentScene, gameDisplayName, isListedGame, sceneName, sceneOnTable, type Game } from './model'
-import { oppositionText, sceneLine } from './summary'
+import { betweenIssues, createGame, currentScene, gameDisplayName, isListedGame, sceneName, sceneOnTable, type Game } from './model'
+import { oppositionText, sceneLine, finishedPill } from './summary'
 import { MenuButton, Tracker } from './TableCenter'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -48,6 +48,8 @@ function GameCard({ game, now, actions, hosting }: { game: Game; now: Date; acti
   const id = useId()
   const name = gameDisplayName(game)
   const opposition = oppositionText(game)
+  const between = betweenIssues(game)
+  const next = game.scenes.find((s) => s.state === 'planned')
   const when = `${game.round > 0 ? 'Played' : 'Edited'} ${formatAgo(game.updatedAt, now).replace(/^./, (c) => c.toLowerCase())}`
   return (
     <article className="card games-card" aria-labelledby={`${id}-name`}>
@@ -61,13 +63,20 @@ function GameCard({ game, now, actions, hosting }: { game: Game; now: Date; acti
             Hosting · {hosting.connected} connected
           </span>
         ) : (
-          <span className="gt-pill">{game.round === 0 ? 'Not started' : 'Not hosting'}</span>
+          <span className="gt-pill">{between ? finishedPill(game.issues) : game.round === 0 ? 'Not started' : 'Not hosting'}</span>
         )}
+        {hosting && between && <span className="gt-pill">{finishedPill(game.issues)}</span>}
       </div>
       <div>
         <div className="gt-row">
-          <strong>{sceneName(currentScene(game))}</strong>
-          <span className="gt-sub">· {sceneLine(game)}</span>
+          {between ? (
+            <strong>{next ? `Next: ${sceneName(next)}` : sceneName(currentScene(game))}</strong>
+          ) : (
+            <>
+              <strong>{sceneName(currentScene(game))}</strong>
+              <span className="gt-sub">· {sceneLine(game)}</span>
+            </>
+          )}
         </div>
         <Tracker game={{ scene: sceneOnTable(game) }} />
       </div>

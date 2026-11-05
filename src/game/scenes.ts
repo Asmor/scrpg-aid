@@ -15,7 +15,7 @@ import { newId } from '../hero/model'
 import { emptyPlay } from '../play/state'
 import { clearDefenses } from '../play/defense'
 import { emptyVillainPlay } from '../villain/play'
-import { createScene, currentScene, emptyOffTable, gameDisplayName, sceneName, sceneNumber, trackerFromCounts, type Challenge, type EnvironmentOnTable, type Game, type NpcGroup, type OffTable, type OppositionRef, type Scene, type SceneItem, type SceneItemSource, type VillainInGame } from './model'
+import { betweenIssues, createIssue, createScene, currentScene, emptyOffTable, gameDisplayName, sceneName, sceneNumber, trackerFromCounts, type Challenge, type EnvironmentOnTable, type Game, type NpcGroup, type OffTable, type OppositionRef, type Scene, type SceneItem, type SceneItemSource, type VillainInGame } from './model'
 import { boxLabel, closeRequests, environmentLetsGo, newChallenge, newGroup, newVillainCopy, placeEnvironment, removeFromTable, setHidden, setupScene, syncTurnOrder, withLog, withTitanChallenge, type ChallengeSpec, type GroupSpec } from './table'
 
 export const refKey = (ref: OppositionRef) => `${ref.kind}:${ref.id}`
@@ -655,6 +655,9 @@ function applyResets(game: Game, resets: SceneResets, arrived: ReadonlySet<strin
   return { ...game, heroes, villains, groups, offTable, ...environment, ...round }
 }
 
+/** A finished scene's summary line. */
+export const sceneEndSummary = (game: Pick<Game, 'round'>) => (game.round > 0 ? `Ended after round ${game.round}.` : 'Ended before round 1.')
+
 /**
  * Starts a planned scene: the current one becomes done, what's leaving goes where it was told to,
  * the new scene's items arrive with their Hidden choices, the checked resets apply, and the
@@ -662,7 +665,7 @@ function applyResets(game: Game, resets: SceneResets, arrived: ReadonlySet<strin
  */
 export function startScene(game: Game, nextId: string, choices: StartChoices, clock: Clock): Game {
   const next = game.scenes.find((s) => s.id === nextId)
-  if (!next || next.state !== 'planned') return game
+  if (!next || next.state !== 'planned' || betweenIssues(game)) return game
   const plan = startPlan(game, nextId)
   const previous = currentScene(game)
   const previousNumber = sceneNumber(game, previous.id)
@@ -706,10 +709,10 @@ export function startScene(game: Game, nextId: string, choices: StartChoices, cl
   g = { ...g, aside: g.aside.filter((a) => !isOnTable(g, a.ref)) }
 
   // The scenes themselves.
-  const summary = game.round > 0 ? `Ended after round ${game.round}.` : 'Ended before round 1.'
+  const summary = sceneEndSummary(game)
   const scenes = g.scenes.map((s): Scene => {
     if (s.id === previous.id) return { ...s, state: 'done', summary, opposition: record, ...(game.environment ? { environmentId: game.environment.id, environmentHidden: game.environment.hidden } : {}) }
-    if (s.id === nextId) return { ...s, state: 'now', position: 0, opposition: next.opposition.map((row) => ({ ...row, startHidden: hiddenOf(row.ref, row.startHidden) })) }
+    if (s.id === nextId) return { ...s, state: 'now', position: 0, ...(game.currentIssueId ? { issueId: game.currentIssueId } : {}), opposition: next.opposition.map((row) => ({ ...row, startHidden: hiddenOf(row.ref, row.startHidden) })) }
     return s
   })
   g = syncTurnOrder(applyResets({ ...g, scenes, currentSceneId: nextId }, choices.resets, arrived))
@@ -756,12 +759,13 @@ export function duplicateGame(game: Game, options: { id?: string; now?: Date } =
     const hiddenRow = (ref: OppositionRef, hidden: boolean): SceneItem => ({ ref, startHidden: hidden, source: copy.scenes.find((s) => s.id === copy.currentSceneId)?.opposition.find((i) => sameRef(i.ref, ref))?.source ?? { kind: 'library' } })
     return [...copy.villains.map((v) => hiddenRow({ kind: 'villain', id: v.id }, v.hidden)), ...copy.groups.map((x) => hiddenRow({ kind: 'group', id: x.id }, x.hidden)), ...copy.challenges.map((c) => hiddenRow({ kind: 'challenge', id: c.id }, c.hidden))]
   }
+  const issue = createIssue(newId(), 1)
   const scenes = copy.scenes.map((s, i): Scene => {
-    const { summary: _summary, ...scene } = s
+    const { summary: _summary, issueId: _issueId, ...scene } = s
     // The current scene's items are what's on the table now.
     const now = s.id === copy.currentSceneId
     const base: Scene = now ? { ...scene, opposition: tableRows(), ...(environment ? { environmentId: environment.id, environmentHidden: environment.hidden } : {}) } : scene
-    return { ...base, position: 0, state: i === 0 ? 'now' : 'planned' }
+    return { ...base, position: 0, state: i === 0 ? 'now' : 'planned', ...(i === 0 ? { issueId: issue.id } : {}) }
   })
   const first = scenes[0]!
   let g: Game = {
@@ -772,6 +776,8 @@ export function duplicateGame(game: Game, options: { id?: string; now?: Date } =
     name: `${gameDisplayName(copy)} (copy)`,
     scenes,
     currentSceneId: first.id,
+    issues: [issue],
+    currentIssueId: issue.id,
     round: 0,
     turn: { order: [], acted: [] },
     heroes: copy.heroes.filter((h) => !h.player).map((h) => ({ ...h, play: emptyPlay() })),

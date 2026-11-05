@@ -14,6 +14,7 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { MemoryVillainStore } from '../villain/store'
 import { createGame } from './model'
+import { finishIssue } from './issues'
 import { MemoryGameStore } from './store'
 import { addChallenge, addVillain, setChallengeStep, changeHeroPlay, handOff, startRound } from './table'
 
@@ -296,3 +297,25 @@ describe('a player at the table', () => {
     }
   })
 })
+
+describe('between issues', () => {
+  it('shows players the end card, and turns off what changes play', async () => {
+    const { host, settle } = await setup()
+    await join(settle)
+    host.apply((g) => finishIssue(g, { title: 'The Gravelord Saga', summary: 'He got away.', heroIds: g.heroes.map((h) => h.id) }, clock()))
+    await settle()
+    expect(await screen.findByRole('heading', { name: 'The Gravelord Saga' })).toBeInTheDocument()
+    expect(screen.getByText('END OF ISSUE 1')).toBeInTheDocument()
+    expect(screen.getByText('He got away.')).toBeInTheDocument()
+    expect(screen.getByText(/The table is paused until Sam starts the next issue\./)).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /^Round|^Not started/ })).not.toBeInTheDocument()
+    expect(screen.getByText('Paused between issues', { selector: '.gt-paused' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Lose 1 Health' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Lose 1 Health' })).toHaveAccessibleDescription('Paused between issues')
+    expect(screen.getByRole('button', { name: 'Roll' })).toBeDisabled()
+    // Sheet updates carry on.
+    await userEvent.click(screen.getByRole('button', { name: /^More for/ }))
+    expect(await screen.findByRole('menuitem', { name: 'Update from my sheet…' })).toBeEnabled()
+  })
+})
+

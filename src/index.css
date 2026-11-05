@@ -8727,3 +8727,80 @@ ol.vw-conditions li {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* The end of an issue (docs/design/issues/spec.md) */
+
+.gt-end__over {
+  font-family: var(--font-heading);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--ui-accent);
+}
+
+.gt-end__title {
+  margin: 0;
+  font-size: 2.25rem !important;
+  line-height: 1.1;
+}
+
+.gt-end__summary {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.gt-end__tracker {
+  opacity: 0.45;
+}
+
+.gt-paused {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ui-muted);
+}
+
+.gt-finish__facts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.625rem;
+  list-style: none;
+}
+
+.gt-finish__facts > li {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--ui-border);
+}
+
+.gt-finish__facts > li:first-child {
+  border-top: 0;
+}
+
+.gt-finish__see {
+  grid-column: 1 / -1;
+}
+
+.pips {
+  display: inline-flex;
+  gap: 0.1875rem;
+  vertical-align: middle;
+}
+
+.pip {
+  width: 0.625rem;
+  height: 0.625rem;
+  box-sizing: border-box;
+  border: 1.5px solid var(--ui-muted);
+  border-radius: 50%;
+}
+
+.pip--on {
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+}
+
+.pip--new {
+  border: 2px dotted var(--ui-accent);
+}

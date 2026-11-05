@@ -9,8 +9,8 @@ import { heroDisplayName } from '../hero/model'
 import { formatFull } from '../play/time'
 import { currentHealth, effectiveZone } from '../play/state'
 import type { JoinedGame } from './joined-store'
-import { gameDisplayName, sceneDisplayName } from './model'
-import { viewSceneLine } from './summary'
+import { betweenIssues, gameDisplayName, sceneDisplayName } from './model'
+import { finishedPill, viewSceneLine } from './summary'
 import { heroPlayInScene } from './table'
 import { MenuButton, ZoneChip } from './TableCenter'
 
@@ -41,6 +41,7 @@ export function JoinedCard({ joined, live, onOpen, onRemove }: { joined: JoinedG
         ) : (
           <span className="gt-pill">GM offline</span>
         )}
+        {betweenIssues(view) && <span className="gt-pill">{finishedPill(view.issues)}</span>}
       </div>
       <p className="gt-sub">
         GM: {joined.gm} · you play {mine ? heroDisplayName(mine.sheet) : 'a hero who has left'}
