@@ -136,7 +136,7 @@ const ACTIONS: Record<HeroAction['kind'], Check> = {
   minionMod: object({ minionId: id, mod: modInput }),
   removeMinionMod: object({ minionId: id, modId: id }),
   chooseDefense: object({ hitId: id, defenseId: id }),
-  minionRoll: object({ minionId: id, roll: object({ action: basicAction, value: range(1, 12), mods: list(mod, 20) }) }),
+  minionRoll: object({ minionId: id, roll: object({ action: basicAction, value: range(1, 12), mods: list(mod, 20), 'entered?': oneOf(true) }) }),
   minionForm: object({ minionId: id, form: text(MAX_NAME) }),
   handOff: object({ to: actor }),
   startRound: object({ first: actor }),

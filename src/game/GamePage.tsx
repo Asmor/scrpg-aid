@@ -384,8 +384,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const runningVillain = running?.kind === 'villain' ? T.findVillain(game, running.id) : undefined
   const runningEnv = running?.kind === 'environment' && game.environment?.id === running.id ? game.environment : undefined
   const environmentActions: EnvironmentActions = {
-    roll: () => {
-      const roll = rollAspects(game.environment?.aspects ?? [], random ?? Math.random)
+    roll: (entered) => {
+      const roll = rollAspects(game.environment?.aspects ?? [], random ?? Math.random, entered)
       if (roll) apply((g) => logEnvironmentRoll(g, roll, clock()))
       return roll
     },

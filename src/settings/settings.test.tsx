@@ -53,6 +53,13 @@ describe('the Settings page', () => {
     await waitFor(async () => expect((await store.load()).newGame).toEqual({ trackerPreset: 'epic', startHidden: false, playersSee: 'name' }))
   })
 
+  it('chooses how dice are rolled', async () => {
+    const store = page()
+    expect(screen.getByRole('radio', { name: /The app rolls/ })).toBeChecked()
+    await userEvent.click(screen.getByRole('radio', { name: /I roll physical dice/ }))
+    await waitFor(async () => expect((await store.load()).rolling).toBe('physical'))
+  })
+
   it('applies text size and motion to the root at once', async () => {
     page()
     await userEvent.click(screen.getByRole('radio', { name: 'Larger' }))

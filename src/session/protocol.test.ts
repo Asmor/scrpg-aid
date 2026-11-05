@@ -48,6 +48,7 @@ describe('reading messages from players and observers', () => {
       { kind: 'minionMod', minionId: 'x', mod: { label: 'Aim', value: 1 } },
       { kind: 'removeMinionMod', minionId: 'x', modId: 'y' },
       { kind: 'minionRoll', minionId: 'x', roll: { action: 'attack', value: 4, mods: [] } },
+      { kind: 'minionRoll', minionId: 'x', roll: { action: 'attack', value: 4, mods: [], entered: true } },
       { kind: 'minionForm', minionId: 'x', form: 'Fast' },
       { kind: 'handOff', to: { kind: 'villain', id: 'v' } },
       { kind: 'startRound', first: { kind: 'hero', id: 'h' } },
@@ -59,6 +60,7 @@ describe('reading messages from players and observers', () => {
       { kind: 'health', by: 1.5 },
       { kind: 'addMod', mod: { label: 'x', value: 0 } },
       { kind: 'addMod', mod: { label: 'x', value: 40 } },
+      { kind: 'minionRoll', minionId: 'x', roll: { action: 'attack', value: 4, mods: [], entered: false } },
       // Players don't change the game's hero points.
       { kind: 'heroPoints', by: 1 },
       { kind: 'roll', roll: { ...roll, record: { ...roll.record, rolled: [{ label: 'x', die: 'd8', value: 13 }] } } },

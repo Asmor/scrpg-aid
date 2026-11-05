@@ -5,7 +5,9 @@
  * where targets are picked after the dice are rolled.
  */
 import { useId, useRef, useState } from 'react'
+import { MemberPad } from '../components/DicePad'
 import { AbilityText, DieIcon } from '../components/icons'
+import { useSettings } from '../settings/context'
 import { ABILITY_TYPE_LABEL } from '../hero/labels'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
@@ -17,7 +19,7 @@ import { describeMod, modName } from '../play/state'
 import { defaultDefense, defenseText, defensesOf } from '../play/defense'
 import type { BasicAction } from '../rules/types'
 import type { Game, NpcGroup, NpcMember } from './model'
-import { ACTION_NAME, actionsText, groupActionList, rollMath, rollMembers, rollSaves, verdictText, type GroupRollRow, type MemberSave, type Random } from './npc'
+import { ACTION_NAME, actionsText, groupActionList, membersWhoSave, rollMath, rollMembers, rollSaves, verdictText, type GroupRollRow, type MemberSave, type Random } from './npc'
 import { actedText, memberName, readyMembers } from './table'
 import { parseTarget } from './roll-targets'
 import { gmTable, polarity, targetOptions, toggleLabel, type TargetActor } from './target-options'
@@ -68,6 +70,13 @@ function MemberMenu({ group, member, actions, onMod }: { group: NpcGroup; member
   )
 }
 
+/** Who the pad asks for, in turn. */
+const memberPadList = (group: NpcGroup, ids: readonly string[]) =>
+  ids.flatMap((id) => {
+    const m = group.members.find((x) => x.id === id)
+    return m ? [{ id, name: memberName(group, m.n), die: m.die }] : []
+  })
+
 export function RunningGroup({ game, group, actions, random }: { game: Game; group: NpcGroup; actions: GroupActions; random?: Random }) {
   const id = useId()
   const choices = groupActionList(group)
@@ -79,7 +88,10 @@ export function RunningGroup({ game, group, actions, random }: { game: Game; gro
   const [damaging, setDamaging] = useState<string[] | null>(null)
   const ready = readyMembers(group)
   const everyone = ready.length === 0 && group.members.length > 0
-  const roll = (memberIds: string[]) => setRolled(rollMembers(group, memberIds, random ?? Math.random))
+  const physical = useSettings().settings.rolling === 'physical'
+  const [entering, setEntering] = useState<string[] | null>(null)
+  const rollNow = (memberIds: readonly string[], entered?: Readonly<Record<string, number>>) => setRolled(rollMembers(group, memberIds, random ?? Math.random, entered))
+  const roll = (memberIds: string[]) => (physical ? setEntering(memberIds) : rollNow(memberIds))
   return (
     <div className="gt-group-run">
       <p className="gt-sub">
@@ -161,6 +173,22 @@ export function RunningGroup({ game, group, actions, random }: { game: Game; gro
             </li>
           ))}
         </ul>
+      )}
+      {entering && (
+        <Modal title={`Roll ${group.name}`} onClose={() => setEntering(null)}>
+          <MemberPad
+            members={memberPadList(group, entering)}
+            onCancel={() => setEntering(null)}
+            onRollForMe={() => {
+              rollNow(entering)
+              setEntering(null)
+            }}
+            onAccept={(values) => {
+              rollNow(entering, values)
+              setEntering(null)
+            }}
+          />
+        </Modal>
       )}
       {damaging && (
         <DamageDialog
@@ -316,6 +344,8 @@ export function DamageDialog({ group, start, random, onCancel, onApply }: { grou
   // The defense each member uses, when it has a choice (ruling 65); unset means the default.
   const [chosen, setChosen] = useState<Record<string, string>>({})
   const [saves, setSaves] = useState<MemberSave[] | null>(null)
+  const physical = useSettings().settings.rolling === 'physical'
+  const [entering, setEntering] = useState<string[] | null>(null)
   const amount = Number(damage)
   const valid = damage.trim() !== '' && Number.isInteger(amount) && amount >= 0 && who.length > 0
   const member = (memberId: string) => group.members.find((m) => m.id === memberId)
@@ -327,11 +357,28 @@ export function DamageDialog({ group, start, random, onCancel, onApply }: { grou
   }
   return (
     <Modal title={title} variant={phone ? 'sheet' : 'dialog'} onClose={onCancel}>
-      {!saves ? (
+      {entering ? (
+        <MemberPad
+          members={memberPadList(group, entering)}
+          onCancel={() => setEntering(null)}
+          onRollForMe={() => {
+            setEntering(null)
+            setSaves(rollSaves(group, group.members.filter((m) => who.includes(m.id)).map((m) => m.id), amount, random, chosen))
+          }}
+          onAccept={(values) => {
+            setEntering(null)
+            setSaves(rollSaves(group, group.members.filter((m) => who.includes(m.id)).map((m) => m.id), amount, random, chosen, values))
+          }}
+        />
+      ) : !saves ? (
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            if (valid) setSaves(rollSaves(group, group.members.filter((m) => who.includes(m.id)).map((m) => m.id), amount, random, chosen))
+            if (!valid) return
+            const ids = group.members.filter((m) => who.includes(m.id)).map((m) => m.id)
+            const rolling = physical ? membersWhoSave(group, ids, amount, chosen) : []
+            if (rolling.length) setEntering(rolling)
+            else setSaves(rollSaves(group, ids, amount, random, chosen))
           }}
         >
           <label className="field" htmlFor={`${id}-damage`}>

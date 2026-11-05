@@ -52,6 +52,33 @@ function Radios<T extends string>({ legend, value, options, onChange, saved, hin
   )
 }
 
+function RollingChoice({ value, saved, onChange }: { value: Settings['rolling']; saved: boolean; onChange: (value: Settings['rolling']) => void }) {
+  const name = useId()
+  const options = [
+    { value: 'app', label: 'The app rolls', text: 'Tap Roll and the app rolls your dice. "Enter my own roll" is still there.' },
+    { value: 'physical', label: 'I roll physical dice', text: 'Every roll opens a number pad for what you rolled. "Roll for me" is still there.' },
+  ] as const
+  return (
+    <fieldset className="settings__field">
+      <legend>
+        Rolling <Saved on={saved} />
+      </legend>
+      <div className="settings__cards">
+        {options.map((o) => (
+          <label key={o.value} className={value === o.value ? 'settings__card settings__card--on' : 'settings__card'}>
+            <input type="radio" name={name} value={o.value} checked={value === o.value} onChange={() => onChange(o.value)} />
+            <span>
+              <strong>{o.label}</strong>
+              <br />
+              <span className="muted">{o.text}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
 function Section({ title, children }: { title: string; children: ReactNode }) {
   const id = useId()
   return (
@@ -98,6 +125,7 @@ export function SettingsPage() {
             </p>
           }
         />
+        <RollingChoice value={settings.rolling} saved={mark === 'rolling'} onChange={(rolling) => set('rolling', (s) => ({ ...s, rolling }))} />
       </Section>
       <Section title="Display">
         <Radios

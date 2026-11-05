@@ -10,7 +10,10 @@ import { ACTION_LABEL } from '../creation/effects'
 import type { AbilityUse } from '../creation/sheet'
 import type { HeroTrait } from '../creation/traits'
 import type { PlayMinion, PlayMod } from '../hero/model'
-import { checkManualResults, rollDice } from '../rules/rolling'
+import { rollDice } from '../rules/rolling'
+import { DicePad } from '../components/DicePad'
+import { useSettings } from '../settings/context'
+import { assignToDice } from './dice-pad'
 import type { Action, BasicAction, Die, EffectUse, MinionForm } from '../rules/types'
 import { activePlans, chosenMods, defaultAssignment, defaultModChoice, defaultPlans, describeEffect, hasDoubles, modFlagsFor, modSize, poolDice, results, sortRolls, toggleMod, USE_LABEL, useValue as valueFor, type EffectPlan, type EffectResult, type GivenValues, type RollRecord, type Rolled } from './roll'
 import { minionAction, minionSize, takesAnyAction } from './minions'
@@ -183,8 +186,17 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
   // Rolling.
   const [step, setStep] = useState<0 | 1 | 2>(0)
   const [rolled, setRolled] = useState<Rolled[] | null>(null)
-  const [manual, setManual] = useState<string[] | null>(null)
-  const [manualError, setManualError] = useState<string | null>(null)
+  // The dice pad: open from the start with physical dice, or from Enter my own roll.
+  const physical = useSettings().settings.rolling === 'physical'
+  const [padOpen, setPadOpen] = useState(physical)
+  // Cancelling the pad takes away the button that had focus: it goes back to the one that opened it.
+  const enterButton = useRef<HTMLButtonElement>(null)
+  const refocusEnter = useRef(false)
+  useEffect(() => {
+    if (padOpen || !refocusEnter.current) return
+    refocusEnter.current = false
+    enterButton.current?.focus()
+  }, [padOpen])
   const [wasManual, setWasManual] = useState(false)
   const active = rolled ? activePlans(shownPlans, rolled) : []
   // Values the dice can't give, asked for once the roll shows which effects happen.
@@ -250,10 +262,11 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
   }, [step])
 
   const doRoll = (values: number[], fromManual: boolean) => {
-    setRolled(pool.map((d, i) => ({ ...d, value: values[i]! })))
+    // The app doesn't know which die was which when the numbers were entered.
+    setRolled(pool.map((d, i) => ({ ...d, ...(fromManual ? { label: 'Entered' } : {}), value: values[i]! })))
     setWasManual(fromManual)
     setAssignment(defaultAssignment(chosen))
-    setManual(null)
+    setPadOpen(physical)
     setStep(1)
   }
   const back = () => {
@@ -529,42 +542,19 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
                   </fieldset>
                 )}
 
-                {manual ? (
-                  <form
-                    className="manual-roll"
-                    noValidate
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      const result = checkManualResults(
-                        pool.map((d) => d.die),
-                        manual.map((v) => (v.trim() === '' ? Number.NaN : Number(v))),
-                      )
-                      if (!result.ok) setManualError(result.error)
-                      else doRoll(result.results, true)
+                {padOpen && ready ? (
+                  <DicePad
+                    key={pool.map((d) => d.die).join()}
+                    dice={pool.map((d) => ({ die: d.die as Die, label: d.label }))}
+                    onAccept={(values) => doRoll(assignToDice(values, pool.map((d) => d.die as Die)), true)}
+                    autoFocus={!physical}
+                    onCancel={() => {
+                      if (physical) return onClose()
+                      setPadOpen(false)
+                      refocusEnter.current = true
                     }}
-                  >
-                    <div className="manual-roll__dice">
-                      {pool.map((d, i) => (
-                        <label key={i}>
-                          <DieIcon die={d.die} /> {d.label}
-                          <input type="number" inputMode="numeric" value={manual[i] ?? ''} onChange={(e) => setManual((m) => m!.map((v, j) => (j === i ? e.target.value : v)))} />
-                        </label>
-                      ))}
-                    </div>
-                    {manualError && (
-                      <p className="error" role="alert">
-                        {manualError}
-                      </p>
-                    )}
-                    <div className="button-row">
-                      <button type="submit" className="button button--primary">
-                        Use these results
-                      </button>
-                      <button type="button" className="button" onClick={() => setManual(null)}>
-                        Back
-                      </button>
-                    </div>
-                  </form>
+                    onRollForMe={() => doRoll(rollDice(pool.map((d) => d.die as Die), random), false)}
+                  />
                 ) : (
                   <div className="button-row">
                     <button
@@ -583,7 +573,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
                     >
                       Roll
                     </button>
-                    <button type="button" className="button" disabled={!ready} onClick={() => setManual(pool.map(() => ''))}>
+                    <button ref={enterButton} type="button" className="button" disabled={!ready} onClick={() => setPadOpen(true)}>
                       Enter my own roll
                     </button>
                   </div>

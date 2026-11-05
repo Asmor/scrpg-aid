@@ -5,6 +5,7 @@
  * optional; data/rules/core-concepts.md "Mod rules" has the user's rulings), giving each
  * effect its value with the mods assigned to it, and writing the history.
  */
+import { enteredText } from './dice-pad'
 import type { AbilityUse } from '../creation/sheet'
 import { ACTION_LABEL } from '../creation/effects'
 import type { HeroTrait } from '../creation/traits'
@@ -244,7 +245,7 @@ export interface RollRecord {
   title: string
   rolled: Rolled[]
   results: EffectResult[]
-  /** Whether the dice were typed in from real dice. */
+  /** Whether the numbers were entered from physical dice. */
   manual: boolean
   /** Minions the roll made: each one's die result, the mods moved onto it, and the size they came to. */
   made?: { label: string; base: number; mods: PlayMod[]; total: number; die: Die }[]
@@ -255,7 +256,7 @@ export function confirmRoll<P extends PlayCore>(play: P, record: RollRecord, clo
   const made = record.made ?? []
   const used = [...record.results.flatMap((r) => r.mods), ...made.flatMap((m) => m.mods)]
   const details = [
-    ...describeRolls(record.rolled).map((d) => (record.manual ? `${d} (typed in)` : d)),
+    ...(record.manual ? [`Rolled ${enteredText(record.rolled.map((r) => r.value))} (physical dice).`] : describeRolls(record.rolled)),
     ...record.results.map(describeEffect),
     ...made.map((m) => `${m.label}: ${m.base}${m.mods.map((x) => (x.value > 0 ? ` + ${x.value}` : ` − ${-x.value}`)).join('')} → a ${m.die} minion.`),
     ...used.map((m) => `Applied ${describeMod(m)}.`),

@@ -10,6 +10,7 @@
  * - Its log lines are for everyone: the environment is always known (spec section 6, "Who sees
  *   log lines"). Its aspects, twists and attached templates aren't sent to players (./project.ts).
  */
+import { assignToDice, enteredText } from '../play/dice-pad'
 import { rollDie } from '../rules/rolling'
 import type { Die } from '../rules/types'
 import { ASPECT_COUNT, type ChallengeTemplate, type EnvironmentAspect, type EnvironmentTemplate, type LieutenantTemplate, type MinionTemplate } from '../template/model'
@@ -75,17 +76,22 @@ export interface EnvironmentRoll {
   min: EnvironmentDie
   mid: EnvironmentDie
   max: EnvironmentDie
+  /** The numbers came from physical dice. */
+  entered?: boolean
 }
 
-/** Rolls the environment dice: all three aspects (undefined without three). */
-export function rollAspects(aspects: readonly EnvironmentAspect[], random: Random): EnvironmentRoll | undefined {
+/** Rolls the environment dice: all three aspects (undefined without three), or takes numbers entered from physical dice. */
+export function rollAspects(aspects: readonly EnvironmentAspect[], random: Random, entered?: readonly number[]): EnvironmentRoll | undefined {
   if (aspects.length !== ASPECT_COUNT) return undefined
-  const dice = aspects.map((a, i) => ({ value: rollDie(a.die, random), die: a.die, aspect: aspectName(a, i) })).sort((a, b) => a.value - b.value)
-  return { min: dice[0]!, mid: dice[1]!, max: dice[2]! }
+  const values = entered && assignToDice(entered, aspects.map((a) => a.die))
+  // The app doesn't know which aspect's die showed an entered number.
+  const dice = aspects.map((a, i) => ({ value: values ? values[i]! : rollDie(a.die, random), die: a.die, aspect: values ? 'Entered' : aspectName(a, i) })).sort((a, b) => a.value - b.value)
+  return { min: dice[0]!, mid: dice[1]!, max: dice[2]!, ...(values ? { entered: true } : {}) }
 }
 
 /** Logs an environment roll (see envLine): "Rolled the environment dice: Min 2 (Howling Wind), …". */
 export function logEnvironmentRoll(game: Game, roll: EnvironmentRoll, clock: Clock): Game {
+  if (roll.entered) return envLine(game, clock, `Rolled the environment dice: ${enteredText([roll.min.value, roll.mid.value, roll.max.value])} (physical dice).`)
   const part = (label: string, d: EnvironmentDie) => `${label} ${d.value} (${d.aspect})`
   return envLine(game, clock, `Rolled the environment dice: ${part('Min', roll.min)}, ${part('Mid', roll.mid)}, ${part('Max', roll.max)}.`)
 }

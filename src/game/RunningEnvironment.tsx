@@ -5,7 +5,9 @@
  * Hand off. All of it is the GM's alone.
  */
 import { useId, useRef, useState, type KeyboardEvent } from 'react'
+import { DicePad } from '../components/DicePad'
 import { ActionIcon, DieIcon } from '../components/icons'
+import { useSettings } from '../settings/context'
 import { ACTION_LABEL } from '../creation/effects'
 import type { FormDice } from '../play/forms'
 import { RollDialog, type FollowUpMod, type TargetChoice } from '../play/RollDialog'
@@ -22,8 +24,8 @@ import { boxLabel, itemName, roundOver, sameActor, sceneZone, waiting, type Item
 import { MenuButton } from './TableCenter'
 
 export interface EnvironmentActions {
-  /** Rolls the environment dice; undefined without three aspects. */
-  roll: () => EnvironmentRoll | undefined
+  /** Rolls the environment dice, or takes the numbers entered from physical dice; undefined without three aspects. */
+  roll: (entered?: readonly number[]) => EnvironmentRoll | undefined
   setTwistUsed: (twistId: string, used: boolean) => void
   resetTwists: () => void
   setAspects: (aspects: EnvironmentAspect[]) => void
@@ -169,6 +171,8 @@ function Stepper({ value, name, onChange }: { value: number; name: string; onCha
 const startCount = (a: AttachedOnTable) => (a.kind === 'challenge' ? 1 : a.groupSize)
 
 export function RunningEnvironment({ game, env, actions, sheets, random }: { game: Game; env: EnvironmentOnTable; actions: EnvironmentActions; sheets: boolean; random?: () => number }) {
+  const physical = useSettings().settings.rolling === 'physical'
+  const [entering, setEntering] = useState(false)
   const [rolled, setRolled] = useState<EnvironmentRoll | null>(null)
   const [settingAspects, setSettingAspects] = useState(false)
   const [acting, setActing] = useState<BasicAction | null>(null)
@@ -198,10 +202,26 @@ export function RunningEnvironment({ game, env, actions, sheets, random }: { gam
         />
       </div>
 
+      {entering && (
+        <Modal title="Environment dice" onClose={() => setEntering(false)}>
+          <DicePad
+            dice={aspects.map((a, i) => ({ die: a.die, label: aspectName(a, i) }))}
+            onCancel={() => setEntering(false)}
+            onRollForMe={() => {
+              setEntering(false)
+              setRolled(actions.roll() ?? null)
+            }}
+            onAccept={(values) => {
+              setEntering(false)
+              setRolled(actions.roll(values) ?? null)
+            }}
+          />
+        </Modal>
+      )}
       <section className="gt-env-dice" aria-label="Environment dice">
         <div className="gt-row">
           <span className="gt-label gt-grow">Environment dice</span>
-          <button type="button" className="button button--small" disabled={aspects.length !== ASPECT_COUNT} onClick={() => setRolled(actions.roll() ?? null)}>
+          <button type="button" className="button button--small" disabled={aspects.length !== ASPECT_COUNT} onClick={() => (physical ? setEntering(true) : setRolled(actions.roll() ?? null))}>
             Roll environment dice
           </button>
         </div>

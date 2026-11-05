@@ -165,6 +165,28 @@ describe('new game defaults from Settings', () => {
   })
 })
 
+describe('the environment dice, with physical dice', () => {
+  it('open the pad, and take the numbers or roll for me', async () => {
+    const settings = new MemorySettingsStore()
+    await settings.save({ ...DEFAULT_SETTINGS, rolling: 'physical' })
+    const { saved } = await setup(undefined, settings)
+    await userEvent.click(await screen.findByRole('button', { name: 'Bring in Rooftop Heist' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Run Rooftop Heist' }))
+    const panel = () => within(gmScreen().getByRole('region', { name: 'Rooftop Heist' }))
+    await userEvent.click(panel().getByRole('button', { name: 'Roll environment dice' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Environment dice' }))
+    const pad = within(dialog.getByRole('group', { name: 'Number pad' }))
+    expect(pad.getByRole('button', { name: '11' })).toBeDisabled()
+    for (const n of ['9', '2', '5']) await userEvent.click(pad.getByRole('button', { name: n }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Accept' }))
+    expect(panel().getByRole('status', { name: 'Environment roll' })).toHaveTextContent('Min2EnteredMid5EnteredMax9Entered')
+    await waitFor(async () => expect((await saved()).feed.at(-1)?.text).toBe('Rolled the environment dice: 9, 5, 2 (physical dice).'))
+    await userEvent.click(panel().getByRole('button', { name: 'Roll environment dice' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Environment dice' })).getByRole('button', { name: 'Roll for me' }))
+    expect(panel().getByRole('status', { name: 'Environment roll' })).toHaveTextContent('Slick Tiles')
+  })
+})
+
 describe('templates in a planned scene', () => {
   it('copies an environment and a group off the table, and Bring in says where they are', async () => {
     const { saved } = await setup()

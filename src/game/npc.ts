@@ -51,12 +51,14 @@ export interface NpcRoll {
   value: number
   mods: PlayMod[]
   total: number
+  /** The number came from physical dice. */
+  entered?: boolean
 }
 
-export function rollWithMods(die: Die, mods: readonly PlayMod[], random: Random): NpcRoll {
+export function rollWithMods(die: Die, mods: readonly PlayMod[], random: Random, entered?: number): NpcRoll {
   const used = npcRollMods(mods)
-  const value = rollDie(die, random)
-  return { value, mods: used, total: value + used.reduce((s, m) => s + m.value, 0) }
+  const value = entered ?? rollDie(die, random)
+  return { value, mods: used, total: value + used.reduce((s, m) => s + m.value, 0), ...(entered !== undefined ? { entered: true } : {}) }
 }
 
 /** "5 − 1 Dazed": how a total was made (just the value without mods). */
@@ -95,12 +97,17 @@ export function groupSaveMods(group: Pick<NpcGroup, 'abilities'>): PlayMod[] {
 }
 
 /** Rolls saves for these members against the same damage. */
-export function rollSaves(group: NpcGroup, memberIds: readonly string[], damage: number, random: Random, defenseIds: Readonly<Record<string, string>> = {}): MemberSave[] {
+export function rollSaves(group: NpcGroup, memberIds: readonly string[], damage: number, random: Random, defenseIds: Readonly<Record<string, string>> = {}, entered: Readonly<Record<string, number>> = {}): MemberSave[] {
   const extra = groupSaveMods(group)
   return memberIds.flatMap((id) => {
     const m = group.members.find((x) => x.id === id)
-    return m ? [rollSave(group.kind, m, damage, random, defenseIds[id], extra)] : []
+    return m ? [rollSave(group.kind, m, damage, random, defenseIds[id], extra, entered[id])] : []
   })
+}
+
+/** The members who'd actually roll a save against this damage: a defense can block it all, and some saves need no roll. */
+export function membersWhoSave(group: NpcGroup, memberIds: readonly string[], damage: number, defenseIds: Readonly<Record<string, string>> = {}): string[] {
+  return rollSaves(group, memberIds, damage, () => 0, defenseIds).flatMap((s) => (s.roll ? [s.memberId] : []))
 }
 
 /** Applies saves in turn (the Damage dialog's Apply). */
@@ -125,14 +132,14 @@ export interface MemberSave {
 }
 
 /** Rolls a member's save against a hit, after one of its defenses (ruling 65): the one chosen, or the default. `extra`: mods from its group's abilities ({@link groupSaveMods}). */
-export function rollSave(kind: NpcGroup['kind'], member: Pick<NpcMember, 'id' | 'die' | 'mods' | 'defenses'>, incoming: number, random: Random, defenseId?: string, extra: readonly PlayMod[] = []): MemberSave {
+export function rollSave(kind: NpcGroup['kind'], member: Pick<NpcMember, 'id' | 'die' | 'mods' | 'defenses'>, incoming: number, random: Random, defenseId?: string, extra: readonly PlayMod[] = [], entered?: number): MemberSave {
   const defense = pickDefense(defensesOf(member), incoming, defenseId)
   const damage = blockWith(incoming, defense).taken
   const base = { memberId: member.id, damage, incoming, ...(defense ? { defense } : {}) }
   if (damage === 0) return { ...base, result: { outcome: 'stay' }, noDamage: true }
   const outright = save(kind, member, damage, Number.POSITIVE_INFINITY)
   if (outright.noSave) return { ...base, result: outright }
-  const roll = rollWithMods(member.die, [...member.mods, ...extra], random)
+  const roll = rollWithMods(member.die, [...member.mods, ...extra], random, entered)
   return { ...base, roll, result: save(kind, member, damage, roll.total) }
 }
 
@@ -202,10 +209,10 @@ export interface GroupRollRow {
   target?: TableTarget
 }
 
-/** Rolls the chosen members, each with its own die and mods. */
-export function rollMembers(group: NpcGroup, memberIds: readonly string[], random: Random): GroupRollRow[] {
+/** Rolls the chosen members, each with its own die and mods, or takes the numbers entered from physical dice. */
+export function rollMembers(group: NpcGroup, memberIds: readonly string[], random: Random, entered: Readonly<Record<string, number>> = {}): GroupRollRow[] {
   return memberIds.flatMap((id) => {
     const m = group.members.find((x) => x.id === id)
-    return m ? [{ memberId: id, roll: rollWithMods(m.die, m.mods, random) }] : []
+    return m ? [{ memberId: id, roll: rollWithMods(m.die, m.mods, random, entered[id]) }] : []
   })
 }

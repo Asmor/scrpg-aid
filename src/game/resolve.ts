@@ -8,6 +8,7 @@
  * - Boost and Hinder give a mod; Defend gives a defense.
  * - A group roll does those for each member's result, and marks the members acted.
  */
+import { enteredText } from '../play/dice-pad'
 import { heroDisplayName, type PlayMod } from '../hero/model'
 import { addMinionMod } from '../play/minions'
 import { effectAmount, modSize, overcomeOutcome } from '../play/roll'
@@ -125,6 +126,8 @@ export function applyGroupRoll(game: Game, groupId: string, action: BasicAction,
         : g,
     ),
   }
+  const entered = rows.filter((r) => r.roll.entered).map((r) => r.roll.value)
+  if (entered.length) next = withLog(next, [line(clock, group.name, `Rolled ${enteredText(entered)} (physical dice).`, gmOnly)])
   for (const row of rows) {
     const member = group.members.find((m) => m.id === row.memberId)
     if (!member) continue

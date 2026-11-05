@@ -2,6 +2,8 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Hero } from '../hero/model'
+import { SettingsContext } from '../settings/context'
+import { DEFAULT_SETTINGS } from '../settings/model'
 import type { Clock } from '../play/state'
 import { completeHero } from '../test/heroes'
 import { createGame, heroCopy, type Game } from './model'
@@ -189,5 +191,55 @@ describe('running a group', () => {
     expect(dialog.getByRole('row', { name: /Burglars 1/ })).toHaveTextContent('Blocked · No damage, so no save')
     await userEvent.click(dialog.getByRole('button', { name: 'Apply' }))
     expect(vi.mocked(actions.applySaves).mock.calls[0]![0][0]).toMatchObject({ incoming: 5, damage: 0, defense: { id: 'big' }, noDamage: true })
+  })
+})
+
+describe('with physical dice', () => {
+  const physical = { settings: { ...DEFAULT_SETTINGS, rolling: 'physical' as const }, update: () => {} }
+  const pad = () => within(screen.getByRole('group', { name: 'Number pad' }))
+  function setupPhysical(actions: Partial<GroupActions> = {}) {
+    const c = clock()
+    const game = addGroup(createGame({ id: 'g' }), { kind: 'minions', name: 'Burglars', die: 'd8', count: 2, hidden: false }, c)
+    const all = { shrink: vi.fn(), remove: vi.fn(), addMod: vi.fn(), removeMod: vi.fn(), setActed: vi.fn(), applyRoll: vi.fn(), applySaves: vi.fn(), ...actions } as unknown as GroupActions
+    render(
+      <SettingsContext.Provider value={physical}>
+        <RunningGroup game={game} group={game.groups[0]!} actions={all} random={() => 0.5} />
+      </SettingsContext.Provider>,
+    )
+    return all
+  }
+
+  it('asks each member for a number in turn, then goes on as if rolled', async () => {
+    setupPhysical()
+    await userEvent.click(screen.getByRole('button', { name: 'Roll all ready (2)' }))
+    expect(screen.getByRole('heading', { name: 'Burglars 1 1 of 2 · d8' })).toBeInTheDocument()
+    expect(pad().getByRole('button', { name: '9' })).toBeDisabled()
+    await userEvent.click(pad().getByRole('button', { name: '3' }))
+    await userEvent.click(pad().getByRole('button', { name: '7' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Accept' }))
+    const dialog = within(await screen.findByRole('dialog', { name: /roll Attack/ }))
+    expect(dialog.getByRole('row', { name: /Burglars 1/ })).toHaveTextContent('3')
+    expect(dialog.getByRole('row', { name: /Burglars 2/ })).toHaveTextContent('7')
+  })
+
+  it('Roll for me rolls instead, and Cancel changes nothing', async () => {
+    setupPhysical()
+    await userEvent.click(screen.getByRole('button', { name: 'Roll Burglars 1' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('group', { name: 'Number pad' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Roll Burglars 1' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Roll for me' }))
+    expect(await screen.findByRole('dialog', { name: /rolls Attack/ })).toHaveTextContent('5')
+  })
+
+  it('asks for the saves of a Damage', async () => {
+    setupPhysical()
+    await userEvent.click(screen.getByRole('button', { name: 'Damage Burglars 1' }))
+    await userEvent.type(screen.getByRole('spinbutton', { name: 'Damage' }), '4')
+    await userEvent.keyboard('{Enter}')
+    expect(screen.getByRole('heading', { name: 'Burglars 1 1 of 1 · d8' })).toBeInTheDocument()
+    await userEvent.click(pad().getByRole('button', { name: '8' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Accept' }))
+    expect(screen.getByText(/Burglars 1:/)).toBeInTheDocument()
   })
 })

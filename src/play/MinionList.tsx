@@ -8,7 +8,9 @@
 import { useId, useState } from 'react'
 import { ActionIcon, DieIcon } from '../components/icons'
 import type { PlayMinion, PlayMod } from '../hero/model'
+import { DicePad } from '../components/DicePad'
 import { rollDie } from '../rules/rolling'
+import { useSettings } from '../settings/context'
 import type { BasicAction, Die, MinionForm } from '../rules/types'
 import { minionAction, minionActionText, minionEffect, minionMath, takesAnyAction, type MinionRoll } from './minions'
 import { ModForm } from './ModForm'
@@ -29,7 +31,9 @@ export function MinionUse({ minion, random, onDone, onCancel }: { minion: PlayMi
   const [action, setAction] = useState<BasicAction>(minion.action === 'any' ? 'attack' : minion.action)
   const [checked, setChecked] = useState(() => defaultModChoice(minion.mods))
   const [value, setValue] = useState<number | null>(null)
-  const roll: MinionRoll | null = value === null ? null : { action, value, mods: chosenMods(minion.mods, checked) }
+  const [entered, setEntered] = useState(false)
+  const physical = useSettings().settings.rolling === 'physical'
+  const roll: MinionRoll | null = value === null ? null : { action, value, mods: chosenMods(minion.mods, checked), ...(entered ? { entered: true } : {}) }
   return (
     <div className="minion-use" role="group" aria-label={`${minion.name}'s roll`}>
       {minion.action === 'any' ? (
@@ -76,6 +80,17 @@ export function MinionUse({ minion, random, onDone, onCancel }: { minion: PlayMi
             </button>
           </div>
         </>
+      ) : physical ? (
+        <DicePad
+          dice={[{ die: minion.die, label: minion.name }]}
+          autoFocus
+          onCancel={onCancel}
+          onRollForMe={() => setValue(rollDie(minion.die, random))}
+          onAccept={([n]) => {
+            setEntered(true)
+            setValue(n!)
+          }}
+        />
       ) : (
         <div className="button-row">
           <button type="button" className="button button--primary button--small" aria-label={`Roll ${minion.die}`} onClick={() => setValue(rollDie(minion.die, random))}>

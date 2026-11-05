@@ -122,6 +122,8 @@ export interface MinionRoll {
   action: BasicAction
   value: number
   mods: readonly PlayMod[]
+  /** The number came from physical dice. */
+  entered?: boolean
 }
 
 /** The roll's total: the die plus the mods (the effect is never below 0, ruling 61). */
@@ -144,7 +146,7 @@ export function recordMinionRoll(play: PlayState, id: string, roll: MinionRoll, 
   // One waiting for a new form can't act.
   if (!m || m.needsForm) return play
   const usedUp = roll.mods.filter((x) => !x.persistent)
-  const details = [`${roll.value} (${m.die})`, minionEffect(roll), ...roll.mods.map((x) => `Applied ${describeMod(x)}.`)]
+  const details = [roll.entered ? `Rolled ${roll.value} (physical dice).` : `${roll.value} (${m.die})`, minionEffect(roll), ...roll.mods.map((x) => `Applied ${describeMod(x)}.`)]
   return {
     ...play,
     minions: minionsOf(play).map((x) => (x.id === id ? { ...x, mods: x.mods.filter((y) => !usedUp.some((u) => u.id === y.id)) } : x)),
