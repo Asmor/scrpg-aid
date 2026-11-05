@@ -20,6 +20,13 @@ import { MemoryGameStore } from './store'
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
 
+/** Brings in the library's Ironclad, and reveals it. */
+async function bringInIronclad() {
+  await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Ironclad' }))
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Bring in Ironclad' })).getByRole('button', { name: 'Bring in' }))
+  await userEvent.click(within(screen.getByRole('article', { name: 'Ironclad' })).getByRole('button', { name: 'Reveal' }))
+}
+
 async function setup(change: (g: Game, docs: { hero: Hero; villain: Villain }) => void = () => {}, more: { villains?: Villain[] } = {}) {
   const games = new MemoryGameStore()
   const heroes = new MemoryHeroStore()
@@ -363,17 +370,60 @@ describe('the game table', () => {
     expect(within(screen.getByRole('dialog', { name: 'Plan scene 2' })).getByRole('button', { name: 'Save and start…' })).toBeInTheDocument()
   })
 
-  it('lets a running villain advance the scene tracker once per scene (p. 154)', async () => {
-    const { savedVillain, saved } = await setup()
-    await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Ironclad' }))
-    await userEvent.click(within(screen.getByRole('dialog', { name: 'Bring in Ironclad' })).getByRole('button', { name: 'Bring in' }))
+  it('makes the scene more dangerous once per scene, with Undo (p. 154)', async () => {
+    const { savedVillain } = await setup()
+    await bringInIronclad()
     await userEvent.click(screen.getByRole('button', { name: 'Run Ironclad' }))
     const panel = within(screen.getByRole('region', { name: 'Ironclad' }))
-    await userEvent.click(panel.getByRole('button', { name: 'Advance the scene tracker (once per scene)' }))
-    expect(panel.getByRole('button', { name: 'Scene tracker advanced (once per scene)' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Green 2, current' })).toBeInTheDocument()
-    await waitFor(async () => expect((await savedVillain()).play.sceneAdvanced).toBe(true))
-    expect(currentScene(await saved()).position).toBe(1)
+    await userEvent.click(panel.getByRole('button', { name: 'Overcome: advance tracker' }))
+    const roll = within(screen.getByRole('dialog', { name: 'Basic action' }))
+    expect(roll.getByLabelText('Action')).toHaveValue('overcome')
+    await userEvent.click(roll.getByRole('button', { name: 'Roll' }))
+    await userEvent.click(roll.getByRole('button', { name: 'Confirm' }))
+    await userEvent.click(roll.getByRole('button', { name: 'Done' }))
+    const result = within(screen.getByRole('dialog', { name: 'Make the scene more dangerous' }))
+    await userEvent.click(result.getByRole('button', { name: 'Success: advance the tracker' }))
+    expect(panel.getByText('Used this scene. The tracker moved to Green 2.')).toBeInTheDocument()
+    expect(screen.getByText('Ironclad made the scene more dangerous. The scene tracker moved to Green 2.')).toBeInTheDocument()
+    expect(panel.queryByRole('button', { name: 'Overcome: advance tracker' })).not.toBeInTheDocument()
+    await waitFor(async () => expect((await savedVillain()).dangerUsed).toEqual({ box: 1 }))
+    await userEvent.click(panel.getByRole('button', { name: 'Undo making the scene more dangerous' }))
+    expect(panel.getByRole('button', { name: 'Overcome: advance tracker' })).toBeInTheDocument()
+    await waitFor(async () => expect((await savedVillain()).dangerUsed).toBeUndefined())
+  })
+
+  it("a villain's + Twist: a minor one with Resolve, Captured after a confirm, and Escapes set aside", async () => {
+    const { saved } = await setup()
+    await bringInIronclad()
+    await userEvent.click(screen.getByRole('button', { name: 'Run Ironclad' }))
+    const panel = () => within(screen.getByRole('region', { name: 'Ironclad' }))
+    await userEvent.click(panel().getByRole('button', { name: '+ Twist' }))
+    let dialog = within(screen.getByRole('dialog', { name: 'Twist for Ironclad' }))
+    await userEvent.type(dialog.getByLabelText('Minor twist'), 'Loses his footing')
+    await userEvent.click(dialog.getByRole('button', { name: 'Add minor twist' }))
+    expect(panel().getByText('MINOR')).toBeInTheDocument()
+    await userEvent.click(panel().getByRole('button', { name: 'Resolve the minor twist: Loses his footing' }))
+    expect(panel().getByText('None.')).toBeInTheDocument()
+
+    await userEvent.click(panel().getByRole('button', { name: '+ Twist' }))
+    dialog = within(screen.getByRole('dialog', { name: 'Twist for Ironclad' }))
+    await userEvent.click(dialog.getByRole('button', { name: /^Escapes/ }))
+    await waitFor(async () => expect((await saved()).aside.map((a) => a.ref.kind)).toEqual(['villain']))
+    expect((await saved()).feed.at(-1)?.text).toBe('Ironclad escapes and is set aside for a later scene.')
+    expect(screen.queryByRole('article', { name: 'Ironclad' })).not.toBeInTheDocument()
+  })
+
+  it('captures a villain after asking', async () => {
+    const { saved } = await setup()
+    await bringInIronclad()
+    await userEvent.click(screen.getByRole('button', { name: 'Run Ironclad' }))
+    const panel = within(screen.getByRole('region', { name: 'Ironclad' }))
+    await userEvent.click(panel.getByRole('button', { name: '+ Twist' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Twist for Ironclad' })).getByRole('button', { name: /^Captured/ }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Ironclad is captured?' })).getByRole('button', { name: 'Captured' }))
+    await waitFor(async () => expect((await saved()).villains).toEqual([]))
+    expect((await saved()).feed.at(-1)?.text).toBe('Ironclad is captured.')
+    expect((await saved()).aside).toEqual([])
   })
 
   it('asks how many heroes a villain faces, and recalculates its Health later keeping its damage', async () => {

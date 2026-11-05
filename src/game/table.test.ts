@@ -5,7 +5,7 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import type { Villain } from '../villain/model'
 import { duplicateGame } from './scenes'
-import { createGame, gameDisplayName, heroCopy, sceneOnTable, villainCopy, type Game } from './model'
+import { createGame, gameDisplayName, heroCopy, sceneOnTable, trackerFromCounts, villainCopy, type Game } from './model'
 import { project, viewName } from './project'
 import {
   addChallenge,
@@ -14,6 +14,9 @@ import {
   addMemberMod,
   addVillain,
   advanceTracker,
+  dangerText,
+  resolveDanger,
+  undoDanger,
   boxLabel,
   changeHeroPlay,
   changeVillainPlay,
@@ -535,5 +538,65 @@ describe('the log', () => {
     const game = withLog(createGame(), many)
     expect(game.feed).toHaveLength(200)
     expect(game.feed[0]!.text).toBe('5')
+  })
+})
+
+describe('making the scene more dangerous', () => {
+  const start = (hidden = false) => {
+    const c = clock()
+    const game = addVillain(createGame(), { ...adaptiveBruiser(), id: 'v', details: { ...adaptiveBruiser().details, name: 'Gravelord' } }, c, hidden)
+    return { c, game, id: game.villains[0]!.id }
+  }
+  const box = (g: Game) => g.scenes[0]!.position
+
+  it('a success advances one box with a public line, once', () => {
+    const { c, game, id } = start()
+    const g = resolveDanger(game, id, true, c)
+    expect(box(g)).toBe(1)
+    expect(g.villains[0]!.dangerUsed).toEqual({ box: 1 })
+    expect(last(g)).toMatchObject({ text: 'Gravelord made the scene more dangerous. The scene tracker moved to Green 2.' })
+    expect(last(g).gmOnly).toBeUndefined()
+    expect(resolveDanger(g, id, true, c)).toBe(g)
+    expect(dangerText(g.villains[0]!.dangerUsed!, trackerFromCounts(g.scenes[0]!.tracker))).toBe('Used this scene. The tracker moved to Green 2.')
+  })
+
+  it('a failure spends it and moves nothing', () => {
+    const { c, game, id } = start()
+    const g = resolveDanger(game, id, false, c)
+    expect(box(g)).toBe(0)
+    expect(g.feed).toEqual(game.feed)
+    expect(dangerText(g.villains[0]!.dangerUsed!, [])).toBe('Used this scene. The roll failed.')
+    expect(undoDanger(g, id, c).villains[0]!.dangerUsed).toBeUndefined()
+    expect(box(undoDanger(g, id, c))).toBe(0)
+  })
+
+  it("a hidden villain isn't named to players, though the tracker moves for all", () => {
+    const { c, game, id } = start(true)
+    const g = resolveDanger(game, id, true, c)
+    const lines = g.feed.slice(game.feed.length)
+    expect(lines.map((e) => [e.text, Boolean(e.gmOnly)])).toEqual([
+      ['The scene tracker moved to Green 2.', false],
+      ['Gravelord made the scene more dangerous.', true],
+    ])
+    expect(last(undoDanger(g, id, c))).toMatchObject({ text: 'The scene tracker moved back to Green 1.' })
+  })
+
+  it('on the last box the use is spent and the log says the tracker has run out', () => {
+    const { c, game, id } = start()
+    const end = setTrackerPosition(game, trackerFromCounts(game.scenes[0]!.tracker).length - 1, c)
+    const g = resolveDanger(end, id, true, c)
+    expect(box(g)).toBe(box(end))
+    expect(g.villains[0]!.dangerUsed).toEqual({})
+    expect(dangerText({}, [])).toBe('Used this scene. The tracker had no boxes left.')
+    expect(box(undoDanger(g, id, c))).toBe(box(end))
+  })
+
+  it('undo moves the tracker back and restores the use', () => {
+    const { c, game, id } = start()
+    const g = undoDanger(resolveDanger(game, id, true, c), id, c)
+    expect(box(g)).toBe(0)
+    expect(g.villains[0]!.dangerUsed).toBeUndefined()
+    expect(last(g).text).toBe("Undid: Gravelord advanced the tracker. It's back at Green 1.")
+    expect(undoDanger(game, id, c)).toBe(game)
   })
 })

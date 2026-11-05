@@ -8324,3 +8324,54 @@ ol.vw-conditions li {
 .gt-request p {
   margin: 0;
 }
+
+/* The Running panel's tracker Overcome and twists (docs/design/villains-and-challenges/spec.md, sections 2 and 3). */
+.gt-danger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  font-size: 0.875rem;
+}
+
+.gt-twists {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.gt-twists li {
+  padding: 8px 0;
+  border-top: 1px solid var(--ui-border);
+}
+
+.gt-major {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ui-border);
+}
+
+.gt-major__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gt-choice {
+  flex: 1 1 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  background: var(--ui-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}

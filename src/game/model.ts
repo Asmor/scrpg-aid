@@ -69,6 +69,11 @@ export interface VillainInGame extends CharacterInGame<Villain, VillainPlayState
   playersSee: PlayersSee
   /** The GM's overrides of its status die (the villains and challenges spec, section 1); cleared when a new scene starts. */
   statusOverride?: { die?: Die; count?: number }
+  /**
+   * Its once-per-scene Overcome to make the scene more dangerous is spent (p. 154): `box` is where
+   * the tracker moved to, if it did; `failed` if the roll didn't succeed. Cleared by a new scene.
+   */
+  dangerUsed?: { box?: number; failed?: true }
 }
 
 /**

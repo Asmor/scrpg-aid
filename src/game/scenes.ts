@@ -214,7 +214,7 @@ export function moveToTable(game: Game, ref: OppositionRef, hidden: boolean, clo
  * Moves a villain, group or challenge off the table and into set aside, with its play state. A
  * group becomes the GM's: the environment it came with may not be there when it returns.
  */
-export function setAside(game: Game, ref: OppositionRef, afterScene: number | undefined, clock: Clock): Game {
+export function setAside(game: Game, ref: OppositionRef, afterScene: number | undefined, clock: Clock, text?: string): Game {
   const item = findIn(tableLists(game), ref)
   if (!item || ref.kind === 'environment') return game
   const entry = { ref, ...(afterScene ? { afterScene } : {}) }
@@ -234,7 +234,7 @@ export function setAside(game: Game, ref: OppositionRef, afterScene: number | un
   }
   const hidden = (item as { hidden: boolean }).hidden
   const name = ref.kind === 'group' ? (item as NpcGroup).name : itemTitle(item, ref)
-  return withLog(syncTurnOrder(next), [logLine(clock, `${name} left the table.`, hidden)])
+  return withLog(syncTurnOrder(next), [logLine(clock, text ?? `${name} left the table.`, hidden)])
 }
 
 // ---- The scene editor ----
@@ -619,6 +619,11 @@ function withoutOverride(villain: VillainInGame): VillainInGame {
   return rest
 }
 
+function withoutDanger(villain: VillainInGame): VillainInGame {
+  const { dangerUsed: _, ...rest } = villain
+  return rest
+}
+
 /** Applies the checked resets. `arrived` keep their bonuses and penalties: they were prepped, or left with them. */
 function applyResets(game: Game, resets: SceneResets, arrived: ReadonlySet<string>): Game {
   const heroes = game.heroes.map((h) => {
@@ -631,12 +636,9 @@ function applyResets(game: Game, resets: SceneResets, arrived: ReadonlySet<strin
     let play = v.play
     if (resets.round) play = { ...clearDefenses(play), reactionUsed: false }
     if (resets.mods && !arrived.has(refKey({ kind: 'villain', id: v.id }))) play = { ...play, mods: [] }
-    if (resets.once) {
-      const { sceneAdvanced: _, ...rest } = play
-      play = rest
-    }
     // The new scene's counts start fresh (the villains and challenges spec, section 6).
-    return withoutOverride({ ...v, play })
+    const fresh = withoutOverride({ ...v, play })
+    return resets.once ? withoutDanger(fresh) : fresh
   })
   const groups = game.groups.map((g) => ({
     ...g,
@@ -649,7 +651,7 @@ function applyResets(game: Game, resets: SceneResets, arrived: ReadonlySet<strin
   }))
   const environment = resets.twists && game.environment ? { environment: unusedTwists(game.environment) } : {}
   const round = resets.round ? { round: 0, turn: { order: [], acted: [] } } : {}
-  const offTable = { ...game.offTable, villains: game.offTable.villains.map(withoutOverride) }
+  const offTable = { ...game.offTable, villains: game.offTable.villains.map((v) => (resets.once ? withoutDanger(withoutOverride(v)) : withoutOverride(v))) }
   return { ...game, heroes, villains, groups, offTable, ...environment, ...round }
 }
 
@@ -743,7 +745,7 @@ export function duplicateGame(game: Game, options: { id?: string; now?: Date } =
   const opensOnCurrent = copy.scenes[0]?.id === copy.currentSceneId
   const freshGroup = (x: NpcGroup): NpcGroup => ({ ...x, ...(opensOnCurrent ? {} : { owner: { kind: 'gm' as const } }), members: x.members.map((m) => ({ ...clearDefenses(m), mods: [], acted: false })) })
   const freshChallenge = (x: Challenge): Challenge => ({ ...x, steps: x.steps.map((s) => ({ ...s, done: false })), requests: [] })
-  const freshVillain = (x: VillainInGame): VillainInGame => ({ ...withoutOverride(x), play: emptyVillainPlay() })
+  const freshVillain = (x: VillainInGame): VillainInGame => ({ ...withoutDanger(withoutOverride(x)), play: emptyVillainPlay() })
   // Everything starts off the table, then the first scene brings its own on.
   const offTable: OffTable = {
     villains: [...copy.villains, ...copy.offTable.villains].map(freshVillain),

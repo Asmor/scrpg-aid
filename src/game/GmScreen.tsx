@@ -21,13 +21,15 @@ import { addMod, addTwist, currentHealth, describeMod, modName, removeMod, remov
 import { villainDisplayName, type VillainPlayState } from '../villain/model'
 import { villainHealth, villainZone } from '../villain/play'
 import { buildVillainSheet, villainTraits } from '../villain/sheet'
-import type { EnvironmentOnTable, Game, NpcGroup, VillainInGame } from './model'
+import { sceneOnTable, type EnvironmentOnTable, type Game, type NpcGroup, type VillainInGame } from './model'
 import { RunningEnvironment, type EnvironmentActions } from './RunningEnvironment'
 import { RunningGroup, type GroupActions } from './RunningGroup'
 import { targetId } from './roll-targets'
 import { gmTable, targetOptions } from './target-options'
 import { ScenesTab, type SceneActions } from './ScenesTab'
+import { dangerText } from './table'
 import { ZoneChip } from './TableCenter'
+import { DangerResultDialog, VillainTwistDialog } from './VillainDialogs'
 import { villainStatus } from './villain-status'
 import { VillainStatusPanel, type VillainStatusActions } from './VillainStatusPanel'
 
@@ -51,13 +53,16 @@ export type VillainAttacks = (results: ({ kind: 'attack' | 'defend'; to: string;
 export type GmTab = 'bring' | 'scenes' | 'notes'
 
 /** The villain's copy in this game: its sheet and its play state here. */
-function RunningVillain({ game, copy, change, attack, advance, status: statusActions, random }: { game: Game; copy: VillainInGame; change: VillainChange; attack: VillainAttacks; advance: () => void; status: VillainStatusActions; random?: () => number }) {
+function RunningVillain({ game, copy, change, attack, danger, undoDanger, captured, escapes, status: statusActions, random }: { game: Game; copy: VillainInGame; change: VillainChange; attack: VillainAttacks; danger: (success: boolean) => void; undoDanger: () => void; captured: () => void; escapes: () => void; status: VillainStatusActions; random?: () => number }) {
   const { sheet: villain, play } = copy
   const id = useId()
   const [amount, setAmount] = useState('')
   const [adding, setAdding] = useState<'mod' | 'twist' | null>(null)
-  const [twist, setTwist] = useState('')
   const [rolling, setRolling] = useState<RollSubject | null>(null)
+  // The tracker Overcome: rolling it, then asking how it went, with the total.
+  const [dangerRoll, setDangerRoll] = useState(false)
+  const [dangerTotal, setDangerTotal] = useState<{ total: number | undefined } | null>(null)
+  const name = villainDisplayName(villain)
   const sheet = buildVillainSheet(villain)
   const health = villainHealth(villain, play)
   const current = currentHealth(health, play)
@@ -115,7 +120,7 @@ function RunningVillain({ game, copy, change, attack, advance, status: statusAct
         <input type="checkbox" checked={play.reactionUsed} onChange={(e) => change((p, c) => setReactionUsed(p, e.target.checked, c))} />
         Reaction used this round
       </label>
-      {(play.mods.length > 0 || play.twists.length > 0 || (play.defenses?.length ?? 0) > 0) && (
+      {(play.mods.length > 0 || (play.defenses?.length ?? 0) > 0) && (
         <ul className="gt-chips">
           {(play.defenses ?? []).map((d) => (
             <li key={d.id} className="gt-mod gt-defense">
@@ -133,14 +138,6 @@ function RunningVillain({ game, copy, change, attack, advance, status: statusAct
               </button>
             </li>
           ))}
-          {play.twists.map((t) => (
-            <li key={t.id} className="gt-mod">
-              Twist: {t.text}
-              <button type="button" className="gt-chip-x" aria-label={`Clear the minor twist: ${t.text}`} onClick={() => change((p, c) => removeTwist(p, t.id, c))}>
-                ×
-              </button>
-            </li>
-          ))}
         </ul>
       )}
       <div className="button-row">
@@ -150,33 +147,70 @@ function RunningVillain({ game, copy, change, attack, advance, status: statusAct
         <button type="button" className="button button--small" aria-expanded={adding === 'mod'} onClick={() => setAdding(adding === 'mod' ? null : 'mod')}>
           + Mod
         </button>
-        <button type="button" className="button button--small" aria-expanded={adding === 'twist'} onClick={() => setAdding(adding === 'twist' ? null : 'twist')}>
+        <button type="button" className="button button--small" onClick={() => setAdding('twist')}>
           + Twist
         </button>
       </div>
       {adding === 'mod' && <ModForm onSubmit={(mod) => (change((p, c) => addMod(p, mod, c)), setAdding(null))} />}
       {adding === 'twist' && (
-        <form
-          className="play-add"
-          onSubmit={(e) => {
-            e.preventDefault()
-            change((p, c) => addTwist(p, { kind: 'minor', text: twist }, c))
-            setTwist('')
+        <VillainTwistDialog
+          name={name}
+          onMinor={(text) => change((p, c) => addTwist(p, { kind: 'minor', text }, c))}
+          onCaptured={() => {
             setAdding(null)
+            captured()
           }}
-        >
-          <label className="field" htmlFor={`${id}-twist`}>
-            <span>Minor twist</span>
-            <input id={`${id}-twist`} type="text" value={twist} onChange={(e) => setTwist(e.target.value)} />
-          </label>
-          <button type="submit" className="button button--small" disabled={!twist.trim()}>
-            Add
-          </button>
-        </form>
+          onEscapes={() => {
+            setAdding(null)
+            escapes()
+          }}
+          onClose={() => setAdding(null)}
+        />
       )}
-      <button type="button" className="button button--small" disabled={Boolean(play.sceneAdvanced) || out} onClick={advance}>
-        {play.sceneAdvanced ? 'Scene tracker advanced (once per scene)' : 'Advance the scene tracker (once per scene)'}
-      </button>
+      <div className="gt-danger">
+        <span className="gt-grow">
+          <strong>Make the scene more dangerous</strong>
+          <br />
+          <span className="gt-sub">{copy.dangerUsed ? dangerText(copy.dangerUsed, sceneOnTable(game).tracker) : 'Once per scene. Roll an Overcome; on a success the scene tracker advances one box.'}</span>
+        </span>
+        {copy.dangerUsed ? (
+          <button type="button" className="button button--quiet button--small" aria-label="Undo making the scene more dangerous" onClick={undoDanger}>
+            Undo
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="button button--small"
+            disabled={out}
+            onClick={() => {
+              setDangerRoll(true)
+              setRolling({ kind: 'basic', action: 'overcome' })
+            }}
+          >
+            Overcome: advance tracker
+          </button>
+        )}
+      </div>
+      <section aria-labelledby={`${id}-twists`}>
+        <h3 id={`${id}-twists`} className="gt-status-panel__head">
+          Twists
+        </h3>
+        {play.twists.length === 0 ? (
+          <p className="gt-sub">None.</p>
+        ) : (
+          <ul className="gt-twists">
+            {play.twists.map((t) => (
+              <li key={t.id} className="gt-row">
+                <span className="tag">MINOR</span>
+                <span className="gt-grow">{t.text}</span>
+                <button type="button" className="button button--quiet button--small" aria-label={`Resolve the minor twist: ${t.text}`} onClick={() => change((p, c) => removeTwist(p, t.id, c))}>
+                  Resolve
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
       <ul className="gt-abilities" aria-label="Abilities">
         {[...sheet.abilities, ...(sheet.mastery ? [sheet.mastery] : [])].map((a, i) => {
           const usable = a.type !== 'I' || (a.use.pool !== undefined && a.use.effects.length > 0)
@@ -207,10 +241,14 @@ function RunningVillain({ game, copy, change, attack, advance, status: statusAct
           zone={out ? undefined : (zone ?? 'green')}
           mods={play.mods}
           statusLabel="Status"
-          onClose={() => setRolling(null)}
+          onClose={() => {
+            setRolling(null)
+            setDangerRoll(false)
+          }}
           targetsFor={(effect, opts) => targetOptions({ kind: 'villain', id: copy.id }, effect, gmTable(game), opts)}
           selfId={targetId({ kind: 'villain', id: copy.id })}
           onConfirm={(record, followUps, _form, _made, choices = []) => {
+            if (dangerRoll) setDangerTotal({ total: record.results.find((r) => r.action === 'overcome')?.total })
             change((p, c) => {
               const after = confirmRoll(p, record, c)
               const withMods = followUps.filter((f) => !f.to).reduce((q, f) => addMod(q, f.mod, c), after)
@@ -227,6 +265,17 @@ function RunningVillain({ game, copy, change, attack, advance, status: statusAct
             if (others.length) attack(others)
           }}
           random={random}
+        />
+      )}
+      {dangerTotal && (
+        <DangerResultDialog
+          name={name}
+          total={dangerTotal.total}
+          onResult={(success) => {
+            setDangerTotal(null)
+            danger(success)
+          }}
+          onClose={() => setDangerTotal(null)}
         />
       )}
     </>
@@ -395,7 +444,7 @@ export type QuickAddKind = 'minions' | 'lieutenants' | 'challenge'
 interface GmScreenProps {
   game: Game
   quickAdd: (kind: QuickAddKind) => void
-  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange; attack: VillainAttacks; advance: () => void; status: VillainStatusActions } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'environment'; env: EnvironmentOnTable; actions: EnvironmentActions } | { kind: 'missing' }
+  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange; attack: VillainAttacks; danger: (success: boolean) => void; undoDanger: () => void; captured: () => void; escapes: () => void; status: VillainStatusActions } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'environment'; env: EnvironmentOnTable; actions: EnvironmentActions } | { kind: 'missing' }
   stopRunning: () => void
   bring: BringIn
   setNotes: (notes: string) => void
@@ -469,7 +518,7 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
             </button>
           </div>
           {running.kind === 'villain' ? (
-            <RunningVillain key={running.villain.id} game={game} copy={running.villain} change={running.change} attack={running.attack} advance={running.advance} status={running.status} random={random} />
+            <RunningVillain key={running.villain.id} game={game} copy={running.villain} change={running.change} attack={running.attack} danger={running.danger} undoDanger={running.undoDanger} captured={running.captured} escapes={running.escapes} status={running.status} random={random} />
           ) : running.kind === 'environment' ? (
             <RunningEnvironment key={running.env.id} game={game} env={running.env} actions={running.actions} sheets={sheets} random={random} />
           ) : (

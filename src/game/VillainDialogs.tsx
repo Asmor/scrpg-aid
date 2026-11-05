@@ -179,3 +179,70 @@ export function RecalculateHealthDialog({ villain, heroes, onApply, onClose }: {
     </Modal>
   )
 }
+
+/** A villain's + Twist: a minor twist, or for a major one, the only two ways it can go (p. 155). */
+export function VillainTwistDialog({ name, onMinor, onCaptured, onEscapes, onClose }: { name: string; onMinor: (text: string) => void; onCaptured: () => void; onEscapes: () => void; onClose: () => void }) {
+  const id = useId()
+  const [text, setText] = useState('')
+  return (
+    <Modal title={`Twist for ${name}`} onClose={onClose}>
+      <form
+        className="gt-form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (!text.trim()) return
+          onMinor(text.trim())
+          onClose()
+        }}
+      >
+        <label className="field" htmlFor={id}>
+          <span>Minor twist</span>
+          <input id={id} type="text" value={text} onChange={(e) => setText(e.target.value)} />
+        </label>
+        <div className="button-row gt-dialog-actions">
+          <button type="submit" className="button button--primary" disabled={!text.trim()}>
+            Add minor twist
+          </button>
+        </div>
+      </form>
+      <section className="gt-major" aria-label="Major twist">
+        <div className="gt-label">Major twist</div>
+        <p className="gt-sub">Villains don't take major twists. Given the choice, a villain fails instead. The one exception: a major twist can end the scene.</p>
+        <div className="gt-major__choices">
+          <button type="button" className="gt-choice" onClick={onCaptured}>
+            <strong>Captured</strong>
+            <span className="gt-sub">{name} leaves the game's opposition.</span>
+          </button>
+          <button type="button" className="gt-choice" onClick={onEscapes}>
+            <strong>Escapes</strong>
+            <span className="gt-sub">{name} is set aside with its Health, for a later scene.</span>
+          </button>
+        </div>
+      </section>
+      <div className="button-row gt-dialog-actions">
+        <button type="button" className="button" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+/** After the tracker Overcome's roll: the GM reads the result and says how it went. */
+export function DangerResultDialog({ name, total, onResult, onClose }: { name: string; total: number | undefined; onResult: (success: boolean) => void; onClose: () => void }) {
+  return (
+    <Modal title="Make the scene more dangerous" onClose={onClose}>
+      <p>
+        {name} rolled {total ?? 'an Overcome'}. Did it succeed? Either way, the use is spent.
+      </p>
+      <div className="button-row gt-dialog-actions">
+        <button type="button" className="button button--primary" onClick={() => onResult(true)}>
+          Success: advance the tracker
+        </button>
+        <button type="button" className="button" onClick={() => onResult(false)}>
+          Failure
+        </button>
+      </div>
+    </Modal>
+  )
+}

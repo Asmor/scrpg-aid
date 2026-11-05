@@ -541,7 +541,7 @@ describe('starting a scene', () => {
   it('brings a villain back from set aside with the Health it left with, and out of set aside', () => {
     let { g, id } = ready()
     const ref = villainRef(g)
-    g = { ...g, villains: g.villains.map((v) => ({ ...v, play: { ...v.play, health: 41, mods: [{ id: 'm', label: 'Angry', value: 2 }], sceneAdvanced: true as const, reactionUsed: true } })) }
+    g = { ...g, villains: g.villains.map((v) => ({ ...v, dangerUsed: {}, play: { ...v.play, health: 41, mods: [{ id: 'm', label: 'Angry', value: 2 }], reactionUsed: true } })) }
     g = start(g, id)
     const third = savePlannedScene(g, undefined, { ...draftOfNew(g), rows: [{ ref, startHidden: false, source: { kind: 'aside', afterScene: 1 } }] }, clock)
     id = third.sceneId
@@ -549,7 +549,7 @@ describe('starting a scene', () => {
     expect(next.villains[0]).toMatchObject({ id: ref.id, hidden: false, play: { health: 41, reactionUsed: false } })
     // It keeps its mods (it left with them), but it's a new scene for its once-per-scene Overcome.
     expect(next.villains[0]!.play.mods).toHaveLength(1)
-    expect(next.villains[0]!.play.sceneAdvanced).toBeUndefined()
+    expect(next.villains[0]!.dangerUsed).toBeUndefined()
     expect(next.aside).toEqual([])
   })
 
@@ -632,7 +632,7 @@ describe('starting a scene', () => {
       const next: Game = {
         ...g,
         heroes: g.heroes.map((h) => ({ ...h, play: { ...h.play, health: 7, reactionUsed: true, mods: [mod], defenses: [defense], twists: [{ id: 't', kind: 'minor' as const, text: 'Hurt' }], minions: [{ id: 'mn', name: 'Drone', die: 'd6' as const, action: 'any' as const, mods: [mod], defenses: [defense] }] } })),
-        villains: g.villains.map((v) => ({ ...v, play: { ...v.play, reactionUsed: true, mods: [mod], defenses: [defense], sceneAdvanced: true as const } })),
+        villains: g.villains.map((v) => ({ ...v, dangerUsed: {}, play: { ...v.play, reactionUsed: true, mods: [mod], defenses: [defense] } })),
         groups: g.groups.map((x) => ({ ...x, members: x.members.map((m) => ({ ...m, mods: [mod], acted: true, defenses: [defense] })) })),
       }
       const keep = (c: StartChoices): StartChoices => ({ ...c, fates: Object.fromEntries(Object.keys(c.fates).map((k) => [k, 'along' as const])) })
@@ -649,7 +649,8 @@ describe('starting a scene', () => {
       expect(next.heroes[0]!.play).toMatchObject({ reactionUsed: false, mods: [{ id: 'm' }] })
       expect(next.heroes[0]!.play.defenses).toBeUndefined()
       expect(next.heroes[0]!.play.minions![0]!.defenses).toBeUndefined()
-      expect(next.villains[0]!.play).toMatchObject({ reactionUsed: false, sceneAdvanced: true })
+      expect(next.villains[0]!.play).toMatchObject({ reactionUsed: false })
+      expect(next.villains[0]!.dangerUsed).toEqual({})
       expect(next.groups[0]!.members[0]).toMatchObject({ acted: false })
       // In the order: the heroes and what's revealed.
       expect(next.turn.order.map((o) => o.kind)).toEqual(['hero', 'villain', 'group', 'group'])
@@ -682,8 +683,8 @@ describe('starting a scene', () => {
 
     it('Once-per-scene uses: each villain’s tracker Overcome is ready again', () => {
       const { g, id, keep } = busy()
-      expect(start(g, id, (c) => only({ once: true })(keep(c))).villains[0]!.play.sceneAdvanced).toBeUndefined()
-      expect(start(g, id, (c) => only({})(keep(c))).villains[0]!.play.sceneAdvanced).toBe(true)
+      expect(start(g, id, (c) => only({ once: true })(keep(c))).villains[0]!.dangerUsed).toBeUndefined()
+      expect(start(g, id, (c) => only({})(keep(c))).villains[0]!.dangerUsed).toEqual({})
     })
 
     it('the heroes stay, with their Health and twists, whatever is checked', () => {

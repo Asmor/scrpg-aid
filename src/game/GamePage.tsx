@@ -20,7 +20,7 @@ import { formatAgoInline } from '../library/when'
 import type { Clock } from '../play/state'
 import { useTick } from '../play/useTick'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
-import { advanceScene, recalculateHealth, villainHealth } from '../villain/play'
+import { recalculateHealth, villainHealth } from '../villain/play'
 import { BringInVillainDialog, RecalculateHealthDialog } from './VillainDialogs'
 import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EditStepsDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, SceneRecordDialog, TwistDialog, UpdateDialog } from './dialogs'
 import { GmScreen, type GmTab, type QuickAddKind, type VillainAttacks } from './GmScreen'
@@ -33,7 +33,7 @@ import { currentScene, gameDisplayName, sceneName, sceneNumber, sceneOnTable, ty
 import { healthLine, reconcile, reconcileVillain } from './reconcile'
 import { SceneEditor, type EditorTarget } from './SceneEditor'
 import type { SceneDraft } from './scenes'
-import { addAsideTo, deleteScene, duplicateScene, moveScene, moveToTable, removeAside, saveCurrentScene, savePlannedScene, setSceneRecord, startScene, waitingNote } from './scenes'
+import { addAsideTo, deleteScene, duplicateScene, moveScene, moveToTable, removeAside, saveCurrentScene, savePlannedScene, setAside, setSceneRecord, startScene, waitingNote } from './scenes'
 import { StartSceneDialog } from './StartSceneDialog'
 import { sheetDiff } from './sheet-diff'
 import { TableCenter, TableLog, ZoneChip, type GmControls, type HeroView, type VillainView } from './TableCenter'
@@ -78,6 +78,7 @@ type Dialog =
   | { kind: 'bringVillain'; villain: Villain }
   | { kind: 'recalculate'; villainId: string }
   | { kind: 'editSteps'; challengeId: string }
+  | { kind: 'capture'; villainId: string; name: string }
 
 /** How long a started scene can be undone. */
 export const SCENE_UNDO_MS = 30_000
@@ -352,7 +353,14 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         kind: 'villain' as const,
         villain: runningVillain,
         change: (fn: (p: VillainPlayState, c: Clock) => VillainPlayState) => changeVillain(runningVillain.id, fn),
-        advance: () => apply((g) => T.advanceTracker(T.changeVillainPlay(g, runningVillain.id, (p) => advanceScene(p, clock()), clock()), clock())),
+        danger: (success: boolean) => apply((g) => T.resolveDanger(g, runningVillain.id, success, clock())),
+        undoDanger: () => apply((g) => T.undoDanger(g, runningVillain.id, clock())),
+        captured: () => setDialog({ kind: 'capture', villainId: runningVillain.id, name: villainDisplayName(runningVillain.sheet) }),
+        escapes: () => {
+          const name = villainDisplayName(runningVillain.sheet)
+          apply((g) => setAside(g, { kind: 'villain', id: runningVillain.id }, sceneNumber(g, g.currentSceneId), clock(), `${name} escapes and is set aside for a later scene.`))
+          setRunning(null)
+        },
         status: {
           setOverride: (override) => apply((g) => setStatusOverride(g, runningVillain.id, override)),
           setHandCount: (n) => apply((g) => setHandCount(g, runningVillain.id, n, clock())),
@@ -706,6 +714,18 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
             />
           )
         })()}
+      {dialog?.kind === 'capture' && (
+        <ConfirmDialog
+          title={`${dialog.name} is captured?`}
+          text="It leaves the table and the turn order, and this game's copy of it goes. Your library sheet doesn't change."
+          confirm="Captured"
+          onConfirm={() => {
+            apply((g) => T.removeFromTable(g, { kind: 'villain', id: dialog.villainId }, clock(), `${dialog.name} is captured.`))
+            setRunning(null)
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog?.kind === 'editSteps' &&
         (() => {
           const challenge = game.challenges.find((c) => c.id === dialog.challengeId)

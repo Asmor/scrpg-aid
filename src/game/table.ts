@@ -352,8 +352,8 @@ export function placeEnvironment(game: Game, environment: EnvironmentOnTable, cl
   return log(syncTurnOrder(replaced), clock, `The environment is now ${environment.name}${environment.hidden ? ', hidden from players' : ''}.`, { gmOnly: environment.hidden })
 }
 
-/** Removes an item or a hero from the table (and from the turn order). */
-export function removeFromTable(game: Game, ref: ItemRef | ActorRef, clock: Clock): Game {
+/** Removes an item or a hero from the table (and from the turn order). `text` says why, in place of "left the table". */
+export function removeFromTable(game: Game, ref: ItemRef | ActorRef, clock: Clock, text?: string): Game {
   const name = itemName(game, ref)
   const gmOnly = ref.kind !== 'hero' && isHidden(game, ref)
   let next: Game
@@ -386,7 +386,7 @@ export function removeFromTable(game: Game, ref: ItemRef | ActorRef, clock: Cloc
       break
     }
   }
-  return log(syncTurnOrder(next), clock, `${name} left the table.`, { gmOnly })
+  return log(syncTurnOrder(next), clock, text ?? `${name} left the table.`, { gmOnly })
 }
 
 /** Reveals an item to players, or hides it again. */
@@ -496,6 +496,46 @@ export function heroPlayInScene(game: HasTracker & { solo?: unknown }, play: Pla
   const zone = sceneZone(game)
   const { sceneZone: _, ...rest } = play
   return zone === 'green' ? rest : { ...rest, sceneZone: zone }
+}
+
+// ---- Making the scene more dangerous (p. 154) ----
+
+/**
+ * The villain's once-per-scene Overcome is decided. A success advances the tracker one box, which
+ * the log says publicly; a hidden villain isn't named. A failure, or a tracker with no boxes left,
+ * just spends the use.
+ */
+export function resolveDanger(game: Game, villainId: string, success: boolean, clock: Clock): Game {
+  const villain = findVillain(game, villainId)
+  if (!villain || villain.dangerUsed) return game
+  const spend = (dangerUsed: NonNullable<VillainInGame['dangerUsed']>, g: Game = game) => ({ ...g, villains: g.villains.map((v) => (v.id === villainId ? { ...v, dangerUsed } : v)) })
+  if (!success) return spend({ failed: true })
+  const { tracker, position } = sceneOnTable(game)
+  const box = position + 1
+  const name = villainDisplayName(villain.sheet)
+  if (box >= tracker.length) return log(spend({}), clock, villain.hidden ? 'The scene tracker has run out.' : `${name} made the scene more dangerous, but the scene tracker has run out.`)
+  const moved = spend({ box }, changeCurrentScene(game, (s) => ({ ...s, position: box })))
+  const label = boxLabel(tracker, box)
+  return villain.hidden ? withLog(moved, [line(clock, `The scene tracker moved to ${label}.`), line(clock, `${name} made the scene more dangerous.`, { gmOnly: true })]) : log(moved, clock, `${name} made the scene more dangerous. The scene tracker moved to ${label}.`)
+}
+
+/** Takes it back: the tracker moves back if it moved, and the use returns. */
+export function undoDanger(game: Game, villainId: string, clock: Clock): Game {
+  const villain = findVillain(game, villainId)
+  if (!villain?.dangerUsed) return game
+  const { dangerUsed, ...rest } = villain
+  const restored = { ...game, villains: game.villains.map((v) => (v.id === villainId ? rest : v)) }
+  if (dangerUsed.box === undefined) return restored
+  const { tracker, position } = sceneOnTable(game)
+  const back = Math.max(0, position - 1)
+  const moved = changeCurrentScene(restored, (s) => ({ ...s, position: back }))
+  return log(moved, clock, villain.hidden ? `The scene tracker moved back to ${boxLabel(tracker, back)}.` : `Undid: ${villainDisplayName(villain.sheet)} advanced the tracker. It's back at ${boxLabel(tracker, back)}.`)
+}
+
+/** The row's words once the use is spent: "Used this scene. The tracker moved to Yellow 2." */
+export function dangerText(used: NonNullable<VillainInGame['dangerUsed']>, tracker: readonly Zone[]): string {
+  if (used.failed) return 'Used this scene. The roll failed.'
+  return used.box === undefined ? 'Used this scene. The tracker had no boxes left.' : `Used this scene. The tracker moved to ${boxLabel(tracker, used.box)}.`
 }
 
 // ---- Groups and their members ----

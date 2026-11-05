@@ -24,7 +24,7 @@ const environmentShape = object({
   'twists?': arrayOf(object({ id: nonEmptyString, zone, kind: oneOf('minor', 'major'), 'name?': string, text: string, 'used?': object({ round: position }) })),
   'attached?': arrayOf(object({ kind: oneOf('minion', 'lieutenant'), templateId: nonEmptyString, name: string, die, actions: groupActions, groupSize: integer })),
 })
-const villainInGame = object({ id: nonEmptyString, sourceId: nonEmptyString, sheet: villainShape, play: villainPlayShape, hidden: boolean, playersSee: oneOf('name', 'status', 'health'), 'statusOverride?': object({ 'die?': die, 'count?': integer }) })
+const villainInGame = object({ id: nonEmptyString, sourceId: nonEmptyString, sheet: villainShape, play: villainPlayShape, hidden: boolean, playersSee: oneOf('name', 'status', 'health'), 'statusOverride?': object({ 'die?': die, 'count?': integer }), 'dangerUsed?': object({ 'box?': position, 'failed?': oneOf(true) }) })
 const groupShape = object({
   id: nonEmptyString,
   'templateId?': nonEmptyString,
