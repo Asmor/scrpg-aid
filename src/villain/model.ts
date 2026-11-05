@@ -15,6 +15,7 @@
  * Versioning (./serialize.ts) follows the hero's rules. Until the first public release
  * there are no real saves, so v1 may still change freely.
  */
+import type { Appearance } from '../colors/palette'
 import type { Defense } from '../play/defense'
 import { newId, type PlayHistoryEntry, type PlayMod, type PlayTwist, type TraitAssignment } from '../hero/model'
 import { traitKey, type TraitRef } from '../rules/catalog'
@@ -96,6 +97,8 @@ export interface Villain {
   updatedAt: string
   /** The GM's own labels for organizing the library (docs/design/library/spec.md); see ../library/tags.ts. */
   tags: string[]
+  /** The villain's colors (docs/design/character-colors/spec.md); unset reads as the default. */
+  appearance?: Appearance
   /** A new villain is a draft until the GM finishes it in the wizard; drafts can't be brought into games. */
   status: VillainStatus
   /** A draft's furthest wizard step (1–7), for the library's "Step N of 7" and Continue. */

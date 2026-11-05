@@ -3,6 +3,7 @@
  * 5; Core Rules p. 142–143). Pure: each takes the hero and returns the next one. The player has
  * full control: nothing here asks a GM or checks when a change is allowed.
  */
+import { appearanceOf, appearanceText, sameAppearance, type Appearance } from '../colors/palette'
 import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 import { DETAIL_LABEL } from '../hero/labels'
 import type { AdvancementEntry, BackIssue, Hero, HeroDetails } from '../hero/model'
@@ -164,6 +165,10 @@ export function undoLast(hero: Hero): Hero {
   const entry = undoable(hero)
   if (!entry) return hero
   const advancement = hero.advancement.filter((e) => e !== entry)
+  if (entry.kind === 'cosmetic' && entry.change?.kind === 'colors') {
+    const { appearance: _, ...rest } = hero
+    return { ...rest, advancement, ...(entry.change.before ? { appearance: entry.change.before } : {}) }
+  }
   if (entry.kind === 'cosmetic' && entry.change?.kind === 'cosmetic') return { ...hero, advancement, details: { ...hero.details, ...entry.change.before } }
   if (entry.kind === 'rewrite' && entry.before) {
     const { rollMode: _, ...rest } = hero
@@ -197,6 +202,14 @@ export function changeCosmetic(hero: Hero, kind: CosmeticKind, values: Partial<H
   const parts = fields.map((f) => (kind === 'appearance' ? `${DETAIL_LABEL[f]} ${shown(hero.details[f])} → ${shown(values[f]!)}` : `${shown(hero.details[f])} → ${shown(values[f]!)}`))
   const by = followed(hero)
   return { ...hero, details: { ...hero.details, ...after }, advancement: [...hero.advancement, historyEntry(clock, 'cosmetic', `${COSMETIC_WORD[kind]}: ${parts.join('; ')}.`, { change: { kind: 'cosmetic', before }, ...(by ? { after: by } : {}) })] }
+}
+
+/** Changes the hero's colors, in the history. No change, nothing logged. */
+export function changeColors(hero: Hero, appearance: Appearance, clock: Clock): Hero {
+  const before = hero.appearance
+  if (sameAppearance(appearanceOf({ kind: 'hero', appearance: before }), appearance)) return hero
+  const by = followed(hero)
+  return { ...hero, appearance, advancement: [...hero.advancement, historyEntry(clock, 'cosmetic', `Colors: ${appearanceText(appearance)}`, { change: { kind: 'colors', ...(before ? { before } : {}) }, ...(by ? { after: by } : {}) })] }
 }
 
 /** What a change followed: the last back issue, or if there are none since, the last collection. */

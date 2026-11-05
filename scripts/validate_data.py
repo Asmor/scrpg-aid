@@ -14,6 +14,7 @@ Usage: python3 scripts/validate_data.py   (exits non-zero on any error)
 Set SCRPG_DATA to validate a different data directory.
 """
 import json
+import re
 import os
 import sys
 from pathlib import Path
@@ -49,6 +50,7 @@ IF_ALREADY_HAVE = {"skip", "swap", "addDifferentFromCategory"}
 ZONES = {"green", "yellow", "red"}
 PAGE_KEYS = {"page", "pages", "chartPage"}
 BOOKS_FILE = "books.json"
+COLORS_FILE = "colors.json"
 # For each file, the printed page span of each book section it was extracted
 # from. Catches PDF page indexes (printed + 8) and other stray page numbers.
 PAGE_SPANS = {
@@ -555,6 +557,49 @@ def check_scenes(docs):
         seen.add(key)
 
 
+def contrast(a, b):
+    def luminance(color):
+        channels = [int(color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+        linear = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+    hi, lo = sorted([luminance(a), luminance(b)], reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def check_colors(doc):
+    """The character color palette: not rules, so no page; each theme's ink reads on its fill."""
+    entries = items(doc, "colors", COLORS_FILE)
+    seen = set()
+    for c in entries:
+        where = f"{COLORS_FILE}[{c.get('id', '?')}]"
+        require(c, ["id", "name", "light", "dark"], where)
+        if c.get("id") in seen:
+            err(COLORS_FILE, f"duplicate id '{c.get('id')}'")
+        seen.add(c.get("id"))
+        for theme in ("light", "dark"):
+            pair = c.get(theme)
+            if not isinstance(pair, dict) or not all(re.fullmatch(r"#[0-9A-Fa-f]{6}", str(pair.get(k))) for k in ("fill", "ink")):
+                err(where, f"{theme} needs a hex fill and ink")
+            elif contrast(pair["fill"], pair["ink"]) < 4.5:
+                err(where, f"{theme} ink is below 4.5:1 on its fill")
+
+
+def check_char_tokens(doc):
+    """The token file's --char-* block has to match the palette: scripts/generate_char_tokens.py writes it."""
+    tokens_path = DATA.parent / "src/theme/tokens.css"
+    tokens = tokens_path.read_text() if tokens_path.exists() else ""
+    for c in items(doc, "colors", COLORS_FILE):
+        for theme, times in (("light", 1), ("dark", 3)):
+            pair = c.get(theme)
+            if not isinstance(pair, dict):
+                continue
+            fill = f"--char-{c.get('id')}: {pair.get('fill')};"
+            ink = f"--char-{c.get('id')}-ink: {pair.get('ink')};"
+            if tokens.count(fill) < times or tokens.count(ink) < times:
+                err("src/theme/tokens.css", f"out of date for {c.get('id')} ({theme}): run scripts/generate_char_tokens.py")
+
+
 def main():
     files = sorted(p.relative_to(DATA).as_posix() for p in DATA.rglob("*.json"))
     docs = {rel: load(rel) for rel in files}
@@ -590,7 +635,7 @@ def main():
     books = {b.get("id") for b in book_entries}
 
     for rel, doc in docs.items():
-        if doc is not None and rel != BOOKS_FILE:
+        if doc is not None and rel not in (BOOKS_FILE, COLORS_FILE):
             spans = PAGE_SPANS.get(rel)
             if spans is None:
                 err(rel, "no page span registered in PAGE_SPANS")
@@ -599,6 +644,8 @@ def main():
     check_heroes(docs)
     check_villains(docs)
     check_scenes(docs)
+    check_colors(docs.get(COLORS_FILE))
+    check_char_tokens(docs.get(COLORS_FILE))
     report(len(files))
 
 

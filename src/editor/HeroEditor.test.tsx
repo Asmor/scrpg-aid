@@ -166,6 +166,14 @@ describe('HeroEditor', () => {
     expect(screen.getByRole('link', { name: 'Start' })).toHaveAttribute('href', '#/hero/h1/edit/start')
   })
 
+  it('picks colors in Details, which affect no rule issues', async () => {
+    const store = await storeWith()
+    renderEditor(store, 'details')
+    const primary = within(await screen.findByRole('group', { name: 'Primary' }))
+    await userEvent.click(primary.getByRole('radio', { name: 'Purple' }))
+    await waitFor(async () => expect((await saved(store)).appearance).toEqual({ primary: 'purple' }))
+  })
+
   it('ends at Details; a finished hero then goes back to its page', async () => {
     renderEditor(await storeWith(), 'details')
     expect(await screen.findByRole('link', { name: 'Health' })).toHaveAttribute('href', '#/hero/h1/edit/health')

@@ -139,6 +139,15 @@ describe('the villain wizard shell', () => {
     await waitFor(() => expect(window.location.hash).toBe('#/villain/v1'))
   })
 
+  it('picks colors in the finishing touches', async () => {
+    const store = await storeWith({ ...createVillain({ id: 'v1' }), status: 'draft', furthestStep: 7 })
+    wizard(store, 'details')
+    const primary = within(await screen.findByRole('group', { name: 'Primary' }))
+    expect(primary.getByRole('radio', { name: 'Red' })).toBeChecked()
+    await userEvent.click(primary.getByRole('radio', { name: 'Pink' }))
+    await waitFor(async () => expect((await saved(store)).appearance).toEqual({ primary: 'pink' }))
+  })
+
   it('opens a finished villain at the edit summary, and reverts changes', async () => {
     viewport(1440)
     const store = await storeWith(adaptiveBruiser())

@@ -4,6 +4,7 @@
  * the formula term by term, and the zones), and Finishing touches.
  */
 import { useId } from 'react'
+import { ColorPicker } from '../../colors/ColorPicker'
 import { villainEditPath } from '../../app/route'
 import { AbilityText } from '../../components/icons'
 import { effectActions } from '../../creation/effects'
@@ -211,6 +212,7 @@ const DETAIL_LABEL: Record<(typeof DETAIL_FIELDS)[number], string> = {
 
 /** Step 7: the finishing touches (p. 208), and the GM's notes. */
 export function DetailsStep({ villain, update }: StepProps) {
+  const colorsId = useId()
   return (
     <div className="step-form">
       <div className="field-grid">
@@ -234,6 +236,10 @@ export function DetailsStep({ villain, update }: StepProps) {
           />
         </label>
       </div>
+      <section className="step-section" aria-labelledby={colorsId}>
+        <h3 id={colorsId}>Colors</h3>
+        <ColorPicker kind="villain" appearance={villain.appearance} name={villainDisplayName(villain)} onChange={(appearance) => update((v) => void (v.appearance = appearance))} />
+      </section>
     </div>
   )
 }

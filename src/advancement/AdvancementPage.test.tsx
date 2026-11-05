@@ -139,6 +139,30 @@ describe('the Advancement page', () => {
     expect(screen.getByText('Started with the collection Origins.')).toBeInTheDocument()
   })
 
+  it('changes colors, in the history, and Undo restores them', async () => {
+    const { saved } = await setup()
+    await userEvent.click(screen.getByRole('button', { name: 'Change colors…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Change colors' }))
+    await userEvent.click(within(dialog.getByRole('group', { name: 'Primary' })).getByRole('radio', { name: 'Purple' }))
+    await userEvent.click(within(dialog.getByRole('group', { name: /Secondary/ })).getByRole('radio', { name: 'Cyan' }))
+    await userEvent.click(within(dialog.getByRole('group', { name: 'Gradient' })).getByRole('radio', { name: 'Diagonal right' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Save' }))
+    await waitFor(async () => expect((await saved()).appearance).toEqual({ primary: 'purple', secondary: 'cyan', gradient: 'diagonalRight' }))
+    expect((await saved()).advancement.at(-1)).toMatchObject({ kind: 'cosmetic', text: 'Colors: Purple and Cyan, diagonal right.' })
+    await userEvent.click(screen.getByRole('button', { name: 'Undo last change' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Undo the last change?' })).getByRole('button', { name: 'Undo' }))
+    await waitFor(async () => expect((await saved()).appearance).toBeUndefined())
+    expect((await saved()).advancement).toEqual([])
+  })
+
+  it('logs nothing when the colors stay the same', async () => {
+    const { saved } = await setup()
+    await userEvent.click(screen.getByRole('button', { name: 'Change colors…' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Change colors' })).getByRole('button', { name: 'Save' }))
+    expect((await saved()).advancement).toEqual([])
+    expect((await saved()).appearance).toBeUndefined()
+  })
+
   it('swaps a power: the chips, the die kept, the preview with Was:, and Undo after a confirm', async () => {
     const { saved } = await setup()
     await userEvent.click(screen.getByRole('button', { name: 'Swap a power…' }))

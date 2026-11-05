@@ -3,6 +3,7 @@
  * untrusted. This checks shape only (types and required fields), not game rules:
  * rule problems are warnings, but a malformed document can't be opened at all.
  */
+import { appearanceShape } from '../colors/validate'
 import { DETAIL_FIELDS } from './model'
 import { type Check, arrayOf, boolean, either, integer, nonEmptyString, nullable, object, oneOf, recordOf, string, positiveInteger } from '../shape'
 
@@ -65,8 +66,11 @@ const retcon: Check = (v, path) => {
 }
 
 const cosmeticChange = object({ before: recordOf(string) })
+const colorsChange = object({ kind: oneOf('colors'), 'before?': appearanceShape })
+
 const advancementChange: Check = (v, path) => {
   if ((v as { kind?: unknown } | null)?.kind === 'cosmetic') return cosmeticChange(v, path)
+  if ((v as { kind?: unknown } | null)?.kind === 'colors') return colorsChange(v, path)
   const base = object({ kind: oneOf(...Object.keys(advancementByKind)) })(v, path)
   if (base) return base
   return advancementByKind[(v as { kind: string }).kind]!(v, path)
@@ -157,6 +161,7 @@ export const heroShape = object({
   createdAt: nonEmptyString,
   updatedAt: nonEmptyString,
   tags: arrayOf(string),
+  'appearance?': appearanceShape,
   ...buildFields,
   'pendingRolls?': object({ 'background?': rollRecord, 'powerSource?': rollRecord, 'archetype?': rollRecord, 'personality?': rollRecord, 'secondaryArchetype?': rollRecord }),
   backIssues: arrayOf(object({ id: nonEmptyString, title: string, 'gameId?': string, 'gameName?': string, 'issueId?': string, 'issueNumber?': integer, at: string })),

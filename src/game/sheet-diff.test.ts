@@ -109,3 +109,12 @@ describe('sheetDiff for villains', () => {
     expect(() => sheetDiff(completeHero(), adaptiveBruiser() as never)).toThrow()
   })
 })
+
+describe('colors', () => {
+  it('never show in a sync diff', () => {
+    const a = completeHero()
+    expect(sheetDiff(a, { ...a, appearance: { primary: 'pink' } })).toEqual([])
+    const v = adaptiveBruiser()
+    expect(sheetDiff(v, { ...v, appearance: { primary: 'pink' } })).toEqual([])
+  })
+})

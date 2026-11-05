@@ -21,7 +21,9 @@ import type { Clock } from '../play/state'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
 import { BackIssuePrompt } from '../game/BackIssuePrompt'
 import { setIssuePrompt, type JoinedGame } from '../game/joined-store'
-import { addBackIssue, addOfferedIssue, addStartingCollection, backIssueOffer, changeCosmetic, collectionsText, cosmeticFields, editBackIssue, heroIssues, holdsIssue, recordCollection, removeBackIssue, shortDate, undoable, undoLast, type CosmeticKind, type HeroIssue, type IssueGame, type IssueSource } from './records'
+import { ColorPicker } from '../colors/ColorPicker'
+import { appearanceOf, type Appearance } from '../colors/palette'
+import { addBackIssue, addOfferedIssue, addStartingCollection, backIssueOffer, changeColors, changeCosmetic, collectionsText, cosmeticFields, editBackIssue, heroIssues, holdsIssue, recordCollection, removeBackIssue, shortDate, undoable, undoLast, type CosmeticKind, type HeroIssue, type IssueGame, type IssueSource } from './records'
 import { openRewrite, startRewrite } from './rewrite'
 import { swapAbility, swapPrinciple, swapTrait } from './swaps'
 import { AbilitySwapDialog, PrincipleSwapDialog, TraitSwapDialog } from './SwapDialogs'
@@ -362,6 +364,30 @@ function Collections({ hero, apply, clock }: { hero: Hero; apply: (fn: (h: Hero)
 
 const COSMETIC_TITLE: Record<CosmeticKind, string> = { appearance: 'Edit appearance', codename: 'Change codename', costume: 'Edit costume' }
 
+function ColorsDialog({ hero, onSave, onClose }: { hero: Hero; onSave: (appearance: Appearance) => void; onClose: () => void }) {
+  const [appearance, setAppearance] = useState<Appearance>(appearanceOf({ kind: 'hero', appearance: hero.appearance }))
+  return (
+    <Modal title="Change colors" onClose={onClose} wide>
+      <ColorPicker kind="hero" appearance={appearance} name={heroDisplayName(hero)} onChange={setAppearance} />
+      <div className="button-row gt-dialog-actions">
+        <button type="button" className="button" onClick={onClose}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="button button--primary"
+          onClick={() => {
+            onSave(appearance)
+            onClose()
+          }}
+        >
+          Save
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
 /** A cosmetic change: a small dialog with its field, prefilled. A hero's appearance is several fields. */
 function CosmeticDialog({ hero, kind, onSave, onClose }: { hero: Hero; kind: CosmeticKind; onSave: (values: Partial<HeroDetails>) => void; onClose: () => void }) {
   const id = useId()
@@ -396,7 +422,7 @@ function CosmeticDialog({ hero, kind, onSave, onClose }: { hero: Hero; kind: Cos
   )
 }
 
-type ChangeDialog = { kind: 'cosmetic'; which: CosmeticKind } | { kind: 'swapTrait'; trait: 'power' | 'quality' } | { kind: 'swapPrinciple' } | { kind: 'swapAbility' } | { kind: 'rebuild' }
+type ChangeDialog = { kind: 'cosmetic'; which: CosmeticKind } | { kind: 'colors' } | { kind: 'swapTrait'; trait: 'power' | 'quality' } | { kind: 'swapPrinciple' } | { kind: 'swapAbility' } | { kind: 'rebuild' }
 
 /** Change the hero: its three groups, side by side. */
 function ChangeHero({ hero, apply, clock, rebuild }: { hero: Hero; apply: (fn: (h: Hero) => Hero) => void; clock: () => Clock; rebuild: () => void }) {
@@ -412,7 +438,7 @@ function ChangeHero({ hero, apply, clock, rebuild }: { hero: Hero; apply: (fn: (
       <div className="adv-groups">
         <div className="adv-group">
           <h3>Cosmetic</h3>
-          <span className="gt-sub">Appearance, codename, costume</span>
+          <span className="gt-sub">Appearance, codename, costume, colors</span>
           <button type="button" className="button button--small" onClick={open({ kind: 'cosmetic', which: 'appearance' })}>
             Edit appearance…
           </button>
@@ -421,6 +447,9 @@ function ChangeHero({ hero, apply, clock, rebuild }: { hero: Hero; apply: (fn: (
           </button>
           <button type="button" className="button button--small" onClick={open({ kind: 'cosmetic', which: 'costume' })}>
             Edit costume…
+          </button>
+          <button type="button" className="button button--small" onClick={open({ kind: 'colors' })}>
+            Change colors…
           </button>
         </div>
         <div className="adv-group">
@@ -455,6 +484,7 @@ function ChangeHero({ hero, apply, clock, rebuild }: { hero: Hero; apply: (fn: (
       </div>
       {warnings.length > 0 && <StepWarnings warnings={warnings} />}
       {dialog?.kind === 'cosmetic' && <CosmeticDialog hero={hero} kind={dialog.which} onSave={(values) => apply((h) => changeCosmetic(h, dialog.which, values, clock()))} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'colors' && <ColorsDialog hero={hero} onSave={(appearance) => apply((h) => changeColors(h, appearance, clock()))} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'swapTrait' && <TraitSwapDialog hero={hero} kind={dialog.trait} onSwap={(from, to) => apply((h) => swapTrait(h, from, to, clock()))} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'swapPrinciple' && <PrincipleSwapDialog hero={hero} onSwap={(replace, choice) => apply((h) => swapPrinciple(h, replace, choice, clock()))} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'swapAbility' && <AbilitySwapDialog hero={hero} onSwap={(from, to) => apply((h) => swapAbility(h, from, to, clock()))} onClose={() => setDialog(null)} />}

@@ -2,6 +2,7 @@
  * Structural checks for a villain read from storage or an imported file, which are untrusted.
  * Shape only, like ../hero/validate.ts: rule problems are warnings (./sheet.ts).
  */
+import { appearanceShape } from '../colors/validate'
 import { arrayOf, boolean, integer, nonEmptyString, nullable, object, oneOf, recordOf, string } from '../shape'
 import { assignment, blanks, die, traitRef } from '../hero/validate'
 import { VILLAIN_DETAIL_FIELDS } from './model'
@@ -32,6 +33,7 @@ export const villainShape = object({
   createdAt: string,
   updatedAt: string,
   tags: arrayOf(string),
+  'appearance?': appearanceShape,
   status: oneOf('draft', 'complete'),
   'furthestStep?': integer,
   details: object(Object.fromEntries(VILLAIN_DETAIL_FIELDS.map((f) => [f, string]))),

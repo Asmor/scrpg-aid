@@ -1,0 +1,17 @@
+{
+  "colors": [
+    { "id": "red", "name": "Red", "light": { "fill": "#D32F2F", "ink": "#FFFFFF" }, "dark": { "fill": "#E86464", "ink": "#1A1D2B" } },
+    { "id": "orange", "name": "Orange", "light": { "fill": "#E8711C", "ink": "#1A1D2B" }, "dark": { "fill": "#F08A3C", "ink": "#1A1D2B" } },
+    { "id": "yellow", "name": "Yellow", "light": { "fill": "#F2C318", "ink": "#1A1D2B" }, "dark": { "fill": "#E8C547", "ink": "#1A1D2B" } },
+    { "id": "green", "name": "Green", "light": { "fill": "#2E9E4F", "ink": "#1A1D2B" }, "dark": { "fill": "#4CB86A", "ink": "#1A1D2B" } },
+    { "id": "cyan", "name": "Cyan", "light": { "fill": "#1FB5C9", "ink": "#1A1D2B" }, "dark": { "fill": "#3CC6D8", "ink": "#1A1D2B" } },
+    { "id": "blue", "name": "Blue", "light": { "fill": "#2F6FDB", "ink": "#FFFFFF" }, "dark": { "fill": "#5B8DEF", "ink": "#1A1D2B" } },
+    { "id": "purple", "name": "Purple", "light": { "fill": "#7B4FD6", "ink": "#FFFFFF" }, "dark": { "fill": "#9A76E8", "ink": "#1A1D2B" } },
+    { "id": "magenta", "name": "Magenta", "light": { "fill": "#C42BB5", "ink": "#FFFFFF" }, "dark": { "fill": "#D452C8", "ink": "#1A1D2B" } },
+    { "id": "pink", "name": "Pink", "light": { "fill": "#F06BAA", "ink": "#1A1D2B" }, "dark": { "fill": "#F27FB6", "ink": "#1A1D2B" } },
+    { "id": "brown", "name": "Brown", "light": { "fill": "#8A5A36", "ink": "#FFFFFF" }, "dark": { "fill": "#B5845E", "ink": "#1A1D2B" } },
+    { "id": "grey", "name": "Grey", "light": { "fill": "#8C909C", "ink": "#1A1D2B" }, "dark": { "fill": "#9EA2AE", "ink": "#1A1D2B" } },
+    { "id": "offblack", "name": "Off-black", "light": { "fill": "#2A2A30", "ink": "#FFFFFF" }, "dark": { "fill": "#3A3A42", "ink": "#FFFFFF" } },
+    { "id": "offwhite", "name": "Off-white", "light": { "fill": "#F2EFE8", "ink": "#1A1D2B" }, "dark": { "fill": "#E6E2D8", "ink": "#1A1D2B" } }
+  ]
+}

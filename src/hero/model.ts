@@ -21,6 +21,7 @@
  * misreading. Until the first public release there are no real saves, so v1 may still
  * change freely.
  */
+import type { Appearance } from '../colors/palette'
 import type { Defense } from '../play/defense'
 import { traitKey, type TraitRef } from '../rules/catalog'
 import type { RollRecord } from '../rules/rolling'
@@ -278,6 +279,12 @@ export interface CosmeticChange {
 /** The parts of a hero a rebuild can change, as a rewrite's Undo restores them. */
 export type HeroBuild = Pick<Hero, 'method' | 'details' | 'traitNames' | 'background' | 'powerSource' | 'archetype' | 'personality' | 'redAbilities' | 'retcon' | 'health'> & Pick<Partial<Hero>, 'rollMode'>
 
+/** A change of colors, with what they were (unset: the default). */
+export interface ColorsChange {
+  kind: 'colors'
+  before?: Appearance
+}
+
 /** One change in a hero's history (docs/design/advancement/spec.md, section 5). */
 export interface AdvancementEntry {
   id: string
@@ -287,8 +294,8 @@ export interface AdvancementEntry {
   text: string
   /** The back issue or collection it followed. */
   after?: string
-  /** A 'details' entry's swap, applied on top of the creation choices; a 'cosmetic' entry's fields. */
-  change?: AdvancementChange | CosmeticChange
+  /** A 'details' entry's swap, applied on top of the creation choices; a 'cosmetic' entry's fields or colors. */
+  change?: AdvancementChange | CosmeticChange | ColorsChange
   /** A rewrite: the build before it, so Undo can restore it. */
   before?: HeroBuild
   /** A rewrite still going on in the wizard. */
@@ -352,6 +359,8 @@ export interface Hero {
   furthestStep?: number
   /** The player's own labels for organizing the library (docs/design/library/spec.md); see ../library/tags.ts. */
   tags: string[]
+  /** The hero's colors (docs/design/character-colors/spec.md); unset reads as the default. */
+  appearance?: Appearance
   details: HeroDetails
   /**
    * The player's names for traits that need one (Signature Weaponry, the roleplaying

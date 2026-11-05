@@ -6,6 +6,7 @@ Mechanical content extracted from *Sentinel Comics: The Roleplaying Game — Cor
 
 | Path | Contents |
 | --- | --- |
+| `colors.json` | The character color palette (docs/design/character-colors/spec.md): not game rules, so no page references. `scripts/generate_char_tokens.py` writes it into `src/theme/tokens.css` |
 | `books.json` | Source books that page references point to (currently only the Core Rules): `id`, full `title`, and the `shortTitle` shown in page references |
 | `rulings.md` | Every ruling the user has made on an ambiguity, with the original question and whether it was interpretation or fiat; the bullets below describe those that shape the data |
 | `rules/` | Paraphrased process documents (Markdown): core concepts, hero creation, villain creation, minion/lieutenant/environment creation |

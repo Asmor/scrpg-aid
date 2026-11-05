@@ -37,7 +37,7 @@ export const BACK_ISSUES_PER_COLLECTION = 6
 /** The swaps that apply on top of the creation choices: those since the last rewrite, which built them in. */
 export function changesInForce(hero: Pick<Hero, 'advancement'>): AdvancementChange[] {
   const rewrite = hero.advancement.findLastIndex((e) => e.kind === 'rewrite')
-  return hero.advancement.slice(rewrite + 1).flatMap((e) => (e.kind === 'details' && e.change && e.change.kind !== 'cosmetic' ? [e.change] : []))
+  return hero.advancement.slice(rewrite + 1).flatMap((e) => (e.kind === 'details' && e.change && e.change.kind !== 'cosmetic' && e.change.kind !== 'colors' ? [e.change] : []))
 }
 
 const sameTrait = (a: TraitRef, b: TraitRef) => a.kind === b.kind && a.id === b.id

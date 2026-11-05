@@ -242,3 +242,12 @@ describe('serialize', () => {
     expect(input.hero.details.name).toBe('')
   })
 })
+
+describe('colors on a hero', () => {
+  it('round-trip, with unset reading as the default, and a bad color is refused', () => {
+    const hero = { ...createHero('guided', { id: 'h' }), appearance: { primary: 'blue' as const, secondary: 'cyan' as const, gradient: 'radial' as const, invert: true } }
+    expect(parseSaved(toSaved(hero))).toEqual({ ok: true, hero })
+    expect(parseSaved(toSaved(createHero('guided', { id: 'h' })))).toMatchObject({ ok: true, hero: { id: 'h' } })
+    expect(parseSaved(toSaved({ ...hero, appearance: { primary: 'plaid' } } as never))).toMatchObject({ ok: false })
+  })
+})
