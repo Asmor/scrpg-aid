@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { Clock } from '../play/state'
 import { tableViewProblem } from '../session/protocol'
-import { createEnvironmentTemplate, createLieutenantTemplate, createMinionTemplate, type EnvironmentTemplate } from '../template/model'
-import { addAttached, attachedGroup, environmentBasicAction, environmentFromTemplate, logEnvironmentRoll, resetTwists, rollAspects, setAspects, setTwistUsed, twistTitle } from './environment'
+import { createChallengeTemplate, createEnvironmentTemplate, createLieutenantTemplate, createMinionTemplate, type EnvironmentTemplate } from '../template/model'
+import { addAttached, attachedChallengeCount, attachedGroup, environmentBasicAction, environmentFromTemplate, logEnvironmentRoll, resetTwists, rollAspects, setAspects, setTwistUsed, twistTitle } from './environment'
 import { createGame, type Game } from './model'
 import { project } from './project'
+import { gameProblem } from './validate'
 import { addGroup, addHero, setEnvironment, startRound, syncTurnOrder } from './table'
 import { completeHero } from '../test/heroes'
 import { buildSheet } from '../creation/sheet'
@@ -45,6 +46,28 @@ function table(): { g: Game; c: Clock } {
   const g = setEnvironment(createGame({ id: 'g' }), environmentFromTemplate(heist, [{ kind: 'minion', doc: drones }, { kind: 'lieutenant', doc: captain }]), c)
   return { g: { ...g, feed: [] }, c }
 }
+
+describe('an attached challenge template', () => {
+  const crucible = { ...createChallengeTemplate({ id: 'cr' }), name: 'Shut down the crucible', description: 'It is overheating.', steps: [{ label: 'Reach the controls' }, { label: '' }], done: 'It cools.' }
+  const blank = { ...createChallengeTemplate({ id: 'bl' }), steps: [{ label: '' }] }
+
+  it('comes in as a copy, and Add puts it on the table revealed and owned by the environment, each time', () => {
+    const c = clock()
+    const g = setEnvironment(createGame({ id: 'g' }), environmentFromTemplate(heist, [{ kind: 'challenge', doc: crucible }, { kind: 'challenge', doc: blank }]), c)
+    expect(g.environment!.attached).toEqual([
+      { kind: 'challenge', templateId: 'cr', name: 'Shut down the crucible', labels: ['Reach the controls', ''], description: 'It is overheating.', whenDone: 'It cools.' },
+      { kind: 'challenge', templateId: 'bl', name: 'Challenge', labels: [''] },
+    ])
+    expect(gameProblem(g)).toBeUndefined()
+    let next = addAttached(g, 0, 1, c)
+    expect(next.challenges[0]).toMatchObject({ name: 'Shut down the crucible', templateId: 'cr', hidden: false, owner: { kind: 'environment' }, description: 'It is overheating.', whenDone: 'It cools.', steps: [{ label: 'Reach the controls', done: false }, { label: 'Step 2', done: false }] })
+    expect(next.turn.order.some((o) => o.id === next.challenges[0]!.id)).toBe(false)
+    expect(attachedChallengeCount(next, 'cr')).toBe(1)
+    next = addAttached(next, 0, 1, c)
+    expect(attachedChallengeCount(next, 'cr')).toBe(2)
+    expect(next.feed.at(-1)!.gmOnly).toBeUndefined()
+  })
+})
 
 describe('an environment template on the table', () => {
   it('brings copies of its aspects, twists and attached templates, hidden', () => {

@@ -259,7 +259,7 @@ export function withTitanChallenge(game: Game, villainId: string, clock: Clock):
   }
   if (game.challenges.some(linked) || game.offTable.challenges.some(linked)) return game
   const name = `${villainDisplayName(villain.sheet)}'s Titan challenge`.slice(0, MAX_NAME)
-  const challenge: Challenge = { id: clock.newId(), name, hidden: villain.hidden, steps: labels.map((label) => ({ label: label.slice(0, MAX_NAME), done: false })), requests: [], linkedVillainId: villainId }
+  const challenge: Challenge = { id: clock.newId(), name, hidden: villain.hidden, steps: labels.map((label) => ({ label: label.slice(0, MAX_NAME), done: false })), requests: [], owner: { kind: 'gm' }, linkedVillainId: villainId }
   return { ...game, challenges: [...game.challenges, challenge] }
 }
 
@@ -295,7 +295,7 @@ export function addGroup(game: Game, group: GroupSpec, clock: Clock): Game {
 }
 
 /** What a challenge is made from: quick add, or a template. */
-export type ChallengeSpec = { name: string; steps: number; hidden: boolean; labels?: readonly string[]; description?: string; whenDone?: string; templateId?: string }
+export type ChallengeSpec = { name: string; steps: number; hidden: boolean; labels?: readonly string[]; description?: string; whenDone?: string; templateId?: string; owner?: Challenge['owner'] }
 
 /** A new challenge; undefined if the number of steps is out of range. */
 export function newChallenge(challenge: ChallengeSpec, clock: Clock): Challenge | undefined {
@@ -308,6 +308,7 @@ export function newChallenge(challenge: ChallengeSpec, clock: Clock): Challenge 
     hidden: challenge.hidden,
     steps: Array.from({ length: challenge.steps }, (_, i) => ({ label: challenge.labels?.[i]?.trim().slice(0, MAX_NAME) || `Step ${i + 1}`, done: false })),
     requests: [],
+    owner: challenge.owner ?? { kind: 'gm' },
     ...(challenge.description?.trim() ? { description: challenge.description.trim().slice(0, MAX_TEXT) } : {}),
     ...(challenge.whenDone?.trim() ? { whenDone: challenge.whenDone.trim().slice(0, MAX_TEXT) } : {}),
   }
@@ -337,18 +338,24 @@ export function newEnvironment(environment: Omit<EnvironmentOnTable, 'id'>, cloc
   return { ...rest, id: clock.newId(), name, ...(description ? { description } : {}) }
 }
 
+/** An environment gone takes its claim with it: its groups and challenges are the GM's now. */
+export function environmentLetsGo<T extends Pick<Game, 'groups' | 'challenges'>>(game: T): T {
+  const toGm = <I extends { owner: { kind: 'gm' } | { kind: 'environment' } }>(item: I): I => (item.owner.kind === 'environment' ? { ...item, owner: { kind: 'gm' } } : item)
+  return { ...game, groups: game.groups.map(toGm), challenges: game.challenges.map(toGm) }
+}
+
 /**
  * Puts an environment on the table (it may be waiting off the table). The one it replaces goes
  * off the table if a planned scene still names it, or out of the game if not.
  */
 export function placeEnvironment(game: Game, environment: EnvironmentOnTable, clock: Clock): Game {
   const old = game.environment
-  // The old environment's groups stay on the table as the GM's, each with its own turn.
-  const groups = old ? game.groups.map((g) => (g.owner.kind === 'environment' ? { ...g, owner: { kind: 'gm' as const } } : g)) : game.groups
+  // What the old environment owned stays on the table as the GM's; its groups each get their own turn.
+  const { groups, challenges } = old ? environmentLetsGo(game) : game
   const keepOld = old && old.id !== environment.id && game.scenes.some((s) => s.state === 'planned' && s.environmentId === old.id)
   const others = game.offTable.environments.filter((e) => e.id !== environment.id)
   const offTable = { ...game.offTable, environments: keepOld ? [...others, old] : others }
-  const replaced = { ...game, groups, offTable, environment }
+  const replaced = { ...game, groups, challenges, offTable, environment }
   return log(syncTurnOrder(replaced), clock, `The environment is now ${environment.name}${environment.hidden ? ', hidden from players' : ''}.`, { gmOnly: environment.hidden })
 }
 
@@ -382,7 +389,7 @@ export function removeFromTable(game: Game, ref: ItemRef | ActorRef, clock: Cloc
     case 'environment': {
       if (game.environment?.id !== ref.id) return game
       const { environment: _, ...rest } = game
-      next = rest
+      next = environmentLetsGo(rest)
       break
     }
   }
@@ -726,6 +733,16 @@ export function resetChallenge(game: Game, challengeId: string, clock: Clock): G
 /** Renames a challenge's steps (⋯ Edit steps…). A blank one reads "Step 1". */
 export function renameChallengeSteps(game: Game, challengeId: string, labels: readonly string[]): Game {
   return changeChallenge(game, challengeId, (c) => ({ ...c, steps: c.steps.map((s, i) => ({ ...s, label: (labels[i] ?? s.label).trim().slice(0, MAX_NAME) || `Step ${i + 1}` })) }))
+}
+
+/**
+ * ⋯ "Give to the environment" or "Give to the GM", for a challenge added the wrong way. A Titan's
+ * challenge stays the GM's, and with no environment there's no one else to give it to.
+ */
+export function setChallengeOwner(game: Game, challengeId: string, kind: Challenge['owner']['kind']): Game {
+  const challenge = game.challenges.find((c) => c.id === challengeId)
+  if (!challenge || challenge.linkedVillainId || challenge.owner.kind === kind || (kind === 'environment' && !game.environment)) return game
+  return changeChallenge(game, challengeId, (c) => ({ ...c, owner: { kind } }))
 }
 
 /** ⋯ Edit steps…: the step names, and the optional description and "when it's done" text. */

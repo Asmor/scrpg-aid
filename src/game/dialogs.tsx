@@ -8,7 +8,7 @@ import type { PlayMod, PlayTwist } from '../hero/model'
 import { ModForm } from '../play/ModForm'
 import { DICE } from '../rules/dice'
 import type { Die } from '../rules/types'
-import { MAX_GROUP_SIZE, MAX_STEPS, type ActorRef, type Game, type NpcGroup } from './model'
+import { MAX_GROUP_SIZE, MAX_STEPS, type ActorRef, type Challenge, type Game, type NpcGroup } from './model'
 import { actorKey, sameActor } from './table'
 import type { DiffSection } from './sheet-diff'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
@@ -101,7 +101,9 @@ export function AddGroupDialog({ kind, onAdd, onClose, canSave = false, submit =
   )
 }
 
-export function AddChallengeDialog({ onAdd, onClose, canSave = false, submit = 'Add to table' }: { onAdd: (challenge: { name: string; steps: number; hidden: boolean }, save: boolean) => void; onClose: () => void; canSave?: boolean; submit?: string }) {
+/** `environment` names the game's environment, which it can belong to; `owned` starts it checked. */
+export function AddChallengeDialog({ onAdd, onClose, canSave = false, submit = 'Add to table', environment, owned = false }: { onAdd: (challenge: { name: string; steps: number; hidden: boolean; owner: Challenge['owner'] }, save: boolean) => void; onClose: () => void; canSave?: boolean; submit?: string; environment?: string | undefined; owned?: boolean }) {
+  const [belongs, setBelongs] = useState(owned)
   const [save, setSave] = useState(false)
   const [name, setName] = useState('')
   const [steps, setSteps] = useState('3')
@@ -109,10 +111,16 @@ export function AddChallengeDialog({ onAdd, onClose, canSave = false, submit = '
   const n = whole(steps, 1, MAX_STEPS)
   return (
     <Modal title="Add a challenge" onClose={onClose}>
-      <form className="gt-form" onSubmit={submitWith(() => n !== undefined && (onAdd({ name, steps: n, hidden }, save), onClose()))}>
+      <form className="gt-form" onSubmit={submitWith(() => n !== undefined && (onAdd({ name, steps: n, hidden, owner: { kind: environment && belongs ? 'environment' : 'gm' } }, save), onClose()))}>
         <Field label="Name">{(id) => <input id={id} type="text" value={name} placeholder="Challenge" onChange={(e) => setName(e.target.value)} />}</Field>
         <Field label="Number of steps">{(id) => <input id={id} type="number" inputMode="numeric" min={1} max={MAX_STEPS} value={steps} onChange={(e) => setSteps(e.target.value)} />}</Field>
         {n === undefined && <p className="error">Steps should be 1 to {MAX_STEPS}.</p>}
+        {environment && (
+          <label className="checkbox">
+            <input type="checkbox" checked={belongs} onChange={(e) => setBelongs(e.target.checked)} />
+            Belongs to {environment}
+          </label>
+        )}
         <HiddenBox value={hidden} onChange={setHidden} />
         {canSave && <SaveBox value={save} onChange={setSave} />}
         <Actions submit={submit} onCancel={onClose} disabled={n === undefined} />

@@ -15,7 +15,7 @@ import { changedSince, restoreSnapshot } from '../editor/edit-snapshot'
 import { useDocumentEditor, type Lookup } from '../editor/useDocumentEditor'
 import type { BasicAction, Die } from '../rules/types'
 import type { DocStore } from '../store/doc-store'
-import { createLieutenantTemplate, createMinionTemplate, createTwist, MAX_ATTACHED, MAX_GROUP_SIZE, MAX_STEPS, MAX_TWISTS, templateName, type AttachedTemplate, type ChallengeTemplate, type EnvironmentTemplate, type EnvironmentTwist, type LieutenantTemplate, type MinionTemplate, type TemplateAbility, type TemplateBase } from './model'
+import { createChallengeTemplate, createLieutenantTemplate, createMinionTemplate, createTwist, MAX_ATTACHED, MAX_GROUP_SIZE, MAX_STEPS, MAX_TWISTS, templateName, type AttachedTemplate, type ChallengeTemplate, type EnvironmentTemplate, type EnvironmentTwist, type LieutenantTemplate, type MinionTemplate, type TemplateAbility, type TemplateBase } from './model'
 import { filterItems } from '../library/query'
 import type { TemplateKind } from './serialize'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
@@ -295,28 +295,29 @@ function Twists({ doc, update }: { doc: EnvironmentTemplate; update: Update<Envi
   )
 }
 
-/** A minion or lieutenant template in the library, as the attach picker and the attached list show it. */
+/** A minion, lieutenant or challenge template in the library, as the attach picker and the attached list show it. */
 interface Attachable {
   kind: AttachedTemplate['kind']
   id: string
   name: string
-  die: Die
+  /** Minions and lieutenants have one. */
+  die?: Die
   tags: string[]
 }
 
-const KIND_WORD: Record<AttachedTemplate['kind'], string> = { minion: 'minion template', lieutenant: 'lieutenant template' }
+const KIND_WORD: Record<AttachedTemplate['kind'], string> = { minion: 'minion template', lieutenant: 'lieutenant template', challenge: 'challenge template' }
 
-/** The minion and lieutenant templates in the library, loaded again whenever `reload` changes. */
+/** The minion, lieutenant and challenge templates in the library, loaded again whenever `reload` changes. */
 function useAttachable(reload: number): Attachable[] | null {
   const stores = useTemplateStores()
   const [list, setList] = useState<Attachable[] | null>(null)
   useEffect(() => {
     let current = true
-    Promise.all([stores.minions.list(), stores.lieutenants.list()]).then(
-      ([m, l]) => {
+    Promise.all([stores.minions.list(), stores.lieutenants.list(), stores.challenges.list()]).then(
+      ([m, l, c]) => {
         if (!current) return
-        const of = (kind: AttachedTemplate['kind'], docs: readonly MinionTemplate[]) => docs.map((d) => ({ kind, id: d.id, name: templateName(d, kind), die: d.die, tags: d.tags }))
-        setList([...of('minion', m.docs), ...of('lieutenant', l.docs)])
+        const of = (kind: 'minion' | 'lieutenant', docs: readonly MinionTemplate[]) => docs.map((d) => ({ kind, id: d.id, name: templateName(d, kind), die: d.die, tags: d.tags }))
+        setList([...of('minion', m.docs), ...of('lieutenant', l.docs), ...c.docs.map((d) => ({ kind: 'challenge' as const, id: d.id, name: templateName(d, 'challenge'), tags: d.tags }))])
       },
       () => current && setList([]),
     )
@@ -341,9 +342,9 @@ function Attached({ doc, update }: { doc: EnvironmentTemplate; update: Update<En
   // "Make new": a new template, attached straight away, then its editor opens.
   const [makeError, setMakeError] = useState<string | null>(null)
   const makeNew = async (kind: AttachedTemplate['kind']) => {
-    const made = kind === 'minion' ? createMinionTemplate() : createLieutenantTemplate()
+    const made = kind === 'minion' ? createMinionTemplate() : kind === 'lieutenant' ? createLieutenantTemplate() : createChallengeTemplate()
     try {
-      await (kind === 'minion' ? stores.minions : stores.lieutenants).save(made)
+      await (kind === 'challenge' ? stores.challenges.save(made as ChallengeTemplate) : kind === 'minion' ? stores.minions.save(made as MinionTemplate) : stores.lieutenants.save(made as LieutenantTemplate))
     } catch (e) {
       setMakeError(`The new ${kind} couldn't be saved: ${e instanceof Error ? e.message : String(e)}`)
       return
@@ -354,7 +355,7 @@ function Attached({ doc, update }: { doc: EnvironmentTemplate; update: Update<En
   }
   return (
     <fieldset className="template-attached">
-      <legend>Its minions and lieutenants</legend>
+      <legend>Its minions, lieutenants and challenges</legend>
       {doc.attached.length === 0 && <p className="hint">None attached. Attached templates can be added to the table on the environment's turn.</p>}
       <ul className="template-attached__list">
         {doc.attached.map((a, i) => {
@@ -362,7 +363,7 @@ function Attached({ doc, update }: { doc: EnvironmentTemplate; update: Update<En
           const label = t ? t.name : 'Missing template'
           return (
             <li key={`${a.kind}:${a.templateId}:${i}`} className="gt-row">
-              {t && <DieIcon die={t.die} size="inline" />}
+              {t?.die && <DieIcon die={t.die} size="inline" />}
               {t ? <a href={templatePath(a.kind, a.templateId)}>{t.name}</a> : all && <strong>Missing template</strong>}
               <span className="gt-sub">{t || !all ? KIND_WORD[a.kind] : `This ${KIND_WORD[a.kind]} was deleted from the library.`}</span>
               <button type="button" className="button button--quiet button--small" aria-label={`Remove ${label}`} onClick={() => update((d) => void d.attached.splice(i, 1))}>
@@ -386,18 +387,18 @@ function Attached({ doc, update }: { doc: EnvironmentTemplate; update: Update<En
         + Attach
       </button>
       {picking && (
-        <Modal title="Attach a minion or lieutenant" onClose={() => setPicking(false)}>
+        <Modal title="Attach a minion, lieutenant or challenge" onClose={() => setPicking(false)}>
           <Field label="Search">{(id) => <input id={id} type="search" value={text} onChange={(e) => setText(e.target.value)} />}</Field>
           <p className="label">From library</p>
           {all === null ? (
             <p>Loading…</p>
           ) : shown.length === 0 ? (
-            <p className="hint">{all.length ? 'Nothing matches.' : 'No minion or lieutenant templates in your library yet.'}</p>
+            <p className="hint">{all.length ? 'Nothing matches.' : 'No minion, lieutenant or challenge templates in your library yet.'}</p>
           ) : (
-            <ul className="template-attached__list" aria-label="Minion and lieutenant templates">
+            <ul className="template-attached__list" aria-label="Minion, lieutenant and challenge templates">
               {shown.map((t) => (
                 <li key={`${t.kind}:${t.id}`} className="gt-row">
-                  <DieIcon die={t.die} size="inline" />
+                  {t.die && <DieIcon die={t.die} size="inline" />}
                   <strong>{t.name}</strong>
                   <span className="gt-sub">{KIND_WORD[t.kind]}</span>
                   <button
@@ -423,6 +424,9 @@ function Attached({ doc, update }: { doc: EnvironmentTemplate; update: Update<En
             </button>
             <button type="button" className="button button--small" onClick={() => void makeNew('lieutenant')}>
               New lieutenant
+            </button>
+            <button type="button" className="button button--small" onClick={() => void makeNew('challenge')}>
+              New challenge
             </button>
           </div>
           <p className="hint">A new one is attached straight away, and its editor opens.</p>

@@ -1,7 +1,7 @@
 /**
  * The GM screen's Running panel for the environment (docs/design/npcs/spec.md, "The
  * environment's turn", and environment-turn.dc.html): its dice and their roll, its twists by
- * zone with Mark used, its attached minions and lieutenants with Add, its groups with Run, and
+ * zone with Mark used, its attached templates with Add, its groups with Run, + Challenge, and
  * Hand off. All of it is the GM's alone.
  */
 import { useId, useRef, useState, type KeyboardEvent } from 'react'
@@ -16,8 +16,8 @@ import { Modal } from '../components/Modal'
 import { PLAY_ZONE_LABEL } from '../hero/labels'
 import type { BasicAction, Die } from '../rules/types'
 import { ASPECT_COUNT, type EnvironmentAspect, type EnvironmentTwist } from '../template/model'
-import { aspectName, attachedGroup, twistTitle, type EnvironmentRoll } from './environment'
-import { MAX_GROUP_SIZE, sceneOnTable, type ActorRef, type EnvironmentOnTable, type Game, type TableTwist } from './model'
+import { aspectName, attachedChallengeCount, attachedGroup, twistTitle, type EnvironmentRoll } from './environment'
+import { MAX_GROUP_SIZE, sceneOnTable, type ActorRef, type AttachedOnTable, type EnvironmentOnTable, type Game, type TableTwist } from './model'
 import { boxLabel, itemName, roundOver, sameActor, sceneZone, waiting, type ItemRef } from './table'
 import { MenuButton } from './TableCenter'
 
@@ -28,6 +28,8 @@ export interface EnvironmentActions {
   resetTwists: () => void
   setAspects: (aspects: EnvironmentAspect[]) => void
   addAttached: (index: number, count: number) => void
+  /** Quick-adds a challenge owned by the environment. */
+  quickChallenge: () => void
   run: (ref: ItemRef) => void
   handOff: (to: ActorRef) => void
   /** A basic action with the environment dice, confirmed in the roll dialog: its results, and who they go to. */
@@ -164,12 +166,14 @@ function Stepper({ value, name, onChange }: { value: number; name: string; onCha
   )
 }
 
+const startCount = (a: AttachedOnTable) => (a.kind === 'challenge' ? 1 : a.groupSize)
+
 export function RunningEnvironment({ game, env, actions, sheets, random }: { game: Game; env: EnvironmentOnTable; actions: EnvironmentActions; sheets: boolean; random?: () => number }) {
   const [rolled, setRolled] = useState<EnvironmentRoll | null>(null)
   const [settingAspects, setSettingAspects] = useState(false)
   const [acting, setActing] = useState<BasicAction | null>(null)
   const attached = env.attached ?? []
-  const [counts, setCounts] = useState<number[]>(() => attached.map((a) => a.groupSize))
+  const [counts, setCounts] = useState<number[]>(() => attached.map(startCount))
   const aspects = env.aspects ?? []
   const zone = sceneZone({ scene: sceneOnTable(game) })
   const me: ActorRef = { kind: 'environment', id: env.id }
@@ -244,11 +248,27 @@ export function RunningEnvironment({ game, env, actions, sheets, random }: { gam
 
       <Twists twists={env.twists ?? []} zone={zone} onUsed={actions.setTwistUsed} />
 
-      <section aria-label="Its minions and lieutenants">
-        <div className="gt-label">Its minions and lieutenants</div>
+      <section aria-label="Its minions, lieutenants and challenges">
+        <div className="gt-label">Its minions, lieutenants and challenges</div>
         {attached.length === 0 && groups.length === 0 && <p className="gt-sub">None attached.</p>}
         <ul className="gt-env-list">
           {attached.map((a, i) => {
+            if (a.kind === 'challenge') {
+              const onTable = attachedChallengeCount(game, a.templateId)
+              return (
+                <li key={`${a.kind}:${a.templateId}`} className="gt-row">
+                  <span className="gt-grow">
+                    <strong>{a.name}</strong>{' '}
+                    <span className="gt-sub">
+                      challenge · {onTable ? `${onTable} on the table` : 'none yet'}
+                    </span>
+                  </span>
+                  <button type="button" className="button button--small" aria-label={`Add ${a.name}`} onClick={() => actions.addAttached(i, 1)}>
+                    Add
+                  </button>
+                </li>
+              )
+            }
             const onTable = attachedGroup(game, a)?.members.length ?? 0
             const count = counts[i] ?? a.groupSize
             return (
@@ -260,7 +280,7 @@ export function RunningEnvironment({ game, env, actions, sheets, random }: { gam
                     {a.kind === 'minion' ? 'minions' : 'lieutenants'} · {onTable ? `${onTable} on the table` : 'none yet'}
                   </span>
                 </span>
-                <Stepper value={count} name={a.name} onChange={(n) => setCounts((all) => attached.map((x, j) => (j === i ? n : (all[j] ?? x.groupSize))))} />
+                <Stepper value={count} name={a.name} onChange={(n) => setCounts((all) => attached.map((x, j) => (j === i ? n : (all[j] ?? startCount(x)))))} />
                 <button type="button" className="button button--small" aria-label={`Add ${a.name}`} disabled={onTable >= MAX_GROUP_SIZE} onClick={() => actions.addAttached(i, count)}>
                   Add
                 </button>
@@ -268,6 +288,11 @@ export function RunningEnvironment({ game, env, actions, sheets, random }: { gam
             )
           })}
         </ul>
+        <div className="button-row">
+          <button type="button" className="button button--small" onClick={actions.quickChallenge}>
+            + Challenge
+          </button>
+        </div>
         {groups.length > 0 && (
           <ul className="gt-env-list" aria-label={`${env.name}'s groups on the table`}>
             {groups.map((g) => (

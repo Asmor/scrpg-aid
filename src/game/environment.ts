@@ -5,17 +5,17 @@
  * - Its aspects are the environment dice. Rolling them all gives Min, Mid and Max, each from an
  *   aspect: the roll twists ask for.
  * - Twists are suggestions; the app only tracks which are used, and in which round.
- * - Its attached templates come on the table as environment-owned groups, revealed: they act on
- *   its turn and have no turn-order entry.
+ * - Its attached templates come on the table revealed and owned by it: groups act on its turn and
+ *   have no turn-order entry, and challenges count for a Domain villain.
  * - Its log lines are for everyone: the environment is always known (spec section 6, "Who sees
  *   log lines"). Its aspects, twists and attached templates aren't sent to players (./project.ts).
  */
 import { rollDie } from '../rules/rolling'
 import type { Die } from '../rules/types'
-import { ASPECT_COUNT, type EnvironmentAspect, type EnvironmentTemplate, type LieutenantTemplate, type MinionTemplate } from '../template/model'
+import { ASPECT_COUNT, type ChallengeTemplate, type EnvironmentAspect, type EnvironmentTemplate, type LieutenantTemplate, type MinionTemplate } from '../template/model'
 import type { Clock } from '../play/state'
-import { MAX_GROUP_SIZE, type AttachedOnTable, type EnvironmentOnTable, type Game, type NpcGroup, type TableTwist } from './model'
-import { addGroup, GM, withLog } from './table'
+import { MAX_GROUP_SIZE, type AttachedGroupOnTable, type AttachedOnTable, type EnvironmentOnTable, type Game, type NpcGroup, type TableTwist } from './model'
+import { addChallenge, addGroup, GM, withLog } from './table'
 import { describeEffect, effectAmount, overcomeOutcome, type RollRecord } from '../play/roll'
 import type { ModInput } from './actions'
 import { applyAttack, giveMod, protect } from './resolve'
@@ -26,8 +26,17 @@ type Random = () => number
 /** A log line about the environment: for everyone, since the environment is always known. */
 const envLine = (game: Game, clock: Clock, text: string) => withLog(game, [{ id: clock.newId(), at: clock.now.toISOString(), by: game.environment?.name ?? 'Environment', text }])
 
-/** A template's attached minions and lieutenants as found in the library: missing ones are left out. */
-export type FoundAttached = { kind: 'minion'; doc: MinionTemplate } | { kind: 'lieutenant'; doc: LieutenantTemplate }
+/** A template's attached templates as found in the library: missing ones are left out. */
+export type FoundAttached = { kind: 'minion'; doc: MinionTemplate } | { kind: 'lieutenant'; doc: LieutenantTemplate } | { kind: 'challenge'; doc: ChallengeTemplate }
+
+function attachedCopy(found: FoundAttached): AttachedOnTable {
+  if (found.kind === 'challenge') {
+    const { doc } = found
+    return { kind: 'challenge', templateId: doc.id, name: doc.name.trim() || 'Challenge', labels: doc.steps.map((s) => s.label), ...(doc.description.trim() ? { description: doc.description } : {}), ...(doc.done.trim() ? { whenDone: doc.done } : {}) }
+  }
+  const { kind, doc } = found
+  return { kind, templateId: doc.id, name: doc.name.trim() || (kind === 'minion' ? 'Minions' : 'Lieutenants'), die: doc.die, actions: doc.actions === 'any' ? 'any' : [...doc.actions], groupSize: doc.groupSize }
+}
 
 /** What an environment template brings in: copies of its aspects, twists and attached templates. Hidden, as everything arrives. */
 export function environmentFromTemplate(t: EnvironmentTemplate, attached: readonly FoundAttached[]): Omit<EnvironmentOnTable, 'id'> {
@@ -38,7 +47,7 @@ export function environmentFromTemplate(t: EnvironmentTemplate, attached: readon
     ...(t.description.trim() ? { description: t.description } : {}),
     aspects: t.aspects.map((a) => ({ ...a })),
     twists: t.twists.map((tw) => ({ ...tw })),
-    attached: attached.map(({ kind, doc }) => ({ kind, templateId: doc.id, name: doc.name.trim() || (kind === 'minion' ? 'Minions' : 'Lieutenants'), die: doc.die, actions: doc.actions === 'any' ? 'any' : [...doc.actions], groupSize: doc.groupSize })),
+    attached: attached.map(attachedCopy),
   }
 }
 
@@ -116,20 +125,25 @@ export function resetTwists(game: Game, clock: Clock): Game {
   return envLine(next, clock, 'The GM reset the twists: none are used.')
 }
 
-const groupKind = (a: Pick<AttachedOnTable, 'kind'>): NpcGroup['kind'] => (a.kind === 'minion' ? 'minions' : 'lieutenants')
+const groupKind = (a: Pick<AttachedGroupOnTable, 'kind'>): NpcGroup['kind'] => (a.kind === 'minion' ? 'minions' : 'lieutenants')
 
 /** The environment's group on the table made from an attached template, if there is one. */
-export function attachedGroup(game: Pick<Game, 'groups'>, a: Pick<AttachedOnTable, 'kind' | 'templateId'>): NpcGroup | undefined {
+export function attachedGroup(game: Pick<Game, 'groups'>, a: Pick<AttachedGroupOnTable, 'kind' | 'templateId'>): NpcGroup | undefined {
   return game.groups.find((g) => g.owner.kind === 'environment' && g.templateId === a.templateId && g.kind === groupKind(a))
 }
 
+/** How many of the environment's challenges on the table came from this template. */
+export const attachedChallengeCount = (game: Pick<Game, 'challenges'>, templateId: string) => game.challenges.filter((c) => c.owner.kind === 'environment' && c.templateId === templateId).length
+
 /**
  * Adds `count` of an attached template to the table: a new environment-owned group, revealed, or
- * more members in the group already made from it (up to the most a group holds). Logged for all.
+ * more members in the group already made from it (up to the most a group holds). A challenge has
+ * no count: each Add is another one. Logged for all.
  */
 export function addAttached(game: Game, index: number, count: number, clock: Clock): Game {
   const a = game.environment?.attached?.[index]
   if (!a || !Number.isInteger(count) || count < 1) return game
+  if (a.kind === 'challenge') return addChallenge(game, { name: a.name, steps: a.labels.length, labels: a.labels, hidden: false, templateId: a.templateId, owner: { kind: 'environment' }, ...(a.description ? { description: a.description } : {}), ...(a.whenDone ? { whenDone: a.whenDone } : {}) }, clock)
   const existing = attachedGroup(game, a)
   if (!existing) return addGroup(game, { kind: groupKind(a), name: a.name, die: a.die, count: Math.min(count, MAX_GROUP_SIZE), hidden: false, actions: a.actions, templateId: a.templateId, owner: { kind: 'environment' } }, clock)
   const room = Math.min(count, MAX_GROUP_SIZE - existing.members.length)

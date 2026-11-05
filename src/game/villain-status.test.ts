@@ -7,7 +7,7 @@ import { villainHealth } from '../villain/play'
 import { buildVillainSheet } from '../villain/sheet'
 import { createGame, type Game } from './model'
 import { project } from './project'
-import { addChallenge, addGroup, addHero, addVillain, changeHeroPlay, changeVillainPlay, removeMember, setChallengeStep, setEnvironment, setHidden } from './table'
+import { addChallenge, addGroup, addHero, addVillain, changeHeroPlay, changeVillainPlay, removeMember, setChallengeOwner, setChallengeStep, setEnvironment, setHidden } from './table'
 import { countLabel, logStatusChanges, newStatusLines, setHandCount, setStatusOverride, setWeakness, statusLadder, statusRuleLine, tableCount, villainStatus } from './villain-status'
 
 function makeClock(at = '2026-11-04T12:00:00Z'): Clock {
@@ -95,6 +95,21 @@ describe('villainStatus: counted from the table', () => {
     expect(status(g)).toMatchObject({ die: 'd4', count: 9, reason: '9 GM minions' })
   })
 
+  it("Domain doesn't count the GM's challenges or a Titan's, until one is given to the environment", () => {
+    let g = setEnvironment(table('domain'), { name: 'Rooftop', hidden: false }, c)
+    g = addVillain(g, of('titan', 'titan'), c, false)
+    g = addChallenge(g, { name: 'Vault', steps: 1, hidden: false }, c)
+    expect(status(g)).toMatchObject({ die: 'd6', count: 0 })
+    const titan = g.challenges.find((x) => x.linkedVillainId)!
+    const vault = g.challenges.find((x) => x.name === 'Vault')!
+    expect(titan.owner).toEqual({ kind: 'gm' })
+    expect(setChallengeOwner(g, titan.id, 'environment')).toBe(g)
+    g = setChallengeOwner(g, vault.id, 'environment')
+    expect(status(g)).toMatchObject({ die: 'd8', count: 1 })
+    g = setChallengeOwner(g, vault.id, 'gm')
+    expect(status(g)).toMatchObject({ die: 'd6', count: 0 })
+  })
+
   it("Domain counts the environment's groups and challenges not yet done, revealed only", () => {
     let g = table('domain')
     expect(status(g)).toMatchObject({ die: 'd6', count: 0 })
@@ -102,8 +117,9 @@ describe('villainStatus: counted from the table', () => {
     g = addGroup(g, { kind: 'minions', name: 'Staged', die: 'd6', count: 4, hidden: true, owner: { kind: 'environment' } }, c)
     g = minions(g, 5)
     expect(status(g)).toMatchObject({ die: 'd8', count: 2 })
-    g = addChallenge(g, { name: 'Furnace', steps: 1, hidden: false }, c)
-    g = addChallenge(g, { name: 'Vault', steps: 1, hidden: true }, c)
+    g = addChallenge(g, { name: 'Furnace', steps: 1, hidden: false, owner: { kind: 'environment' } }, c)
+    g = addChallenge(g, { name: 'Vault', steps: 1, hidden: true, owner: { kind: 'environment' } }, c)
+    g = addChallenge(g, { name: "The GM's", steps: 1, hidden: false }, c)
     expect(status(g)).toMatchObject({ die: 'd10', count: 3 })
     expect(tableCount(main(g), g)?.parts).toEqual(['Burglars ×2', 'Furnace'])
     const furnace = g.challenges.find((x) => x.name === 'Furnace')!

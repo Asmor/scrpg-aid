@@ -8,7 +8,8 @@ import { applyHeroAction } from './actions'
 import { challengeDone, createGame, type Game } from './model'
 import { project } from './project'
 import { parseSavedGame, gameToSaved } from './serialize'
-import { addChallenge, addHero, addVillain, answerRequest, editChallenge, removeFromTable, renameChallengeSteps, resetChallenge, setChallengeStep, setHidden, stepsText, titanStepLabels, updateSheet } from './table'
+import { gameProblem } from './validate'
+import { addChallenge, addGroup, addHero, addVillain, answerRequest, editChallenge, removeFromTable, renameChallengeSteps, setChallengeOwner, setEnvironment, resetChallenge, setChallengeStep, setHidden, stepsText, titanStepLabels, updateSheet } from './table'
 import { defaultChoices, duplicateGame, draftAddVillain, draftOfNew, moveToTable, savePlannedScene, setAside, startPlan, startScene, refKey } from './scenes'
 import { villainStatus } from './villain-status'
 
@@ -193,7 +194,7 @@ describe('what each audience receives', () => {
   })
 
   it('the action reads through the protocol', () => {
-    const base = { v: 4, type: 'action', id: 'a', heroId: 'h', basedOn: 0 }
+    const base = { v: 5, type: 'action', id: 'a', heroId: 'h', basedOn: 0 }
     expect(readClientMessage({ ...base, action: { kind: 'overcomeChallenge', challengeId: 'c', total: 9, trait: 'Agility' } })).toBeDefined()
     expect(readClientMessage({ ...base, action: { kind: 'overcomeChallenge', challengeId: 'c', total: 9999 } })).toBeUndefined()
   })
@@ -309,5 +310,40 @@ describe('editChallenge', () => {
     g = editChallenge(g, id, { labels: ['Vent', 'Burn'], description: ' ', whenDone: '' })
     expect(g.challenges[0]).not.toHaveProperty('description')
     expect(g.challenges[0]).not.toHaveProperty('whenDone')
+  })
+})
+
+describe("a challenge's owner", () => {
+  const clock: Clock = { now: new Date('2026-11-04T12:00:00Z'), newId: (() => { let n = 0; return () => `o${++n}` })() }
+  const owned = () => addChallenge(setEnvironment(createGame({ id: 'g' }), { name: 'Rooftop', hidden: false }, clock), { name: 'Vault', steps: 1, hidden: false, owner: { kind: 'environment' } }, clock)
+
+  it('is the GM by default', () => {
+    expect(addChallenge(createGame({ id: 'g' }), { name: 'Furnace', steps: 1, hidden: false }, clock).challenges[0]!.owner).toEqual({ kind: 'gm' })
+  })
+
+  it("can't go to an environment that isn't there", () => {
+    const g = addChallenge(createGame({ id: 'g' }), { name: 'Furnace', steps: 1, hidden: false }, clock)
+    expect(setChallengeOwner(g, g.challenges[0]!.id, 'environment')).toBe(g)
+  })
+
+  it('reaches players, and through the protocol', () => {
+    const table = project(owned(), 'player')
+    expect(table.challenges[0]!.owner).toEqual({ kind: 'environment' })
+    expect(tableViewProblem(table)).toBeUndefined()
+  })
+
+  it('goes back to the GM when the environment leaves or is replaced', () => {
+    const g = owned()
+    expect(removeFromTable(g, { kind: 'environment', id: g.environment!.id }, clock).challenges[0]!.owner).toEqual({ kind: 'gm' })
+    const withGroup = addGroup(g, { kind: 'minions', name: 'Burglars', die: 'd6', count: 1, hidden: false, owner: { kind: 'environment' } }, clock)
+    expect(removeFromTable(withGroup, { kind: 'environment', id: g.environment!.id }, clock).groups[0]!.owner).toEqual({ kind: 'gm' })
+    expect(setEnvironment(g, { name: 'Foundry', hidden: false }, clock).challenges[0]!.owner).toEqual({ kind: 'gm' })
+  })
+
+  it('saved games keep it, and refuse one without', () => {
+    const g = owned()
+    expect(gameProblem(g)).toBeUndefined()
+    const { owner: _, ...bad } = g.challenges[0]!
+    expect(gameProblem({ ...g, challenges: [bad] })).toMatch(/owner/)
   })
 })

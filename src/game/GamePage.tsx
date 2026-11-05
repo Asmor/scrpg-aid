@@ -60,7 +60,7 @@ import { challengeFromTemplate, groupFromTemplate, templateFromChallenge, templa
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 type Dialog =
-  | { kind: 'quick'; which: QuickAddKind }
+  | { kind: 'quick'; which: QuickAddKind; owned?: boolean }
   | { kind: 'environment' }
   | { kind: 'scene'; target: EditorTarget }
   | { kind: 'sceneStart'; sceneId: string }
@@ -305,6 +305,12 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       })(),
       ...(ref.kind === 'villain' ? [{ label: 'Recalculate Health…', onSelect: () => setDialog({ kind: 'recalculate', villainId: ref.id }) }] : []),
       ...(ref.kind === 'challenge' ? [{ label: 'Edit steps…', onSelect: () => setDialog({ kind: 'editSteps', challengeId: ref.id }) }, { label: 'Reset', onSelect: () => apply((g) => T.resetChallenge(g, ref.id, clock())) }] : []),
+      ...(() => {
+        const challenge = ref.kind === 'challenge' ? game.challenges.find((c) => c.id === ref.id) : undefined
+        if (!challenge || challenge.linkedVillainId) return []
+        if (challenge.owner.kind === 'environment') return [{ label: 'Give to the GM', onSelect: () => apply((g) => T.setChallengeOwner(g, ref.id, 'gm')) }]
+        return game.environment ? [{ label: 'Give to the environment', onSelect: () => apply((g) => T.setChallengeOwner(g, ref.id, 'environment')) }] : []
+      })(),
       // A Titan's challenge is hidden or shown with its villain.
       ...(ref.kind === 'challenge' && game.challenges.find((c) => c.id === ref.id)?.linkedVillainId ? [] : hidden ? [{ label: 'Reveal', onSelect: () => reveal(ref) }] : [{ label: 'Hide from players', onSelect: () => hide(ref) }]),
       { label: 'Remove from the game…', danger: true, onSelect: () => setDialog({ kind: 'removeItem', ref, name: nameOf(ref) }) },
@@ -335,6 +341,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     resetTwists: () => apply((g) => resetTwists(g, clock())),
     setAspects: (aspects) => apply((g) => setAspects(g, aspects, clock())),
     addAttached: (index, count) => apply((g) => addAttached(g, index, count, clock())),
+    quickChallenge: () => setDialog({ kind: 'quick', which: 'challenge', owned: true }),
     run: (ref) => setRunning(ref),
     handOff: (to) => turn((g) => T.handOff(g, to, clock())),
     basicAction: (record, followUps, choices) => apply((g) => environmentBasicAction(g, record, followUps, choices, random ?? Math.random, clock())),
@@ -575,6 +582,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         (dialog.which === 'challenge' ? (
           <AddChallengeDialog
             canSave={Boolean(templates)}
+            environment={game.environment?.name}
+            owned={Boolean(dialog.owned)}
             onAdd={(c, save) => {
               setSaveTemplateError(null)
               if (!save || !templates) return apply((g) => T.addChallenge(g, c, clock()))

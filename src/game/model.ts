@@ -156,6 +156,8 @@ export interface Challenge extends Visible {
   description?: string
   /** What happens when it's done. Players aren't sent it until then. */
   whenDone?: string
+  /** The GM's, or the environment's: only the environment's count for a Domain villain. A Titan's is always the GM's. */
+  owner: { kind: 'gm' } | { kind: 'environment' }
   /** A Titan's challenge: its completed parts lower that villain's status die. */
   linkedVillainId?: string
 }
@@ -166,7 +168,7 @@ export interface TableTwist extends EnvironmentTwist {
 }
 
 /** A minion or lieutenant template the environment brought, copied in: what Add puts on the table. */
-export interface AttachedOnTable {
+export interface AttachedGroupOnTable {
   kind: 'minion' | 'lieutenant'
   templateId: string
   name: string
@@ -174,6 +176,18 @@ export interface AttachedOnTable {
   actions: NpcGroup['actions']
   groupSize: number
 }
+
+/** A challenge template the environment brought, copied in. */
+export interface AttachedChallengeOnTable {
+  kind: 'challenge'
+  templateId: string
+  name: string
+  labels: string[]
+  description?: string
+  whenDone?: string
+}
+
+export type AttachedOnTable = AttachedGroupOnTable | AttachedChallengeOnTable
 
 /**
  * The game's environment (docs/design/npcs/spec.md, section 6). Players see its name and

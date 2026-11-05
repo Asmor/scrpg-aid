@@ -55,7 +55,7 @@ const TABLE_COUNTS: Readonly<Record<string, (villain: VillainInGame, table: Stat
   },
   domain: (_, t) => {
     const groups = revealed(t.groups).filter((g) => g.owner.kind === 'environment')
-    const challenges = revealed(t.challenges).filter((c) => !challengeDone(c))
+    const challenges = revealed(t.challenges).filter((c) => c.owner.kind === 'environment' && !challengeDone(c))
     return { count: groups.reduce((n, g) => n + g.members.length, 0) + challenges.length, parts: [...groups.map(groupPart), ...challenges.map((c) => c.name)] }
   },
   squad: (v, t) => otherVillains(v, t),

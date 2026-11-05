@@ -147,7 +147,7 @@ describe('the template editors', () => {
     expect(yellow.getByText('1 minor, 1 major')).toBeInTheDocument()
     // Attach from the library, searching.
     await userEvent.click(screen.getByRole('button', { name: '+ Attach' }))
-    const picker = within(screen.getByRole('dialog', { name: 'Attach a minion or lieutenant' }))
+    const picker = within(screen.getByRole('dialog', { name: 'Attach a minion, lieutenant or challenge' }))
     await userEvent.type(picker.getByLabelText('Search'), 'drones')
     expect(picker.queryByText('Night Watch Captain')).not.toBeInTheDocument()
     await userEvent.click(picker.getByRole('button', { name: 'Attach Security drones' }))
@@ -165,7 +165,7 @@ describe('the template editors', () => {
     )
     // Already attached: it can't be attached twice.
     await userEvent.click(screen.getByRole('button', { name: '+ Attach' }))
-    expect(within(screen.getByRole('dialog', { name: 'Attach a minion or lieutenant' })).getByRole('button', { name: 'Security drones is attached' })).toBeDisabled()
+    expect(within(screen.getByRole('dialog', { name: 'Attach a minion, lieutenant or challenge' })).getByRole('button', { name: 'Security drones is attached' })).toBeDisabled()
   })
 
   it('shows a deleted attached template as missing, which can be removed', async () => {
@@ -176,10 +176,25 @@ describe('the template editors', () => {
     await waitFor(async () => expect((await saved(() => t.environments.get('e')))?.attached).toEqual([]))
   })
 
+  it('attaches a challenge template, and makes a new one from the attach picker', async () => {
+    const t = await setup('#/environment/e', async (s) => {
+      await s.environments.save(createEnvironmentTemplate({ id: 'e' }))
+      await s.challenges.save({ ...createChallengeTemplate({ id: 'c' }), name: 'Vault job' })
+    })
+    await userEvent.click(await screen.findByRole('button', { name: '+ Attach' }))
+    const picker = within(screen.getByRole('dialog', { name: 'Attach a minion, lieutenant or challenge' }))
+    await userEvent.click(await picker.findByRole('button', { name: 'Attach Vault job' }))
+    expect(await screen.findByRole('link', { name: 'Vault job' })).toBeInTheDocument()
+    expect(screen.getByText('challenge template')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '+ Attach' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Attach a minion, lieutenant or challenge' })).getByRole('button', { name: 'New challenge' }))
+    await waitFor(async () => expect((await t.challenges.list()).docs).toHaveLength(2))
+  })
+
   it('makes a new minion from the attach picker, attaches it, and opens its editor', async () => {
     const t = await setup('#/environment/e', async (s) => s.environments.save(createEnvironmentTemplate({ id: 'e' })))
     await userEvent.click(await screen.findByRole('button', { name: '+ Attach' }))
-    await userEvent.click(within(screen.getByRole('dialog', { name: 'Attach a minion or lieutenant' })).getByRole('button', { name: 'New minion' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Attach a minion, lieutenant or challenge' })).getByRole('button', { name: 'New minion' }))
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/minion\/.+$/))
     const made = (await t.minions.list()).docs
     expect(made).toHaveLength(1)

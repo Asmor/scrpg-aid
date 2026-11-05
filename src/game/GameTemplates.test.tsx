@@ -65,7 +65,7 @@ async function setup(villains = new MemoryVillainStore()) {
       { id: 't1', zone: 'green', kind: 'minor', text: 'A gust.' },
       { id: 't2', zone: 'yellow', kind: 'major', name: 'Floodlights', text: 'Everyone is seen.' },
     ],
-    attached: [{ kind: 'minion', templateId: 'burglar' }],
+    attached: [{ kind: 'minion', templateId: 'burglar' }, { kind: 'challenge', templateId: 'crucible' }],
   })
   await games.save(createGame({ id: 'g1', name: 'Thursday game' }))
   render(
@@ -171,7 +171,7 @@ describe('the environment on the table', () => {
   it('comes in from its template; its Running panel rolls its dice, marks twists and adds its minions', async () => {
     const { saved } = await setup()
     await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Rooftop Heist' }))
-    await waitFor(async () => expect((await saved()).environment).toMatchObject({ templateId: 'heist', hidden: true, attached: [{ name: 'Burglar', groupSize: 4 }] }))
+    await waitFor(async () => expect((await saved()).environment).toMatchObject({ templateId: 'heist', hidden: true, attached: [{ name: 'Burglar', groupSize: 4 }, { name: 'Shut down the crucible', labels: ['Reach the control room', ''] }] }))
     expect(gmScreen().getByText('Hidden')).toBeInTheDocument()
     expect(screen.getByText('Slick tiles and a long drop.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Run Rooftop Heist' }))
@@ -195,6 +195,33 @@ describe('the environment on the table', () => {
     expect(panel.getByText('minions · 2 on the table')).toBeInTheDocument()
     // Bringing it in again does nothing: it's already on the table.
     expect(gmScreen().queryByRole('button', { name: 'Bring in Rooftop Heist' })).not.toBeInTheDocument()
+  })
+
+  it("adds its challenges from the panel, labels them, and gives them back to the GM", async () => {
+    const { saved } = await setup()
+    await userEvent.click(await gmScreen().findByRole('button', { name: 'Bring in Rooftop Heist' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Run Rooftop Heist' }))
+    const panel = within(gmScreen().getByRole('region', { name: 'Rooftop Heist' }))
+    expect(panel.getByText('challenge · none yet')).toBeInTheDocument()
+    await userEvent.click(panel.getByRole('button', { name: 'Add Shut down the crucible' }))
+    await waitFor(async () => expect((await saved()).challenges.map((c) => [c.name, c.owner.kind, c.hidden])).toEqual([['Shut down the crucible', 'environment', false]]))
+    const card = () => screen.getByRole('article', { name: 'Shut down the crucible' })
+    expect(card()).toHaveTextContent('Challenge · Rooftop Heist')
+    expect(panel.getByText('challenge · 1 on the table')).toBeInTheDocument()
+    await userEvent.click(within(card()).getByRole('button', { name: 'More for Shut down the crucible' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Give to the GM' }))
+    await waitFor(async () => expect((await saved()).challenges[0]!.owner.kind).toBe('gm'))
+    expect(card()).not.toHaveTextContent('Rooftop Heist')
+    await userEvent.click(within(card()).getByRole('button', { name: 'More for Shut down the crucible' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Give to the environment' }))
+    await waitFor(async () => expect((await saved()).challenges[0]!.owner.kind).toBe('environment'))
+    // + Challenge quick-adds one the environment owns.
+    await userEvent.click(panel.getByRole('button', { name: '+ Challenge' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Add a challenge' }))
+    expect(dialog.getByRole('checkbox', { name: 'Belongs to Rooftop Heist' })).toBeChecked()
+    await userEvent.type(dialog.getByLabelText('Name'), 'Hold the door')
+    await userEvent.click(dialog.getByRole('button', { name: 'Add to table' }))
+    await waitFor(async () => expect((await saved()).challenges.at(-1)).toMatchObject({ name: 'Hold the door', owner: { kind: 'environment' } }))
   })
 
   it('takes a basic action with its dice, through the roll dialog, and logs it', async () => {

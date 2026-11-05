@@ -140,7 +140,7 @@ describe('receiving items', () => {
     expect(readSendMessage({ v: 1, type: 'offer', backup: '{}' })).toEqual({ v: 1, type: 'offer', backup: '{}' })
     expect(readSendMessage({ v: 1, type: 'offer', backup: 5 })).toBeUndefined()
     expect(readSendMessage({ v: 1, type: 'offer', backup: 'x'.repeat(MAX_OFFER + 1) })).toBeUndefined()
-    expect(readSendMessage({ v: 4, type: 'receive' })).toBeUndefined()
+    expect(readSendMessage({ v: 5, type: 'receive' })).toBeUndefined()
     expect(readSendMessage({ v: 1, type: 'hello' })).toBeUndefined()
     expect(readSendMessage('receive')).toBeUndefined()
   })

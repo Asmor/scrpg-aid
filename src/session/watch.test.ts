@@ -17,7 +17,7 @@ let n = 0
 const clock = () => ({ now: new Date('2026-11-03T21:00:00Z'), newId: () => `id${++n}` })
 const ROOM = 'ABCD-EFGH'
 const maya = (): Hero => ({ ...completeHero(), id: 'maya-src', details: { ...completeHero().details, name: 'Maya Reyes' } })
-const watchHello = (clientId: string, screenName = 'Living room TV') => ({ v: 4, type: 'hello', role: 'observer', clientId, screenName })
+const watchHello = (clientId: string, screenName = 'Living room TV') => ({ v: 5, type: 'hello', role: 'observer', clientId, screenName })
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
@@ -92,15 +92,15 @@ describe('watching a hosted game', () => {
   it("ignores anything but hello from an observer, and doesn't let it act for a hero", async () => {
     const { net, host } = await setup()
     const alex = peer(net)
-    alex.send({ v: 4, type: 'hello', role: 'player', clientId: 'c1', name: 'Alex', heroSourceId: 'maya-src', sheet: maya() })
+    alex.send({ v: 5, type: 'hello', role: 'player', clientId: 'c1', name: 'Alex', heroSourceId: 'maya-src', sheet: maya() })
     await net.settle()
     const heroId = host.game!.heroes[0]!.id
     const tv = peer(net)
     tv.send(watchHello('tv1'))
     await net.settle()
     const version = host.getSnapshot().version
-    tv.send({ v: 4, type: 'action', id: 'a1', heroId, action: { kind: 'health', by: -5 }, basedOn: version })
-    tv.send({ v: 4, type: 'syncRequest', heroId, sheet: maya() })
+    tv.send({ v: 5, type: 'action', id: 'a1', heroId, action: { kind: 'health', by: -5 }, basedOn: version })
+    tv.send({ v: 5, type: 'syncRequest', heroId, sheet: maya() })
     await net.settle()
     expect(host.getSnapshot().version).toBe(version)
     expect(tv.last('result')).toBeUndefined()
@@ -203,7 +203,7 @@ describe('the device’s watching session', () => {
 
   it('reads only well-formed saved watching sessions', () => {
     expect(readWatchingSaved({ v: 1, room: ROOM, screenName: 'TV' })).toEqual({ v: 1, room: ROOM, screenName: 'TV' })
-    expect(readWatchingSaved({ v: 4, room: ROOM, screenName: 'TV' })).toBeUndefined()
+    expect(readWatchingSaved({ v: 5, room: ROOM, screenName: 'TV' })).toBeUndefined()
     expect(readWatchingSaved({ v: 1, room: '', screenName: 'TV' })).toBeUndefined()
     const store = localSessionStore(null)
     store.saveScreenName('TV')

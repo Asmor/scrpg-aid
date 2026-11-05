@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { logByline } from './model'
-import { EditStepsDialog } from './dialogs'
+import { AddChallengeDialog, EditStepsDialog } from './dialogs'
 import { DangerResultDialog } from './VillainDialogs'
 
 const button = (name: RegExp) => screen.getByRole('button', { name })
@@ -50,6 +50,35 @@ describe('Edit steps', () => {
     await userEvent.type(screen.getByLabelText("When it's done (optional)"), 'It sputters out.')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(onSave).toHaveBeenCalledWith({ labels: ['Step 1'], description: 'It will blow.', whenDone: 'It sputters out.' })
+  })
+})
+
+describe('quick-adding a challenge', () => {
+  const add = async (onAdd: ReturnType<typeof vi.fn>) => {
+    await userEvent.click(screen.getByRole('button', { name: 'Add to table' }))
+    expect(onAdd.mock.calls[0]![0].owner).toBeDefined()
+    return onAdd.mock.calls[0]![0].owner
+  }
+
+  it('has no owner choice without an environment', async () => {
+    const onAdd = vi.fn()
+    render(<AddChallengeDialog onAdd={onAdd} onClose={vi.fn()} />)
+    expect(screen.queryByRole('checkbox', { name: /Belongs to/ })).toBeNull()
+    expect(await add(onAdd)).toEqual({ kind: 'gm' })
+  })
+
+  it("with one, belongs to the GM unless it's checked", async () => {
+    const onAdd = vi.fn()
+    render(<AddChallengeDialog environment="Rooftop Heist" onAdd={onAdd} onClose={vi.fn()} />)
+    const box = screen.getByRole('checkbox', { name: 'Belongs to Rooftop Heist' })
+    expect(box).not.toBeChecked()
+    await userEvent.click(box)
+    expect(await add(onAdd)).toEqual({ kind: 'environment' })
+  })
+
+  it("from the environment's panel, starts checked", () => {
+    render(<AddChallengeDialog environment="Rooftop Heist" owned onAdd={vi.fn()} onClose={vi.fn()} />)
+    expect(screen.getByRole('checkbox', { name: 'Belongs to Rooftop Heist' })).toBeChecked()
   })
 })
 

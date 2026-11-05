@@ -586,6 +586,32 @@ describe('starting a scene', () => {
       expect(start(later, id).offTable.environments.map((e) => e.name)).toEqual(['Rooftop Heist'])
     })
 
+    it('replaced: its challenges leave like anything else, and any kept become the GM’s', () => {
+      let { g, id } = ready()
+      g = addChallenge(g, { name: 'Vault', steps: 1, hidden: false, owner: { kind: 'environment' } }, clock)
+      const vault = { kind: 'challenge' as const, id: g.challenges.at(-1)!.id }
+      const item = startPlan(g, id).leaving.find((l) => l.name === 'Vault')!
+      expect(item.fate).toBe('remove')
+      expect(start(g, id).challenges.some((c) => c.id === vault.id)).toBe(false)
+      const kept = start(g, id, (c) => ({ ...c, fates: { ...c.fates, [refKey(item.ref)]: 'along' } }))
+      expect(kept.challenges.find((c) => c.id === vault.id)!.owner).toEqual({ kind: 'gm' })
+    })
+
+    it('kept: its challenges default to coming along, still its own', () => {
+      let t = setEnvironment(table(), { name: 'Rooftop', hidden: false }, clock)
+      t = addChallenge(t, { name: 'Vault', steps: 1, hidden: false, owner: { kind: 'environment' } }, clock)
+      const { game, sceneId } = savePlannedScene(t, undefined, { ...draftOfNew(t), environment: { id: t.environment!.id, hidden: false } }, clock)
+      expect(startPlan(game, sceneId).leaving.find((l) => l.name === 'Vault')?.fate).toBe('along')
+      expect(start(game, sceneId).challenges.find((c) => c.name === 'Vault')!.owner).toEqual({ kind: 'environment' })
+    })
+
+    it('a challenge set aside is the GM’s', () => {
+      let t = setEnvironment(table(), { name: 'Rooftop', hidden: false }, clock)
+      t = addChallenge(t, { name: 'Vault', steps: 1, hidden: false, owner: { kind: 'environment' } }, clock)
+      const ref = { kind: 'challenge' as const, id: t.challenges.at(-1)!.id }
+      expect(setAside(t, ref, 1, clock).offTable.challenges.at(-1)!.owner).toEqual({ kind: 'gm' })
+    })
+
     it('kept: stays, with twists reset, and its groups default to coming along', () => {
       const t = setEnvironment(table(), { name: 'Rooftop', hidden: false, twists: [{ id: 't', zone: 'green', kind: 'minor', text: 'Gust', used: { round: 1 } }] }, clock)
       const env = t.environment!

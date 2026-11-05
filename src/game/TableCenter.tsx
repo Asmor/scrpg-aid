@@ -545,7 +545,7 @@ function ChallengeCard({ challenge, game, gm }: { challenge: Challenge; game: Ta
   return (
     <article className={`${cardClass(challenge.hidden, false, false)}${done ? ' gt-challenge--done' : ''}`} aria-labelledby={id}>
       <div className="gt-row">
-        <div className="gt-sub gt-grow">Challenge</div>
+        <div className="gt-sub gt-grow">Challenge{challenge.owner.kind === 'environment' ? ` · ${game.environment?.name ?? 'Environment'}` : ''}</div>
         <span className={done ? 'gt-progress gt-progress--done' : 'gt-progress'}>{stepsText(challenge)}</span>
         {gm && <MenuButton label={`More for ${challenge.name}`} items={gm.itemMenu(ref, challenge.hidden)} sheets={gm.sheets} />}
       </div>

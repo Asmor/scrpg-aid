@@ -22,7 +22,7 @@ const capped =
     arrayOf(check)(v, path) ?? ((v as unknown[]).length > max ? `${path} has more than ${max} ${what}` : undefined)
 const aspects: Check = (v, path) => arrayOf(object({ name: string, die }))(v, path) ?? ((v as unknown[]).length !== ASPECT_COUNT ? `${path} should have ${ASPECT_COUNT} aspects` : undefined)
 const twist = object({ id: nonEmptyString, zone: oneOf('green', 'yellow', 'red'), kind: oneOf('minor', 'major'), 'name?': string, text: string })
-const attached = object({ kind: oneOf('minion', 'lieutenant'), templateId: nonEmptyString })
+const attached = object({ kind: oneOf('minion', 'lieutenant', 'challenge'), templateId: nonEmptyString })
 const environmentShape = object({ ...base, description: string, aspects, twists: capped(twist, MAX_TWISTS, 'twists'), attached: capped(attached, MAX_ATTACHED, 'attached templates') })
 
 export const minionTemplateProblem = (value: unknown) => minionShape(value, 'minion')

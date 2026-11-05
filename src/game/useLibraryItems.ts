@@ -50,6 +50,11 @@ export function useLibraryItems(): { items: LibraryItem[] | null; searches: Save
 export async function foundAttached(t: EnvironmentTemplate, templates: TemplateStores | null | undefined): Promise<FoundAttached[]> {
   const found: FoundAttached[] = []
   for (const a of t.attached) {
+    if (a.kind === 'challenge') {
+      const result = await templates?.challenges.get(a.templateId).catch(() => undefined)
+      if (result?.status === 'found') found.push({ kind: 'challenge', doc: result.doc })
+      continue
+    }
     const store = a.kind === 'minion' ? templates?.minions : templates?.lieutenants
     const result = await store?.get(a.templateId).catch(() => undefined)
     if (result?.status === 'found') found.push(a.kind === 'minion' ? { kind: 'minion', doc: result.doc as MinionTemplate } : { kind: 'lieutenant', doc: result.doc as LieutenantTemplate })

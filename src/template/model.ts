@@ -76,9 +76,9 @@ export interface EnvironmentTwist {
   text: string
 }
 
-/** A minion or lieutenant template the environment brings along. */
+/** A minion, lieutenant or challenge template the environment brings along. */
 export interface AttachedTemplate {
-  kind: 'minion' | 'lieutenant'
+  kind: 'minion' | 'lieutenant' | 'challenge'
   templateId: string
 }
 

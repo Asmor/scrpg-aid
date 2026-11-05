@@ -16,7 +16,7 @@ import { emptyPlay } from '../play/state'
 import { clearDefenses } from '../play/defense'
 import { emptyVillainPlay } from '../villain/play'
 import { createScene, currentScene, emptyOffTable, gameDisplayName, sceneName, sceneNumber, trackerFromCounts, type Challenge, type EnvironmentOnTable, type Game, type NpcGroup, type OffTable, type OppositionRef, type Scene, type SceneItem, type SceneItemSource, type VillainInGame } from './model'
-import { boxLabel, closeRequests, newChallenge, newGroup, newVillainCopy, placeEnvironment, removeFromTable, setHidden, setupScene, syncTurnOrder, withLog, withTitanChallenge, type ChallengeSpec, type GroupSpec } from './table'
+import { boxLabel, closeRequests, environmentLetsGo, newChallenge, newGroup, newVillainCopy, placeEnvironment, removeFromTable, setHidden, setupScene, syncTurnOrder, withLog, withTitanChallenge, type ChallengeSpec, type GroupSpec } from './table'
 
 export const refKey = (ref: OppositionRef) => `${ref.kind}:${ref.id}`
 export const sameRef = (a: OppositionRef, b: OppositionRef) => a.kind === b.kind && a.id === b.id
@@ -230,7 +230,7 @@ export function setAside(game: Game, ref: OppositionRef, afterScene: number | un
   else if (ref.kind === 'group') next = { ...game, aside, groups: game.groups.filter((g) => g.id !== ref.id), offTable: { ...offTable, groups: [...offTable.groups, { ...(item as NpcGroup), owner: { kind: 'gm' } }] } }
   else {
     const closed = closeRequests(game, ref.id, clock)
-    next = { ...closed, aside, challenges: closed.challenges.filter((c) => c.id !== ref.id), offTable: { ...offTable, challenges: [...offTable.challenges, closed.challenges.find((c) => c.id === ref.id)!] } }
+    next = { ...closed, aside, challenges: closed.challenges.filter((c) => c.id !== ref.id), offTable: { ...offTable, challenges: [...offTable.challenges, { ...closed.challenges.find((c) => c.id === ref.id)!, owner: { kind: 'gm' } }] } }
   }
   const hidden = (item as { hidden: boolean }).hidden
   const name = ref.kind === 'group' ? (item as NpcGroup).name : itemTitle(item, ref)
@@ -575,8 +575,8 @@ export function startPlan(game: Game, nextId: string): StartPlan {
     .filter((ref) => !next.opposition.some((i) => sameRef(i.ref, ref)) && !(ref.kind === 'challenge' && (findItem(game, ref) as Challenge).linkedVillainId))
     .map((ref) => {
       const item = findItem(game, ref)!
-      // A villain keeps; so does what a later scene needs. An environment staying keeps its groups with it.
-      const owned = ref.kind === 'group' && (item as NpcGroup).owner.kind === 'environment'
+      // A villain keeps; so does what a later scene needs. An environment staying keeps its groups and challenges with it.
+      const owned = (ref.kind === 'group' || ref.kind === 'challenge') && (item as NpcGroup | Challenge).owner.kind === 'environment'
       const fate: Fate = owned && keptEnv ? 'along' : ref.kind === 'villain' || plannedLater(game, ref, nextId) ? 'aside' : 'remove'
       return { ref, name: itemTitle(item, ref), kind: itemKind(item, ref), fate, hidden: (item as { hidden: boolean }).hidden }
     })
@@ -702,8 +702,7 @@ export function startScene(game: Game, nextId: string, choices: StartChoices, cl
       if (coming) g = placeEnvironment(g, { ...coming, hidden }, clock)
     }
   }
-  // An environment gone takes its claim on its groups with it: they're the GM's now.
-  if (g.environment?.id !== game.environment?.id) g = { ...g, groups: g.groups.map((x) => (x.owner.kind === 'environment' ? { ...x, owner: { kind: 'gm' as const } } : x)) }
+  if (g.environment?.id !== game.environment?.id) g = environmentLetsGo(g)
   g = { ...g, aside: g.aside.filter((a) => !isOnTable(g, a.ref)) }
 
   // The scenes themselves.
@@ -741,10 +740,10 @@ export function duplicateGame(game: Game, options: { id?: string; now?: Date } =
   const noClock: Clock = { now: options.now ?? new Date(), newId: () => newId() }
   // A copy is a new game: it gets its own code when it's first hosted.
   const { solo: _solo, code: _code, environment, ...rest } = copy
-  // An environment's group only stays its own if the copy opens on the scene that has that environment.
+  // An environment's group or challenge only stays its own if the copy opens on the scene that has that environment.
   const opensOnCurrent = copy.scenes[0]?.id === copy.currentSceneId
   const freshGroup = (x: NpcGroup): NpcGroup => ({ ...x, ...(opensOnCurrent ? {} : { owner: { kind: 'gm' as const } }), members: x.members.map((m) => ({ ...clearDefenses(m), mods: [], acted: false })) })
-  const freshChallenge = (x: Challenge): Challenge => ({ ...x, steps: x.steps.map((s) => ({ ...s, done: false })), requests: [] })
+  const freshChallenge = (x: Challenge): Challenge => ({ ...x, ...(opensOnCurrent ? {} : { owner: { kind: 'gm' as const } }), steps: x.steps.map((s) => ({ ...s, done: false })), requests: [] })
   const freshVillain = (x: VillainInGame): VillainInGame => ({ ...withoutDanger(withoutOverride(x)), play: emptyVillainPlay() })
   // Everything starts off the table, then the first scene brings its own on.
   const offTable: OffTable = {
