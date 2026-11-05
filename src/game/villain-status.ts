@@ -12,7 +12,7 @@ import { buildVillainSheet } from '../villain/sheet'
 import { heroDisplayName } from '../hero/model'
 import { villainDisplayName } from '../villain/model'
 import type { Clock } from '../play/state'
-import type { Challenge, Game, GameFeedEntry, VillainInGame } from './model'
+import { challengeDone, type Challenge, type Game, type GameFeedEntry, type VillainInGame } from './model'
 import { changeVillainPlay, findVillain, withLog } from './table'
 
 /** What the table holds, as far as a status die cares. */
@@ -131,9 +131,6 @@ export function statusRuleLine(villain: VillainInGame): string {
   }
 }
 
-/** Every step of a challenge is done. */
-export const challengeDone = (challenge: Pick<Challenge, 'steps'>) => challenge.steps.length > 0 && challenge.steps.every(Boolean)
-
 /** The tier a count falls in. */
 export const tierFor = (tiers: readonly CountTier[], count: number) => tiers.find((t) => count >= t.min && (t.max === undefined || count <= t.max))
 
@@ -158,7 +155,7 @@ export function titanParts(rule: Extract<VillainStatusRule, { basis: 'challenge'
   for (const part of rule.challenge) {
     const steps = challenge.steps.slice(at, at + part.successes)
     at += part.successes
-    if (steps.length === part.successes && steps.every(Boolean)) done += 1
+    if (steps.length === part.successes && steps.every((s) => s.done)) done += 1
   }
   return done
 }

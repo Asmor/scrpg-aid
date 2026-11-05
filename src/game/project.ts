@@ -17,7 +17,7 @@ import { villainSummary } from '../villain/play'
 import type { PlayMod, PlayTwist } from '../hero/model'
 import type { PlayZone } from '../play/state'
 import type { Die } from '../rules/types'
-import { sceneOnTable, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type NpcGroup, type PendingHit, type PlayersSee, type SceneOnTable } from './model'
+import { challengeDone, sceneOnTable, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type NpcGroup, type PendingHit, type PlayersSee, type SceneOnTable } from './model'
 import { groupLabel, isHidden, sameActor } from './table'
 import { villainStatus } from './villain-status'
 
@@ -93,8 +93,17 @@ function withoutAbilities(group: NpcGroup): NpcGroup {
   return copy
 }
 
-/** The game as `audience` sees it. */
-export function project(game: Game, audience: Audience): TableView {
+/**
+ * A challenge as players and observers see it: the "when it's done" text waits until it's done, its
+ * link to a status die is the GM's, and the requests are the viewing player's own.
+ */
+function challengeFor(challenge: Challenge, heroId: string | undefined): Challenge {
+  const { whenDone, linkedVillainId: _, ...rest } = challenge
+  return { ...rest, ...(whenDone && challengeDone(challenge) ? { whenDone } : {}), requests: heroId ? challenge.requests.filter((r) => r.heroId === heroId) : [] }
+}
+
+/** The game as `audience` sees it; a player's view is for their hero, `heroId`. */
+export function project(game: Game, audience: Audience, heroId?: string): TableView {
   const gm = audience === 'gm'
   const shown = <T extends { hidden: boolean }>(items: readonly T[]) => (gm ? [...items] : items.filter((i) => !i.hidden))
   const visibleActor = (ref: ActorRef) => gm || !isHidden(game, ref)
@@ -120,9 +129,9 @@ export function project(game: Game, audience: Audience): TableView {
     villains: shown(game.villains).map((v) => villainFor(v, audience, game)),
     // A lieutenant's abilities are the GM's notes, like a hidden villain's sheet.
     groups: gm ? shown(game.groups) : shown(game.groups).map(withoutAbilities),
-    challenges: shown(game.challenges),
+    challenges: gm ? shown(game.challenges) : shown(game.challenges).map((c) => challengeFor(c, heroId)),
     ...(game.pendingHits?.length ? { pendingHits: gm ? game.pendingHits : game.pendingHits.map(({ gmOnly, ...h }) => (gmOnly ? { ...h, by: 'Someone unseen' } : h)) } : {}),
-    feed: gm ? game.feed : game.feed.filter((e) => !e.gmOnly),
+    feed: gm ? game.feed : game.feed.filter((e) => !e.gmOnly && (!e.forHero || (heroId !== undefined && e.forHero === heroId))),
   }
 }
 

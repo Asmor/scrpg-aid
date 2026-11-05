@@ -48,7 +48,7 @@ describe('the display view', () => {
     const drones = screen.getByRole('article', { name: 'Scrap drones' })
     expect(within(drones).getByAltText('d6')).toBeInTheDocument()
     expect(drones).toHaveTextContent('× 2')
-    expect(screen.getByRole('article', { name: 'Shut down the crucible' })).toHaveTextContent('0 of 3 done')
+    expect(screen.getByRole('article', { name: 'Shut down the crucible' })).toHaveTextContent('0 of 3')
     // Hidden items never reach observers.
     expect(screen.queryByText('Secret choir')).not.toBeInTheDocument()
     expect(screen.getByText('Watching Thursday game · ABCD-EFGH')).toBeInTheDocument()

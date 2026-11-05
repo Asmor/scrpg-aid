@@ -166,11 +166,11 @@ export function VillainStatusPanel({ game, copy, actions }: { game: Game; copy: 
 function TitanSteps({ challenge, actions }: { challenge: Challenge; actions: VillainStatusActions }) {
   return (
     <ul className="gt-steps" aria-label="Steps">
-      {challenge.steps.map((done, i) => (
+      {challenge.steps.map((step, i) => (
         <li key={i} className="gt-row">
           <label className="gt-row">
-            <input type="checkbox" checked={done} onChange={(e) => actions.setStep(challenge, i, e.target.checked)} />
-            {challenge.labels?.[i] || `Step ${i + 1}`}
+            <input type="checkbox" checked={step.done} onChange={(e) => actions.setStep(challenge, i, e.target.checked)} />
+            {step.label}
           </label>
         </li>
       ))}

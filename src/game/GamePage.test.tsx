@@ -539,7 +539,7 @@ describe('the game table', () => {
     await userEvent.click(dialog.getByRole('button', { name: 'Add to table' }))
     const card = screen.getByRole('article', { name: 'Shut down the crucible' })
     await userEvent.click(within(card).getByRole('checkbox', { name: 'Step 1' }))
-    expect(card).toHaveTextContent('1 of 3 done')
+    expect(card).toHaveTextContent('1 of 3')
   })
 
   it('runs a villain: Health on its copy, and its history goes to the log', async () => {

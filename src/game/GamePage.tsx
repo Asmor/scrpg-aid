@@ -22,7 +22,7 @@ import { useTick } from '../play/useTick'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
 import { advanceScene, recalculateHealth, villainHealth } from '../villain/play'
 import { BringInVillainDialog, RecalculateHealthDialog } from './VillainDialogs'
-import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, SceneRecordDialog, TwistDialog, UpdateDialog } from './dialogs'
+import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EditStepsDialog, EnvironmentDialog, FixTurnDialog, HealthDialog, ModDialog, SceneRecordDialog, TwistDialog, UpdateDialog } from './dialogs'
 import { GmScreen, type GmTab, type QuickAddKind, type VillainAttacks } from './GmScreen'
 import type { GroupActions } from './RunningGroup'
 import { applySaves } from './npc'
@@ -77,6 +77,7 @@ type Dialog =
   | { kind: 'invite' }
   | { kind: 'bringVillain'; villain: Villain }
   | { kind: 'recalculate'; villainId: string }
+  | { kind: 'editSteps'; challengeId: string }
 
 /** How long a started scene can be undone. */
 export const SCENE_UNDO_MS = 30_000
@@ -140,14 +141,22 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   }, [sceneUndo])
   const observed = useMemo(() => (game ? project(game, 'observer') : undefined), [game])
   useDisplayBroadcast(id, observed, host?.room)
-  // A villain's status die changing is announced to the GM, in the words of its log line.
+  // A villain's status die changing, or a player's new Overcome on a challenge, is announced to the GM.
   const seenFeed = useRef(game?.feed)
   const feed = game?.feed
+  const seenRequests = useRef(game && new Set(game.challenges.flatMap((c) => c.requests.map((r) => r.id))))
+  const challenges = game?.challenges
+  const heroesNow = game?.heroes
   useEffect(() => {
     const lines = seenFeed.current && feed ? newStatusLines(seenFeed.current, feed) : []
     seenFeed.current = feed
-    if (lines.length) setAnnounce(lines.join(' '))
-  }, [feed])
+    const known = seenRequests.current
+    const requests = (challenges ?? []).flatMap((c) => c.requests.filter((r) => known && !known.has(r.id)).map((r) => `${T.heroLabelOf(heroesNow ?? [], r.heroId)} rolled ${r.total} to Overcome on ${c.name}.`))
+    if (challenges) seenRequests.current = new Set(challenges.flatMap((c) => c.requests.map((r) => r.id)))
+    if (lines.length || requests.length) setAnnounce([...lines, ...requests].join(' '))
+    // `heroesNow` only names them: a new Overcome is what's announced.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feed, challenges])
 
   if (!game) {
     return (
@@ -294,7 +303,9 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         return newer ? [{ label: `Library sheet changed ${formatAgoInline(newer.updatedAt, now)}`, note: true as const, onSelect: () => {} }, { label: 'Update from library…', onSelect: () => setDialog({ kind: 'update', ref: { kind: 'villain', id: ref.id }, sheet: newer }) }] : []
       })(),
       ...(ref.kind === 'villain' ? [{ label: 'Recalculate Health…', onSelect: () => setDialog({ kind: 'recalculate', villainId: ref.id }) }] : []),
-      ...(hidden ? [{ label: 'Reveal', onSelect: () => reveal(ref) }] : ref.kind === 'villain' ? [] : [{ label: 'Hide from players', onSelect: () => hide(ref) }]),
+      ...(ref.kind === 'challenge' ? [{ label: 'Edit steps…', onSelect: () => setDialog({ kind: 'editSteps', challengeId: ref.id }) }, { label: 'Reset', onSelect: () => apply((g) => T.resetChallenge(g, ref.id, clock())) }] : []),
+      // A Titan's challenge is hidden or shown with its villain.
+      ...(ref.kind === 'challenge' && game.challenges.find((c) => c.id === ref.id)?.linkedVillainId ? [] : hidden ? [{ label: 'Reveal', onSelect: () => reveal(ref) }] : ref.kind === 'villain' ? [] : [{ label: 'Hide from players', onSelect: () => hide(ref) }]),
       { label: 'Remove from the game…', danger: true, onSelect: () => setDialog({ kind: 'removeItem', ref, name: nameOf(ref) }) },
     ],
     setPlayersSee: (villainId, value) => apply((g) => T.setPlayersSee(g, villainId, value)),
@@ -306,6 +317,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     },
     shrinkMember: (group, memberId) => apply((g) => T.shrinkMember(g, group.id, memberId, clock())),
     setStep: (challenge, i, done) => apply((g) => T.setChallengeStep(g, challenge.id, i, done, clock())),
+    answerRequest: (challenge, requestId, check) => apply((g) => T.answerRequest(g, challenge.id, requestId, check, clock())),
     sheets: phone,
   }
 
@@ -693,6 +705,12 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
               }}
             />
           )
+        })()}
+      {dialog?.kind === 'editSteps' &&
+        (() => {
+          const challenge = game.challenges.find((c) => c.id === dialog.challengeId)
+          if (!challenge) return null
+          return <EditStepsDialog name={challenge.name} labels={challenge.steps.map((s) => s.label)} onSave={(labels) => apply((g) => T.renameChallengeSteps(g, challenge.id, labels))} onClose={() => setDialog(null)} />
         })()}
       {dialog?.kind === 'removeItem' && (
         <ConfirmDialog

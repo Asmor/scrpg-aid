@@ -61,7 +61,9 @@ interface RollDialogProps {
   zone: PlayZone | undefined
   mods: readonly PlayMod[]
   /** Done: the roll to record, the follow-up mods to add or give, and the form or mode chosen, if it changed. */
-  onConfirm: (record: RollRecord, followUps: readonly FollowUpMod[], formChoice?: string, minions?: readonly NewMinion[], targetChoices?: readonly TargetChoice[]) => void
+  onConfirm: (record: RollRecord, followUps: readonly FollowUpMod[], formChoice?: string, minions?: readonly NewMinion[], targetChoices?: readonly TargetChoice[], overcoming?: string) => void
+  /** A player at a table: the challenges an Overcome can go against, as ids and labels. */
+  overcomeOptions?: readonly { id: string; label: string }[]
   /** For an ability that changes form or mode: the choices, offered in the Resolve step. */
   formPicker?: FormPicker
   /** For an ability that makes minions (Make Minion and the like): the die that sizes each one (ruling 62). */
@@ -135,7 +137,7 @@ function modMade(action: Action, total: number): string | undefined {
   return action === 'boost' ? `a +${size} bonus` : `a −${size} penalty`
 }
 
-export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, creates = [], minionForms = [], targetsFor, selfId = '', pickTargets = 'all', fixedPool, statusLabel, onClose, random }: RollDialogProps) {
+export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptions = [], formPicker, creates = [], minionForms = [], targetsFor, selfId = '', pickTargets = 'all', fixedPool, statusLabel, onClose, random }: RollDialogProps) {
   const titleId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const use = subject.kind === 'ability' ? subject.use : undefined
@@ -158,6 +160,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
   const actions = BASIC_ACTIONS.filter((a) => !dice.cannot.includes(a))
 
   // Effects: an ability's, or the basic action chosen.
+  const [overcoming, setOvercoming] = useState('')
   const [basicAction, setBasicAction] = useState<Action>(() => (subject.kind === 'basic' && subject.action) || actions[0] || 'attack')
   // A basic action always uses Mid (the environment's too).
   const effects = use ? use.effects : [{ actions: [basicAction], use: 'mid' as EffectUse }]
@@ -268,6 +271,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
       })
     : []
   const toggle = toggleLabel(picking)
+  const overcomeOffered = overcomeOptions.length > 0 && finalResults.some((r) => r.action === 'overcome' && r.total !== undefined)
   const done = () => {
     if (!rolled) return
     onConfirm(
@@ -295,6 +299,8 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
         if (!to || !allOptions(targetsFor(r.action, { showOtherSide: true, keep: [] })).some((o) => o.id === to)) return []
         return [{ result: i, to: to === selfId ? '' : to }]
       }),
+      // Only an Overcome goes against a challenge, and one that's still there.
+      overcomeOffered && overcomeOptions.some((o) => o.id === overcoming) ? overcoming : undefined,
     )
     onClose()
   }
@@ -708,6 +714,23 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, formPicker, c
                   ))}
                 </ul>
                 {picker}
+                {overcomeOffered && (
+                  <>
+                    <Field label="What are you overcoming?">
+                      {(id) => (
+                        <select id={id} value={overcoming} onChange={(e) => setOvercoming(e.target.value)}>
+                          <option value="">Something else (describe it in the log)</option>
+                          {overcomeOptions.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </Field>
+                    <p className="hint">Picking a challenge asks the GM to check off its next step.</p>
+                  </>
+                )}
                 {toggle && <ShowOtherSide label={toggle} checked={showOther} onChange={setShowOther} />}
                 {targetsFor &&
                   finalResults.map((r, i) => {

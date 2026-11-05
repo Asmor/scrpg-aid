@@ -20,8 +20,8 @@ import { addMod, addTwist, currentHealth, effectiveZone, MAX_HERO_POINTS, noteGi
 import type { BasicAction } from '../rules/types'
 import { applyAttack, giveMod, protect, targetHidden, targetName } from './resolve'
 import { defend } from './hits'
-import { sceneOnTable, type ActorRef, type Game, type HeroInGame } from './model'
-import { changeHeroPlay, findHero, handOff, heroPlayInScene, isHidden, itemName, resolveHit, roundOver, sameActor, startRound, waiting } from './table'
+import { challengeDone, sceneOnTable, type ActorRef, type Game, type HeroInGame } from './model'
+import { changeHeroPlay, findHero, handOff, heroPlayInScene, isHidden, itemName, resolveHit, roundOver, sameActor, startRound, waiting, withLog } from './table'
 
 export type ModInput = Omit<PlayMod, 'id'>
 /** A minion to make. */
@@ -72,6 +72,8 @@ export type HeroAction =
   | { kind: 'chooseDefense'; hitId: string; defenseId: string }
   | { kind: 'handOff'; to: ActorRef }
   | { kind: 'startRound'; first: ActorRef }
+  /** An Overcome put against a challenge, for the GM to answer (docs/design/villains-and-challenges/spec.md, section 4). */
+  | { kind: 'overcomeChallenge'; challengeId: string; total: number; trait?: string }
 
 /** `notes` are lines for the player as toasts: a minion's or lieutenant's save against their Attack. */
 export type ActionResult = { ok: true; game: Game; notes?: string[] } | { ok: false; reason: string }
@@ -91,6 +93,9 @@ export interface ActionContext {
   /** The GM's dice, for saves against a player's Attack. */
   random?: () => number
 }
+
+/** The most Overcomes that wait on one challenge. */
+export const MAX_REQUESTS = 50
 
 const refuse = (reason: string): ActionResult => ({ ok: false, reason })
 
@@ -186,6 +191,15 @@ export function applyHeroAction(game: Game, heroId: string, action: HeroAction, 
           return change((p) => setMinionForm(p, action.minionId, action.form, clock))
       }
       break
+    }
+    case 'overcomeChallenge': {
+      const challenge = game.challenges.find((c) => c.id === action.challengeId)
+      if (!challenge || challenge.hidden) return refuse("that challenge isn't on the table any more")
+      if (challengeDone(challenge)) return refuse('that challenge is already done')
+      if (challenge.requests.length >= MAX_REQUESTS) return refuse('too many Overcomes are already waiting on that challenge')
+      const request = { id: clock.newId(), heroId, total: action.total, ...(action.trait ? { trait: action.trait } : {}), at: clock.now.toISOString() }
+      const next = { ...game, challenges: game.challenges.map((c) => (c.id === challenge.id ? { ...c, requests: [...c.requests, request] } : c)) }
+      return { ok: true, game: withLog(next, [{ id: clock.newId(), at: request.at, by: name, text: `${name} rolled ${action.total} to Overcome on ${challenge.name}. Waiting for the GM.` }]) }
     }
     case 'handOff': {
       const me: ActorRef = { kind: 'hero', id: heroId }

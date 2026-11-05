@@ -99,7 +99,7 @@ describe('reading scenes', () => {
     const group = g.groups[0]!
     expect(hasChanged(group, groupRef(g))).toBe(false)
     expect(hasChanged({ ...group, members: group.members.map((m, i) => (i === 1 ? { ...m, die: 'd4' as const } : m)) }, groupRef(g))).toBe(true)
-    expect(hasChanged({ ...g.challenges[0]!, steps: [true, false, false] }, challengeRef(g))).toBe(true)
+    expect(hasChanged({ ...g.challenges[0]!, steps: g.challenges[0]!.steps.map((x, i) => ({ ...x, done: i === 0 })) }, challengeRef(g))).toBe(true)
     const env = newEnvironment({ name: 'Foundry', hidden: true, twists: [{ id: 't', zone: 'green', kind: 'minor', text: 'x', used: { round: 1 } }] }, clock)
     expect(hasChanged(env, { kind: 'environment', id: env.id })).toBe(true)
     expect(itemTitle(g.groups[0]!, groupRef(g))).toBe('Burglars ×3')
@@ -755,7 +755,7 @@ describe('duplicating a game with scenes', () => {
   it('copies every scene back to planned, the first one current, with fresh play state', () => {
     const t = table()
     const villain = villainRef(t)
-    const hurt: Game = { ...t, villains: t.villains.map((v) => ({ ...v, play: { ...v.play, health: 3 } })), challenges: t.challenges.map((c) => ({ ...c, steps: [true, false, false] })) }
+    const hurt: Game = { ...t, villains: t.villains.map((v) => ({ ...v, play: { ...v.play, health: 3 } })), challenges: t.challenges.map((c) => ({ ...c, steps: c.steps.map((x, i) => ({ ...x, done: i === 0 })) })) }
     const withEnv = setEnvironment(hurt, { name: 'Rooftop', hidden: false, twists: [{ id: 't', zone: 'green', kind: 'minor', text: 'x', used: { round: 1 } }] }, clock)
     const named = { ...withEnv, scenes: withEnv.scenes.map((s) => ({ ...s, name: 'Bank job' })) }
     const planned = savePlannedScene(named, undefined, { ...draftOfNew(named), name: 'Rooftop chase', rows: [] }, clock)
@@ -799,10 +799,10 @@ describe('duplicating a game with scenes', () => {
   it('resets groups, challenges and twists, and keeps a planned scene’s copies off the table', () => {
     let g: Game = table()
     g = setEnvironment(g, { name: 'Rooftop', hidden: true, twists: [{ id: 't', zone: 'green', kind: 'minor', text: 'x', used: { round: 1 } }] }, clock)
-    g = { ...g, challenges: g.challenges.map((c) => ({ ...c, steps: [true, false, false] })), groups: g.groups.map((x) => ({ ...x, members: x.members.map((m) => ({ ...m, acted: true, mods: [{ id: 'm', label: 'x', value: 1 }] })) })) }
+    g = { ...g, challenges: g.challenges.map((c) => ({ ...c, steps: c.steps.map((x, i) => ({ ...x, done: i === 0 })) })), groups: g.groups.map((x) => ({ ...x, members: x.members.map((m) => ({ ...m, acted: true, mods: [{ id: 'm', label: 'x', value: 1 }] })) })) }
     g = savePlannedScene(g, undefined, draftAddGroup(draftOfNew(g), { kind: 'minions', name: 'Later', die: 'd6', count: 1, hidden: true }, { kind: 'quick' }, clock), clock).game
     const copy = duplicateGame(g, { id: 'copy' })
-    expect(copy.challenges[0]!.steps).toEqual([false, false, false])
+    expect(copy.challenges[0]!.steps.map((x) => x.done)).toEqual([false, false, false])
     expect(copy.challenges[0]!.hidden).toBe(true)
     expect(copy.groups[0]!.members[0]).toMatchObject({ acted: false, mods: [] })
     expect(copy.environment).toMatchObject({ name: 'Rooftop', hidden: true })

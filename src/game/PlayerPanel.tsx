@@ -27,12 +27,12 @@ import type { HeroAction } from './actions'
 import type { HeroOnTable, TableView } from './project'
 import { rollAction, targetId } from './roll-targets'
 import { targetOptions, viewTable } from './target-options'
-import { heroPlayInScene } from './table'
+import { heroPlayInScene, overcomeOptions } from './table'
 import { MenuButton, ZoneChip } from './TableCenter'
 
 interface Props {
   hero: HeroOnTable
-  view: Pick<TableView, 'scene' | 'heroes' | 'villains' | 'groups' | 'pendingHits'>
+  view: Pick<TableView, 'scene' | 'heroes' | 'villains' | 'groups' | 'pendingHits' | 'challenges'>
   /** Actions sent and not answered yet. */
   pending: readonly PendingAction[]
   /** Whether the GM is connected: actions can be sent. */
@@ -341,9 +341,13 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
           minionForms={sheet.minionForms}
           targetsFor={(effect, opts) => targetOptions({ kind: 'hero', id: hero.id }, effect, viewTable(view), opts)}
           selfId={targetId({ kind: 'hero', id: hero.id })}
-          onConfirm={(record, followUps, formChoice, made = [], choices = []) => {
+          overcomeOptions={overcomeOptions(view.challenges)}
+          onConfirm={(record, followUps, formChoice, made = [], choices = [], overcoming) => {
             const subject = rolling.kind === 'ability' ? { kind: 'ability' as const, name: rolling.name } : { kind: 'basic' as const, ...(rolling.action ? { action: rolling.action } : {}) }
             act({ kind: 'roll', roll: rollAction(hero.id, subject, record, followUps, formChoice, made, choices) })
+            const total = record.results.find((r) => r.action === 'overcome')?.total
+            const trait = record.rolled[0]?.label
+            if (overcoming && total !== undefined) act({ kind: 'overcomeChallenge', challengeId: overcoming, total, ...(trait ? { trait } : {}) })
           }}
           random={random}
         />

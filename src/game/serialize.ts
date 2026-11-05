@@ -7,9 +7,10 @@ import { gameProblem } from './validate'
 export const GAME_FORMAT = 'scrpg-game'
 /**
  * Version 3 made a game a list of scenes (docs/design/scenes/spec.md). There are no real saves
- * yet, so older versions aren't carried forward: they read as unreadable.
+ * yet, so older versions aren't carried forward: they read as unreadable. Version 4 gave
+ * challenges labeled steps and players' requests (docs/design/villains-and-challenges/spec.md).
  */
-export const GAME_VERSION = 3
+export const GAME_VERSION = 4
 
 export interface SavedGame {
   format: typeof GAME_FORMAT

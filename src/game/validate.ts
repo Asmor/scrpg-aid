@@ -36,7 +36,7 @@ const groupShape = object({
   'abilities?': arrayOf(object({ name: string, type: oneOf('A', 'R', 'I'), text: string, 'saveBonus?': positiveInteger })),
   members: arrayOf(object({ id: nonEmptyString, n: integer, die, mods: arrayOf(mod), acted: boolean, 'defenses?': arrayOf(object({ id: nonEmptyString, value: integer, from: string })) })),
 })
-const challengeShape = object({ id: nonEmptyString, 'templateId?': nonEmptyString, name: string, hidden: boolean, steps: arrayOf(boolean), 'labels?': arrayOf(string), 'description?': string, 'whenDone?': string, 'linkedVillainId?': nonEmptyString })
+const challengeShape = object({ id: nonEmptyString, 'templateId?': nonEmptyString, name: string, hidden: boolean, steps: arrayOf(object({ label: string, done: boolean })), requests: arrayOf(object({ id: nonEmptyString, heroId: nonEmptyString, total: integer, 'trait?': string, at: string })), 'description?': string, 'whenDone?': string, 'linkedVillainId?': nonEmptyString })
 const opposition = object({ kind: oneOf('villain', 'group', 'challenge', 'environment'), id: nonEmptyString })
 const sceneItem = object({
   ref: opposition,
@@ -78,7 +78,7 @@ const gameShape = object({
   'pendingHits?': arrayOf(object({ id: nonEmptyString, heroId: nonEmptyString, by: string, amount: integer, at: string, 'gmOnly?': oneOf(true) })),
   notes: string,
   'code?': nonEmptyString,
-  feed: arrayOf(object({ id: nonEmptyString, at: string, by: string, text: string, 'details?': arrayOf(string), 'gmOnly?': oneOf(true), 'statusOf?': nonEmptyString })),
+  feed: arrayOf(object({ id: nonEmptyString, at: string, by: string, text: string, 'details?': arrayOf(string), 'gmOnly?': oneOf(true), 'statusOf?': nonEmptyString, 'forHero?': nonEmptyString })),
 })
 
 /** Each zone 0–MAX_BOXES, and at least one box. */

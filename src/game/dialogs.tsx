@@ -11,6 +11,7 @@ import type { Die } from '../rules/types'
 import { MAX_GROUP_SIZE, MAX_STEPS, type ActorRef, type Game, type NpcGroup } from './model'
 import { actorKey, sameActor } from './table'
 import type { DiffSection } from './sheet-diff'
+import { MAX_NAME } from '../session/protocol'
 
 function Actions({ submit, onCancel, disabled = false }: { submit: string; onCancel: () => void; disabled?: boolean }) {
   return (
@@ -115,6 +116,23 @@ export function AddChallengeDialog({ onAdd, onClose, canSave = false, submit = '
         <HiddenBox value={hidden} onChange={setHidden} />
         {canSave && <SaveBox value={save} onChange={setSave} />}
         <Actions submit={submit} onCancel={onClose} disabled={n === undefined} />
+      </form>
+    </Modal>
+  )
+}
+
+/** ⋯ Edit steps…: renames a challenge's steps. */
+export function EditStepsDialog({ name, labels, onSave, onClose }: { name: string; labels: readonly string[]; onSave: (labels: string[]) => void; onClose: () => void }) {
+  const [draft, setDraft] = useState([...labels])
+  return (
+    <Modal title={`Steps of ${name}`} onClose={onClose}>
+      <form className="gt-form" onSubmit={submitWith(() => (onSave(draft), onClose()))}>
+        {draft.map((label, i) => (
+          <Field key={i} label={`Step ${i + 1}`}>
+            {(id) => <input id={id} type="text" maxLength={MAX_NAME} value={label} onChange={(e) => setDraft((all) => all.map((l, j) => (j === i ? e.target.value : l)))} />}
+          </Field>
+        ))}
+        <Actions submit="Save" onCancel={onClose} />
       </form>
     </Modal>
   )

@@ -214,11 +214,12 @@ export function DisplayView({ table, watching, status }: Props) {
             {table.challenges.map((c) => (
               <Card key={c.id} kind="Challenge" name={c.name} acting={false}>
                 <div className="dv-row">
-                  {c.steps.map((done, i) => (
-                    <span key={i} className={done ? 'dv-step dv-step--done' : 'dv-step'} role="img" aria-label={`Step ${i + 1}${done ? ', done' : ''}`} />
+                  {c.steps.map((step, i) => (
+                    <span key={i} className={step.done ? 'dv-step dv-step--done' : 'dv-step'} role="img" aria-label={`${step.label}${step.done ? ', done' : ''}`} />
                   ))}
                   <span className="dv-sub">{stepsText(c)}</span>
                 </div>
+                {c.whenDone && <div className="dv-sub">{c.whenDone}</div>}
               </Card>
             ))}
           </section>

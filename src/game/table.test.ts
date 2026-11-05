@@ -513,8 +513,8 @@ describe('challenges', () => {
     let game = addChallenge(createGame(), { name: 'Shut down the crucible', steps: 3, hidden: false }, c)
     const id = game.challenges[0]!.id
     game = setChallengeStep(game, id, 0, true, c)
-    expect(stepsText(game.challenges[0]!)).toBe('1 of 3 done')
-    expect(last(game).text).toBe('Shut down the crucible: 1 of 3 done.')
+    expect(stepsText(game.challenges[0]!)).toBe('1 of 3')
+    expect(last(game).text).toBe('The GM checked off "Step 1".')
     expect(setChallengeStep(game, id, 5, true, c)).toBe(game)
   })
 })

@@ -35,7 +35,7 @@ describe('templates on the table', () => {
       ['Burglar', 'burglar', ['attack', 'hinder'], ['d8', 'd8']],
     ])
     g = addChallenge(g, challengeFromTemplate(crucible(), true), clock())
-    expect(g.challenges[0]).toMatchObject({ templateId: 'crucible', steps: [false, false], labels: ['Reach the control room', ''], description: 'It is overheating.', whenDone: 'The crucible cools.' })
+    expect(g.challenges[0]).toMatchObject({ templateId: 'crucible', steps: [{ label: 'Reach the control room', done: false }, { label: 'Step 2', done: false }], description: 'It is overheating.', whenDone: 'The crucible cools.' })
     expect(gamesHolding([{ ...g, name: 'Thursday' }], 'minion', 'burglar')).toHaveLength(1)
     expect(gamesHolding([g], 'lieutenant', 'burglar')).toEqual([])
     expect(gamesHolding([g], 'challenge', 'crucible')).toHaveLength(1)
@@ -46,7 +46,7 @@ describe('templates on the table', () => {
     let g = addChallenge(createGame({ id: 'g' }), challengeFromTemplate(long, false), clock())
     g = addGroup(g, groupFromTemplate({ ...burglar(), name: 'b'.repeat(500) }, 'minions', 1, false), clock())
     const c = g.challenges[0]!
-    expect([c.name.length, c.labels![0]!.length, c.description!.length, c.whenDone!.length, g.groups[0]!.name.length]).toEqual([200, 200, 2000, 2000, 200])
+    expect([c.name.length, c.steps[0]!.label.length, c.description!.length, c.whenDone!.length, g.groups[0]!.name.length]).toEqual([200, 200, 2000, 2000, 200])
     expect(tableViewProblem(project(g, 'player'))).toBeUndefined()
   })
 })
@@ -102,7 +102,7 @@ describe('the GM screen and templates', () => {
     await userEvent.click(gmScreen().getByRole('button', { name: 'Bring in Burglar' }))
     await userEvent.click(gmScreen().getByRole('button', { name: 'Bring in Shut down the crucible' }))
     await waitFor(async () => expect((await saved()).groups.map((g) => [g.name, g.members.length, g.hidden])).toEqual([['Burglar', 2, true]]))
-    expect((await saved()).challenges.map((c) => c.labels)).toEqual([['Reach the control room', '']])
+    expect((await saved()).challenges.map((c) => c.steps.map((x) => x.label))).toEqual([['Reach the control room', 'Step 2']])
     const card = screen.getByRole('article', { name: 'Shut down the crucible' })
     expect(within(card).getByRole('checkbox', { name: 'Reach the control room' })).toBeInTheDocument()
     expect(within(card).getByRole('checkbox', { name: 'Step 2' })).toBeInTheDocument()

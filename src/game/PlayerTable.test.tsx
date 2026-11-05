@@ -15,7 +15,7 @@ import { adaptiveBruiser } from '../test/villains'
 import { MemoryVillainStore } from '../villain/store'
 import { createGame } from './model'
 import { MemoryGameStore } from './store'
-import { addVillain, changeHeroPlay, handOff, startRound } from './table'
+import { addChallenge, addVillain, setChallengeStep, changeHeroPlay, handOff, startRound } from './table'
 
 let n = 0
 const clock = (): Clock => ({ now: new Date(), newId: () => `id${++n}` })
@@ -126,6 +126,32 @@ describe('a player at the table', () => {
     await settle()
     expect(screen.getByText('Scene 1')).toBeInTheDocument()
     expect(screen.queryByText(/^New scene/)).not.toBeInTheDocument()
+  })
+
+  it('puts an Overcome against a challenge, waits for the GM, and hears when it closes first', async () => {
+    const { host, settle } = await setup()
+    await join(settle)
+    act(() => host.apply((g) => addChallenge(g, { name: 'Shut down the furnace', steps: 1, hidden: false, labels: ['Vent it'] }, clock())))
+    act(() => host.apply((g) => addChallenge(g, { name: 'Secret', steps: 1, hidden: true }, clock())))
+    await settle()
+    await userEvent.click(panel().getByRole('button', { name: 'Roll' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Basic action' }))
+    await userEvent.selectOptions(dialog.getByLabelText('Action'), 'Overcome')
+    await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
+    const select = dialog.getByLabelText('What are you overcoming?')
+    expect([...select.querySelectorAll('option')].map((o) => o.textContent)).toEqual(['Something else (describe it in the log)', 'Challenge: Shut down the furnace (0 of 1)'])
+    await userEvent.selectOptions(select, 'Challenge: Shut down the furnace (0 of 1)')
+    await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
+    await settle()
+    const request = host.game!.challenges[0]!.requests[0]!
+    expect(request.heroId).toBe(host.game!.heroes[0]!.id)
+    const card = () => screen.getByRole('article', { name: 'Shut down the furnace' })
+    expect(card()).toHaveTextContent(`Waiting for the GM: your Overcome (${request.total}).`)
+    act(() => host.apply((g) => setChallengeStep(g, g.challenges[0]!.id, 0, true, clock())))
+    await settle()
+    expect(await screen.findByText('Shut down the furnace: The GM closed this challenge before answering.', { selector: '.toast *' })).toBeInTheDocument()
+    expect(card()).not.toHaveTextContent('Waiting for the GM')
   })
 
   it('sends an action and shows the result from the GM', async () => {

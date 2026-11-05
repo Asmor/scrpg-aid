@@ -8264,3 +8264,63 @@ ol.vw-conditions li {
   border: 1px dashed var(--ui-border);
   border-radius: 10px;
 }
+
+/* A challenge on the table (docs/design/villains-and-challenges/spec.md, section 4). */
+.gt-challenge--done {
+  border-color: var(--ui-accent);
+}
+
+.gt-progress {
+  padding: 0 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.gt-progress--done {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
+}
+
+.gt-step-row {
+  min-height: 32px;
+  font-size: 0.875rem;
+}
+
+.gt-step-row--done .gt-step-text {
+  color: var(--ui-muted);
+  text-decoration: line-through;
+}
+
+.gt-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--ui-muted);
+  border-radius: 4px;
+  font-size: 0.8125rem;
+}
+
+.gt-box--on {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
+}
+
+.gt-request {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--ui-accent);
+  border-radius: 10px;
+  background: var(--ui-accent-soft);
+}
+
+.gt-request p {
+  margin: 0;
+}

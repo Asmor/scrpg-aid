@@ -124,16 +124,32 @@ export interface NpcGroup extends Visible {
   members: NpcMember[]
 }
 
+/** One step of a challenge: quick-added ones read "Step 1" until the GM renames them. */
+export interface ChallengeStep {
+  label: string
+  done: boolean
+}
+
+/** A player's Overcome against a challenge, waiting for the GM's answer. */
+export interface ChallengeRequest {
+  id: string
+  heroId: string
+  total: number
+  /** What they rolled it with: "Agility". */
+  trait?: string
+  at: string
+}
+
 export interface Challenge extends Visible {
   id: string
   /** The library template it came from, if any. */
   templateId?: string
   name: string
-  /** Each step, done or not. */
-  steps: boolean[]
-  /** From a template: each step's label (empty for none), what it is, and what happens when it's done. */
-  labels?: string[]
+  steps: ChallengeStep[]
+  /** Players' Overcomes waiting for the GM, oldest first. Players are sent their own only. */
+  requests: ChallengeRequest[]
   description?: string
+  /** What happens when it's done. Players aren't sent it until then. */
   whenDone?: string
   /** A Titan's challenge: its completed parts lower that villain's status die. */
   linkedVillainId?: string
@@ -175,6 +191,8 @@ export interface GameFeedEntry extends FeedEntry {
   gmOnly?: true
   /** A villain's status die line: the villain it's about, so changes close together share one line. */
   statusOf?: string
+  /** A line for one player: only that hero's player and the GM see it. */
+  forHero?: string
 }
 
 /** An opposition item or environment, wherever it is in the game. */
@@ -273,6 +291,9 @@ export interface Game {
 }
 
 export type { TrackerCounts }
+
+/** Every step of a challenge is done. */
+export const challengeDone = (challenge: Pick<Challenge, 'steps'>) => challenge.steps.length > 0 && challenge.steps.every((s) => s.done)
 
 /** The most boxes of one zone. */
 export const MAX_BOXES = 10

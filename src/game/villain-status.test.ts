@@ -168,7 +168,7 @@ describe('villainStatus: weakness', () => {
 describe('villainStatus: challenge', () => {
   const titan = (steps: boolean[]) => {
     const g = table('titan')
-    return { ...g, challenges: [{ id: 'ch', name: 'x', hidden: false, steps, linkedVillainId: main(g).id }] }
+    return { ...g, challenges: g.challenges.map((ch) => ({ ...ch, steps: steps.map((done, i) => ({ label: `Step ${i + 1}`, done })) })) }
   }
   it('drops one size for each completed part', () => {
     expect(status(titan([false, false, false]))).toMatchObject({ die: 'd12', reason: '0 of 2 parts done' })
@@ -179,7 +179,7 @@ describe('villainStatus: challenge', () => {
     expect(status(titan([true, true, true]))).toMatchObject({ die: 'd8', reason: '2 of 2 parts done' })
   })
   it('stays at its start with no challenge', () => {
-    expect(status(table('titan')).die).toBe('d12')
+    expect(status({ ...table('titan'), challenges: [] }).die).toBe('d12')
   })
 })
 

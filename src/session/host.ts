@@ -12,7 +12,7 @@
 import { applyHeroAction, trackChanges, type FieldVersions } from '../game/actions'
 import { logStatusChanges } from '../game/villain-status'
 import type { Game, HeroInGame } from '../game/model'
-import { project, type Audience, type TableView } from '../game/project'
+import { project, type TableView } from '../game/project'
 import type { GameStore } from '../game/store'
 import { addHero, findHero, removeFromTable, setGameCode, updateSheet, withLog, GM } from '../game/table'
 import { heroDisplayName, type Hero } from '../hero/model'
@@ -451,11 +451,13 @@ export class HostSession extends Subscribable<HostSnapshot> {
   private broadcast(): void {
     const game = this.snapshot.game
     if (!game || !this.peers.size) return
-    const views = new Map<Audience, TableView>()
+    // Observers all see the same; each player's view has their own requests and lines.
+    const views = new Map<string, TableView>()
     for (const [peer, p] of this.peers) {
-      const audience: Audience = p.role
-      let view = views.get(audience)
-      if (!view) views.set(audience, (view = fitView(project(game, audience))))
+      const heroId = p.role === 'player' ? p.heroId : undefined
+      const key = heroId ?? p.role
+      let view = views.get(key)
+      if (!view) views.set(key, (view = fitView(project(game, p.role, heroId))))
       this.sendState(peer, view)
     }
   }
@@ -466,7 +468,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
     if (!game || !p) return
     const hero: HeroInGame | undefined = p.role === 'player' ? findHero(game, p.heroId) : undefined
     const you = hero?.player ? { heroId: hero.id, since: hero.player.since ?? game.createdAt } : undefined
-    this.send({ v: PROTOCOL_VERSION, type: 'state', room: this.room, version: this.snapshot.version, table: table ?? fitView(project(game, p.role)), gm: this.gm, ...(you ? { you } : {}) }, peer)
+    this.send({ v: PROTOCOL_VERSION, type: 'state', room: this.room, version: this.snapshot.version, table: table ?? fitView(project(game, p.role, p.role === 'player' ? p.heroId : undefined)), gm: this.gm, ...(you ? { you } : {}) }, peer)
   }
 
   private send(msg: HostMessage, peer: string): void {

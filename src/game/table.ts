@@ -18,7 +18,8 @@ import { FEED_LIMIT } from '../session/types'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
 import type { TemplateAbility } from '../template/model'
 import { villainDisplayName, type Villain, type VillainPlayState } from '../villain/model'
-import { heroCopy, MAX_ABILITIES, MAX_GROUP_SIZE, MAX_STEPS, sceneOnTable, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type HasTracker, type HeroInGame, type NpcGroup, type OppositionRef, type PendingHit, type PlayersSee, type Scene, type SceneOnTable, type TrackerCounts, type VillainInGame } from './model'
+import { buildVillainSheet } from '../villain/sheet'
+import { challengeDone, heroCopy, MAX_ABILITIES, MAX_GROUP_SIZE, MAX_STEPS, sceneOnTable, trackerFromCounts, villainCopy, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type HasTracker, type HeroInGame, type NpcGroup, type OppositionRef, type PendingHit, type PlayersSee, type Scene, type SceneOnTable, type TrackerCounts, type VillainInGame } from './model'
 import { reconcile, reconcileVillain } from './reconcile'
 import { validCounts } from './validate'
 
@@ -134,6 +135,12 @@ export function heroLabel(heroes: readonly Pick<HeroInGame, 'id' | 'sheet' | 'pl
   return clash ? `${name} · ${hero.player ? hero.player.name || 'A player' : "GM's hero"}` : name
 }
 
+/** A hero's name at the table by id. */
+export function heroLabelOf(heroes: readonly Pick<HeroInGame, 'id' | 'sheet' | 'player'>[], heroId: string): string {
+  const hero = heroes.find((h) => h.id === heroId)
+  return hero ? heroLabel(heroes, hero) : 'A hero'
+}
+
 /**
  * A group's name at the table. When an environment's group shares its name with another group,
  * the environment's name follows it ("Burglar (Rooftop Heist)"), so the turn order and target
@@ -218,8 +225,42 @@ export function addVillain(game: Game, villain: Villain, clock: Clock, hidden = 
   if (copyOf(game, 'villain', villain.id)) return game
   const name = villainDisplayName(villain)
   const copy = newVillainCopy(villain, hidden, heroCount, clock)
-  const added = { ...game, villains: [...game.villains, copy] }
+  const added = withTitanChallenge({ ...game, villains: [...game.villains, copy] }, copy.id, clock)
   return log(syncTurnOrder(added), clock, hidden ? `The GM brought in ${name}, hidden from players.` : `${name} joined the table.`, { gmOnly: hidden })
+}
+
+/** A Titan's challenge steps from its rule: each part's text, shortened, once per success it takes. */
+export function titanStepLabels(villain: Villain): string[] {
+  const rule = buildVillainSheet(villain).status
+  if (rule?.basis !== 'challenge') return []
+  return rule.challenge.flatMap((part) => {
+    // "Expose a vulnerable part of the Titan and reduce their status by one die size" → "Expose a vulnerable part".
+    const text = part.text.replace(/ (?:and|to) reduce .*$/, '').replace(/ of the Titan$/, '')
+    return part.successes === 1 ? [text] : Array.from({ length: part.successes }, (_, i) => `${text} (${i + 1} of ${part.successes})`)
+  })
+}
+
+/**
+ * A Titan on the table has its challenge (the villains and challenges spec, section 4), which
+ * follows it: its hidden state, and on and off the table. No line of its own: the villain's says
+ * enough. A villain that stops being a Titan (a sheet update) leaves a plain challenge behind.
+ */
+export function withTitanChallenge(game: Game, villainId: string, clock: Clock): Game {
+  const villain = findVillain(game, villainId)
+  if (!villain || game.solo) return game
+  const labels = titanStepLabels(villain.sheet)
+  const linked = (c: Challenge) => c.linkedVillainId === villainId
+  if (!labels.length) {
+    const unlink = (c: Challenge) => {
+      const { linkedVillainId: _, ...rest } = c
+      return linked(c) ? rest : c
+    }
+    return game.challenges.some(linked) ? { ...game, challenges: game.challenges.map(unlink) } : game
+  }
+  if (game.challenges.some(linked) || game.offTable.challenges.some(linked)) return game
+  const name = `${villainDisplayName(villain.sheet)}'s Titan challenge`.slice(0, MAX_NAME)
+  const challenge: Challenge = { id: clock.newId(), name, hidden: villain.hidden, steps: labels.map((label) => ({ label: label.slice(0, MAX_NAME), done: false })), requests: [], linkedVillainId: villainId }
+  return { ...game, challenges: [...game.challenges, challenge] }
 }
 
 /** A villain's copy with fresh play state, its Health worked out for `heroCount` heroes if given. */
@@ -260,14 +301,13 @@ export type ChallengeSpec = { name: string; steps: number; hidden: boolean; labe
 export function newChallenge(challenge: ChallengeSpec, clock: Clock): Challenge | undefined {
   if (!Number.isInteger(challenge.steps) || challenge.steps < 1 || challenge.steps > MAX_STEPS) return undefined
   const name = challenge.name.trim().slice(0, MAX_NAME) || 'Challenge'
-  const labels = (challenge.labels ?? []).slice(0, challenge.steps).map((l) => l.trim().slice(0, MAX_NAME))
   return {
     id: clock.newId(),
     ...(challenge.templateId ? { templateId: challenge.templateId } : {}),
     name,
     hidden: challenge.hidden,
-    steps: Array.from({ length: challenge.steps }, () => false),
-    ...(labels.some(Boolean) ? { labels } : {}),
+    steps: Array.from({ length: challenge.steps }, (_, i) => ({ label: challenge.labels?.[i]?.trim().slice(0, MAX_NAME) || `Step ${i + 1}`, done: false })),
+    requests: [],
     ...(challenge.description?.trim() ? { description: challenge.description.trim().slice(0, MAX_TEXT) } : {}),
     ...(challenge.whenDone?.trim() ? { whenDone: challenge.whenDone.trim().slice(0, MAX_TEXT) } : {}),
   }
@@ -320,20 +360,25 @@ export function removeFromTable(game: Game, ref: ItemRef | ActorRef, clock: Cloc
   switch (ref.kind) {
     case 'hero':
       if (!game.heroes.some((h) => h.id === ref.id)) return game
-      next = { ...game, heroes: game.heroes.filter((h) => h.id !== ref.id), pendingSyncs: game.pendingSyncs.filter((r) => r.heroId !== ref.id), ...(game.pendingHits ? { pendingHits: game.pendingHits.filter((x) => x.heroId !== ref.id) } : {}) }
+      next = { ...game, heroes: game.heroes.filter((h) => h.id !== ref.id), challenges: game.challenges.map((c) => (c.requests.some((r) => r.heroId === ref.id) ? { ...c, requests: c.requests.filter((r) => r.heroId !== ref.id) } : c)), pendingSyncs: game.pendingSyncs.filter((r) => r.heroId !== ref.id), ...(game.pendingHits ? { pendingHits: game.pendingHits.filter((x) => x.heroId !== ref.id) } : {}) }
       break
-    case 'villain':
+    case 'villain': {
       if (!findVillain(game, ref.id)) return game
-      next = { ...game, villains: game.villains.filter((v) => v.id !== ref.id) }
+      // Its Titan challenge goes with it.
+      const closed = game.challenges.filter((c) => c.linkedVillainId === ref.id).reduce((g, c) => closeRequests(g, c.id, clock), game)
+      next = { ...closed, villains: closed.villains.filter((v) => v.id !== ref.id), challenges: closed.challenges.filter((c) => c.linkedVillainId !== ref.id) }
       break
+    }
     case 'group':
       if (!findGroup(game, ref.id)) return game
       next = { ...game, groups: game.groups.filter((g) => g.id !== ref.id) }
       break
-    case 'challenge':
+    case 'challenge': {
       if (!game.challenges.some((c) => c.id === ref.id)) return game
-      next = { ...game, challenges: game.challenges.filter((c) => c.id !== ref.id) }
+      const closed = closeRequests(game, ref.id, clock)
+      next = { ...closed, challenges: closed.challenges.filter((c) => c.id !== ref.id) }
       break
+    }
     case 'environment': {
       if (game.environment?.id !== ref.id) return game
       const { environment: _, ...rest } = game
@@ -351,7 +396,9 @@ export function setHidden(game: Game, ref: ItemRef, hidden: boolean, clock: Cloc
   switch (ref.kind) {
     case 'villain':
       if (!findVillain(game, ref.id)) return game
-      next = { ...game, villains: game.villains.map((v) => (v.id === ref.id ? { ...v, hidden } : v)) }
+      // A Titan's challenge follows its villain.
+      next = { ...game, villains: game.villains.map((v) => (v.id === ref.id ? { ...v, hidden } : v)), challenges: game.challenges.map((c) => (c.linkedVillainId === ref.id ? { ...c, hidden } : c)) }
+      if (hidden) next = game.challenges.filter((c) => c.linkedVillainId === ref.id).reduce((g, c) => closeRequests(g, c.id, clock), next)
       break
     case 'group':
       if (!findGroup(game, ref.id)) return game
@@ -360,6 +407,8 @@ export function setHidden(game: Game, ref: ItemRef, hidden: boolean, clock: Cloc
     case 'challenge':
       if (!game.challenges.some((c) => c.id === ref.id)) return game
       next = { ...game, challenges: game.challenges.map((c) => (c.id === ref.id ? { ...c, hidden } : c)) }
+      // Players can't answer for what they can't see, so what's waiting is closed.
+      if (hidden) next = closeRequests(next, ref.id, clock)
       break
     case 'environment':
       if (game.environment?.id !== ref.id) return game
@@ -434,7 +483,8 @@ export function updateSheet(game: Game, ref: { kind: 'hero'; id: string; sheet: 
   const text = `The sheet was updated ${why}.`
   const entry: PlayHistoryEntry = { id: clock.newId(), at, text, ...(adjustments.length ? { details: adjustments } : {}) }
   const updated = { ...villain, sheet: structuredClone(ref.sheet), play: { ...play, history: [...play.history, entry] } }
-  return log({ ...game, villains: game.villains.map((v) => (v.id === ref.id ? updated : v)) }, clock, `${villainDisplayName(ref.sheet)}: ${text}`, { details: adjustments, gmOnly: villain.hidden })
+  const replaced = withTitanChallenge({ ...game, villains: game.villains.map((v) => (v.id === ref.id ? updated : v)) }, ref.id, clock)
+  return log(replaced, clock, `${villainDisplayName(ref.sheet)}: ${text}`, { details: adjustments, gmOnly: villain.hidden })
 }
 
 /**
@@ -575,15 +625,67 @@ export function holdHit(game: Game, hit: Omit<PendingHit, 'id' | 'at'>, clock: C
 
 // ---- Challenges ----
 
-/** "1 of 3 done". */
-export const stepsText = (challenge: Pick<Challenge, 'steps'>) => `${challenge.steps.filter(Boolean).length} of ${challenge.steps.length} done`
+/** Its progress: "1 of 3", or "Done". */
+export const stepsText = (challenge: Pick<Challenge, 'steps'>) => (challengeDone(challenge) ? 'Done' : `${challenge.steps.filter((s) => s.done).length} of ${challenge.steps.length}`)
 
-export function setChallengeStep(game: Game, challengeId: string, index: number, done: boolean, clock: Clock): Game {
+/** The challenges a player's Overcome can go against, from what they were sent: revealed, and not yet done. */
+export const overcomeOptions = (challenges: readonly Challenge[]) => challenges.filter((c) => !challengeDone(c) && !c.hidden).map((c) => ({ id: c.id, label: `Challenge: ${c.name} (${stepsText(c)})` }))
+
+function changeChallenge(game: Game, challengeId: string, change: (c: Challenge) => Challenge): Game {
+  return { ...game, challenges: game.challenges.map((c) => (c.id === challengeId ? change(c) : c)) }
+}
+
+/** Drops a challenge's waiting requests, telling each player (only them, and the GM) that it closed. */
+export function closeRequests(game: Game, challengeId: string, clock: Clock): Game {
   const challenge = game.challenges.find((c) => c.id === challengeId)
-  if (!challenge || index < 0 || index >= challenge.steps.length || challenge.steps[index] === done) return game
-  const steps = challenge.steps.map((s, i) => (i === index ? done : s))
-  const next = { ...game, challenges: game.challenges.map((c) => (c.id === challengeId ? { ...c, steps } : c)) }
-  return log(next, clock, `${challenge.name}: ${stepsText({ steps })}.`, { gmOnly: challenge.hidden })
+  if (!challenge?.requests.length) return game
+  const lines = challenge.requests.map((r): GameFeedEntry => ({ ...line(clock, 'The GM closed this challenge before answering.', { by: challenge.name }), forHero: r.heroId }))
+  return withLog(changeChallenge(game, challengeId, (c) => ({ ...c, requests: [] })), lines)
+}
+
+/**
+ * Checks or unchecks a step, logged in the GM's words, or the player's when `requestId` is the
+ * Overcome it answers, which then clears. The last step done shows the "when it's done" text and
+ * closes anything else waiting.
+ */
+export function setChallengeStep(game: Game, challengeId: string, index: number, done: boolean, clock: Clock, requestId?: string): Game {
+  const challenge = game.challenges.find((c) => c.id === challengeId)
+  const step = challenge?.steps[index]
+  if (!challenge || !step || step.done === done) return game
+  const gmOnly = challenge.hidden
+  const request = challenge.requests.find((r) => r.id === requestId)
+  const steps = challenge.steps.map((s, i) => (i === index ? { ...s, done } : s))
+  const requests = request ? challenge.requests.filter((r) => r !== request) : challenge.requests
+  const text = request ? `${heroLabelOf(game.heroes, request.heroId)}'s Overcome checked off "${step.label}".` : `The GM ${done ? 'checked off' : 'unchecked'} "${step.label}".`
+  const next = log(changeChallenge(game, challengeId, (c) => ({ ...c, steps, requests })), clock, text, { gmOnly })
+  if (challengeDone(challenge) || !challengeDone({ steps })) return next
+  const finished = log(next, clock, `${challenge.name} is done.${challenge.whenDone ? ` ${challenge.whenDone}` : ''}`, { gmOnly })
+  return closeRequests(finished, challengeId, clock)
+}
+
+/** The next step a request would check off. */
+export const nextStep = (challenge: Pick<Challenge, 'steps'>) => challenge.steps.findIndex((s) => !s.done)
+
+/** The GM answers a player's Overcome: check off the next step, or not this time. */
+export function answerRequest(game: Game, challengeId: string, requestId: string, check: boolean, clock: Clock): Game {
+  const challenge = game.challenges.find((c) => c.id === challengeId)
+  const request = challenge?.requests.find((r) => r.id === requestId)
+  if (!challenge || !request) return game
+  if (check) return setChallengeStep(game, challengeId, nextStep(challenge), true, clock, requestId)
+  const next = changeChallenge(game, challengeId, (c) => ({ ...c, requests: c.requests.filter((r) => r.id !== requestId) }))
+  return log(next, clock, `${heroLabelOf(game.heroes, request.heroId)}'s Overcome didn't complete a step.`, { gmOnly: challenge.hidden })
+}
+
+/** Every step undone, so a long fight can repeat it. What's waiting stays: it's still a fair question. */
+export function resetChallenge(game: Game, challengeId: string, clock: Clock): Game {
+  const challenge = game.challenges.find((c) => c.id === challengeId)
+  if (!challenge || !challenge.steps.some((s) => s.done)) return game
+  return log(changeChallenge(game, challengeId, (c) => ({ ...c, steps: c.steps.map((s) => ({ ...s, done: false })) })), clock, `The GM reset ${challenge.name}.`, { gmOnly: challenge.hidden })
+}
+
+/** Renames a challenge's steps (⋯ Edit steps…). A blank one reads "Step 1". */
+export function renameChallengeSteps(game: Game, challengeId: string, labels: readonly string[]): Game {
+  return changeChallenge(game, challengeId, (c) => ({ ...c, steps: c.steps.map((s, i) => ({ ...s, label: (labels[i] ?? s.label).trim().slice(0, MAX_NAME) || `Step ${i + 1}` })) }))
 }
 
 // ---- Turn order (popcorn) ----

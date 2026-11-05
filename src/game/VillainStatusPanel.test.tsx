@@ -104,15 +104,14 @@ describe('VillainStatusPanel', () => {
   })
 
   it("challenge: checking its steps moves the die", async () => {
-    const g = start('titan')
-    render(<Panel initial={{ ...g, challenges: [{ id: 'ch', name: "Gravelord's Titan challenge", hidden: false, steps: [false, false, false], labels: ['One', 'Two', 'Three'], linkedVillainId: g.villains[0]!.id }] }} />)
+    render(<Panel initial={start('titan')} />)
     expect(screen.getByText('On the table')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Three' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Take advantage of the exposed weakness' }))
     expect(shown()).toBe('d10')
   })
 
   it('challenge: says so when there is none', () => {
-    render(<Panel initial={start('titan')} />)
+    render(<Panel initial={start('titan', (g) => ({ ...g, challenges: [] }))} />)
     expect(screen.getByText("Its challenge isn't on the table.")).toBeInTheDocument()
   })
 

@@ -226,6 +226,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
 
   // Handoffs are announced as they happen (players never receive hidden ones).
   const seenLines = useRef<Set<string> | undefined>(undefined)
+  const [closedToast, setClosedToast] = useState<ToastData | null>(null)
   const feed = table?.feed
   useEffect(() => {
     if (!feed) return
@@ -235,6 +236,9 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     if (!seen) return
     const turns = feed.filter((e) => !seen.has(e.id) && TURN_LINE.test(e.text)).map((e) => e.text)
     if (turns.length) setAnnounce(turns.join(' '))
+    // A line for this player alone: the GM closed a challenge before answering their Overcome.
+    const closed = feed.filter((e) => !seen.has(e.id) && e.forHero).at(-1)
+    if (closed) setClosedToast({ id: `closed-${closed.id}`, text: `${closed.by}: ${closed.text}` })
   }, [feed])
 
   // "Your turn", and "Your reaction is ready again" when the turn starting just cleared it.
@@ -483,7 +487,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
           </div>
         </Modal>
       )}
-      <Toasts toasts={[...(snap?.notices ?? []).map((n) => noticeToast(n, (id) => client.retry(id))), ...(sceneToast ? [sceneToast] : [])]} onDismiss={(id) => (id === sceneToast?.id ? setSceneToast(null) : client.dismiss(id))} />
+      <Toasts toasts={[...(snap?.notices ?? []).map((n) => noticeToast(n, (id) => client.retry(id))), ...(sceneToast ? [sceneToast] : []), ...(closedToast ? [closedToast] : [])]} onDismiss={(id) => (id === sceneToast?.id ? setSceneToast(null) : id === closedToast?.id ? setClosedToast(null) : client.dismiss(id))} />
     </PopoverGroup>
   )
 }

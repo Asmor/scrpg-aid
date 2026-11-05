@@ -16,7 +16,7 @@ import { emptyPlay } from '../play/state'
 import { clearDefenses } from '../play/defense'
 import { emptyVillainPlay } from '../villain/play'
 import { createScene, currentScene, emptyOffTable, gameDisplayName, sceneName, sceneNumber, trackerFromCounts, type Challenge, type EnvironmentOnTable, type Game, type NpcGroup, type OffTable, type OppositionRef, type Scene, type SceneItem, type SceneItemSource, type VillainInGame } from './model'
-import { boxLabel, newChallenge, newGroup, newVillainCopy, placeEnvironment, removeFromTable, setHidden, setupScene, syncTurnOrder, withLog, type ChallengeSpec, type GroupSpec } from './table'
+import { boxLabel, closeRequests, newChallenge, newGroup, newVillainCopy, placeEnvironment, removeFromTable, setHidden, setupScene, syncTurnOrder, withLog, withTitanChallenge, type ChallengeSpec, type GroupSpec } from './table'
 
 export const refKey = (ref: OppositionRef) => `${ref.kind}:${ref.id}`
 export const sameRef = (a: OppositionRef, b: OppositionRef) => a.kind === b.kind && a.id === b.id
@@ -106,7 +106,7 @@ export function hasChanged(item: AnyItem, ref: OppositionRef): boolean {
     case 'group':
       return (item as NpcGroup).members.some((m) => m.mods.length > 0 || m.die !== (item as NpcGroup).members[0]!.die)
     case 'challenge':
-      return (item as Challenge).steps.some(Boolean)
+      return (item as Challenge).steps.some((s) => s.done)
     case 'environment':
       return (item as EnvironmentOnTable).twists?.some((t) => t.used) ?? false
   }
@@ -178,7 +178,7 @@ export const sceneTitle = (game: Game, scene: Scene) => (scene.name.trim() ? sce
 export function gcOffTable(game: Game): Game {
   const planned = game.scenes.filter((s) => s.state === 'planned')
   const wanted = new Set([...game.aside.map((a) => refKey(a.ref)), ...planned.flatMap((s) => s.opposition.map((i) => refKey(i.ref))), ...planned.flatMap((s) => (s.environmentId ? [refKey({ kind: 'environment', id: s.environmentId })] : []))])
-  const keep = (kind: OppositionRef['kind']) => (item: { id: string }) => wanted.has(refKey({ kind, id: item.id }))
+  const keep = (kind: OppositionRef['kind']) => (item: { id: string; linkedVillainId?: string }) => wanted.has(refKey({ kind, id: item.id })) || Boolean(item.linkedVillainId && wanted.has(refKey({ kind: 'villain', id: item.linkedVillainId })))
   const { villains, groups, challenges, environments } = game.offTable
   return { ...game, offTable: { villains: villains.filter(keep('villain')), groups: groups.filter(keep('group')), challenges: challenges.filter(keep('challenge')), environments: environments.filter(keep('environment')) } }
 }
@@ -201,6 +201,11 @@ export function moveToTable(game: Game, ref: OppositionRef, hidden: boolean, clo
   if (ref.kind === 'villain') next = { ...game, aside, villains: [...game.villains, { ...(item as VillainInGame), hidden }], offTable: { ...offTable, villains: offTable.villains.filter((v) => v.id !== ref.id) } }
   else if (ref.kind === 'group') next = { ...game, aside, groups: [...game.groups, { ...(item as NpcGroup), hidden }], offTable: { ...offTable, groups: offTable.groups.filter((g) => g.id !== ref.id) } }
   else next = { ...game, aside, challenges: [...game.challenges, { ...(item as Challenge), hidden }], offTable: { ...offTable, challenges: offTable.challenges.filter((c) => c.id !== ref.id) } }
+  if (ref.kind === 'villain') {
+    // Its Titan challenge comes with it, or starts now if the villain was planned ahead.
+    const linked = next.offTable.challenges.filter((c) => c.linkedVillainId === ref.id).map((c) => ({ ...c, hidden }))
+    next = withTitanChallenge({ ...next, challenges: [...next.challenges, ...linked], offTable: { ...next.offTable, challenges: next.offTable.challenges.filter((c) => c.linkedVillainId !== ref.id) } }, ref.id, clock)
+  }
   const name = ref.kind === 'group' ? (item as NpcGroup).name : itemTitle(item, ref)
   return withLog(syncTurnOrder(next), [logLine(clock, hidden ? `The GM brought in ${name}, hidden from players.` : `${name} joined the table.`, hidden)])
 }
@@ -216,9 +221,17 @@ export function setAside(game: Game, ref: OppositionRef, afterScene: number | un
   const aside = [...game.aside.filter((a) => !sameRef(a.ref, ref)), entry]
   const { offTable } = game
   let next: Game
-  if (ref.kind === 'villain') next = { ...game, aside, villains: game.villains.filter((v) => v.id !== ref.id), offTable: { ...offTable, villains: [...offTable.villains, item as VillainInGame] } }
+  if (ref.kind === 'villain') {
+    // Its Titan challenge goes with it, its progress kept, and isn't set aside on its own.
+    const closed = game.challenges.filter((c) => c.linkedVillainId === ref.id).reduce((g, c) => closeRequests(g, c.id, clock), game)
+    const linked = closed.challenges.filter((c) => c.linkedVillainId === ref.id)
+    next = { ...closed, aside, villains: closed.villains.filter((v) => v.id !== ref.id), challenges: closed.challenges.filter((c) => c.linkedVillainId !== ref.id), offTable: { ...offTable, villains: [...offTable.villains, item as VillainInGame], challenges: [...offTable.challenges, ...linked] } }
+  }
   else if (ref.kind === 'group') next = { ...game, aside, groups: game.groups.filter((g) => g.id !== ref.id), offTable: { ...offTable, groups: [...offTable.groups, { ...(item as NpcGroup), owner: { kind: 'gm' } }] } }
-  else next = { ...game, aside, challenges: game.challenges.filter((c) => c.id !== ref.id), offTable: { ...offTable, challenges: [...offTable.challenges, item as Challenge] } }
+  else {
+    const closed = closeRequests(game, ref.id, clock)
+    next = { ...closed, aside, challenges: closed.challenges.filter((c) => c.id !== ref.id), offTable: { ...offTable, challenges: [...offTable.challenges, closed.challenges.find((c) => c.id === ref.id)!] } }
+  }
   const hidden = (item as { hidden: boolean }).hidden
   const name = ref.kind === 'group' ? (item as NpcGroup).name : itemTitle(item, ref)
   return withLog(syncTurnOrder(next), [logLine(clock, `${name} left the table.`, hidden)])
@@ -371,6 +384,8 @@ export function duplicateScene(game: Game, sceneId: string, clock: Clock): Game 
       return [{ ...row, ref: { kind: 'group', id } }]
     }
     if (row.ref.kind === 'challenge' && row.source.kind !== 'aside') {
+      // A Titan's challenge follows its villain, so it stays one.
+      if ((item as Challenge).linkedVillainId) return []
       const id = clock.newId()
       copies.challenges.push({ ...(item as Challenge), id })
       return [{ ...row, ref: { kind: 'challenge', id } }]
@@ -556,7 +571,8 @@ export function startPlan(game: Game, nextId: string): StartPlan {
   const nextEnv = envRef && (findItem(game, envRef) as EnvironmentOnTable | undefined)
   const keptEnv = Boolean(nextEnv && game.environment?.id === nextEnv.id)
   const leaving: LeavingItem[] = tableOpposition(game)
-    .filter((ref) => !next.opposition.some((i) => sameRef(i.ref, ref)))
+    // A Titan's challenge isn't a choice of its own: it does what its villain does.
+    .filter((ref) => !next.opposition.some((i) => sameRef(i.ref, ref)) && !(ref.kind === 'challenge' && (findItem(game, ref) as Challenge).linkedVillainId))
     .map((ref) => {
       const item = findItem(game, ref)!
       // A villain keeps; so does what a later scene needs. An environment staying keeps its groups with it.
@@ -726,7 +742,7 @@ export function duplicateGame(game: Game, options: { id?: string; now?: Date } =
   // An environment's group only stays its own if the copy opens on the scene that has that environment.
   const opensOnCurrent = copy.scenes[0]?.id === copy.currentSceneId
   const freshGroup = (x: NpcGroup): NpcGroup => ({ ...x, ...(opensOnCurrent ? {} : { owner: { kind: 'gm' as const } }), members: x.members.map((m) => ({ ...clearDefenses(m), mods: [], acted: false })) })
-  const freshChallenge = (x: Challenge): Challenge => ({ ...x, steps: x.steps.map(() => false) })
+  const freshChallenge = (x: Challenge): Challenge => ({ ...x, steps: x.steps.map((s) => ({ ...s, done: false })), requests: [] })
   const freshVillain = (x: VillainInGame): VillainInGame => ({ ...withoutOverride(x), play: emptyVillainPlay() })
   // Everything starts off the table, then the first scene brings its own on.
   const offTable: OffTable = {

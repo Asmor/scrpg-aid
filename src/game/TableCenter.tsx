@@ -14,8 +14,8 @@ import { usePopover } from '../library/popover-state'
 import { modName, type PlayZone } from '../play/state'
 import { formatFull, formatWhen } from '../play/time'
 import type { Die } from '../rules/types'
-import { sceneDisplayName, type ActorRef, type Challenge, type GameFeedEntry, type HasTracker, type NpcGroup, type PlayersSee } from './model'
-import { actedText, actorKey, boxLabel, groupSummary, memberLabel, memberName, roundOver, sameActor, sceneZone, stepsText, turnStrip, waiting, type ItemRef } from './table'
+import { challengeDone, sceneDisplayName, type ActorRef, type Challenge, type GameFeedEntry, type HasTracker, type NpcGroup, type PlayersSee } from './model'
+import { actedText, actorKey, boxLabel, groupSummary, memberLabel, memberName, nextStep, roundOver, sameActor, sceneZone, stepsText, turnStrip, waiting, type ItemRef } from './table'
 import { heroOnTableName, viewHidden, viewName, type TableView } from './project'
 import { Modal } from '../components/Modal'
 
@@ -82,6 +82,8 @@ export interface GmControls {
   addMemberMod: (group: NpcGroup, memberId: string) => void
   shrinkMember: (group: NpcGroup, memberId: string) => void
   setStep: (challenge: Challenge, index: number, done: boolean) => void
+  /** Answers a player's Overcome: check off the next step, or not this time. */
+  answerRequest: (challenge: Challenge, requestId: string, check: boolean) => void
   /** Bottom sheets for menus (phones). */
   sheets: boolean
   /** Undo for the scene just started. */
@@ -532,61 +534,76 @@ function GroupCard({ group, acting, envName, gm }: { group: NpcGroup; acting: bo
   )
 }
 
-function ChallengeCard({ challenge, gm }: { challenge: Challenge; gm?: GmControls }) {
+function ChallengeCard({ challenge, game, gm }: { challenge: Challenge; game: TableView; gm?: GmControls }) {
   const id = `gt-challenge-${challenge.id}`
   const ref = { kind: 'challenge' as const, id: challenge.id }
+  const done = challengeDone(challenge)
+  const nextIndex = nextStep(challenge)
+  const linked = gm && challenge.linkedVillainId ? game.villains.find((v) => v.id === challenge.linkedVillainId) : undefined
+  const heroName = (heroId: string) => viewName(game, { kind: 'hero', id: heroId }, heroOnTableName)
   return (
-    <article className={cardClass(challenge.hidden, false, false)} aria-labelledby={id}>
+    <article className={`${cardClass(challenge.hidden, false, false)}${done ? ' gt-challenge--done' : ''}`} aria-labelledby={id}>
       <div className="gt-row">
-        <div className="gt-grow">
-          <div className="gt-sub">Challenge</div>
-          <span className="gt-ent__name" id={id}>
-            {challenge.name}
-          </span>
-        </div>
+        <div className="gt-sub gt-grow">Challenge</div>
+        <span className={done ? 'gt-progress gt-progress--done' : 'gt-progress'}>{stepsText(challenge)}</span>
         {gm && <MenuButton label={`More for ${challenge.name}`} items={gm.itemMenu(ref, challenge.hidden)} sheets={gm.sheets} />}
       </div>
-      {gm && challenge.hidden && <HiddenRow refTo={ref} gm={gm} />}
+      <span className="gt-ent__name" id={id}>
+        {challenge.name}
+      </span>
+      {gm && challenge.hidden && (linked ? <HiddenBadge /> : <HiddenRow refTo={ref} gm={gm} />)}
+      {linked && <p className="gt-sub">Linked to {linked.name}'s status die</p>}
       {challenge.description && <p className="gt-sub">{challenge.description}</p>}
-      {challenge.labels ? (
-        // Labeled steps, from a template: a list with each step's label.
-        <ul className="gt-steps" aria-label="Steps">
-          {challenge.steps.map((done, i) => {
-            const label = challenge.labels![i] || `Step ${i + 1}`
-            return (
-              <li key={i} className="gt-row">
-                {gm ? (
-                  <label className="gt-row">
-                    <input type="checkbox" checked={done} onChange={(e) => gm.setStep(challenge, i, e.target.checked)} />
-                    {label}
-                  </label>
-                ) : (
-                  <span className={done ? 'gt-step-label gt-step-label--done' : 'gt-step-label'}>
-                    {label}
-                    {done && <span className="visually-hidden">, done</span>}
-                  </span>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      ) : (
-        <div className="gt-row">
-          {challenge.steps.map((done, i) =>
-            gm ? (
-              <label key={i} className="gt-step">
-                <input type="checkbox" checked={done} onChange={(e) => gm.setStep(challenge, i, e.target.checked)} />
-                <span className="visually-hidden">Step {i + 1}</span>
+      <ul className="gt-steps" aria-label="Steps">
+        {challenge.steps.map((step, i) => (
+          <li key={i} className={step.done ? 'gt-row gt-step-row gt-step-row--done' : 'gt-row gt-step-row'}>
+            {gm ? (
+              <label className="gt-row">
+                <input type="checkbox" checked={step.done} onChange={(e) => gm.setStep(challenge, i, e.target.checked)} />
+                <span className="gt-step-text">{step.label}</span>
               </label>
             ) : (
-              <span key={i} className={done ? 'gt-step gt-step--done' : 'gt-step'} role="img" aria-label={`Step ${i + 1}${done ? ', done' : ''}`} />
-            ),
-          )}
-          <span className="gt-sub">{stepsText(challenge)}</span>
-        </div>
+              <>
+                <span className={step.done ? 'gt-box gt-box--on' : 'gt-box'} aria-hidden="true">
+                  {step.done ? '✓' : ''}
+                </span>
+                <span className="gt-step-text">{step.label}</span>
+                <span className="visually-hidden">{step.done ? ', done' : ', not done'}</span>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      {challenge.requests.map((r) =>
+        gm ? (
+          <div key={r.id} className="gt-request" role="group" aria-label={`Overcome from ${heroName(r.heroId)}`}>
+            <p>
+              <strong>{heroName(r.heroId)}</strong> rolled <strong>{r.total}</strong> to Overcome on this challenge{r.trait ? `, using ${r.trait}` : ''}.
+            </p>
+            {nextIndex >= 0 && (
+              <div className="button-row">
+                <button type="button" className="button button--primary button--small" aria-label={`Check off ${challenge.steps[nextIndex]!.label} for ${heroName(r.heroId)}`} onClick={() => gm.answerRequest(challenge, r.id, true)}>
+                  Check off "{challenge.steps[nextIndex]!.label}"
+                </button>
+                <button type="button" className="button button--small" aria-label={`Not this time for ${heroName(r.heroId)}`} onClick={() => gm.answerRequest(challenge, r.id, false)}>
+                  Not this time
+                </button>
+              </div>
+            )}
+            <p className="gt-sub">You decide what the roll earns, twists included. The player sees your answer in the log.</p>
+          </div>
+        ) : (
+          <p key={r.id} className="gt-sub">
+            Waiting for the GM: your Overcome ({r.total}).
+          </p>
+        ),
       )}
-      {challenge.labels && <p className="gt-sub">{stepsText(challenge)}</p>}
-      {challenge.whenDone && challenge.steps.every(Boolean) && <p className="gt-done">{challenge.whenDone}</p>}
+      {done && (
+        <p className="gt-done">
+          <strong>Done.</strong>
+          {challenge.whenDone ? ` ${challenge.whenDone}` : ''}
+        </p>
+      )}
     </article>
   )
 }
@@ -698,7 +715,7 @@ export function TableCenter({ game, heroes, villains, now, gm, hideLog = false, 
               />
             ))}
             {challenges.map((c) => (
-              <ChallengeCard key={c.id} challenge={c} gm={gm} />
+              <ChallengeCard key={c.id} challenge={c} game={game} gm={gm} />
             ))}
           </div>
         )}

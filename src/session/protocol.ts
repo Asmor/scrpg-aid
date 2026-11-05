@@ -1,5 +1,5 @@
 /**
- * The game table's messages (docs/design/game-table/spec.md, section 10), version 3. The GM's
+ * The game table's messages (docs/design/game-table/spec.md, section 10), version 4. The GM's
  * device hosts a game; players and observers say hello with their role, players send each
  * action as its own message and get a result, and the GM's device sends each peer its
  * projection of the game (../game/project.ts) after every change.
@@ -15,7 +15,7 @@ import { die, heroShape, playStateShape } from '../hero/validate'
 import { groupActions } from '../game/validate'
 import { arrayOf, boolean, integer, isRecord, nonEmptyString, object, oneOf, type Check } from '../shape'
 
-export const PROTOCOL_VERSION = 3
+export const PROTOCOL_VERSION = 4
 
 /** The most observers a game takes (section 10). */
 export const OBSERVER_LIMIT = 20
@@ -33,11 +33,11 @@ export const VIEW_FEED = 200
 
 export type ClientMessage =
   /** `gameId` when reconnecting a saved game: the GM checks the code and the game match. */
-  | { v: 3; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero; gameId?: string }
-  | { v: 3; type: 'hello'; role: 'observer'; clientId: string; screenName: string }
-  | { v: 3; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
-  | { v: 3; type: 'syncRequest'; heroId: string; sheet: Hero }
-  | { v: 3; type: 'syncCancel'; heroId: string }
+  | { v: 4; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero; gameId?: string }
+  | { v: 4; type: 'hello'; role: 'observer'; clientId: string; screenName: string }
+  | { v: 4; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
+  | { v: 4; type: 'syncRequest'; heroId: string; sheet: Hero }
+  | { v: 4; type: 'syncCancel'; heroId: string }
 
 /** Who a state message is for: a player's own hero in the game, and when it first joined. */
 export interface YouAre {
@@ -46,16 +46,16 @@ export interface YouAre {
 }
 
 export type HostMessage =
-  | { v: 3; type: 'state'; room: string; version: number; table: TableView; gm: string; you?: YouAre }
+  | { v: 4; type: 'state'; room: string; version: number; table: TableView; gm: string; you?: YouAre }
   /** `notes`: lines for the player as toasts (a save against their Attack). */
-  | { v: 3; type: 'result'; id: string; ok: true; notes?: string[] }
-  | { v: 3; type: 'result'; id: string; ok: false; reason: string }
-  | { v: 3; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
-  | { v: 3; type: 'refused'; reason: RefusedReason }
+  | { v: 4; type: 'result'; id: string; ok: true; notes?: string[] }
+  | { v: 4; type: 'result'; id: string; ok: false; reason: string }
+  | { v: 4; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
+  | { v: 4; type: 'refused'; reason: RefusedReason }
   /** The GM got a new code for the game: kept peers move to it (docs/design/game-table/game-table-spec-addendum-game-codes.md). */
-  | { v: 3; type: 'codeChanged'; code: string }
+  | { v: 4; type: 'codeChanged'; code: string }
   /** The GM removed this peer from the game (Remove, or left behind by a new code). */
-  | { v: 3; type: 'removed'; reason?: string }
+  | { v: 4; type: 'removed'; reason?: string }
 
 /**
  * Why the GM's device won't take a peer: another version of the app, a full game, the hero is
@@ -135,6 +135,7 @@ const ACTIONS: Record<HeroAction['kind'], Check> = {
   minionForm: object({ minionId: id, form: text(MAX_NAME) }),
   handOff: object({ to: actor }),
   startRound: object({ first: actor }),
+  overcomeChallenge: object({ challengeId: id, total: range(-100, 100), 'trait?': text(MAX_NAME) }),
 }
 
 const heroAction: Check = (v, path) => {
@@ -181,7 +182,7 @@ const zone = oneOf('green', 'yellow', 'red')
 const playZone = oneOf('green', 'yellow', 'red', 'out')
 const position: Check = (v, path) => range(0, 1000)(v, path)
 const twist = object({ id, kind: oneOf('minor', 'major'), text: text() })
-const feedEntry = object({ id, at: text(40), by: text(MAX_NAME), text: text(), 'details?': list(text(), 50), 'gmOnly?': oneOf(true) })
+const feedEntry = object({ id, at: text(40), by: text(MAX_NAME), text: text(), 'details?': list(text(), 50), 'gmOnly?': oneOf(true), 'forHero?': id })
 
 const tableViewShape = object({
   id,
@@ -221,7 +222,7 @@ const tableViewShape = object({
     }),
     50,
   ),
-  challenges: list(object({ id, 'templateId?': id, name: text(MAX_NAME), hidden: boolean, steps: list(boolean, 20), 'labels?': list(text(MAX_NAME), 20), 'description?': text(MAX_TEXT), 'whenDone?': text(MAX_TEXT) }), 50),
+  challenges: list(object({ id, 'templateId?': id, name: text(MAX_NAME), hidden: boolean, steps: list(object({ label: text(MAX_NAME), done: boolean }), 20), requests: list(object({ id, heroId: id, total: range(-100, 100), 'trait?': text(MAX_NAME), at: text(40) }), 50), 'description?': text(MAX_TEXT), 'whenDone?': text(MAX_TEXT) }), 50),
   'pendingHits?': list(object({ id, heroId: id, by: text(MAX_NAME), amount: range(0, 1000), at: text(MAX_NAME), 'gmOnly?': oneOf(true) }), 50),
   feed: list(feedEntry, VIEW_FEED),
 })
