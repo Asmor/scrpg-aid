@@ -20,6 +20,9 @@ describe('hero model', () => {
       redAbilities: [],
       retcon: null,
       health: null,
+      backIssues: [],
+      collections: [],
+      advancement: [],
     })
   })
 

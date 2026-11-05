@@ -209,7 +209,7 @@ function Roleplaying({ hero, sheet, advancement, interactive }: { hero: Hero; sh
           </strong>
         </span>
         <span>
-          Collections <strong>{collections.length ? collections.map((col, i) => col.name || `Collection ${i + 1}`).join(', ') : 'none yet'}</strong>
+          Collections <strong>{collections.length}</strong>
         </span>
         {advancement && (
           <a className="record-strip__link" href={advancement.href} onClick={advancement.onClick}>

@@ -139,6 +139,7 @@ describe('buildSheet', () => {
 
   it('handles a brand-new hero', () => {
     expect(buildSheet(createHero('guided'))).toEqual({
+      advancement: { backIssues: 0, collections: [], changes: [] },
       characteristics: { background: undefined, powerSource: undefined, archetype: undefined, personality: undefined },
       powers: [],
       qualities: [],

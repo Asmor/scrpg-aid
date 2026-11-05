@@ -6,7 +6,7 @@ import { createDefaultSavedSearchStore, type SavedSearchStore } from './library/
 import { SavedSearchStoreContext } from './app/saved-search-context'
 import type { BackupTimeStore } from './library/backup-time'
 import { HeroPage } from './components/HeroPage'
-import { AdvancementPage } from './editor/AdvancementPage'
+import { AdvancementPage } from './advancement/AdvancementPage'
 import { HeroEditor } from './editor/HeroEditor'
 import { VillainStoreContext } from './app/villain-store-context'
 import { TemplateStoresContext } from './app/template-store-context'

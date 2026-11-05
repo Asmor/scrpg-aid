@@ -1,0 +1,162 @@
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, describe, expect, it } from 'vitest'
+import { GameStoreContext } from '../app/game-store-context'
+import { StoreContext } from '../app/store-context'
+import { createGame } from '../game/model'
+import { MemoryGameStore } from '../game/store'
+import { addHero } from '../game/table'
+import type { Hero } from '../hero/model'
+import { MemoryHeroStore } from '../hero/store'
+import type { Clock } from '../play/state'
+import { completeHero } from '../test/heroes'
+import { AdvancementPage } from './AdvancementPage'
+
+let n = 0
+const clock = (): Clock => ({ now: new Date('2026-10-22T12:00:00Z'), newId: () => `id${++n}` })
+
+afterEach(() => {
+  window.location.hash = ''
+})
+
+const maya = (): Hero => ({ ...completeHero(), id: 'h1', details: { ...completeHero().details, name: 'Maya Reyes' } })
+
+async function setup(hero: Hero = maya(), inGame = true) {
+  const heroes = new MemoryHeroStore()
+  const games = new MemoryGameStore()
+  await heroes.save(hero)
+  if (inGame) await games.save(addHero(createGame({ id: 'g1', name: 'Thursday game' }), hero, clock()))
+  render(
+    <StoreContext.Provider value={heroes}>
+      <GameStoreContext.Provider value={games}>
+        <AdvancementPage id="h1" clock={clock} />
+      </GameStoreContext.Provider>
+    </StoreContext.Provider>,
+  )
+  await screen.findByRole('heading', { level: 1 })
+  const saved = async () => {
+    const r = await heroes.get('h1')
+    if (r.status !== 'found') throw new Error('not saved')
+    return r.hero
+  }
+  return { saved, heroes }
+}
+
+const add = async (title: string) => {
+  await userEvent.type(screen.getByLabelText('Issue title'), title)
+  await userEvent.click(screen.getByRole('button', { name: 'Add back issue' }))
+}
+
+const withIssues = (count: number): Hero => ({ ...maya(), backIssues: Array.from({ length: count }, (_, i) => ({ id: `b${i}`, title: `Issue ${i + 1}`, at: '2026-10-08T12:00:00Z' })) })
+
+describe('the Advancement page', () => {
+  it('has the breadcrumb, the title and Back to sheet', async () => {
+    await setup()
+    expect(screen.getByRole('heading', { level: 1, name: 'Maya Reyes · Advancement' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Back to sheet' })).toHaveAttribute('href', '#/hero/h1')
+    expect(screen.getByRole('link', { name: 'Library' })).toBeInTheDocument()
+  })
+
+  it('adds a back issue from a game, with the pips and count following', async () => {
+    const { saved } = await setup()
+    expect(screen.getByRole('img', { name: '0 of 6 back issues' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Thursday game' })).toBeInTheDocument())
+    expect(screen.getByLabelText('From a game')).toHaveValue('g1')
+    await add('The Bank Job')
+    expect(screen.getByRole('img', { name: '1 of 6 back issues' })).toBeInTheDocument()
+    expect(screen.getByText('1 of 6')).toBeInTheDocument()
+    expect(screen.getByLabelText('Issue title')).toHaveValue('')
+    await waitFor(async () => expect((await saved()).backIssues).toMatchObject([{ title: 'The Bank Job', gameId: 'g1', gameName: 'Thursday game' }]))
+    const row = screen.getByText('The Bank Job').closest('li')!
+    expect(row).toHaveTextContent('Thursday game')
+    expect(row).toHaveTextContent('Oct 22')
+  })
+
+  it('adds one with None, and needs a title', async () => {
+    const { saved } = await setup(maya(), false)
+    expect(screen.getByRole('button', { name: 'Add back issue' })).toBeDisabled()
+    expect(screen.getByLabelText('From a game')).toHaveValue('')
+    await add('No game here')
+    await waitFor(async () => expect((await saved()).backIssues[0]).not.toHaveProperty('gameId'))
+  })
+
+  it('edits and removes from ⋯', async () => {
+    const { saved } = await setup(withIssues(2))
+    await userEvent.click(screen.getByRole('button', { name: 'More for Issue 1' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Edit…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Edit back issue' }))
+    await userEvent.clear(dialog.getByLabelText('Issue title'))
+    await userEvent.type(dialog.getByLabelText('Issue title'), 'Renamed')
+    await userEvent.click(dialog.getByRole('button', { name: 'Save' }))
+    expect(screen.getByText('Renamed')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'More for Issue 2' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Remove' }))
+    expect(screen.queryByText('Issue 2')).not.toBeInTheDocument()
+    await waitFor(async () => expect((await saved()).backIssues.map((b) => b.title)).toEqual(['Renamed']))
+  })
+
+  it('at six, the form gives way to Record collection, with focus on the name, in a polite region', async () => {
+    const { saved } = await setup(withIssues(5))
+    expect(screen.queryByText('Six back issues. Name a collection to record them.')).not.toBeInTheDocument()
+    await add('Issue 6')
+    const notice = screen.getByText('Six back issues. Name a collection to record them.')
+    expect(notice.closest('[role="status"]')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.queryByLabelText('Issue title')).not.toBeInTheDocument()
+    const name = screen.getByRole('textbox', { name: 'Collection name' })
+    expect(name).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Record collection' })).toBeDisabled()
+    await userEvent.type(name, 'The Gravelord Saga{Enter}')
+    expect(screen.getByRole('img', { name: '0 of 6 back issues' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Issue title')).toBeInTheDocument()
+    expect(screen.getByText('1 collection')).toBeInTheDocument()
+    expect(screen.getByText('Recorded the collection The Gravelord Saga (6 back issues).')).toBeInTheDocument()
+    await waitFor(async () => expect((await saved()).collections[0]!.issues).toHaveLength(6))
+    const disclosure = screen.getByText('The Gravelord Saga').closest('details')!
+    expect(within(disclosure).getAllByRole('listitem', { hidden: true })).toHaveLength(6)
+  })
+
+  it("doesn't take focus when a hero opens already at six, and removing one reopens the form", async () => {
+    await setup(withIssues(6))
+    expect(screen.getByRole('textbox', { name: 'Collection name' })).not.toHaveFocus()
+    await userEvent.click(screen.getByRole('button', { name: 'More for Issue 6' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Remove' }))
+    expect(screen.getByLabelText('Issue title')).toBeInTheDocument()
+  })
+
+  it('offers a starting collection only while there are none', async () => {
+    await setup()
+    await userEvent.click(screen.getByRole('button', { name: '+ Starting collection…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Starting collection' }))
+    await userEvent.type(dialog.getByLabelText('Collection name'), 'Origins{Enter}')
+    expect(screen.queryByRole('button', { name: '+ Starting collection…' })).not.toBeInTheDocument()
+    const disclosure = screen.getByText('Origins').closest('details')!
+    expect(disclosure).toHaveTextContent('Allowed by the GM at creation')
+    expect(screen.getByText('Started with the collection Origins.')).toBeInTheDocument()
+  })
+
+  it('waits for a draft to be finished', async () => {
+    await setup({ ...maya(), status: 'draft', furthestStep: 4 }, false).catch(() => {})
+    expect(await screen.findByRole('alert')).toHaveTextContent('is still a draft')
+    expect(screen.getByRole('link', { name: 'Continue making this hero' })).toHaveAttribute('href', '#/hero/h1/edit/personality')
+  })
+
+  it('says when a hero is missing', async () => {
+    render(
+      <StoreContext.Provider value={new MemoryHeroStore()}>
+        <GameStoreContext.Provider value={new MemoryGameStore()}>
+          <AdvancementPage id="nope" clock={clock} />
+        </GameStoreContext.Provider>
+      </StoreContext.Provider>,
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent("There's no saved hero with that link")
+  })
+
+  it('reports a failed save', async () => {
+    const { heroes } = await setup()
+    heroes.save = async () => {
+      throw new Error('disk full')
+    }
+    await add('The Bank Job')
+    expect(await screen.findByRole('alert')).toHaveTextContent("Your last change couldn't be saved: disk full")
+  })
+})

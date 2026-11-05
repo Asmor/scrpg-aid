@@ -33,7 +33,7 @@ describe('HeroSheetView', () => {
     // Play state isn't on the sheet: hero points are kept in Play.
     expect(strip).toHaveTextContent('Hero points tracked in Play')
     expect(strip).toHaveTextContent('Back issues 0 of 6')
-    expect(strip).toHaveTextContent('Collections none yet')
+    expect(strip).toHaveTextContent('Collections 0')
     expect(within(strip).getByRole('link', { name: 'Advancement' })).toHaveAttribute('href', '#adv')
 
     // Powers and qualities, each with its die as an icon alone.

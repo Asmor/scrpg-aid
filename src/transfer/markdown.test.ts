@@ -93,15 +93,14 @@ describe('heroMarkdown', () => {
     expect(heroMarkdown(minionMakerHero())).toContain('### Minion forms\n\n- **')
   })
 
-  it('lists advancement: back issues, collections with notes, and changes', () => {
+  it('lists advancement: back issues, collections with their issues, and changes', () => {
     const hero = exampleHero({ id: 'x' })
-    hero.advancement = {
-      backIssues: 2,
-      collections: [{ name: 'Origins', notes: 'First arc\nSecond line' }, { name: '' }],
-      changes: [{ kind: 'swapQuality', from: { kind: 'quality', id: 'alertness' }, to: { kind: 'quality', id: 'banter' } }],
-    }
+    const at = '2026-11-04T12:00:00Z'
+    hero.backIssues = [{ id: 'b1', title: 'One', at }, { id: 'b2', title: 'Two', at }]
+    hero.collections = [{ id: 'c1', name: 'Origins', at, issues: [{ title: 'First arc', at }, { title: 'Second line', at }] }, { id: 'c2', name: '', at, issues: [] }]
+    hero.advancement = [{ id: 'e', at, kind: 'details', text: 'Swapped Alertness for Banter.', change: { kind: 'swapQuality', from: { kind: 'quality', id: 'alertness' }, to: { kind: 'quality', id: 'banter' } } }]
     const out = heroMarkdown(hero)
-    expect(out).toContain('## Advancement\n\nBack issues: 2\n\n1. **Origins**\\\n   First arc\\\n   Second line\n2. **Collection 2**\n\n- ')
+    expect(out).toContain('## Advancement\n\nBack issues: 2\n\n1. **Origins**\\\n   First arc\\\n   Second line\n2. **Collection 2**\n\n- Swapped Alertness for Banter.')
     expect(out).toMatch(/\| Banter +\| d8 +\|/)
   })
 })

@@ -135,7 +135,7 @@ function advancement(sheet: HeroSheet): string[] {
       adv.collections
         .map((c, i) => {
           const name = `${i + 1}. **${c.name.trim() ? escapeInline(c.name.trim()) : `Collection ${i + 1}`}**`
-          return c.notes?.trim() ? `${name}\\\n   ${text(c.notes, '   ')}` : name
+          return c.issues.length ? `${name}\\\n   ${c.issues.map((issue) => text(issue.title, '   ')).join('\\\n   ')}` : name
         })
         .join('\n'),
     )

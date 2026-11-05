@@ -8375,3 +8375,164 @@ ol.vw-conditions li {
   text-align: left;
   cursor: pointer;
 }
+
+/* A hero's Advancement page (docs/design/advancement/spec.md). */
+.adv-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 24px 48px;
+}
+
+.adv-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 4px 0 20px;
+}
+
+.adv-head h1 {
+  margin: 0;
+  font-size: 2.25rem;
+  line-height: 1.15;
+}
+
+.adv-cols {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.adv-main {
+  flex: 999 1 560px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.adv-side {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.adv-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px;
+}
+
+.adv-card h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.adv-card p {
+  margin: 0;
+}
+
+.adv-pips {
+  display: flex;
+  gap: 6px;
+}
+
+.adv-pip {
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--ui-border);
+  border-radius: 6px;
+}
+
+.adv-pip--on {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent);
+}
+
+.adv-issues {
+  margin: 4px 0 0;
+  padding-left: 22px;
+}
+
+.adv-issues li {
+  padding: 8px 0;
+  border-top: 1px solid var(--ui-border);
+}
+
+.adv-issues li::marker {
+  color: var(--ui-muted);
+  font-family: var(--font-heading);
+  font-weight: 700;
+}
+
+.adv-issues li.gt-row {
+  display: list-item;
+}
+
+.adv-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed var(--ui-border);
+  border-radius: 10px;
+  background: var(--ui-surface-2);
+}
+
+.adv-form__title {
+  flex: 1 1 200px;
+}
+
+.adv-ready {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 2px solid var(--ui-accent);
+  border-radius: 10px;
+  background: var(--ui-accent-soft);
+}
+
+.adv-collection {
+  padding: 10px 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+}
+
+.adv-collection summary {
+  cursor: pointer;
+}
+
+.adv-collection ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  font-size: 0.875rem;
+}
+
+.adv-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adv-history li {
+  padding: 8px 0;
+  border-top: 1px solid var(--ui-border);
+  font-size: 0.875rem;
+}
+
+.adv-kind {
+  margin-right: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--ui-border);
+  border-radius: 5px;
+  color: var(--ui-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}

@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import type { AdvancementChange, Hero } from '../hero/model'
+import type { AdvancementChange, AdvancementEntry, Hero } from '../hero/model'
 import { completeHero, dividedHero, formChangerHero, P, Q } from '../test/heroes'
-import { abilitySwapOptions, advancedHero, checkAdvancement, describeChange, swappablePicks, traitSwapOptions } from './advancement'
+import { abilitySwapOptions, advancedHero, changesInForce, checkAdvancement, describeChange, swappablePicks, traitSwapOptions } from './advancement'
 import { buildSheet } from './sheet'
 import { deriveTraits } from './traits'
 
+const entry = (change: AdvancementChange, i: number): AdvancementEntry => ({ id: `e${i}`, at: '2026-11-04T12:00:00Z', kind: 'details', text: 'a change', change })
 const withChanges = (...changes: AdvancementChange[]): Hero => {
   const hero = completeHero()
-  hero.advancement = { backIssues: 0, collections: [{ name: 'Year One' }], changes }
+  hero.advancement = changes.map(entry)
   return hero
 }
 const codes = (hero: Hero) => checkAdvancement(hero).map((w) => w.code)
@@ -25,7 +26,7 @@ describe('advancement', () => {
     const sheet = buildSheet(hero)
     expect(sheet.warnings).toEqual([])
     expect(sheet.powers.map((t) => t.trait.id)).toContain('cold')
-    expect(sheet.advancement).toEqual({ backIssues: 0, collections: [{ name: 'Year One' }], changes: ['Swapped Fire for Cold'] })
+    expect(sheet.advancement).toEqual({ backIssues: 0, collections: [], changes: ['a change'] })
   })
 
   it('applies changes in order, each to the hero as the ones before left them', () => {
@@ -83,7 +84,7 @@ describe('advancement', () => {
     const hero = withChanges({ kind: 'swapAbility', from: { source: 'powerSource.yellow', name: 'Inflict' }, to: { source: 'powerSource.yellow', name: 'Reflexive Burst', uses: [P('speed')] } })
     hero.retcon = { id: 'change-ability-trait', kind: 'changeAbilityTrait', ability: { source: 'powerSource.yellow', name: 'Inflict' }, uses: [P('speed')] }
     expect(checkAdvancement(hero)).toEqual([])
-    hero.advancement!.changes[0] = { kind: 'swapAbility', from: { source: 'powerSource.yellow', name: 'Inflict' }, to: { source: 'powerSource.yellow', name: 'Reflexive Burst', uses: [P('fire')] } }
+    hero.advancement[0]!.change = { kind: 'swapAbility', from: { source: 'powerSource.yellow', name: 'Inflict' }, to: { source: 'powerSource.yellow', name: 'Reflexive Burst', uses: [P('fire')] } }
     expect(codes(hero)).toEqual(['advancement-ability-use'])
     expect(swappablePicks(hero).find((p) => p.pick.name === 'Inflict')?.pick.uses).toEqual([P('speed')])
   })
@@ -94,7 +95,7 @@ describe('advancement', () => {
     const names = swappablePicks(fc).map((p) => p.pick.name)
     expect(names).toContain('Form Recovery')
     expect(names).not.toContain('Change Forms')
-    fc.advancement = { backIssues: 0, collections: [], changes: [{ kind: 'swapAbility', from: { source: 'archetype.fixedGreen', name: 'Change Forms' }, to: { source: 'archetype.fixedGreen', name: 'Change Forms' } }] }
+    fc.advancement = [entry({ kind: 'swapAbility', from: { source: 'archetype.fixedGreen', name: 'Change Forms' }, to: { source: 'archetype.fixedGreen', name: 'Change Forms' } }, 0)]
     expect(codes(fc)).toEqual(['advancement-ability-source'])
     const divided = dividedHero()
     expect(swappablePicks(divided).map((p) => p.pick.source)).not.toContain('archetype.transition')
@@ -106,13 +107,10 @@ describe('advancement', () => {
     expect(advancedHero(hero).redAbilities.map((p) => p.name)).toEqual(['Reactive Strike', 'Push Your Limits'])
   })
 
-  it('asks for a collection after six back issues, and names for collections', () => {
-    const hero = withChanges()
-    hero.advancement!.backIssues = 6
-    hero.advancement!.collections.push({ name: ' ' })
-    expect(checkAdvancement(hero).map((w) => w.message)).toEqual(['You have 6 back issues: name a collection.', 'Name collection 2.'])
-    hero.advancement!.backIssues = -1
-    expect(codes(hero)[0]).toBe('back-issues')
+  it('only applies what came after the last rewrite, which built the rest in', () => {
+    const hero = withChanges({ kind: 'swapPower', from: P('fire'), to: P('cold') }, { kind: 'swapPower', from: P('cold'), to: P('sonic') })
+    hero.advancement.splice(1, 0, { id: 'r', at: 'x', kind: 'rewrite', text: 'Rebuilt.' })
+    expect(changesInForce(hero)).toEqual([{ kind: 'swapPower', from: P('cold'), to: P('sonic') }])
   })
 
   it('describes changes, and offers traits the hero doesn’t have', () => {

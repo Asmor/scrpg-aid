@@ -64,7 +64,9 @@ const retcon: Check = (v, path) => {
   return retconByKind[(v as { kind: string }).kind]!(v, path)
 }
 
+const cosmeticChange = object({ before: recordOf(string) })
 const advancementChange: Check = (v, path) => {
+  if ((v as { kind?: unknown } | null)?.kind === 'cosmetic') return cosmeticChange(v, path)
   const base = object({ kind: oneOf(...Object.keys(advancementByKind)) })(v, path)
   if (base) return base
   return advancementByKind[(v as { kind: string }).kind]!(v, path)
@@ -129,13 +131,10 @@ export const playStateShape = object({
   ),
 })
 
-/** A whole hero document (a game holds copies, ../game/validate.ts). */
-export const heroShape = object({
-  id: nonEmptyString,
-  createdAt: nonEmptyString,
-  updatedAt: nonEmptyString,
+/** What a rebuild changes: a hero's build, as a rewrite's history entry keeps it. */
+const buildFields = {
   method: oneOf('guided', 'constructed'),
-  tags: arrayOf(string),
+  'rollMode?': oneOf('app', 'manual'),
   details: object(Object.fromEntries(DETAIL_FIELDS.map((f) => [f, string]))),
   traitNames: recordOf(string),
   background: nullable(object({ id: nonEmptyString, 'roll?': rollRecord, qualities: arrayOf(assignment), 'principle?': principle })),
@@ -149,13 +148,20 @@ export const heroShape = object({
   health: nullable(
     object({ 'trait?': traitRef, mode: oneOf('roll', 'fixed'), 'rollResult?': integer, 'manual?': boolean }),
   ),
+}
+const buildShape = object(buildFields)
+
+/** A whole hero document (a game holds copies, ../game/validate.ts). */
+export const heroShape = object({
+  id: nonEmptyString,
+  createdAt: nonEmptyString,
+  updatedAt: nonEmptyString,
+  tags: arrayOf(string),
+  ...buildFields,
   'pendingRolls?': object({ 'background?': rollRecord, 'powerSource?': rollRecord, 'archetype?': rollRecord, 'personality?': rollRecord, 'secondaryArchetype?': rollRecord }),
-  'advancement?': object({
-    backIssues: integer,
-    collections: arrayOf(object({ name: string, 'notes?': string })),
-    changes: arrayOf(advancementChange),
-  }),
-  'rollMode?': oneOf('app', 'manual'),
+  backIssues: arrayOf(object({ id: nonEmptyString, title: string, 'gameId?': string, 'gameName?': string, at: string })),
+  collections: arrayOf(object({ id: nonEmptyString, name: string, at: string, issues: arrayOf(object({ title: string, 'gameName?': string, at: string })), 'starting?': oneOf(true) })),
+  advancement: arrayOf(object({ id: nonEmptyString, at: string, kind: oneOf('collection', 'cosmetic', 'details', 'rewrite'), text: string, 'after?': string, 'change?': advancementChange, 'before?': buildShape, 'open?': oneOf(true) })),
   'status?': oneOf('draft', 'complete'),
   'furthestStep?': integer,
   'notes?': string,

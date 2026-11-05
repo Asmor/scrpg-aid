@@ -11,8 +11,10 @@ export const HERO_FORMAT = 'scrpg-hero'
 /**
  * Version 2 added `tags`. Version 3 took play state off the hero (`play`, `currentHealth`):
  * games hold it now (docs/design/game-table/spec.md, section 1), and old play state is dropped.
+ * Version 4 replaced `advancement` with back issues, collections and a history
+ * (docs/design/advancement/spec.md, section 5): an old hero reads with empty lists.
  */
-export const CURRENT_VERSION = 3
+export const CURRENT_VERSION = 4
 
 export interface SavedHero {
   format: typeof HERO_FORMAT
@@ -30,6 +32,7 @@ export type { Migration }
 export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   1: (hero) => ({ ...hero, tags: [] }),
   2: (hero) => withoutPlay(hero),
+  3: (hero) => ({ ...hero, backIssues: [], collections: [], advancement: [] }),
 }
 
 /** A hero document without play state, which belongs to games now. */

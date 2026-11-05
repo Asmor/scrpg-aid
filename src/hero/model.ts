@@ -248,17 +248,48 @@ export type AdvancementChange =
   /** Swap an ability for another of the same color from the same entry, using the same power or quality. */
   | { kind: 'swapAbility'; from: AbilityId; to: AbilityPick }
 
-export interface Collection {
-  name: string
-  notes?: string
+/** A finished issue since the last collection; six make a collection (p. 142). The game's name stays, so it reads right after the game is deleted. */
+export interface BackIssue {
+  id: string
+  title: string
+  gameId?: string
+  gameName?: string
+  at: string
 }
 
-/** Hero advancement (p. 142–143): back issues, collections, and the changes made between them. */
-export interface Advancement {
-  /** Sessions played since the last collection; six make a collection. */
-  backIssues: number
-  collections: Collection[]
-  changes: AdvancementChange[]
+/** A named collection of six back issues, or one a GM allowed at creation (`starting`, with none). */
+export interface Collection {
+  id: string
+  name: string
+  at: string
+  issues: { title: string; gameName?: string; at: string }[]
+  starting?: true
+}
+
+/** What a cosmetic change changed: each field as it was, so Undo can put it back. */
+export interface CosmeticChange {
+  kind: 'cosmetic'
+  before: Partial<HeroDetails>
+}
+
+/** The parts of a hero a rebuild can change, as a rewrite's Undo restores them. */
+export type HeroBuild = Pick<Hero, 'method' | 'details' | 'traitNames' | 'background' | 'powerSource' | 'archetype' | 'personality' | 'redAbilities' | 'retcon' | 'health'> & Pick<Partial<Hero>, 'rollMode'>
+
+/** One change in a hero's history (docs/design/advancement/spec.md, section 5). */
+export interface AdvancementEntry {
+  id: string
+  at: string
+  kind: 'collection' | 'cosmetic' | 'details' | 'rewrite'
+  /** The history sentence. */
+  text: string
+  /** The back issue or collection it followed. */
+  after?: string
+  /** A 'details' entry's swap, applied on top of the creation choices; a 'cosmetic' entry's fields. */
+  change?: AdvancementChange | CosmeticChange
+  /** A rewrite: the build before it, so Undo can restore it. */
+  before?: HeroBuild
+  /** A rewrite still going on in the wizard. */
+  open?: true
 }
 
 export interface HealthChoice {
@@ -337,8 +368,11 @@ export interface Hero {
    * moves the roll onto the choice.
    */
   pendingRolls?: Partial<Record<RollSlot, RollRecord>>
-  /** Advancement after creation; creation choices are left as they were made. */
-  advancement?: Advancement
+  /** Back issues since the last collection, at most six. */
+  backIssues: BackIssue[]
+  collections: Collection[]
+  /** Everything that changed the hero after creation, oldest first. Creation choices stay as they were made, with the swaps applied on top. */
+  advancement: AdvancementEntry[]
   notes?: string
 }
 
@@ -442,6 +476,9 @@ export function createHero(method: CreationMethod, options: { id?: string; now?:
     redAbilities: [],
     retcon: null,
     health: null,
+    backIssues: [],
+    collections: [],
+    advancement: [],
   }
 }
 

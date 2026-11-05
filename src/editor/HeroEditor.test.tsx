@@ -9,7 +9,6 @@ import { MemoryHeroStore, type HeroStore } from '../hero/store'
 import { backgrounds, redAbilityCategories } from '../rules/data'
 import { categoryName } from '../creation/red'
 import { tableOptions } from '../rules/rolling'
-import { AdvancementPage } from './AdvancementPage'
 import { HeroEditor } from './HeroEditor'
 import { HealthStep } from './HealthStep'
 import { useHeroEditor } from './useHeroEditor'
@@ -20,13 +19,6 @@ function HealthHarness() {
   const { state, update } = useHeroEditor('h1')
   return state.status === 'ready' ? <HealthStep hero={state.hero} update={update} random={() => 0.999} /> : null
 }
-
-const renderAdvancement = (store: HeroStore) =>
-  render(
-    <StoreContext.Provider value={store}>
-      <AdvancementPage id="h1" />
-    </StoreContext.Provider>,
-  )
 
 const renderEditor = (store: HeroStore, step?: string, id = 'h1') =>
   render(
@@ -1138,54 +1130,6 @@ describe('HeroEditor', () => {
       await userEvent.click(screen.getByRole('radio', { name: /Take 4/ }))
       await waitFor(async () => expect((await saved(store)).health).toEqual({ mode: 'fixed' }))
     })
-  })
-
-  it('keeps advancement for finished heroes', async () => {
-    renderAdvancement(await storeWith((h) => Object.assign(h, { ...completeHero(), id: 'h1', status: 'draft', furthestStep: 4 })))
-    expect(await screen.findByRole('alert')).toHaveTextContent('is still a draft')
-    expect(screen.getByRole('link', { name: 'Continue making this hero' })).toHaveAttribute('href', '#/hero/h1/edit/personality')
-  })
-
-  it('counts back issues, names collections, and records changes', async () => {
-    const store = await storeWith((h) => Object.assign(h, { ...completeHero(), id: 'h1' }))
-    renderAdvancement(store)
-    const more = await screen.findByRole('button', { name: 'One more back issue' })
-    await userEvent.click(more)
-    await userEvent.click(more)
-    expect(screen.getByText('2 of 6')).toBeInTheDocument()
-    await userEvent.type(screen.getByLabelText('New collection name'), 'Year One')
-    await userEvent.click(screen.getByRole('button', { name: 'Name this collection' }))
-    // Naming a collection clears the back issues.
-    expect(screen.getByText('0 of 6')).toBeInTheDocument()
-
-    await userEvent.selectOptions(screen.getByLabelText('Change'), 'Swap a power for another at the same die size')
-    expect(screen.getByRole('button', { name: 'Add this change' })).toBeDisabled()
-    await userEvent.selectOptions(screen.getByLabelText('Swap this power'), 'Fire (d8)')
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'For this one, at d8' }), 'Cold')
-    await userEvent.click(screen.getByRole('button', { name: 'Add this change' }))
-    expect(screen.getByText(/Swapped Fire for Cold/)).toBeInTheDocument()
-    expect(await screen.findByText('No rule issues so far.')).toBeInTheDocument()
-    await waitFor(async () =>
-      expect((await saved(store)).advancement).toEqual({ backIssues: 0, collections: [{ name: 'Year One' }], changes: [{ kind: 'swapPower', from: P('fire'), to: P('cold') }] }),
-    )
-    await userEvent.click(screen.getByRole('button', { name: 'Remove change 1' }))
-    await waitFor(async () => expect((await saved(store)).advancement?.changes).toEqual([]))
-  })
-
-  it('records an ability swap, filling in the new ability', async () => {
-    const store = await storeWith((h) => Object.assign(h, { ...completeHero(), id: 'h1' }))
-    renderAdvancement(store)
-    await userEvent.selectOptions(await screen.findByLabelText('Change'), 'Swap an ability for another of the same color from the same list')
-    await userEvent.selectOptions(screen.getByLabelText('Swap this ability'), 'Inflict')
-    await userEvent.selectOptions(screen.getByLabelText('For this one'), 'Reflexive Burst')
-    // It starts from the same power.
-    expect(within(screen.getByRole('group', { name: 'Fill in Reflexive Burst' })).getByRole('combobox', { name: /^Power for / })).toHaveDisplayValue('Fire (d8)')
-    await userEvent.click(screen.getByRole('button', { name: 'Add this change' }))
-    await waitFor(async () =>
-      expect((await saved(store)).advancement?.changes).toEqual([
-        { kind: 'swapAbility', from: { source: 'powerSource.yellow', name: 'Inflict' }, to: { source: 'powerSource.yellow', name: 'Reflexive Burst', uses: [P('fire')] } },
-      ]),
-    )
   })
 
   it('reports a failed save', async () => {

@@ -12,7 +12,7 @@ import {
 import { parseSlots } from '../rules/slots'
 import type { Ability, AbilityEffect, AbilityPool, AbilityType, BasicAction, Die, HealthRange, MinionForm, Zone } from '../rules/types'
 import type { AbilityPick, AbilitySource, Collection, Hero, PrincipleChoice } from '../hero/model'
-import { advancedHero, checkAdvancement, describeChange } from './advancement'
+import { advancedHero, changesInForce, checkAdvancement } from './advancement'
 import { checkAbilities, checkAbilityPick, checkAbilityRetcon } from './abilities'
 import { computeHealth, statusDice } from './health'
 import { findAbility, outPick, recordedPicks, retconnedPick, type PlacedPick } from './lookup'
@@ -92,7 +92,7 @@ export interface SheetMode {
 
 export interface HeroSheet {
   /** Back issues, collections, and the advancement changes made (p. 142–143). */
-  advancement?: { backIssues: number; collections: readonly Collection[]; changes: string[] }
+  advancement?: { backIssues: number; collections: readonly Collection[]; changes: readonly string[] }
   characteristics: { background?: string; powerSource?: string; archetype?: string; personality?: string }
   powers: HeroTrait[]
   qualities: HeroTrait[]
@@ -202,10 +202,9 @@ export function actionsOf(ability: Ability, blanks?: AbilityPick['blanks']): Act
  * (./advancement.ts).
  */
 export function buildSheet(hero: Hero): HeroSheet {
-  const adv = hero.advancement
-  const summary = adv ? { backIssues: adv.backIssues, collections: adv.collections, changes: adv.changes.map((c, i) => describeChange(advancedHero(hero, i), c)) } : undefined
+  const summary = { backIssues: hero.backIssues.length, collections: hero.collections, changes: hero.advancement.filter((e) => e.kind !== 'collection').map((e) => e.text) }
   const created = sheetOf(hero)
-  const now = adv?.changes.length ? sheetOf(advancedHero(hero)) : created
+  const now = changesInForce(hero).length ? sheetOf(advancedHero(hero)) : created
   return { ...now, advancement: summary, warnings: [...created.warnings, ...checkAdvancement(hero)] }
 }
 

@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { createHero } from './model'
+import { createHero, emptyDetails } from './model'
 import { dividedHero, formChangerHero, minionMakerHero, modularHero } from '../test/heroes'
 import { CURRENT_VERSION, HERO_FORMAT, parseSaved, parseSavedJson, toSaved } from './serialize'
 
 const hero = () => createHero('guided', { id: 'h1', now: new Date('2026-10-23T12:00:00Z') })
+
+describe('version 3 heroes', () => {
+  it('read with empty lists, dropping the old advancement', () => {
+    const { backIssues: _b, collections: _c, advancement: _a, ...old } = createHero('guided', { id: 'old' })
+    const r = parseSaved({ format: HERO_FORMAT, version: 3, hero: { ...old, advancement: { backIssues: 2, collections: [], changes: [] } } })
+    expect(r).toMatchObject({ ok: true, hero: { backIssues: [], collections: [], advancement: [] } })
+  })
+})
 
 describe('serialize', () => {
   it('wraps a hero in a versioned envelope', () => {
@@ -66,7 +74,9 @@ describe('serialize', () => {
       [{ retcon: { id: 'x', kind: 'gainPowerOrQuality' } }, 'hero.retcon.gained should be an object'],
       [{ health: { mode: 'average' } }, 'hero.health.mode has an unknown value'],
       [{ background: { id: 'x', qualities: [], principle: { id: 'custom', custom: { category: 'nope' } } } }, 'hero.background.principle.custom.category has an unknown value'],
-      [{ advancement: { backIssues: 0, collections: [], changes: [{ kind: 'levelUp' }] } }, 'hero.advancement.changes[0].kind has an unknown value'],
+      [{ advancement: [{ id: 'e', at: 'x', kind: 'details', text: 't', change: { kind: 'levelUp' } }] }, 'hero.advancement[0].change.kind has an unknown value'],
+      [{ advancement: [{ id: 'e', at: 'x', kind: 'promotion', text: 't' }] }, 'hero.advancement[0].kind has an unknown value'],
+      [{ backIssues: [{ title: 'x' }] }, 'hero.backIssues[0].id is missing'],
       [{ pendingRolls: [] }, 'hero.pendingRolls should be an object'],
       [{ pendingRolls: { archetype: { dice: ['d8'], results: [2] } } }, 'hero.pendingRolls.archetype.manual should be true or false'],
       [{ pendingRolls: { secondaryArchetype: { dice: ['d8'] } } }, 'hero.pendingRolls.secondaryArchetype.results should be a list'],
@@ -111,15 +121,15 @@ describe('serialize', () => {
       personality: { id: 'impulsive', outBlanks: { x: 'y' }, bonus: [] },
       retcon: { id: 'change-principle', kind: 'changePrinciple', replace: 'archetype', with: { id: 'destiny' } },
       health: { trait: t, mode: 'roll', rollResult: 5, manual: true },
-      advancement: {
-        backIssues: 2,
-        collections: [{ name: 'Year One', notes: 'n' }],
-        changes: [
-          { kind: 'swapPower', from: { kind: 'power', id: 'fire' }, to: { kind: 'power', id: 'cold' } },
-          { kind: 'swapPrinciple', replace: 'background', with: { id: 'destiny' } },
-          { kind: 'swapAbility', from: { source: 'red', name: 'A' }, to: { source: 'red', name: 'B', category: 'power:athletic' } },
-        ],
-      },
+      backIssues: [{ id: 'b', title: 'The Bank Job', gameId: 'g', gameName: 'Thursday', at: 'x' }],
+      collections: [{ id: 'c', name: 'Year One', at: 'x', issues: [{ title: 'T', gameName: 'G', at: 'x' }] }, { id: 'c2', name: 'Origins', at: 'x', issues: [], starting: true }],
+      advancement: [
+        { id: 'a', at: 'x', kind: 'details', text: 't', after: 'T', change: { kind: 'swapPower', from: { kind: 'power', id: 'fire' }, to: { kind: 'power', id: 'cold' } } },
+        { id: 'b', at: 'x', kind: 'details', text: 't', change: { kind: 'swapPrinciple', replace: 'background', with: { id: 'destiny' } } },
+        { id: 'c', at: 'x', kind: 'details', text: 't', change: { kind: 'swapAbility', from: { source: 'red', name: 'A' }, to: { source: 'red', name: 'B', category: 'power:athletic' } } },
+        { id: 'd', at: 'x', kind: 'cosmetic', text: 't', change: { kind: 'cosmetic', before: { costume: 'Old' } } },
+        { id: 'e', at: 'x', kind: 'rewrite', text: 't', open: true, before: { method: 'guided', details: emptyDetails(), traitNames: {}, background: null, powerSource: null, archetype: null, personality: null, redAbilities: [], retcon: null, health: null } },
+      ],
       pendingRolls: { personality: { dice: ['d10', 'd10'], results: [3, 7], manual: false }, secondaryArchetype: { dice: ['d12', 'd6'], results: [2, 5], manual: false } },
       notes: 'n',
     }

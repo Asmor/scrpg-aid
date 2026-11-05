@@ -33,6 +33,12 @@ export function swappablePicks(hero: Hero): { pick: AbilityPick; ability: Abilit
 /** Six back issues make a collection (p. 142). */
 export const BACK_ISSUES_PER_COLLECTION = 6
 
+/** The swaps that apply on top of the creation choices: those since the last rewrite, which built them in. */
+export function changesInForce(hero: Pick<Hero, 'advancement'>): AdvancementChange[] {
+  const rewrite = hero.advancement.findLastIndex((e) => e.kind === 'rewrite')
+  return hero.advancement.slice(rewrite + 1).flatMap((e) => (e.kind === 'details' && e.change && e.change.kind !== 'cosmetic' ? [e.change] : []))
+}
+
 const sameTrait = (a: TraitRef, b: TraitRef) => a.kind === b.kind && a.id === b.id
 
 /** Replaces every reference to one trait with another, anywhere in a value (a copy is returned). */
@@ -56,9 +62,9 @@ function applyChange(hero: Hero, change: AdvancementChange): Hero {
   switch (change.kind) {
     case 'swapPower':
     case 'swapQuality': {
-      const { advancement, ...rest } = hero
-      const renamed = renameTrait(rest, change.from, change.to) as Hero
-      return advancement ? { ...renamed, advancement } : renamed
+      // The hero's build only: its history keeps saying what happened.
+      const { backIssues, collections, advancement, ...rest } = hero
+      return { ...renameTrait(rest, change.from, change.to), backIssues, collections, advancement }
     }
     case 'swapPrinciple': {
       // A retcon that already replaced this principle is what the hero has now, so replace that.
@@ -81,9 +87,9 @@ function applyChange(hero: Hero, change: AdvancementChange): Hero {
 }
 
 /** The hero with the first `count` advancement changes applied (all of them by default). */
-export function advancedHero(hero: Hero, count = hero.advancement?.changes.length ?? 0): Hero {
+export function advancedHero(hero: Hero, count?: number): Hero {
   let result = structuredClone(hero)
-  for (const change of hero.advancement?.changes.slice(0, count) ?? []) result = applyChange(result, change)
+  for (const change of changesInForce(hero).slice(0, count)) result = applyChange(result, change)
   return result
 }
 
@@ -161,18 +167,7 @@ function checkChange(before: Hero, change: AdvancementChange, n: number): RuleWa
   }
 }
 
-/** Checks the advancement record: the back issue count, collection names, and each change in order. */
+/** Checks each swap in order, on the hero as the ones before it left them. */
 export function checkAdvancement(hero: Hero): RuleWarning[] {
-  const adv = hero.advancement
-  if (!adv) return []
-  const warnings: RuleWarning[] = []
-  if (!Number.isInteger(adv.backIssues) || adv.backIssues < 0) warnings.push(warning('advancement', 'back-issues', 'Back issues must be a whole number, 0 or more.'))
-  else if (adv.backIssues >= BACK_ISSUES_PER_COLLECTION) {
-    warnings.push(warning('advancement', 'back-issues', `You have ${adv.backIssues} back issues: name a collection.`))
-  }
-  adv.collections.forEach((c, i) => {
-    if (!c.name.trim()) warnings.push(warning('advancement', 'collection-name', `Name collection ${i + 1}.`))
-  })
-  adv.changes.forEach((change, i) => warnings.push(...checkChange(advancedHero(hero, i), change, i + 1)))
-  return warnings
+  return changesInForce(hero).flatMap((change, i) => checkChange(advancedHero(hero, i), change, i + 1))
 }
