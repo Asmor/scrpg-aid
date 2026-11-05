@@ -10,6 +10,7 @@ import { gameDisplayPath, gamesPath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
 import { RenameHeading } from '../components/RenameHeading'
+import { useSettings } from '../settings/context'
 import { Toasts, type ToastData } from '../components/Toasts'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { buildSheet } from '../creation/sheet'
@@ -127,6 +128,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const libraryVillains = useDocMap(game?.villains.map((v) => v.sourceId) ?? [], loadVillain, noSave)
   const phone = useMediaQuery('(max-width: 759px)', false)
   const now = useTick()
+  const newGameDefaults = useSettings().settings.newGame
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [running, setRunning] = useState<T.ItemRef | null>(null)
   // The turn last seen: when it becomes the environment's turn (or the game opens on it), its panel opens (npcs spec, section 6).
@@ -445,7 +447,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   /** An environment template comes in with copies of its attached templates, as the library has them now (a deleted one is left out). */
   const bringInEnvironment = async (t: EnvironmentTemplate) => {
     const found = await foundAttached(t, templates)
-    apply((g) => T.setEnvironment(g, environmentFromTemplate(t, found), clock()))
+    apply((g) => T.setEnvironment(g, { ...environmentFromTemplate(t, found), hidden: newGameDefaults.startHidden }, clock()))
   }
   /** A villain's copy waiting off the table (there's one per game): it comes on as itself, keeping its Health. */
   const waitingCopy = (item: LibraryItem) => (item.type.key === 'villain' ? game.offTable.villains.find((v) => v.sourceId === item.doc.id) : undefined)
@@ -471,13 +473,13 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       // Everything is copied into this game: damage never touches the library or other games.
       if (item.type.key === 'hero') apply((g) => T.addHero(g, item.doc as unknown as Hero, clock()))
       // A villain asks how many heroes are at the table, and what it comes with (the villain wizard spec, section 7); "the rest" come in for this table's heroes, alone.
-      else if (item.type.key === 'villain' && quick) apply((g) => T.addVillain(g, item.doc as unknown as Villain, clock(), true, Math.max(1, g.heroes.length)))
+      else if (item.type.key === 'villain' && quick) apply((g) => T.addVillain(g, item.doc as unknown as Villain, clock(), newGameDefaults.startHidden, Math.max(1, g.heroes.length), newGameDefaults.playersSee))
       else if (item.type.key === 'villain') setDialog({ kind: 'bringVillain', villain: item.doc as unknown as Villain })
-      // A template brings in a fresh copy each time, hidden like everything else.
+      // A template brings in a fresh copy each time, hidden or not like everything else.
       else if (item.type.key === 'minion' || item.type.key === 'lieutenant') {
         const t = item.doc as unknown as MinionTemplate
-        apply((g) => T.addGroup(g, groupFromTemplate(t, item.type.key === 'minion' ? 'minions' : 'lieutenants', count ?? t.groupSize, true), clock()))
-      } else if (item.type.key === 'challenge') apply((g) => T.addChallenge(g, challengeFromTemplate(item.doc as unknown as ChallengeTemplate, true), clock()))
+        apply((g) => T.addGroup(g, groupFromTemplate(t, item.type.key === 'minion' ? 'minions' : 'lieutenants', count ?? t.groupSize, newGameDefaults.startHidden), clock()))
+      } else if (item.type.key === 'challenge') apply((g) => T.addChallenge(g, challengeFromTemplate(item.doc as unknown as ChallengeTemplate, newGameDefaults.startHidden), clock()))
       else if (item.type.key === 'environment') void bringInEnvironment(item.doc as unknown as EnvironmentTemplate)
     },
     update: (item: LibraryItem) => {
@@ -798,8 +800,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           onBring={(heroCount, picks) => {
             const villain = dialog.villain
             setDialog(null)
-            // Its minions and lieutenants come in as the GM's groups, hidden like the villain.
-            apply((g) => picks.reduce((x, p) => T.addGroup(x, groupFromTemplate(p.template, p.attachment.kind === 'minion' ? 'minions' : 'lieutenants', p.count, true), clock()), T.addVillain(g, villain, clock(), true, heroCount)))
+            // Its minions and lieutenants come in as the GM's groups, hidden or not like the villain.
+            apply((g) => picks.reduce((x, p) => T.addGroup(x, groupFromTemplate(p.template, p.attachment.kind === 'minion' ? 'minions' : 'lieutenants', p.count, newGameDefaults.startHidden), clock()), T.addVillain(g, villain, clock(), newGameDefaults.startHidden, heroCount, newGameDefaults.playersSee)))
           }}
         />
       )}

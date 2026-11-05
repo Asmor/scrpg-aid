@@ -19,8 +19,11 @@ export const TRACKER_PRESETS = typed<TrackerPreset[]>(trackersJson.trackers)
 const STANDARD = TRACKER_PRESETS.find((p) => p.id === 'standard')
 if (!STANDARD) throw new Error('data/scenes/trackers.json has no standard tracker')
 
-/** What a new game's first scene and every new planned scene start with. */
+/** What a new game's first scene and every new planned scene start with, unless Settings chose otherwise. */
 export const DEFAULT_TRACKER: TrackerCounts = STANDARD.counts
+
+/** A preset's counts by id; Standard's if there's no such preset. */
+export const presetCounts = (id: string): TrackerCounts => ({ ...(TRACKER_PRESETS.find((p) => p.id === id) ?? STANDARD).counts })
 
 export const sameCounts = (a: TrackerCounts, b: TrackerCounts) => a.green === b.green && a.yellow === b.yellow && a.red === b.red
 

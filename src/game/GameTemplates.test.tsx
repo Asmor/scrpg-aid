@@ -1,3 +1,6 @@
+import { DEFAULT_SETTINGS } from '../settings/model'
+import { SettingsProvider } from '../settings/SettingsProvider'
+import { MemorySettingsStore } from '../settings/store'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
@@ -51,7 +54,7 @@ describe('templates on the table', () => {
   })
 })
 
-async function setup(villains = new MemoryVillainStore()) {
+async function setup(villains = new MemoryVillainStore(), settings = new MemorySettingsStore()) {
   const games = new MemoryGameStore()
   const templates = memoryTemplateStores()
   await templates.minions.save(burglar())
@@ -69,17 +72,19 @@ async function setup(villains = new MemoryVillainStore()) {
   })
   await games.save(createGame({ id: 'g1', name: 'Thursday game' }))
   render(
-    <StoreContext.Provider value={new MemoryHeroStore()}>
-      <VillainStoreContext.Provider value={villains}>
-        <GameStoreContext.Provider value={games}>
-          <SavedSearchStoreContext.Provider value={new MemorySavedSearchStore()}>
-            <TemplateStoresContext.Provider value={templates}>
-              <GamePage id="g1" clock={clock} random={() => 0.5} />
-            </TemplateStoresContext.Provider>
-          </SavedSearchStoreContext.Provider>
-        </GameStoreContext.Provider>
-      </VillainStoreContext.Provider>
-    </StoreContext.Provider>,
+    <SettingsProvider store={settings}>
+      <StoreContext.Provider value={new MemoryHeroStore()}>
+        <VillainStoreContext.Provider value={villains}>
+          <GameStoreContext.Provider value={games}>
+            <SavedSearchStoreContext.Provider value={new MemorySavedSearchStore()}>
+              <TemplateStoresContext.Provider value={templates}>
+                <GamePage id="g1" clock={clock} random={() => 0.5} />
+              </TemplateStoresContext.Provider>
+            </SavedSearchStoreContext.Provider>
+          </GameStoreContext.Provider>
+        </VillainStoreContext.Provider>
+      </StoreContext.Provider>
+    </SettingsProvider>,
   )
   await screen.findByRole('button', { name: /Rename game/ })
   const saved = async () => {
@@ -139,6 +144,24 @@ describe('the GM screen and templates', () => {
     // Only the second was saved: the library holds it and the template it started with.
     const names = async () => (await templates.challenges.list()).docs.map((d) => `${d.name} (${d.steps.length})`).sort()
     await waitFor(async () => expect(await names()).toEqual(['Shut down the crucible (2)', 'Vent it (3)']))
+  })
+})
+
+const openSettings = async (): Promise<MemorySettingsStore> => {
+  const store = new MemorySettingsStore()
+  await store.save({ ...DEFAULT_SETTINGS, newGame: { trackerPreset: 'epic', startHidden: false, playersSee: 'health' } })
+  return store
+}
+
+describe('new game defaults from Settings', () => {
+  it('bring templates and an environment in shown', async () => {
+    const { saved } = await setup(undefined, await openSettings())
+    await userEvent.click(await screen.findByRole('button', { name: 'Bring in Burglar' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Bring in Shut down the crucible' }))
+    await waitFor(async () => expect((await saved()).groups).toMatchObject([{ templateId: 'burglar', hidden: false }]))
+    await waitFor(async () => expect((await saved()).challenges).toMatchObject([{ templateId: 'crucible', hidden: false }]))
+    await userEvent.click(await screen.findByRole('button', { name: 'Bring in Rooftop Heist' }))
+    await waitFor(async () => expect((await saved()).environment).toMatchObject({ templateId: 'heist', hidden: false }))
   })
 })
 

@@ -73,7 +73,7 @@ describe('the library on a phone', () => {
 
   it('opens About from the header menu, after a divider, with focus back on the menu afterwards', async () => {
     await setup()
-    const menu = screen.getByRole('button', { name: /^Menu: data, color scheme, about/ })
+    const menu = screen.getByRole('button', { name: /^Menu: data, color scheme, settings, about/ })
     await userEvent.click(menu)
     const sheet = within(screen.getByRole('dialog', { name: 'Menu' }))
     expect(sheet.getByRole('menuitem', { name: 'Back up everything' })).toBeInTheDocument()

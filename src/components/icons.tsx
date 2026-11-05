@@ -2,18 +2,29 @@
 import { useContext, type ReactNode } from 'react'
 import { ACTION_LABEL, actionMentions, effectMentions, type Action } from '../creation/effects'
 import type { Die } from '../rules/types'
+import { useSettings } from '../settings/context'
 import { IconSource } from './icon-source'
 
 /** How big a die is drawn: 44px beside a villain's status; 24px in dice rows, slots and tables; 18px in compact lists; 16px inline in a sentence. */
 export type DieSize = 'large' | 'normal' | 'compact' | 'inline'
 
 /**
- * A die, shown as its icon alone, with its size ("d8") as the alt text. The size is only
- * written out where an image can't go (dropdown options, aria-labels, Markdown).
+ * A die, shown as its icon alone, with its size ("d8") as the alt text, or as the text "d8" in the
+ * same box with the "Show dice as" setting. Otherwise the size is only written out where an image
+ * can't go (dropdown options, aria-labels, Markdown).
  */
 export function DieIcon({ die, size = 'normal' }: { die: Die; size?: DieSize }) {
   const src = useContext(IconSource)(`die/${die}`)
-  return <img className={size === 'normal' ? 'die-icon' : `die-icon die-icon--${size}`} src={src} alt={die} title={die} />
+  const box = size === 'normal' ? 'die-icon' : `die-icon die-icon--${size}`
+  const { diceDisplay } = useSettings().settings
+  if (diceDisplay === 'text') {
+    return (
+      <span className={`${box} die-text`} role="img" aria-label={die} title={die}>
+        {die}
+      </span>
+    )
+  }
+  return <img className={box} src={src} alt={die} title={die} />
 }
 
 /** "[d10] and [d10]": the dice as icons, joined like words. */

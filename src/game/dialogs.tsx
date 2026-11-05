@@ -4,6 +4,7 @@
  */
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Modal } from '../components/Modal'
+import { useSettings } from '../settings/context'
 import type { PlayMod, PlayTwist } from '../hero/model'
 import { ModForm } from '../play/ModForm'
 import { DICE } from '../rules/dice'
@@ -72,7 +73,7 @@ export function AddGroupDialog({ kind, onAdd, onClose, canSave = false, submit =
   const [name, setName] = useState('')
   const [die, setDie] = useState<Die>(kind === 'minions' ? 'd6' : 'd8')
   const [count, setCount] = useState('3')
-  const [hidden, setHidden] = useState(true)
+  const [hidden, setHidden] = useState(useSettings().settings.newGame.startHidden)
   const n = whole(count, 1, MAX_GROUP_SIZE)
   return (
     <Modal title={kind === 'minions' ? 'Add minions' : 'Add lieutenants'} onClose={onClose}>
@@ -107,7 +108,7 @@ export function AddChallengeDialog({ onAdd, onClose, canSave = false, submit = '
   const [save, setSave] = useState(false)
   const [name, setName] = useState('')
   const [steps, setSteps] = useState('3')
-  const [hidden, setHidden] = useState(true)
+  const [hidden, setHidden] = useState(useSettings().settings.newGame.startHidden)
   const n = whole(steps, 1, MAX_STEPS)
   return (
     <Modal title="Add a challenge" onClose={onClose}>
@@ -152,7 +153,7 @@ export function EditStepsDialog({ name, labels, description, whenDone, onSave, o
 
 export function EnvironmentDialog({ current, onSet, onClose }: { current?: string; onSet: (environment: { name: string; hidden: boolean }) => void; onClose: () => void }) {
   const [name, setName] = useState('')
-  const [hidden, setHidden] = useState(true)
+  const [hidden, setHidden] = useState(useSettings().settings.newGame.startHidden)
   return (
     <Modal title="Set environment" onClose={onClose}>
       <form className="gt-form" onSubmit={submitWith(() => (onSet({ name, hidden }), onClose()))}>

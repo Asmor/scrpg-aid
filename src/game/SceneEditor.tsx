@@ -6,7 +6,8 @@ import { useId, useState } from 'react'
 import { useOptionalTemplateStores } from '../app/template-store-context'
 import { Modal } from '../components/Modal'
 import type { LibraryItem } from '../library/registry'
-import { countsText, presetOf, TRACKER_PRESETS, type TrackerCounts } from '../rules/trackers'
+import { countsText, presetCounts, presetOf, TRACKER_PRESETS, type TrackerCounts } from '../rules/trackers'
+import { useSettings } from '../settings/context'
 import type { Zone } from '../rules/types'
 import { challengeFromTemplate, groupFromTemplate, templateFromChallenge, templateFromGroup } from '../template/to-table'
 import type { ChallengeTemplate, EnvironmentTemplate, MinionTemplate } from '../template/model'
@@ -155,7 +156,11 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 export function SceneEditor({ game, target, clock, onSave, onDelete, onSaveAndStart, onClose }: SceneEditorProps) {
   const id = useId()
   const current = target.kind === 'current'
-  const [draft, setDraft] = useState<SceneDraft>(() => (current ? draftOfCurrent(game) : target.kind === 'planned' ? draftOfPlanned(game, target.sceneId) : draftOfNew(game)))
+  const defaults = useSettings().settings.newGame
+  const [draft, setDraft] = useState<SceneDraft>(() => {
+    const tracker = presetCounts(defaults.trackerPreset)
+    return current ? draftOfCurrent(game) : target.kind === 'planned' ? draftOfPlanned(game, target.sceneId, tracker) : draftOfNew(game, tracker)
+  })
   const [dialog, setDialog] = useState<EditorDialog | null>(null)
   const [tag, setTag] = useState('')
   // A villain being added: its dialog opens over the library list, which keeps its search.
@@ -195,20 +200,20 @@ export function SceneEditor({ game, target, clock, onSave, onDelete, onSaveAndSt
   const added = (d: SceneDraft, item: LibraryItem, source: SceneItemSource, count?: number): SceneDraft => {
     switch (item.type.key) {
       case 'villain':
-        return draftAddVillain(game, d, item.doc as unknown as Villain, { heroCount: Math.max(1, game.heroes.length), source, hidden: true }, clock())
+        return draftAddVillain(game, d, item.doc as unknown as Villain, { heroCount: Math.max(1, game.heroes.length), source, hidden: defaults.startHidden, playersSee: defaults.playersSee }, clock())
       case 'minion':
       case 'lieutenant': {
         const t = item.doc as unknown as MinionTemplate
-        return draftAddGroup(d, groupFromTemplate(t, item.type.key === 'minion' ? 'minions' : 'lieutenants', count ?? t.groupSize, true), source, clock())
+        return draftAddGroup(d, groupFromTemplate(t, item.type.key === 'minion' ? 'minions' : 'lieutenants', count ?? t.groupSize, defaults.startHidden), source, clock())
       }
       case 'challenge':
-        return draftAddChallenge(d, challengeFromTemplate(item.doc as unknown as ChallengeTemplate, true), source, clock())
+        return draftAddChallenge(d, challengeFromTemplate(item.doc as unknown as ChallengeTemplate, defaults.startHidden), source, clock())
       default:
         return d
     }
   }
   const chooseLibraryEnvironment = async (t: EnvironmentTemplate) => {
-    const made = newEnvironment(environmentFromTemplate(t, await foundAttached(t, templates)), clock())
+    const made = newEnvironment({ ...environmentFromTemplate(t, await foundAttached(t, templates)), hidden: defaults.startHidden }, clock())
     setDraft((d) => draftSetEnvironment(d, made))
   }
   const bring: BringIn = {
@@ -270,7 +275,7 @@ export function SceneEditor({ game, target, clock, onSave, onDelete, onSaveAndSt
                 if (value === 'library') return setDialog({ kind: 'libraryEnvironment' })
                 const { environment: _, ...rest } = draft
                 const known = value === game.environment?.id ? game.environment : environments.find((x) => x.id === value)
-                setDraft(value ? { ...rest, environment: { id: value, hidden: known?.hidden ?? true } } : rest)
+                setDraft(value ? { ...rest, environment: { id: value, hidden: known?.hidden ?? defaults.startHidden } } : rest)
               }}
             >
               <option value="">None</option>
@@ -407,7 +412,7 @@ export function SceneEditor({ game, target, clock, onSave, onDelete, onSaveAndSt
       )}
       {dialog?.kind === 'remove' && <ConfirmDialog title={`Remove ${dialog.name}?`} text="It has changed since it came in, and those changes go with it." confirm="Remove" onConfirm={() => removeRow(dialog.row)} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'delete' && onDelete && <ConfirmDialog title={`Delete scene ${number}?`} text="The scene goes, with anything only it was holding. Anything set aside stays set aside." confirm="Delete" onConfirm={onDelete} onClose={() => setDialog(null)} />}
-      {dialog?.kind === 'quickEnvironment' && <NameDialog title="Quick environment" label="Name" placeholder="Environment" submit="Use this environment" onSubmit={(name) => setDraft((d) => draftSetEnvironment(d, newEnvironment({ name, hidden: true }, clock())))} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'quickEnvironment' && <NameDialog title="Quick environment" label="Name" placeholder="Environment" submit="Use this environment" onSubmit={(name) => setDraft((d) => draftSetEnvironment(d, newEnvironment({ name, hidden: defaults.startHidden }, clock())))} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'libraryEnvironment' && (
         <Modal title="Choose an environment" onClose={() => setDialog(null)} wide>
           <BringInTab bring={bringEnvironment} />
@@ -428,7 +433,7 @@ export function SceneEditor({ game, target, clock, onSave, onDelete, onSaveAndSt
               onClose={() => setAdding(null)}
               onBring={(heroCount, picks) => {
                 setAdding(null)
-                setDraft((d) => picks.reduce((x, p) => draftAddGroup(x, groupFromTemplate(p.template, p.attachment.kind === 'minion' ? 'minions' : 'lieutenants', p.count, true), { kind: 'library' }, clock()), draftAddVillain(game, d, adding, { heroCount, source: { kind: 'library' }, hidden: true }, clock())))
+                setDraft((d) => picks.reduce((x, p) => draftAddGroup(x, groupFromTemplate(p.template, p.attachment.kind === 'minion' ? 'minions' : 'lieutenants', p.count, defaults.startHidden), { kind: 'library' }, clock()), draftAddVillain(game, d, adding, { heroCount, source: { kind: 'library' }, hidden: defaults.startHidden, playersSee: defaults.playersSee }, clock())))
               }}
             />
           )}

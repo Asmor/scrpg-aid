@@ -373,8 +373,8 @@ export function trackerFromCounts(counts: TrackerCounts): Zone[] {
 }
 
 /** A new scene with the default tracker, at its first box. */
-export function createScene(options: { name?: string; state?: Scene['state']; id?: string } = {}): Scene {
-  return { id: options.id ?? newId(), name: options.name ?? '', tracker: { ...DEFAULT_TRACKER }, position: 0, opposition: [], notes: '', state: options.state ?? 'planned' }
+export function createScene(options: { name?: string; state?: Scene['state']; id?: string; tracker?: TrackerCounts } = {}): Scene {
+  return { id: options.id ?? newId(), name: options.name ?? '', tracker: { ...(options.tracker ?? DEFAULT_TRACKER) }, position: 0, opposition: [], notes: '', state: options.state ?? 'planned' }
 }
 
 export const emptyOffTable = (): OffTable => ({ villains: [], groups: [], challenges: [], environments: [] })
@@ -426,10 +426,10 @@ export function sceneOnTable(game: Pick<Game, 'scenes' | 'currentSceneId'>): Sce
 }
 
 /** Creates a new game at the first box of its first scene's tracker. `now` and `id` are injectable for tests. */
-export function createGame(options: { id?: string; now?: Date; name?: string } = {}): Game {
+export function createGame(options: { id?: string; now?: Date; name?: string; tracker?: TrackerCounts } = {}): Game {
   const timestamp = (options.now ?? new Date()).toISOString()
   const issue = createIssue(newId(), 1)
-  const first = { ...createScene({ state: 'now' }), issueId: issue.id }
+  const first = { ...createScene({ state: 'now', ...(options.tracker ? { tracker: options.tracker } : {}) }), issueId: issue.id }
   return {
     id: options.id ?? newId(),
     createdAt: timestamp,
@@ -466,8 +466,8 @@ export function heroCopy(hero: Hero, id: string, player?: HeroInGame['player']):
 }
 
 /** A villain copied into a game with fresh play state, hidden unless said otherwise. */
-export function villainCopy(villain: Villain, id: string, hidden = true): VillainInGame {
-  return { id, sourceId: villain.id, sheet: copySheet(villain), play: emptyVillainPlay(), hidden, playersSee: 'status' }
+export function villainCopy(villain: Villain, id: string, hidden = true, playersSee: PlayersSee = 'status'): VillainInGame {
+  return { id, sourceId: villain.id, sheet: copySheet(villain), play: emptyVillainPlay(), hidden, playersSee }
 }
 
 /** The name to show for a game. */

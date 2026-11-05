@@ -1,3 +1,7 @@
+import { DEFAULT_SETTINGS } from '../settings/model'
+import { SettingsProvider } from '../settings/SettingsProvider'
+import { MemorySettingsStore } from '../settings/store'
+import { presetCounts } from '../rules/trackers'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -27,7 +31,7 @@ async function bringInIronclad() {
   await userEvent.click(within(screen.getByRole('article', { name: 'Ironclad' })).getByRole('button', { name: 'Reveal' }))
 }
 
-async function setup(change: (g: Game, docs: { hero: Hero; villain: Villain }) => void = () => {}, more: { villains?: Villain[] } = {}) {
+async function setup(change: (g: Game, docs: { hero: Hero; villain: Villain }) => void = () => {}, more: { villains?: Villain[]; settings?: MemorySettingsStore } = {}) {
   const games = new MemoryGameStore()
   const heroes = new MemoryHeroStore()
   const villains = new MemoryVillainStore()
@@ -45,15 +49,17 @@ async function setup(change: (g: Game, docs: { hero: Hero; villain: Villain }) =
   change(game, { hero, villain })
   await games.save(game)
   render(
-    <StoreContext.Provider value={heroes}>
-      <VillainStoreContext.Provider value={villains}>
-        <GameStoreContext.Provider value={games}>
-          <SavedSearchStoreContext.Provider value={searches}>
-            <GamePage id="g1" clock={clock} random={() => 0.5} />
-          </SavedSearchStoreContext.Provider>
-        </GameStoreContext.Provider>
-      </VillainStoreContext.Provider>
-    </StoreContext.Provider>,
+    <SettingsProvider store={more.settings ?? new MemorySettingsStore()}>
+      <StoreContext.Provider value={heroes}>
+        <VillainStoreContext.Provider value={villains}>
+          <GameStoreContext.Provider value={games}>
+            <SavedSearchStoreContext.Provider value={searches}>
+              <GamePage id="g1" clock={clock} random={() => 0.5} />
+            </SavedSearchStoreContext.Provider>
+          </GameStoreContext.Provider>
+        </VillainStoreContext.Provider>
+      </StoreContext.Provider>
+    </SettingsProvider>,
   )
   await screen.findByRole('button', { name: /Rename game/ })
   const saved = async () => {
@@ -779,6 +785,36 @@ describe('finishing the issue', () => {
     await userEvent.click(dialog.getByRole('button', { name: 'Finish issue 1' }))
     await waitFor(async () => expect((await saved()).currentIssueId).toBeUndefined())
     expect((await saved()).issues[0]!.offeredTo).toEqual([])
+  })
+})
+
+const openSettings = async (): Promise<MemorySettingsStore> => {
+  const store = new MemorySettingsStore()
+  await store.save({ ...DEFAULT_SETTINGS, newGame: { trackerPreset: 'epic', startHidden: false, playersSee: 'health' } })
+  return store
+}
+
+describe('new game defaults from Settings', () => {
+  it('bring a villain in shown, with what players see', async () => {
+    const { savedVillain } = await setup(undefined, { settings: await openSettings() })
+    await bringIn('Ironclad')
+    await waitFor(async () => expect(await savedVillain()).toMatchObject({ hidden: false, playersSee: 'health' }))
+  })
+
+  it('start a planned scene on the chosen tracker, and add a villain to it shown', async () => {
+    const { saved } = await setup(undefined, { settings: await openSettings() })
+    await userEvent.click(screen.getByRole('tab', { name: 'Scenes' }))
+    await userEvent.click(screen.getByRole('button', { name: '+ Plan a scene' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Plan scene 2' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'From library…' }))
+    const library = within(screen.getByRole('dialog', { name: 'Add from your library' }))
+    await userEvent.click(await library.findByRole('button', { name: 'Add Ironclad' }))
+    const asks = screen.queryByRole('dialog', { name: 'Add Ironclad' }) ?? screen.queryByRole('dialog', { name: 'Bring in Ironclad' })
+    if (asks) await userEvent.click(within(asks).getAllByRole('button').at(-1)!)
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Add from your library' })).getByRole('button', { name: 'Done' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Save' }))
+    await waitFor(async () => expect((await saved()).scenes[1]!.tracker).toEqual(presetCounts('epic')))
+    expect((await saved()).offTable.villains).toMatchObject([{ hidden: false, playersSee: 'health' }])
   })
 })
 

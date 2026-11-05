@@ -221,10 +221,10 @@ export function addHero(game: Game, hero: Hero, clock: Clock, player?: HeroInGam
  * is the number of heroes its Health is worked out for at this table (the villain wizard spec,
  * section 7); the copy keeps it.
  */
-export function addVillain(game: Game, villain: Villain, clock: Clock, hidden = true, heroCount?: number): Game {
+export function addVillain(game: Game, villain: Villain, clock: Clock, hidden = true, heroCount?: number, playersSee?: PlayersSee): Game {
   if (copyOf(game, 'villain', villain.id)) return game
   const name = villainDisplayName(villain)
-  const copy = newVillainCopy(villain, hidden, heroCount, clock)
+  const copy = newVillainCopy(villain, hidden, heroCount, clock, playersSee)
   const added = withTitanChallenge({ ...game, villains: [...game.villains, copy] }, copy.id, clock)
   return log(syncTurnOrder(added), clock, hidden ? `The GM brought in ${name}, hidden from players.` : `${name} joined the table.`, { gmOnly: hidden })
 }
@@ -264,8 +264,8 @@ export function withTitanChallenge(game: Game, villainId: string, clock: Clock):
 }
 
 /** A villain's copy with fresh play state, its Health worked out for `heroCount` heroes if given. */
-export function newVillainCopy(villain: Villain, hidden: boolean, heroCount: number | undefined, clock: Clock): VillainInGame {
-  const copy = villainCopy(villain, clock.newId(), hidden)
+export function newVillainCopy(villain: Villain, hidden: boolean, heroCount: number | undefined, clock: Clock, playersSee?: PlayersSee): VillainInGame {
+  const copy = villainCopy(villain, clock.newId(), hidden, playersSee)
   return heroCount !== undefined && Number.isInteger(heroCount) && heroCount >= 1 ? { ...copy, play: { ...copy.play, heroCount } } : copy
 }
 

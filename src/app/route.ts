@@ -11,7 +11,7 @@
  * template's editor, and
  * "#/villain/<id>" a villain's sheet ("#/villain/<id>/edit" its edit summary, "#/villain/<id>/edit/<step>"
  * a step of its wizard, "#/villain/new" a new villain's wizard), "#/games" the Games
- * page, "#/game/<id>" a game's table, and "#/game/<id>/display" its display view.
+ * page, "#/settings" the Settings page, "#/game/<id>" a game's table, and "#/game/<id>/display" its display view.
  */
 import { useEffect, useState } from 'react'
 import type { TemplateKindName } from '../template/model'
@@ -28,6 +28,7 @@ export type Route =
   /** A game's display view on the GM's own device. */
   | { name: 'gameDisplay'; id: string }
   | { name: 'games' }
+  | { name: 'settings' }
   | { name: 'table'; room: string }
   /** Watching a hosted game on a TV or second screen; no code yet asks for one. */
   | { name: 'watch'; room?: string }
@@ -44,6 +45,7 @@ export function parseRoute(hash: string): Route {
   // The old GM page's link: games are run from the Games page now.
   if (path === '/gm') return { name: 'games' }
   if (path === '/games') return { name: 'games' }
+  if (path === '/settings') return { name: 'settings' }
   const game = /^\/game\/([^/]+)(\/display)?$/.exec(path)
   if (game) {
     try {
@@ -170,6 +172,7 @@ export function villainEditPath(id: string, step?: string): string {
 
 /** The Games page (docs/design/game-table/spec.md, section 3). */
 export const gamesPath = '#/games'
+export const settingsPath = '#/settings'
 
 export function gamePath(id: string): string {
   return `#/game/${encodeURIComponent(id)}`

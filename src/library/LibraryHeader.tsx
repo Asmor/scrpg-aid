@@ -4,9 +4,10 @@
  * import, the example hero), the color scheme switch, and About. On phones, Data, the color scheme
  * and About share one menu, and the section tabs sit under the bar. The Games page shares the header.
  */
-import { gamePath, gamesPath, joinPath, listPath, receivePath, tablePath, watchPath } from '../app/route'
+import { gamePath, gamesPath, joinPath, listPath, receivePath, settingsPath, tablePath, watchPath } from '../app/route'
 import { useState } from 'react'
 import { AboutButton, AboutDialog } from '../components/About'
+import { SettingsLink } from '../settings/SettingsLink'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { useHostSnapshot, useSession } from '../session/context'
 import type { ThemePreference } from '../theme/theme'
@@ -223,12 +224,12 @@ export function DataMenu({ data }: { data: DataActions }) {
   )
 }
 
-/** The phone's header menu: Data's items (when there's a Data menu), the color scheme, then About. */
+/** The phone's header menu: Data's items (when there's a Data menu), the color scheme, then Settings and About. */
 export function PhoneMenu({ data, theme, setTheme }: { data?: DataActions | undefined; theme: ThemePreference; setTheme: (t: ThemePreference) => void }) {
   const [popover, bindPopover] = usePopover()
   const [about, setAbout] = useState(false)
   const remind = data?.status.remind ?? false
-  const label = `Menu: ${data ? 'data, ' : ''}color scheme, about${remind ? '. Backup reminder' : ''}`
+  const label = `Menu: ${data ? 'data, ' : ''}color scheme, settings, about${remind ? '. Backup reminder' : ''}`
   return (
     <span className="popover-anchor">
       <button ref={bindPopover} type="button" className="icon-button" aria-label={label} aria-haspopup="dialog" aria-expanded={popover.open} onClick={popover.toggle}>
@@ -241,6 +242,9 @@ export function PhoneMenu({ data, theme, setTheme }: { data?: DataActions | unde
           <ThemeToggle value={theme} onChange={setTheme} />
           <hr className="popover__divider" />
           <div role="menu" aria-label="About" className="popover__menu">
+            <a role="menuitem" className="menu-item" href={settingsPath} onClick={popover.close}>
+              Settings
+            </a>
             <button
               type="button"
               role="menuitem"
@@ -309,6 +313,7 @@ export function LibraryHeader({ phone, theme, setTheme, data, heroName, now, sec
             <>
               {data && <DataMenu data={data} />}
               <ThemeToggle value={theme} onChange={setTheme} />
+              <SettingsLink />
               <AboutButton />
             </>
           )}

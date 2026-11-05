@@ -1,3 +1,6 @@
+import { presetCounts } from '../rules/trackers'
+import { DEFAULT_SETTINGS } from '../settings/model'
+import { MemorySettingsStore } from '../settings/store'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -30,7 +33,7 @@ const named = (g: Game, name: string): Game => ({ ...g, scenes: g.scenes.map((s)
 /** A saved game this version of the app can't read. */
 const plantUnreadable = (store: MemoryGameStore, id: string) => (store as unknown as { putRecord: (r: unknown) => Promise<void> }).putRecord({ id, saved: { format: 'scrpg-game', version: 2, game: {} } })
 
-async function setup(games: Game[], sessionStorage = memoryStorage(), joined: JoinedGame[] = [], unreadable: string[] = []) {
+async function setup(games: Game[], sessionStorage = memoryStorage(), joined: JoinedGame[] = [], unreadable: string[] = [], settingsStore = new MemorySettingsStore()) {
   const store = new MemoryGameStore()
   for (const g of games) await store.save(g)
   for (const id of unreadable) await plantUnreadable(store, id)
@@ -42,6 +45,7 @@ async function setup(games: Game[], sessionStorage = memoryStorage(), joined: Jo
       store={new MemoryHeroStore()}
       villainStore={new MemoryVillainStore()}
       gameStore={store}
+      settingsStore={settingsStore}
       joinedStore={joinedStore}
       searchStore={new MemorySavedSearchStore()}
       backupTime={localBackupTime(memoryStorage())}
@@ -187,6 +191,16 @@ describe('the Games page', () => {
     expect(name).toMatch(/^scrpg-aid-backup-/)
     // Not the solo game, which belongs to its character's Play page.
     expect(readImport(text as string)).toMatchObject({ ok: true, games: [{ id: 'thu' }] })
+  })
+
+  it('starts a new game on the tracker chosen in Settings', async () => {
+    const settings = new MemorySettingsStore()
+    await settings.save({ ...DEFAULT_SETTINGS, newGame: { ...DEFAULT_SETTINGS.newGame, trackerPreset: 'prolonged' } })
+    const store = await setup([], undefined, [], [], settings)
+    await userEvent.click(screen.getAllByRole('button', { name: 'New game' })[0]!)
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/game\/[^/]+$/))
+    const { games } = await store.list()
+    expect(games[0]!.scenes[0]!.tracker).toEqual(presetCounts('prolonged'))
   })
 
   it('starts a new game and opens its table, which works without hosting', async () => {

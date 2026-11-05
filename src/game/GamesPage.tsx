@@ -6,6 +6,8 @@
  */
 import { useEffect, useId, useMemo, useState } from 'react'
 import { gamePath, joinPath, navigate, tablePath } from '../app/route'
+import { presetCounts } from '../rules/trackers'
+import { useSettings } from '../settings/context'
 import { useGameStore } from '../app/game-store-context'
 import { useStore } from '../app/store-context'
 import { Modal } from '../components/Modal'
@@ -197,6 +199,7 @@ export interface GamesPageProps {
 }
 
 export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPageProps) {
+  const newGameDefaults = useSettings().settings.newGame
   const store = useGameStore()
   const heroStore = useStore()
   const villainStore = useVillainStore()
@@ -297,7 +300,7 @@ export function GamesPage({ theme, setTheme, searchStore, backupTime }: GamesPag
   }
   const newGame = () =>
     void run('start a new game', async () => {
-      const game = createGame()
+      const game = createGame({ tracker: presetCounts(newGameDefaults.trackerPreset) })
       await store.save(game)
       navigate(gamePath(game.id))
     })

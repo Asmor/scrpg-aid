@@ -34,6 +34,10 @@ import { AboutButton } from './components/About'
 import { ThemeToggle } from './components/ThemeToggle'
 import { createDefaultStore, type HeroStore } from './hero/store'
 import { useTheme } from './theme/useTheme'
+import { SettingsLink } from './settings/SettingsLink'
+import { SettingsPage } from './settings/SettingsPage'
+import { SettingsProvider } from './settings/SettingsProvider'
+import { createDefaultSettingsStore, type SettingsStore } from './settings/store'
 
 interface AppProps {
   store?: HeroStore
@@ -42,23 +46,26 @@ interface AppProps {
   joinedStore?: JoinedStore
   searchStore?: SavedSearchStore
   templateStores?: TemplateStores
+  settingsStore?: SettingsStore
   backupTime?: BackupTimeStore
   connect?: Connect
   sessionStore?: SessionStore
 }
 
 /** The stores, `connect`, `sessionStore`, and `backupTime` are injectable for tests. */
-export default function App({ store: given, villainStore: givenVillains, gameStore: givenGames, joinedStore: givenJoined, searchStore: givenSearches, templateStores: givenTemplates, backupTime, connect, sessionStore }: AppProps) {
+export default function App({ store: given, villainStore: givenVillains, gameStore: givenGames, joinedStore: givenJoined, searchStore: givenSearches, templateStores: givenTemplates, settingsStore: givenSettings, backupTime, connect, sessionStore }: AppProps) {
   const [store] = useState(() => given ?? createDefaultStore())
   const [villainStore] = useState(() => givenVillains ?? createDefaultVillainStore())
   const [gameStore] = useState(() => givenGames ?? createDefaultGameStore())
   const [joinedStore] = useState(() => givenJoined ?? createDefaultJoinedStore())
   const [searchStore] = useState(() => givenSearches ?? createDefaultSavedSearchStore())
   const [templateStores] = useState(() => givenTemplates ?? createDefaultTemplateStores())
+  const [settingsStore] = useState(() => givenSettings ?? createDefaultSettingsStore())
   const route = useRoute()
   // The display view is dark unless the player chose light (docs/design/game-table/spec.md, section 13).
   const [theme, setTheme] = useTheme(route.name === 'watch' || route.name === 'gameDisplay' ? 'dark' : undefined)
   return (
+    <SettingsProvider store={settingsStore} roomScale={route.name === 'watch' || route.name === 'gameDisplay'}>
     <StoreContext.Provider value={store}>
       <VillainStoreContext.Provider value={villainStore}>
       <GameStoreContext.Provider value={gameStore}>
@@ -99,6 +106,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
           </h1>
           <span className="app-header__actions">
             <ThemeToggle value={theme} onChange={setTheme} />
+            <SettingsLink />
             <AboutButton />
           </span>
         </header>
@@ -114,6 +122,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
           {route.name === 'join' && <JoinPage key={route.room ?? ''} room={route.room} />}
           {route.name === 'receive' && <ReceivePage key={route.code ?? ''} code={route.code} />}
           {route.name === 'template' && <TemplateEditor key={`${route.kind}:${route.id}`} kind={route.kind} id={route.id} />}
+          {route.name === 'settings' && <SettingsPage />}
           {route.name === 'notFound' && (
             <p role="alert">
               That page doesn't exist. <a href={listPath}>Go to your library</a>.
@@ -129,5 +138,6 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
       </GameStoreContext.Provider>
       </VillainStoreContext.Provider>
     </StoreContext.Provider>
+    </SettingsProvider>
   )
 }

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { advancementPath, editPath, gamePath, gamesPath, partPath, heroPath, joinPath, joinUrl, parseRoute, receivePath, watchPath, watchUrl, gameDisplayPath, playPath, tablePath, villainEditPath, villainPath, villainPlayPath, newVillainPath } from './route'
 
+describe('the settings route', () => {
+  it('reads it', () => {
+    expect(parseRoute('#/settings')).toEqual({ name: 'settings' })
+  })
+})
+
 describe('the player table route', () => {
   it('reads a room code, and makes the path', () => {
     expect(parseRoute('#/table/ABCD-EFGH')).toEqual({ name: 'table', room: 'ABCD-EFGH' })

@@ -8,10 +8,10 @@ export const DB_NAME = 'scrpg-aid'
 /**
  * Version 2 added the villains store, version 3 a minions store (no longer used), version 4 the
  * saved searches store, version 5 the games store, version 6 the joined games store, and version
- * 7 the NPC templates' stores.
+ * 7 the NPC templates' stores. Version 9 added the settings store.
  */
-export const DB_VERSION = 8
-export const OBJECT_STORES = ['heroes', 'villains', 'savedSearches', 'games', 'joined', 'minionTemplates', 'lieutenantTemplates', 'challengeTemplates', 'environmentTemplates'] as const
+export const DB_VERSION = 9
+export const OBJECT_STORES = ['heroes', 'villains', 'savedSearches', 'games', 'joined', 'minionTemplates', 'lieutenantTemplates', 'challengeTemplates', 'environmentTemplates', 'settings'] as const
 export type ObjectStoreName = (typeof OBJECT_STORES)[number]
 
 /** A stored record: the document's id next to its saved envelope. */

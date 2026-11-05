@@ -4,6 +4,7 @@
  */
 import { useId, useState } from 'react'
 import { villainPath } from '../app/route'
+import { useSettings } from '../settings/context'
 import { ActionIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL } from '../hero/labels'
 import type { PlayMod } from '../hero/model'
@@ -311,6 +312,7 @@ type Source = { kind: 'all' } | { kind: 'type'; key: string } | { kind: 'search'
 
 /** The Bring in list: from the GM screen for the table, or in a modal for a planned scene. */
 export function BringInTab({ bring }: { bring: BringIn }) {
+  const { startHidden } = useSettings().settings.newGame
   const id = useId()
   const { items: allItems, searches, error } = useLibraryItems()
   const items = allItems && (bring.only ? allItems.filter((i) => bring.only!(i.type.key)) : allItems)
@@ -429,10 +431,10 @@ export function BringInTab({ bring }: { bring: BringIn }) {
       )}
       {rest.length > 0 && (
         <button type="button" className="button" onClick={() => rest.forEach((i) => bring.bringIn(i, undefined, true))}>
-          {verb} the rest ({rest.length}), hidden
+          {verb} the rest ({rest.length}){startHidden ? ', hidden' : ''}
         </button>
       )}
-      {!bring.only && <p className="hint">Everything is copied into this game, so damage never touches your library or other games. Templates (minions, lieutenants, challenges and environments) start fresh each time they're brought in. Villains arrive hidden from players.</p>}
+      {!bring.only && <p className="hint">Everything is copied into this game, so damage never touches your library or other games. Templates (minions, lieutenants, challenges and environments) start fresh each time they're brought in. {startHidden ? 'Villains arrive hidden from players.' : 'Villains arrive where players can see them.'}</p>}
     </div>
   )
 }

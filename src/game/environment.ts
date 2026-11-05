@@ -38,7 +38,7 @@ function attachedCopy(found: FoundAttached): AttachedOnTable {
   return { kind, templateId: doc.id, name: doc.name.trim() || (kind === 'minion' ? 'Minions' : 'Lieutenants'), die: doc.die, actions: doc.actions === 'any' ? 'any' : [...doc.actions], groupSize: doc.groupSize }
 }
 
-/** What an environment template brings in: copies of its aspects, twists and attached templates. Hidden, as everything arrives. */
+/** What an environment template brings in: copies of its aspects, twists and attached templates. Hidden unless the caller says otherwise. */
 export function environmentFromTemplate(t: EnvironmentTemplate, attached: readonly FoundAttached[]): Omit<EnvironmentOnTable, 'id'> {
   return {
     templateId: t.id,

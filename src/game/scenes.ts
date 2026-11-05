@@ -15,7 +15,7 @@ import { newId } from '../hero/model'
 import { emptyPlay } from '../play/state'
 import { clearDefenses } from '../play/defense'
 import { emptyVillainPlay } from '../villain/play'
-import { betweenIssues, createIssue, createScene, currentScene, emptyOffTable, gameDisplayName, sceneName, sceneNumber, trackerFromCounts, type Challenge, type EnvironmentOnTable, type Game, type NpcGroup, type OffTable, type OppositionRef, type Scene, type SceneItem, type SceneItemSource, type VillainInGame } from './model'
+import { betweenIssues, createIssue, createScene, currentScene, emptyOffTable, gameDisplayName, sceneName, sceneNumber, trackerFromCounts, type PlayersSee, type Challenge, type EnvironmentOnTable, type Game, type NpcGroup, type OffTable, type OppositionRef, type Scene, type SceneItem, type SceneItemSource, type VillainInGame } from './model'
 import { boxLabel, closeRequests, environmentLetsGo, newChallenge, newGroup, newVillainCopy, placeEnvironment, removeFromTable, setHidden, setupScene, syncTurnOrder, withLog, withTitanChallenge, type ChallengeSpec, type GroupSpec } from './table'
 
 export const refKey = (ref: OppositionRef) => `${ref.kind}:${ref.id}`
@@ -290,15 +290,15 @@ export function saveCurrentScene(game: Game, draft: SceneDraft, restart: boolean
   return gcOffTable(saved)
 }
 
-/** The next planned scene's draft: "Scene 3" on the Standard tracker. */
-export function draftOfNew(game: Game): SceneDraft {
-  return { name: `Scene ${game.scenes.length + 1}`, tracker: { ...DEFAULT_TRACKER }, rows: [], notes: '', copies: emptyOffTable() }
+/** The next planned scene's draft: "Scene 3" on the default tracker, Standard unless Settings chose otherwise. */
+export function draftOfNew(game: Game, tracker: TrackerCounts = DEFAULT_TRACKER): SceneDraft {
+  return { name: `Scene ${game.scenes.length + 1}`, tracker: { ...tracker }, rows: [], notes: '', copies: emptyOffTable() }
 }
 
 /** A planned scene's draft. An environment with its Hidden choice, and rows for what's still in the game. */
-export function draftOfPlanned(game: Game, sceneId: string): SceneDraft {
+export function draftOfPlanned(game: Game, sceneId: string, tracker: TrackerCounts = DEFAULT_TRACKER): SceneDraft {
   const scene = game.scenes.find((s) => s.id === sceneId)
-  if (!scene) return draftOfNew(game)
+  if (!scene) return draftOfNew(game, tracker)
   const env = scene.environmentId && findItem(game, { kind: 'environment', id: scene.environmentId }) ? { environment: { id: scene.environmentId, hidden: scene.environmentHidden ?? true } } : {}
   return { name: scene.name, tracker: { ...scene.tracker }, ...env, rows: scene.opposition.filter((i) => findItem(game, i.ref)), notes: scene.notes, copies: emptyOffTable() }
 }
@@ -311,10 +311,10 @@ function villainCopyId(game: Game, draft: SceneDraft, sourceId: string): string 
 const withRow = (draft: SceneDraft, row: SceneItem): SceneDraft => (draft.rows.some((r) => sameRef(r.ref, row.ref)) ? draft : { ...draft, rows: [...draft.rows, row] })
 
 /** Adds a villain: the copy this game already has, keeping its Health, or a new one. */
-export function draftAddVillain(game: Game, draft: SceneDraft, villain: Villain, options: { heroCount?: number; source: SceneItemSource; hidden: boolean }, clock: Clock): SceneDraft {
+export function draftAddVillain(game: Game, draft: SceneDraft, villain: Villain, options: { heroCount?: number; source: SceneItemSource; hidden: boolean; playersSee?: PlayersSee }, clock: Clock): SceneDraft {
   const known = villainCopyId(game, draft, villain.id)
   if (known) return withRow(draft, { ref: { kind: 'villain', id: known }, startHidden: options.hidden, source: options.source })
-  const copy = newVillainCopy(villain, options.hidden, options.heroCount, clock)
+  const copy = newVillainCopy(villain, options.hidden, options.heroCount, clock, options.playersSee)
   return withRow({ ...draft, copies: { ...draft.copies, villains: [...draft.copies.villains, copy] } }, { ref: { kind: 'villain', id: copy.id }, startHidden: options.hidden, source: options.source })
 }
 
