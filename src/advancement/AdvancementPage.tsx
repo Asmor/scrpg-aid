@@ -5,16 +5,22 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { editPath, heroPath, listPath, navigate } from '../app/route'
 import { Modal } from '../components/Modal'
+import { StepWarnings } from '../editor/StepWarnings'
+import { buildSheet } from '../creation/sheet'
 import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 import { useHeroEditor } from '../editor/useHeroEditor'
 import { gamesHolding, useListedGames } from '../game/useGameEditor'
 import { gameDisplayName } from '../game/model'
+import { ConfirmDialog } from '../game/dialogs'
 import { MenuButton } from '../game/TableCenter'
-import { heroDisplayName, isDraft, newId, type BackIssue, type Hero } from '../hero/model'
+import { DETAIL_LABEL } from '../hero/labels'
+import { heroDisplayName, isDraft, newId, type BackIssue, type Hero, type HeroDetails } from '../hero/model'
 import { continueStep } from '../hero/wizard-steps'
 import { PopoverGroup } from '../library/Popover'
 import type { Clock } from '../play/state'
-import { addBackIssue, addStartingCollection, collectionsText, editBackIssue, recordCollection, removeBackIssue, shortDate, type IssueGame } from './records'
+import { addBackIssue, addStartingCollection, changeCosmetic, collectionsText, cosmeticFields, editBackIssue, recordCollection, removeBackIssue, shortDate, undoable, undoLast, type CosmeticKind, type IssueGame } from './records'
+import { swapTrait } from './swaps'
+import { TraitSwapDialog } from './SwapDialogs'
 
 const defaultClock = (): Clock => ({ now: new Date(), newId: () => newId() })
 
@@ -258,11 +264,104 @@ function Collections({ hero, apply, clock }: { hero: Hero; apply: (fn: (h: Hero)
   )
 }
 
-function History({ hero }: { hero: Hero }) {
+const COSMETIC_TITLE: Record<CosmeticKind, string> = { appearance: 'Edit appearance', codename: 'Change codename', costume: 'Edit costume' }
+
+/** A cosmetic change: a small dialog with its field, prefilled. A hero's appearance is several fields. */
+function CosmeticDialog({ hero, kind, onSave, onClose }: { hero: Hero; kind: CosmeticKind; onSave: (values: Partial<HeroDetails>) => void; onClose: () => void }) {
   const id = useId()
+  const fields = cosmeticFields(kind)
+  const [values, setValues] = useState<Partial<HeroDetails>>(() => Object.fromEntries(fields.map((f) => [f, hero.details[f]])))
+  return (
+    <Modal title={COSMETIC_TITLE[kind]} onClose={onClose}>
+      <form
+        className="gt-form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSave(values)
+          onClose()
+        }}
+      >
+        {fields.map((f) => (
+          <label key={f} className="field" htmlFor={`${id}-${f}`}>
+            <span>{kind === 'codename' ? 'Codename' : DETAIL_LABEL[f]}</span>
+            <input id={`${id}-${f}`} type="text" value={values[f] ?? ''} onChange={(e) => setValues((v) => ({ ...v, [f]: e.target.value }))} />
+          </label>
+        ))}
+        <div className="button-row gt-dialog-actions">
+          <button type="button" className="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="button button--primary">
+            Save
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+type ChangeDialog = { kind: 'cosmetic'; which: CosmeticKind } | { kind: 'swapTrait'; trait: 'power' | 'quality' }
+
+/** Change the hero: its three groups, side by side. */
+function ChangeHero({ hero, apply, clock }: { hero: Hero; apply: (fn: (h: Hero) => Hero) => void; clock: () => Clock }) {
+  const id = useId()
+  const name = heroDisplayName(hero)
+  const [dialog, setDialog] = useState<ChangeDialog | null>(null)
+  const open = (next: ChangeDialog) => () => setDialog(next)
+  const warnings = buildSheet(hero).warnings.filter((w) => w.step === 'advancement')
   return (
     <section className="card adv-card" aria-labelledby={`${id}-head`}>
-      <h2 id={`${id}-head`}>History</h2>
+      <h2 id={`${id}-head`}>Change {name}</h2>
+      <p className="gt-sub">When the story calls for it, usually between collections. Changes go into the history, and games holding {name} get a sheet update to review.</p>
+      <div className="adv-groups">
+        <div className="adv-group">
+          <h3>Cosmetic</h3>
+          <span className="gt-sub">Appearance, codename, costume</span>
+          <button type="button" className="button button--small" onClick={open({ kind: 'cosmetic', which: 'appearance' })}>
+            Edit appearance…
+          </button>
+          <button type="button" className="button button--small" onClick={open({ kind: 'cosmetic', which: 'codename' })}>
+            Change codename…
+          </button>
+          <button type="button" className="button button--small" onClick={open({ kind: 'cosmetic', which: 'costume' })}>
+            Edit costume…
+          </button>
+        </div>
+        <div className="adv-group">
+          <h3>Change details</h3>
+          <span className="gt-sub">Same die size, same color</span>
+          <button type="button" className="button button--small" onClick={open({ kind: 'swapTrait', trait: 'power' })}>
+            Swap a power…
+          </button>
+          <button type="button" className="button button--small" onClick={open({ kind: 'swapTrait', trait: 'quality' })}>
+            Swap a quality…
+          </button>
+        </div>
+      </div>
+      {warnings.length > 0 && <StepWarnings warnings={warnings} />}
+      {dialog?.kind === 'cosmetic' && <CosmeticDialog hero={hero} kind={dialog.which} onSave={(values) => apply((h) => changeCosmetic(h, dialog.which, values, clock()))} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'swapTrait' && <TraitSwapDialog hero={hero} kind={dialog.trait} onSwap={(from, to) => apply((h) => swapTrait(h, from, to, clock()))} onClose={() => setDialog(null)} />}
+    </section>
+  )
+}
+
+function History({ hero, apply }: { hero: Hero; apply: (fn: (h: Hero) => Hero) => void }) {
+  const id = useId()
+  const [undoing, setUndoing] = useState(false)
+  const last = undoable(hero)
+  return (
+    <section className="card adv-card" aria-labelledby={`${id}-head`}>
+      <div className="gt-row">
+        <h2 id={`${id}-head`} className="gt-grow">
+          History
+        </h2>
+        {last && (
+          <button type="button" className="button button--small" onClick={() => setUndoing(true)}>
+            Undo last change
+          </button>
+        )}
+      </div>
+      {undoing && last && <ConfirmDialog title="Undo the last change?" text={last.text} confirm="Undo" onConfirm={() => apply(undoLast)} onClose={() => setUndoing(false)} />}
       {hero.advancement.length === 0 ? (
         <p className="sheet-empty">Nothing yet.</p>
       ) : (
@@ -348,10 +447,11 @@ export function AdvancementPage({ id, clock = defaultClock }: { id: string; cloc
         <div className="adv-cols">
           <main className="adv-main">
             <BackIssues hero={hero} games={games} apply={apply} clock={clock} />
+            <ChangeHero hero={hero} apply={apply} clock={clock} />
           </main>
           <aside className="adv-side">
             <Collections hero={hero} apply={apply} clock={clock} />
-            <History hero={hero} />
+            <History hero={hero} apply={apply} />
           </aside>
         </div>
       </div>

@@ -29,7 +29,7 @@ export const ISSUE_CODES = [
   'advancement-kind',
   'advancement-no-change',
   'advancement-not-held',
-  'advancement-roleplaying',
+  'advancement-slot',
   'already-have',
   'already-max',
   'approach-missing',

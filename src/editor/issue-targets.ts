@@ -34,7 +34,7 @@ export const ISSUE_SECTION: Readonly<Record<IssueCode, IssueSection>> = {
   'advancement-kind': 'choose',
   'advancement-no-change': 'choose',
   'advancement-not-held': 'choose',
-  'advancement-roleplaying': 'choose',
+  'advancement-slot': 'choose',
   // Villains: choosing the approach, archetype, upgrades and mastery, and the hero count.
   'approach-missing': 'choose',
   'archetype-missing': 'choose',

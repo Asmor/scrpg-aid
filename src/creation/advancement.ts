@@ -8,7 +8,8 @@
 import { getTrait, traitKey, traitsOfKind, type CatalogTrait, type TraitRef } from '../rules/catalog'
 import type { Ability } from '../rules/types'
 import type { AbilityPick, AdvancementChange, Hero } from '../hero/model'
-import { checkAbilityPick, primaryUse } from './abilities'
+import { traitSlots, type TraitSlot } from '../rules/slots'
+import { checkAbilityPick, primaryUse, slotCandidates } from './abilities'
 import { findAbility, findRedAbility, optionsFor, recordedPicks, retconnedPick } from './lookup'
 import type { AbilitySource } from '../hero/model'
 import { heroPrinciples, principleOf } from './principles'
@@ -57,11 +58,63 @@ function pickLists(hero: Hero): AbilityPick[][] {
   return [hero.powerSource?.abilities, hero.archetype?.abilities, hero.archetype?.secondary?.abilities, hero.redAbilities].filter((l): l is AbilityPick[] => Boolean(l))
 }
 
+/** What a slot wants, for an issue: only slots limited to a list can refuse anything. */
+function slotWants(slot: TraitSlot): string {
+  switch (slot.label.toLowerCase()) {
+    case 'element/energy you have a related power for':
+      return 'an energy or element power'
+    case 'self control power':
+      return 'a self-control power'
+    case 'psychic power':
+      return 'a psychic power'
+    case 'mental quality':
+      return 'a mental quality'
+    case 'any physical or mental quality':
+      return 'a physical or mental quality'
+    case 'a power gained from your archetype':
+      return 'a power from your archetype'
+    case 'a quality gained from your archetype':
+      return 'a quality from your archetype'
+    default:
+      return slot.label
+  }
+}
+
+/** An ability a trait swap breaks: it needs that slot's kind of trait, and the new one isn't. */
+export interface SlotIssue {
+  source: AbilitySource
+  name: string
+  message: string
+}
+
+/**
+ * The abilities using a power or quality whose slot wouldn't take its replacement. Issues don't
+ * block a swap, as in the wizard. `hero` is as the hero is before the swap.
+ */
+export function traitSwapIssues(hero: Hero, from: TraitRef, to: TraitRef): SlotIssue[] {
+  if (sameTrait(from, ROLEPLAYING_QUALITY)) return []
+  const after = applyChange(structuredClone(hero), { kind: from.kind === 'power' ? 'swapPower' : 'swapQuality', from, to })
+  const traits = deriveTraits(after).traits
+  return recordedPicks(hero).flatMap(({ pick, archetype }) => {
+    const ability = findAbility(hero, pick, archetype)
+    if (!ability) return []
+    const current = retconnedPick(hero, pick)
+    const slots = traitSlots(ability.text)
+    const broken = slots.find((slot, i) => current.uses?.[i] && sameTrait(current.uses[i]!, from) && !slotCandidates(after, traits, slot, 'advancement').some((t) => sameTrait(t.trait, to)))
+    return broken ? [{ source: pick.source, name: pick.name, message: `Needs ${slotWants(broken)}. ${traitLabel(after, to)} isn't one, so this ability would need swapping too.` }] : []
+  })
+}
+
 /** Applies one change to a hero (in place, except for trait swaps, which return a new hero). */
 function applyChange(hero: Hero, change: AdvancementChange): Hero {
   switch (change.kind) {
     case 'swapPower':
     case 'swapQuality': {
+      // Swapping the roleplaying quality makes it the new quality at its die (the advancement spec, ruling 49).
+      if (sameTrait(change.from, ROLEPLAYING_QUALITY)) {
+        hero.traitNames[traitKey(ROLEPLAYING_QUALITY)] = traitLabel(hero, change.to)
+        return hero
+      }
       // The hero's build only: its history keeps saying what happened.
       const { backIssues, collections, advancement, ...rest } = hero
       return { ...renameTrait(rest, change.from, change.to), backIssues, collections, advancement }
@@ -110,8 +163,11 @@ export function abilitySwapOptions(hero: Hero, pick: AbilityPick): Ability[] {
 
 /** The traits a trait swap can give: ones of the same kind the hero doesn't have. */
 export function traitSwapOptions(hero: Hero, kind: TraitRef['kind']): CatalogTrait[] {
-  const held = new Set(deriveTraits(hero).traits.map((t) => traitKey(t.trait)))
-  return traitsOfKind(kind).filter((t) => !held.has(traitKey(t)))
+  const traits = deriveTraits(hero).traits
+  const held = new Set(traits.map((t) => traitKey(t.trait)))
+  // A roleplaying quality swapped for a listed one holds that quality under its own key.
+  const names = new Set(traits.map((t) => t.name))
+  return traitsOfKind(kind).filter((t) => !held.has(traitKey(t)) && !names.has(traitLabel(hero, t)))
 }
 
 /** A one-line description of a change, for lists. */
@@ -135,12 +191,10 @@ function checkChange(before: Hero, change: AdvancementChange, n: number): RuleWa
     case 'swapQuality': {
       const kind = change.kind === 'swapPower' ? 'power' : 'quality'
       if (change.from.kind !== kind || change.to.kind !== kind) return warn('advancement-kind', `this swaps a ${kind} for another ${kind}.`)
-      // The roleplaying quality is the hero's own invention: changing it means renaming it.
-      if (sameTrait(change.from, ROLEPLAYING_QUALITY)) return warn('advancement-roleplaying', 'to change your roleplaying quality, rename it in the personality step.')
       if (!traits.some((t) => sameTrait(t.trait, change.from))) return warn('advancement-not-held', `you don't have ${traitLabel(before, change.from)}.`)
       if (!getTrait(change.to)) return warn('unknown-trait', `"${change.to.id}" isn't a known ${kind}.`)
       if (traits.some((t) => sameTrait(t.trait, change.to))) return warn('advancement-already-have', `you already have ${traitLabel(before, change.to)}.`)
-      return []
+      return traitSwapIssues(before, change.from, change.to).map((issue) => warning('advancement', 'advancement-slot', `${issue.name}: ${issue.message}`))
     }
     case 'swapPrinciple': {
       if (!principleOf(change.with)) return warn('unknown-entry', 'choose the new principle.')

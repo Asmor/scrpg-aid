@@ -52,7 +52,7 @@ export function refreshSolo(game: Game, doc: Hero | Villain, clock: Clock): Game
   const copy = game.solo?.kind === 'hero' ? soloHero(game) : soloVillain(game)
   if (!copy || !sheetsDiffer(copy.sheet, doc)) return game
   const name = 'method' in doc ? heroDisplayName(doc) : villainDisplayName(doc)
-  if (sheetDiff(copy.sheet, doc).length === 0) {
+  if (sheetDiff(copy.sheet, doc).every((section) => section.section === 'Appearance')) {
     const sheet = copySheet(doc)
     return game.solo?.kind === 'hero'
       ? { ...game, name, heroes: game.heroes.map((h) => (h.id === copy.id ? { ...h, sheet: sheet as Hero } : h)) }

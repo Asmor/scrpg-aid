@@ -25,7 +25,7 @@ export function ModeSwitch({ mode, onChange }: { mode: CharacterMode; onChange: 
 }
 
 /** "N rule issues", the first one's text, and a link to fix them; nothing when there are none. */
-export function IssueBanner({ issues, href }: { issues: readonly { message: string }[]; href: string }) {
+export function IssueBanner({ issues, href, link = 'Open in edit' }: { issues: readonly { message: string }[]; href: string; link?: string }) {
   if (!issues.length) return null
   return (
     <div className="issue-banner" role="note">
@@ -33,7 +33,7 @@ export function IssueBanner({ issues, href }: { issues: readonly { message: stri
       <span className="issue-banner__first">
         <DiceText text={issues[0]!.message} />
       </span>
-      <a href={href}>Open in edit</a>
+      <a href={href}>{link}</a>
     </div>
   )
 }

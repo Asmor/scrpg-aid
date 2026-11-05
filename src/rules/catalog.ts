@@ -99,3 +99,15 @@ export function refMatches(ref: OptionRef, trait: TraitRef): boolean {
 export function refsMatch(refs: readonly OptionRef[], trait: TraitRef): boolean {
   return refs.some((ref) => refMatches(ref, trait))
 }
+
+/** Groups traits by category, keeping the list's order. */
+export function byCategory(traits: readonly CatalogTrait[]): { label: string; traits: CatalogTrait[] }[] {
+  const groups = new Map<string, { label: string; traits: CatalogTrait[] }>()
+  for (const t of traits) {
+    const key = `${t.kind}:${t.categoryId}`
+    const group = groups.get(key) ?? { label: `${getCategory(t.kind, t.categoryId)?.name ?? t.categoryId} ${t.kind === 'power' ? 'powers' : 'qualities'}`, traits: [] }
+    group.traits.push(t)
+    groups.set(key, group)
+  }
+  return [...groups.values()]
+}

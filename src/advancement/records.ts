@@ -4,7 +4,8 @@
  * full control: nothing here asks a GM or checks when a change is allowed.
  */
 import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
-import type { AdvancementEntry, BackIssue, Hero } from '../hero/model'
+import { DETAIL_LABEL } from '../hero/labels'
+import type { AdvancementEntry, BackIssue, Hero, HeroDetails } from '../hero/model'
 import type { Clock } from '../play/state'
 
 /** The game a back issue came from: the name stays on it, so it reads right after the game is deleted. */
@@ -62,6 +63,49 @@ export function addStartingCollection(hero: Hero, name: string, clock: Clock): H
     collections: [{ id: clock.newId(), name: named, at: clock.now.toISOString(), issues: [], starting: true }],
     advancement: [...hero.advancement, historyEntry(clock, 'collection', `Started with the collection ${named}.`)],
   }
+}
+
+/** The newest change Undo can take back: anything but a recorded collection. */
+export const undoable = (hero: Pick<Hero, 'advancement'>) => hero.advancement.findLast((e) => e.kind !== 'collection')
+
+/** Reverses the newest change: a swap comes off, a cosmetic field goes back, a rewrite's build returns. */
+export function undoLast(hero: Hero): Hero {
+  const entry = undoable(hero)
+  if (!entry) return hero
+  const advancement = hero.advancement.filter((e) => e !== entry)
+  if (entry.kind === 'cosmetic' && entry.change?.kind === 'cosmetic') return { ...hero, advancement, details: { ...hero.details, ...entry.change.before } }
+  if (entry.kind === 'rewrite' && entry.before) {
+    const { rollMode: _, ...rest } = hero
+    return { ...rest, ...structuredClone(entry.before), advancement }
+  }
+  return { ...hero, advancement }
+}
+
+/** The cosmetic changes: each opens a small dialog of its fields. */
+export type CosmeticKind = 'appearance' | 'codename' | 'costume'
+
+const COSMETIC_FIELDS: Record<CosmeticKind, readonly (keyof HeroDetails)[]> = {
+  // A hero's appearance is these fields; there's no one field for it.
+  appearance: ['gender', 'age', 'height', 'eyes', 'hair', 'skin', 'build'],
+  codename: ['name'],
+  costume: ['costume'],
+}
+
+export const cosmeticFields = (kind: CosmeticKind) => COSMETIC_FIELDS[kind]
+
+const COSMETIC_WORD: Record<CosmeticKind, string> = { appearance: 'Appearance', codename: 'Codename', costume: 'Costume' }
+
+const shown = (value: string) => value.trim() || '(none)'
+
+/** Changes cosmetic fields, in the history with what they were. Nothing changed, nothing logged. */
+export function changeCosmetic(hero: Hero, kind: CosmeticKind, values: Partial<HeroDetails>, clock: Clock): Hero {
+  const fields = COSMETIC_FIELDS[kind].filter((f) => values[f] !== undefined && values[f] !== hero.details[f])
+  if (!fields.length) return hero
+  const before = Object.fromEntries(fields.map((f) => [f, hero.details[f]]))
+  const after = Object.fromEntries(fields.map((f) => [f, values[f]!]))
+  const parts = fields.map((f) => (kind === 'appearance' ? `${DETAIL_LABEL[f]} ${shown(hero.details[f])} → ${shown(values[f]!)}` : `${shown(hero.details[f])} → ${shown(values[f]!)}`))
+  const by = followed(hero)
+  return { ...hero, details: { ...hero.details, ...after }, advancement: [...hero.advancement, historyEntry(clock, 'cosmetic', `${COSMETIC_WORD[kind]}: ${parts.join('; ')}.`, { change: { kind: 'cosmetic', before }, ...(by ? { after: by } : {}) })] }
 }
 
 /** What a change followed: the last back issue, or if there are none since, the last collection. */

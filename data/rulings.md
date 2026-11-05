@@ -115,8 +115,8 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 ### 49. Swapping the roleplaying quality during advancement
 - **Pages:** Hero advancement (p. 142–143).
 - **Question:** Between collections a hero may swap a quality for another at the same die size, and "the roleplaying quality counts". What does that mean for the roleplaying quality, which the player invents?
-- **Decision:** Changing it means rewriting (renaming) it, which the player can do at any time; it isn't swapped for a quality from the lists.
-- **Basis:** Default (not asked). Worth confirming: the plainer reading may be that it can be swapped for a listed quality at its die.
+- **Decision:** It can be swapped for a quality from the lists, and it keeps its d8. Renaming it at any time also still works.
+- **Basis:** Interpretation (the user's advancement spec, 2026-11-04, section 2: "including the roleplaying quality, which keeps its d8"). This replaces an earlier default that treated it as a rename only.
 
 ### 50. Swapping a Red ability during advancement
 - **Pages:** Hero advancement (p. 142–143); Red abilities (p. 106–111).
@@ -127,8 +127,8 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 ### 51. What a swap doesn't recheck
 - **Pages:** Hero advancement (p. 142–143).
 - **Question:** A power or quality swap can break links set at creation (a Red ability's category, an archetype's required trait), and "swap one principle for another" doesn't say which principles. Are these limited?
-- **Decision:** No. Swaps aren't checked against creation's lists or links, and the new principle may come from any category; it just can't be one the hero already has.
-- **Basis:** Default (permissive; not asked).
+- **Decision:** Mostly no. Swaps aren't checked against creation's lists or links, and the new principle may come from any category; it just can't be one the hero already has. The exception is an ability's slot: a swap that gives an ability a trait its slot doesn't take shows an issue, without blocking the swap.
+- **Basis:** Default (permissive; not asked), with the slot check from the user's advancement spec, 2026-11-04, section 2.
 
 ## Red abilities
 

@@ -8,7 +8,7 @@
  */
 import { buildSheet, type HeroSheet } from '../creation/sheet'
 import { heroDisplayName, type Hero } from '../hero/model'
-import { ZONE_LABEL } from '../hero/labels'
+import { DETAIL_LABEL, ZONE_LABEL } from '../hero/labels'
 import { traitKey, type TraitRef } from '../rules/catalog'
 import type { Die } from '../rules/types'
 import { villainDisplayName, type Villain } from '../villain/model'
@@ -92,6 +92,8 @@ function heroFormNames(sheet: HeroSheet): string[][] {
   return [sheet.forms.map((f) => f.name), [...sheet.modes.map((m) => m.name), ...(sheet.powerlessMode ? ['Powerless mode'] : [])]]
 }
 
+const LOOK_FIELDS = ['gender', 'age', 'height', 'eyes', 'hair', 'skin', 'build', 'costume'] as const
+
 function heroDiff(a: Hero, b: Hero): DiffSection[] {
   const before = buildSheet(a)
   const after = buildSheet(b)
@@ -101,6 +103,8 @@ function heroDiff(a: Hero, b: Hero): DiffSection[] {
   const status = (['green', 'yellow', 'red'] as const).flatMap((z) => (before.statusDice?.[z] === after.statusDice?.[z] ? [] : [`${ZONE_LABEL[z]} status die ${none(before.statusDice?.[z])} → ${none(after.statusDice?.[z])}`]))
   return sections([
     ['Name', changed('', heroDisplayName(a), heroDisplayName(b))],
+    // The look of the hero: a cosmetic change is a sheet change (docs/design/advancement/spec.md, section 4).
+    ['Appearance', LOOK_FIELDS.flatMap((f) => changed(`${DETAIL_LABEL[f]}: `, a.details[f].trim(), b.details[f].trim()))],
     ['Dice', traits.dice],
     ['Powers and qualities', traits.added],
     ['Abilities', abilityChanges(heroAbilities(before), heroAbilities(after))],

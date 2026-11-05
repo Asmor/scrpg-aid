@@ -1,3 +1,4 @@
+import { completeHero } from '../test/heroes'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -60,6 +61,16 @@ describe('HeroPage', () => {
       }),
     )
     expect(await screen.findByRole('alert')).toHaveTextContent('database closed')
+  })
+
+  it("shows a swap's rule issue in the usual banner, leading to Advancement", async () => {
+    const power = (id: string) => ({ kind: 'power' as const, id })
+    const hero = { ...completeHero(), id: 'x', advancement: [{ id: 'e', at: '2026-11-04T12:00:00Z', kind: 'details' as const, text: 't', change: { kind: 'swapPower' as const, from: power('cold'), to: power('sonic') } }] }
+    renderPage(storeReturning(async () => ({ status: 'found', hero })))
+    const note = await screen.findByRole('note')
+    expect(note).toHaveTextContent('1 rule issue')
+    expect(note).toHaveTextContent("you don't have")
+    expect(within(note).getByRole('link', { name: 'Open Advancement' })).toHaveAttribute('href', '#/hero/x/advancement')
   })
 
   it('links a finished hero to Play, Edit and Advancement', async () => {

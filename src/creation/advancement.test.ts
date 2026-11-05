@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AdvancementChange, AdvancementEntry, Hero } from '../hero/model'
 import { completeHero, dividedHero, formChangerHero, P, Q } from '../test/heroes'
-import { abilitySwapOptions, advancedHero, changesInForce, checkAdvancement, describeChange, swappablePicks, traitSwapOptions } from './advancement'
+import { abilitySwapOptions, advancedHero, changesInForce, checkAdvancement, describeChange, swappablePicks, traitSwapIssues, traitSwapOptions } from './advancement'
 import { buildSheet } from './sheet'
 import { deriveTraits } from './traits'
 
@@ -43,11 +43,30 @@ describe('advancement', () => {
     expect(codes(withChanges({ kind: 'swapPower', from: P('fire'), to: P('nope') }))).toEqual(['unknown-trait'])
   })
 
-  it('swaps a quality; the roleplaying quality changes by renaming it instead', () => {
+  it('swaps the roleplaying quality for a listed one, keeping its die', () => {
+    const hero = withChanges({ kind: 'swapQuality', from: Q('roleplaying-quality'), to: Q('banter') })
+    expect(checkAdvancement(hero)).toEqual([])
+    const trait = deriveTraits(advancedHero(hero)).traits.find((t) => t.trait.id === 'roleplaying-quality')
+    expect([trait?.name, trait?.die]).toEqual(['Banter', 'd8'])
+    // It holds Banter now, so Banter isn't on offer again.
+    expect(traitSwapOptions(advancedHero(hero), 'quality').some((t) => t.id === 'banter')).toBe(false)
+  })
+
+  it('flags a swap that breaks an ability\'s slot, without blocking it', () => {
+    const hero = completeHero()
+    hero.archetype!.id = 'blaster'
+    hero.archetype!.abilities = [...hero.archetype!.abilities, { source: 'archetype.yellow', name: 'Energy Immunity', uses: [P('fire')] }]
+    expect(traitSwapIssues(hero, P('fire'), P('cold'))).toEqual([])
+    const issues = traitSwapIssues(hero, P('fire'), P('strength'))
+    expect(issues).toEqual([{ source: 'archetype.yellow', name: 'Energy Immunity', message: "Needs an energy or element power. Strength isn't one, so this ability would need swapping too." }])
+    hero.advancement = [entry({ kind: 'swapPower', from: P('fire'), to: P('strength') }, 0)]
+    expect(checkAdvancement(hero).map((w) => [w.code, w.message])).toEqual([['advancement-slot', `Energy Immunity: ${issues[0]!.message}`]])
+  })
+
+  it('swaps a quality', () => {
     const hero = withChanges({ kind: 'swapQuality', from: Q('alertness'), to: Q('banter') })
     expect(checkAdvancement(hero)).toEqual([])
     expect(deriveTraits(advancedHero(hero)).traits.find((t) => t.trait.id === 'banter')?.die).toBe('d8')
-    expect(codes(withChanges({ kind: 'swapQuality', from: Q('roleplaying-quality'), to: Q('banter') }))).toEqual(['advancement-roleplaying'])
   })
 
   it('swaps a principle, even one a retcon replaced', () => {

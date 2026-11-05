@@ -5,7 +5,7 @@
  * that doesn't fit.
  */
 import { useId } from 'react'
-import { getCategory, getTrait, parseTraitKey, traitKey, type CatalogTrait, type TraitRef } from '../rules/catalog'
+import { byCategory, getTrait, parseTraitKey, traitKey, type CatalogTrait, type TraitRef } from '../rules/catalog'
 import type { Die } from '../rules/types'
 import type { TraitAssignment } from '../hero/model'
 import { assignStepRow, dieRows, freedDice } from '../creation/assign'
@@ -27,18 +27,6 @@ interface DiceAssignerProps {
   /** Traits that may swap in any die rather than only a bigger one (an archetype's required trait). */
   canSwap?: (trait: TraitRef) => boolean
   onChange: (assignments: TraitAssignment[]) => void
-}
-
-/** Groups traits by category, keeping the list's order. */
-function byCategory(traits: readonly CatalogTrait[]): { label: string; traits: CatalogTrait[] }[] {
-  const groups = new Map<string, { label: string; traits: CatalogTrait[] }>()
-  for (const t of traits) {
-    const key = `${t.kind}:${t.categoryId}`
-    const group = groups.get(key) ?? { label: `${getCategory(t.kind, t.categoryId)?.name ?? t.categoryId} ${t.kind === 'power' ? 'powers' : 'qualities'}`, traits: [] }
-    group.traits.push(t)
-    groups.set(key, group)
-  }
-  return [...groups.values()]
 }
 
 export function DiceAssigner({ label, legend, dice, assignments, options, earlier, canSwap = () => false, onChange }: DiceAssignerProps) {

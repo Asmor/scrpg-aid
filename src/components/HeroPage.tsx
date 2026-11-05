@@ -9,7 +9,7 @@ import { useLayoutEffect, useRef, type MouseEvent } from 'react'
 import { advancementPath, editPath, heroPath, listPath, navigate, playPath } from '../app/route'
 import { buildSheet, heroIdentity } from '../creation/sheet'
 import { useHeroEditor } from '../editor/useHeroEditor'
-import { heroDisplayName, isDraft, newId } from '../hero/model'
+import { heroDisplayName, isDraft, newId, type Hero } from '../hero/model'
 import { continueStep, stepStates } from '../hero/wizard-steps'
 import { PlayView } from '../play/PlayView'
 import type { Clock } from '../play/state'
@@ -23,6 +23,12 @@ import { changeHeroPlay } from '../game/table'
 import { gamesHolding, useListedGames, useSoloGame } from '../game/useGameEditor'
 
 const defaultClock = (): Clock => ({ now: new Date(), newId: () => newId() })
+
+/** The usual issues banner, for the wizard's steps; with none there, a swap's issues, which Advancement holds. */
+function HeroIssues({ hero, warnings }: { hero: Hero; warnings: ReturnType<typeof buildSheet>['warnings'] }) {
+  const inSteps = stepStates(hero, warnings).flatMap((s) => s.issues)
+  return inSteps.length ? <IssueBanner issues={inSteps} href={editPath(hero.id)} /> : <IssueBanner issues={warnings.filter((w) => w.step === 'advancement')} href={advancementPath(hero.id)} link="Open Advancement" />
+}
 
 export function HeroPage({ id, mode = 'sheet', clock = defaultClock, random }: { id: string; mode?: CharacterMode; clock?: () => Clock; random?: () => number }) {
   const { state, update, saveError, flush } = useHeroEditor(id)
@@ -133,7 +139,7 @@ export function HeroPage({ id, mode = 'sheet', clock = defaultClock, random }: {
         </p>
       )}
       {mode === 'play' && <AlsoIn name={heroDisplayName(hero)} games={gamesHolding(listed.games ?? [], 'hero', id)} />}
-      {draft ? <p className="hint screen-only">This hero is a draft. Finish it to play it.</p> : <IssueBanner issues={stepStates(hero, sheet.warnings).flatMap((s) => s.issues)} href={editPath(id)} />}
+      {draft ? <p className="hint screen-only">This hero is a draft. Finish it to play it.</p> : <HeroIssues hero={hero} warnings={sheet.warnings} />}
 
       {mode === 'sheet' && (
         <SheetTags

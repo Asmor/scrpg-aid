@@ -7,9 +7,15 @@ import { sheetDiff, sheetsDiffer } from './sheet-diff'
 const section = (diff: ReturnType<typeof sheetDiff>, name: string) => diff.find((d) => d.section === name)?.changes ?? []
 
 describe('sheetDiff for heroes', () => {
+  it('lists a change to how the hero looks: a cosmetic change is a sheet change', () => {
+    const a = completeHero()
+    const b = { ...a, details: { ...a.details, costume: 'red cape', hair: 'Red' } }
+    expect(sheetDiff(a, b)).toEqual([{ section: 'Appearance', changes: ['Hair: none → Red', 'Costume / equipment: none → red cape'] }])
+  })
+
   it('is empty for the same build, whatever the timestamps, tags or notes', () => {
     const a = completeHero()
-    const b = { ...completeHero(), updatedAt: '2030-01-01T00:00:00.000Z', tags: ['new'], notes: 'changed', details: { ...completeHero().details, costume: 'red cape' } }
+    const b = { ...completeHero(), updatedAt: '2030-01-01T00:00:00.000Z', tags: ['new'], notes: 'changed' }
     expect(sheetDiff(a, b)).toEqual([])
     // ... though they do differ, for a solo game's quiet re-copy.
     expect(sheetsDiffer(a, b)).toBe(true)
