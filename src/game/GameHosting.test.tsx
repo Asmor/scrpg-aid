@@ -1,3 +1,6 @@
+import { DEFAULT_SETTINGS } from '../settings/model'
+import { SettingsProvider } from '../settings/SettingsProvider'
+import { MemorySettingsStore } from '../settings/store'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -23,23 +26,25 @@ const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
 
 const maya = (name = 'Maya Reyes'): Hero => ({ ...completeHero(), id: 'maya-src', details: { ...completeHero().details, name } })
 
-async function setup(change: (g: Game) => Game = (g) => g) {
+async function setup(change: (g: Game) => Game = (g) => g, settings = new MemorySettingsStore()) {
   const net = fakeNetwork()
   const games = new MemoryGameStore()
   await games.save(change(createGame({ id: 'g1', name: 'Thursday game' })))
   const storage = memoryStorage()
   render(
-    <StoreContext.Provider value={new MemoryHeroStore()}>
-      <VillainStoreContext.Provider value={new MemoryVillainStore()}>
-        <GameStoreContext.Provider value={games}>
-          <SavedSearchStoreContext.Provider value={new MemorySavedSearchStore()}>
-            <SessionProvider connect={net.connect} store={localSessionStore(storage)} clock={clock}>
-              <GamePage id="g1" clock={clock} />
-            </SessionProvider>
-          </SavedSearchStoreContext.Provider>
-        </GameStoreContext.Provider>
-      </VillainStoreContext.Provider>
-    </StoreContext.Provider>,
+    <SettingsProvider store={settings}>
+      <StoreContext.Provider value={new MemoryHeroStore()}>
+        <VillainStoreContext.Provider value={new MemoryVillainStore()}>
+          <GameStoreContext.Provider value={games}>
+            <SavedSearchStoreContext.Provider value={new MemorySavedSearchStore()}>
+              <SessionProvider connect={net.connect} store={localSessionStore(storage)} clock={clock}>
+                <GamePage id="g1" clock={clock} />
+              </SessionProvider>
+            </SavedSearchStoreContext.Provider>
+          </GameStoreContext.Provider>
+        </VillainStoreContext.Provider>
+      </StoreContext.Provider>
+    </SettingsProvider>,
   )
   await screen.findByRole('button', { name: /Rename game/ })
   return { net, games, storage }
@@ -136,6 +141,27 @@ describe('hosting from the game table', () => {
     await waitFor(() => expect(invite.queryByText('Living room TV')).not.toBeInTheDocument())
     expect(tv.got.at(-1)).toMatchObject({ type: 'removed' })
     expect(screen.getByText('0 of 0 players connected')).toBeInTheDocument()
+  })
+
+  it('alerts the GM to a request from a player, and not to their own change', async () => {
+    const vibrate = vi.fn()
+    Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true })
+    const settings = new MemorySettingsStore()
+    await settings.save({ ...DEFAULT_SETTINGS, alerts: { ...DEFAULT_SETTINGS.alerts, answer: true, turn: true, vibrate: true } })
+    const { net } = await setup((g) => g, settings)
+    const room = await startHosting()
+    const alex = player(net, room)
+    alex.hello()
+    await net.settle()
+    expect(vibrate).not.toHaveBeenCalled()
+    const state = alex.got.find((m) => m.type === 'state') as Extract<HostMessage, { type: 'state' }>
+    alex.send({ v: 9, type: 'syncRequest', heroId: state.you!.heroId, sheet: { ...maya(), details: { ...maya().details, name: 'Maya Two' } } })
+    await net.settle()
+    await waitFor(() => expect(vibrate).toHaveBeenCalledTimes(1))
+    // The GM's own change.
+    await userEvent.click(screen.getByRole('button', { name: 'Award a hero point' }))
+    expect(vibrate).toHaveBeenCalledTimes(1)
+    Object.defineProperty(navigator, 'vibrate', { value: undefined, configurable: true })
   })
 
   it('applies a player’s action to the table', async () => {

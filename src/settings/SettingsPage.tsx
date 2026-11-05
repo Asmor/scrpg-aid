@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { DieIcon } from '../components/icons'
 import { DICE } from '../rules/dice'
 import { countsText, TRACKER_PRESETS } from '../rules/trackers'
+import { askToNotify, canVibrate, needsHomeScreen, playChime } from './alerts'
 import { useSettings } from './context'
 import type { Settings } from './model'
 
@@ -89,6 +90,72 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
+function Alerts({ settings, update, mark }: { settings: Settings; update: (key: string, change: (s: Settings) => Settings) => void; mark: string | null }) {
+  const [blocked, setBlocked] = useState(false)
+  const alerts = settings.alerts
+  const set = (name: keyof Settings['alerts'], on: boolean) => update(name, (s) => ({ ...s, alerts: { ...s.alerts, [name]: on } }))
+  const box = (name: keyof Settings['alerts'], label: ReactNode, onChange?: (on: boolean) => void) => (
+    <div className="settings__row">
+      <label className="checkbox">
+        <input type="checkbox" checked={alerts[name]} onChange={(e) => (onChange ?? ((on: boolean) => set(name, on)))(e.target.checked)} />
+        <span>{label}</span>
+      </label>
+      <Saved on={mark === name} />
+    </div>
+  )
+  const notify = (on: boolean) => {
+    setBlocked(false)
+    if (!on) return set('notify', false)
+    void askToNotify().then((allowed) => {
+      set('notify', allowed)
+      setBlocked(!allowed)
+    })
+  }
+  return (
+    <Section title="Alerts">
+      <fieldset className="settings__field">
+        <legend>Alert me when</legend>
+        {box('turn', "It's my turn")}
+        {box(
+          'answer',
+          <>
+            Something needs my answer
+            <br />
+            <span className="muted">A request, a prompt, or a choice to make</span>
+          </>,
+        )}
+      </fieldset>
+      <fieldset className="settings__field">
+        <legend>How</legend>
+        {box('sound', 'Sound')}
+        <div className="settings__row">
+          <button type="button" className="button button--small" onClick={() => playChime('turn')}>
+            Play turn sound
+          </button>
+          <button type="button" className="button button--small" onClick={() => playChime('answer')}>
+            Play answer sound
+          </button>
+        </div>
+        {canVibrate() && box('vibrate', 'Vibrate')}
+        {box(
+          'notify',
+          <>
+            Notification when the app is in the background
+            <br />
+            <span className="muted">Your browser will ask first.{needsHomeScreen() ? ' On iPhone and iPad this needs the app added to the Home Screen.' : ''}</span>
+          </>,
+          notify,
+        )}
+        {blocked && (
+          <p role="alert" className="error">
+            Notifications are blocked in this browser.
+          </p>
+        )}
+      </fieldset>
+    </Section>
+  )
+}
+
 export function SettingsPage() {
   const { settings, update, saveError } = useSettings()
   const { mark, saved } = useSavedMark()
@@ -127,6 +194,7 @@ export function SettingsPage() {
         />
         <RollingChoice value={settings.rolling} saved={mark === 'rolling'} onChange={(rolling) => set('rolling', (s) => ({ ...s, rolling }))} />
       </Section>
+      <Alerts settings={settings} update={set} mark={mark} />
       <Section title="Display">
         <Radios
           legend="Text size"

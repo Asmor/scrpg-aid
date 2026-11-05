@@ -1,3 +1,5 @@
+import { DEFAULT_SETTINGS } from '../settings/model'
+import { MemorySettingsStore } from '../settings/store'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -56,7 +58,7 @@ function gated(connect: Connect) {
 }
 
 /** The GM's device hosting Thursday game, and a player's device running the app with Maya Reyes in the library. */
-async function setup(library: Hero = maya()) {
+async function setup(library: Hero = maya(), settings = new MemorySettingsStore()) {
   const net = fakeNetwork()
   const gate = gated(net.connect)
   const gmGames = new MemoryGameStore()
@@ -66,7 +68,7 @@ async function setup(library: Hero = maya()) {
   await heroes.save(library)
   const storage = memoryStorage()
   window.location.hash = `#/join/${ROOM}`
-  render(<App store={heroes} villainStore={new MemoryVillainStore()} gameStore={new MemoryGameStore()} searchStore={new MemorySavedSearchStore()} connect={gate.connect} sessionStore={localSessionStore(storage)} />)
+  render(<App settingsStore={settings} store={heroes} villainStore={new MemoryVillainStore()} gameStore={new MemoryGameStore()} searchStore={new MemorySavedSearchStore()} connect={gate.connect} sessionStore={localSessionStore(storage)} />)
   await screen.findByRole('heading', { name: 'Join a game' })
   const settle = () => act(() => net.settle())
   return { net, host, heroes, storage, settle, gate }
@@ -171,6 +173,25 @@ describe('a player at the table', () => {
     await userEvent.click(roll.getByRole('button', { name: 'Confirm' }))
     expect(roll.getByText('Hero points go to the whole table. Ask the GM.')).toBeInTheDocument()
     expect(roll.queryByRole('button', { name: 'Gain a hero point' })).not.toBeInTheDocument()
+  })
+
+  it("alerts a player to their turn, and to something that needs an answer, not on joining", async () => {
+    const vibrate = vi.fn()
+    Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true })
+    const settings = new MemorySettingsStore()
+    await settings.save({ ...DEFAULT_SETTINGS, alerts: { ...DEFAULT_SETTINGS.alerts, turn: true, answer: true, vibrate: true } })
+    const { host, settle } = await setup(maya(), settings)
+    await join(settle)
+    expect(vibrate).not.toHaveBeenCalled()
+    const heroId = host.game!.heroes[0]!.id
+    host.apply((g) => ({ ...g, round: 1, turn: { ...g.turn, current: { kind: 'hero', id: heroId } } }))
+    await settle()
+    await waitFor(() => expect(vibrate).toHaveBeenCalledTimes(1))
+    host.remindUnspent()
+    host.apply((g) => ({ ...g, pendingHits: [{ id: 'hit', heroId, amount: 3, by: 'Gravelord', at: 'x' }] as never }))
+    await settle()
+    await waitFor(() => expect(vibrate).toHaveBeenCalledTimes(2))
+    Object.defineProperty(navigator, 'vibrate', { value: undefined, configurable: true })
   })
 
   it('sends an action and shows the result from the GM', async () => {

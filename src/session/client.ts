@@ -50,6 +50,8 @@ export interface ClientSnapshot extends LinkSnapshot {
   syncWaiting: boolean
   /** The GM asked this player to spend their hero points. */
   spendReminder: boolean
+  /** How many times the GM has answered a sheet update here. */
+  syncAnswers: number
 }
 
 export interface ClientInfo {
@@ -84,7 +86,7 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
   private n = 0
 
   constructor(connect: Connect, info: ClientInfo, options: ClientOptions = {}) {
-    super(connect, info.room, { status: 'connecting', pending: [], notices: [], syncWaiting: options.syncWaiting ?? false, spendReminder: false, ...(options.cached ? { received: options.cached } : {}) }, options.now)
+    super(connect, info.room, { status: 'connecting', pending: [], notices: [], syncAnswers: 0, syncWaiting: options.syncWaiting ?? false, spendReminder: false, ...(options.cached ? { received: options.cached } : {}) }, options.now)
     this.base = info
     this.options = options
     this.start()
@@ -203,7 +205,7 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
         const notice: Notice = msg.approved
           ? { id: this.newId(), kind: 'synced', text: `Updated. The GM approved: ${name} now matches your sheet.`, adjustments: msg.adjustments }
           : { id: this.newId(), kind: 'notSynced', text: "Not updated. The GM kept the game's copy. You can ask again from My hero ⋯." }
-        this.publish({ ...this.snapshot, notices: [...this.snapshot.notices, notice] })
+        this.publish({ ...this.snapshot, notices: [...this.snapshot.notices, notice], syncAnswers: this.snapshot.syncAnswers + 1 })
         return
       }
     }

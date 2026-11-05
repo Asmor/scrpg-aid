@@ -10,6 +10,8 @@ import { gameDisplayPath, gamesPath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
 import { RenameHeading } from '../components/RenameHeading'
+import { gmAlerts, gmWatch } from '../settings/alerts'
+import { useAlerts } from '../settings/useAlerts'
 import { useSettings } from '../settings/context'
 import { Toasts, type ToastData } from '../components/Toasts'
 import { useMediaQuery } from '../components/useMediaQuery'
@@ -124,6 +126,10 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const hosted = useHostSnapshot(host)
   const editor = useGameEditor(host ? '' : id)
   const game = host ? hosted?.game : editor.state.status === 'ready' ? editor.state.doc : undefined
+  // Alerts (docs/design/settings/spec.md, section 4): only a hosted game changes without the GM.
+  const ownChange = useRef<string | null>(null)
+  const alertWatch = useMemo(() => (host && game ? gmWatch(game) : undefined), [host, game])
+  useAlerts(alertWatch, (before, after) => (JSON.stringify(after) === ownChange.current ? [] : gmAlerts(before, after)), game ? gameDisplayName(game) : '')
   const libraryHeroes = useDocMap(game?.heroes.filter((h) => !h.player).map((h) => h.sourceId) ?? [], loadHero, noSave)
   const libraryVillains = useDocMap(game?.villains.map((v) => v.sourceId) ?? [], loadVillain, noSave)
   const phone = useMediaQuery('(max-width: 759px)', false)
@@ -196,7 +202,13 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   }
 
   // The host logs status changes itself, since players' actions go straight to it.
-  const apply = host ? (fn: (g: Game) => Game) => host.apply(fn) : (fn: (g: Game) => Game) => editor.apply((g) => logStatusChanges(g, fn(g), clock()))
+  const apply = host
+    ? (fn: (g: Game) => Game) => {
+        host.apply(fn)
+        // The GM's own change: nothing to alert them about.
+        ownChange.current = host.game ? JSON.stringify(gmWatch(host.game)) : null
+      }
+    : (fn: (g: Game) => Game) => editor.apply((g) => logStatusChanges(g, fn(g), clock()))
   const between = betweenIssues(game)
   const issue = currentIssue(game)
   const turnKey = `${game.round}:${game.turn.current ? T.actorKey(game.turn.current) : ''}`

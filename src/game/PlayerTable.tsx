@@ -35,6 +35,8 @@ import { refusedText } from '../session/refused'
 import type { HeroAction } from './actions'
 import { betweenIssues, gameDisplayName, issueTitle, nextIssueNumber, sceneDisplayName } from './model'
 import { heroPointsLeft } from '../play/state'
+import { playerAlerts, type PlayerWatch } from '../settings/alerts'
+import { useAlerts } from '../settings/useAlerts'
 import { HERO_POINTS_ID } from './HeroPointsCard'
 import { finishedPill } from './summary'
 import { heroOnTableName, viewName, type HeroOnTable, type IssueOnTable, type TableView } from './project'
@@ -310,6 +312,22 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     remindedFor.current = lastIssue.id
     setPointsToast({ id: `points-${lastIssue.id}`, text: `You have ${pointsLeft} hero ${pointsLeft === 1 ? 'point' : 'points'} to spend on bonuses for issue ${lastIssue.number + 1}.`, action: { label: 'Spend', onClick: focusPoints } })
   }, [remindNow, lastIssue, pointsLeft, focusPoints])
+
+  // Alerts (docs/design/settings/spec.md, section 4).
+  const alertWatch = useMemo<PlayerWatch | undefined>(() => {
+    if (!table || !copy) return undefined
+    return {
+      myTurn: mine,
+      requests: table.challenges.reduce((n, c) => n + c.requests.filter((r) => r.heroId === copy.id).length, 0),
+      syncAnswers: snap?.syncAnswers ?? 0,
+      reminder: Boolean(snap?.spendReminder),
+      prompt: asked?.id,
+      choices: (table.pendingHits ?? []).filter((h) => h.heroId === copy.id).length + (copy.play.minions ?? []).filter((m) => m.needsForm).length,
+    }
+  }, [table, copy, mine, snap?.spendReminder, snap?.syncAnswers, asked?.id])
+  // Only these can bring the turn round to this hero by the player's own doing.
+  const acting = snap?.pending.some((p) => p.action.kind === 'startRound' || p.action.kind === 'handOff') ?? false
+  useAlerts(alertWatch, (before, after) => playerAlerts(before, after, acting), table ? gameDisplayName(table) : '')
 
   // The GM's list hears what's been done, once for each answer. It stays right after the GM's Undo, or a reconnect.
   const sentAcks = useRef(new Set<string>())
