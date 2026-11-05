@@ -1,3 +1,4 @@
+import { startRewrite } from '../advancement/rewrite'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
@@ -172,6 +173,20 @@ describe('HeroEditor', () => {
     expect(done).toHaveLength(2)
     expect(done.at(-1)).toHaveAttribute('href', '#/hero/h1')
     expect(screen.queryByRole('link', { name: /Advancement/ })).not.toBeInTheDocument()
+  })
+
+  it('in a major rewrite: the header says so, and Done editing logs it and goes to Advancement', async () => {
+    const store = await storeWith((h) => Object.assign(h, startRewrite({ ...completeHero(), id: 'h1', details: { ...completeHero().details, name: 'Maya Reyes' } }, { now: new Date('2026-11-04T12:00:00Z'), newId: () => 'e1' })))
+    renderEditor(store)
+    expect(await screen.findByRole('button', { name: /Rebuilding Maya Reyes/ })).toBeInTheDocument()
+    const done = screen.getAllByRole('link', { name: 'Done editing' })[0]!
+    expect(done).toHaveAttribute('href', '#/hero/h1/advancement')
+    await userEvent.click(done)
+    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1/advancement'))
+    const hero = await saved(store)
+    expect(hero.advancement).toHaveLength(1)
+    expect(hero.advancement[0]).toMatchObject({ kind: 'rewrite', text: 'Rebuilt with the constructed method. Nothing changed.' })
+    expect(hero.advancement[0]!.open).toBeUndefined()
   })
 
   it('sends the old Advancement step to its own page', async () => {

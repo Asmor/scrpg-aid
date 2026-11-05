@@ -8661,3 +8661,49 @@ ol.vw-conditions li {
   padding-top: 14px;
   border-top: 1px solid var(--ui-border);
 }
+
+.swap-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.swap-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.swap-row--on {
+  padding: 5px 9px;
+  border: 2px solid var(--ui-accent);
+  background: var(--ui-accent-soft);
+}
+
+.swap-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.swap-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+}
+
+@media (max-width: 759px) {
+  .swap-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

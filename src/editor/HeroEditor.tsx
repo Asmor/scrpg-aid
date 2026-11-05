@@ -22,7 +22,8 @@ import type { PageRef } from '../rules/types'
 import { buildSheet } from '../creation/sheet'
 import type { RuleWarning } from '../creation/warnings'
 import { archetypeParts } from '../hero/archetype-parts'
-import { heroDisplayName, isDraft, type Hero } from '../hero/model'
+import { finishRewrite, openRewrite } from '../advancement/rewrite'
+import { heroDisplayName, isDraft, newId, type Hero } from '../hero/model'
 import { continueStep, NUMBERED_STEPS, stepStates, WIZARD_STEPS, wizardStepIndex, type WizardStepId } from '../hero/wizard-steps'
 import { useTick } from '../play/useTick'
 import { DiceText } from '../components/icons'
@@ -336,7 +337,21 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
     }
   }
   const docked = wide && previewShown
-  const doneLink = (
+  // A major rewrite (docs/design/advancement/spec.md, section 3): done logs what changed, back on the Advancement page.
+  const rebuilding = !draft && Boolean(openRewrite(hero))
+  const finishRebuild = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    save((h) => {
+      h.advancement = finishRewrite(h, { now: new Date(), newId }).advancement
+    })
+    void flush().then(() => navigate(advancementPath(hero.id)))
+  }
+  const doneLink = rebuilding ? (
+    <a className="button button--primary" href={advancementPath(hero.id)} onClick={finishRebuild}>
+      Done editing
+    </a>
+  ) : (
     <a className="button button--primary" href={heroPath(hero.id)} onClick={leave(heroPath(hero.id))}>
       Done editing
     </a>
@@ -373,13 +388,13 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
                   <a href={heroPath(hero.id)} onClick={leave(heroPath(hero.id))}>
                     {heroDisplayName(hero)}
                   </a>{' '}
-                  / Edit
+                  / {rebuilding ? 'Rebuild' : 'Edit'}
                 </>
               )}
             </p>
             <div className="wizard__title">
               <RenameHeading
-                shown={heroDisplayName(hero)}
+                shown={rebuilding ? `Rebuilding ${heroDisplayName(hero)}` : heroDisplayName(hero)}
                 name={hero.details.name}
                 placeholder={!named}
                 noun="hero"

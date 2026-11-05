@@ -191,6 +191,45 @@ describe('the Advancement page', () => {
     expect(screen.getByText(/^Costume: /)).toBeInTheDocument()
   })
 
+  it('swaps a principle, with the old and new side by side', async () => {
+    await setup()
+    await userEvent.click(screen.getByRole('button', { name: 'Swap a principle…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Swap a principle' }))
+    const radios = within(dialog.getByRole('radiogroup', { name: 'Principle to replace' })).getAllByRole('radio')
+    expect(radios).toHaveLength(2)
+    await userEvent.click(radios[0]!)
+    const select = dialog.getByLabelText('New principle')
+    expect(within(select).getByRole('group', { name: 'Other principles' })).toBeInTheDocument()
+    await userEvent.selectOptions(select, 'Principle of Destiny')
+    expect(dialog.getByText('New')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Swap' }))
+    expect(screen.getByText(/^Swapped .* for Principle of Destiny\.$/)).toBeInTheDocument()
+  })
+
+  it('swaps an ability from the same list, with the same trait filled in', async () => {
+    await setup()
+    await userEvent.click(screen.getByRole('button', { name: 'Swap an ability…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Swap an ability' }))
+    await userEvent.click(within(dialog.getByRole('radiogroup', { name: 'Ability to replace' })).getByRole('radio', { name: /Inflict/ }))
+    const select = dialog.getByLabelText('New ability')
+    const first = within(select).getAllByRole('option')[1]!.textContent!
+    await userEvent.selectOptions(select, first)
+    expect(dialog.getByText(`Inflict becomes ${first}.`)).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Swap' }))
+    expect(screen.getByText(`Swapped Inflict for ${first}. It uses Fire.`)).toBeInTheDocument()
+  })
+
+  it('rebuilds after a confirm, and offers to continue one left open', async () => {
+    const { saved } = await setup()
+    await userEvent.click(screen.getByRole('button', { name: 'Rebuild Maya Reyes…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Rebuild Maya Reyes?' }))
+    expect(dialog.getByText(/Undo last change can restore it/)).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Rebuild' }))
+    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1/edit'))
+    expect(await saved()).toMatchObject({ method: 'constructed' })
+    expect(screen.getByRole('link', { name: 'Continue rebuilding Maya Reyes…' })).toHaveAttribute('href', '#/hero/h1/edit')
+  })
+
   it('waits for a draft to be finished', async () => {
     await setup({ ...maya(), status: 'draft', furthestStep: 4 }, false).catch(() => {})
     expect(await screen.findByRole('alert')).toHaveTextContent('is still a draft')

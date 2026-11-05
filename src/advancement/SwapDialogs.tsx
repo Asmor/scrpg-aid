@@ -6,8 +6,15 @@ import { useId, useState, type ReactNode } from 'react'
 import { AbilityIcons, DiceText, DieIcon } from '../components/icons'
 import { Modal } from '../components/Modal'
 import { byCategory, traitKey, parseTraitKey, type TraitRef } from '../rules/catalog'
-import type { Hero } from '../hero/model'
-import { heldTraits, traitCandidates, traitSwapPreview, traitSwapSummary, type AbilityChange } from './swaps'
+import { AbilityPicker } from '../editor/AbilityPicker'
+import { PrinciplePicker } from '../editor/PrinciplePicker'
+import { advancedHero } from '../creation/advancement'
+import { principleOf } from '../creation/principles'
+import { deriveTraits } from '../creation/traits'
+import { ZONE_LABEL } from '../hero/labels'
+import type { AbilityPick, Hero, PrincipleChoice } from '../hero/model'
+import type { Zone } from '../rules/types'
+import { abilityCandidates, abilitySwapIssues, heldPrinciples, heldTraits, noCandidatesText, principleName, principleOptions, startingPick, swappableAbilities, traitCandidates, traitSwapPreview, traitSwapSummary, type AbilityChange, type SwappableAbility } from './swaps'
 
 /** One numbered section. */
 export function SwapSection({ n, title, children }: { n: number; title: ReactNode; children: ReactNode }) {
@@ -148,6 +155,143 @@ export function TraitSwapDialog({ hero, kind, onSwap, onClose }: { hero: Hero; k
               <AbilityChangeCard key={c.key} change={c} />
             ))}
           </div>
+        )}
+      </SwapSection>
+    </SwapShell>
+  )
+}
+
+/** One principle's card, for comparing the old with the new. */
+function PrincipleCard({ heading, choice }: { heading: string; choice: PrincipleChoice | undefined }) {
+  const principle = choice && principleOf(choice)
+  return (
+    <div className="swap-card">
+      <span className="gt-label">{heading}</span>
+      {principle ? (
+        <>
+          <strong>{principleName(choice)}</strong>
+          <p className="gt-sub">{principle.roleplaying}</p>
+        </>
+      ) : (
+        <p className="gt-sub">Choose the new principle to compare.</p>
+      )}
+    </div>
+  )
+}
+
+/** Swap a principle. */
+export function PrincipleSwapDialog({ hero, onSwap, onClose }: { hero: Hero; onSwap: (replace: 'background' | 'archetype', choice: PrincipleChoice) => void; onClose: () => void }) {
+  const id = useId()
+  const held = heldPrinciples(hero)
+  const [replace, setReplace] = useState<'background' | 'archetype' | ''>('')
+  const [choice, setChoice] = useState<PrincipleChoice | undefined>()
+  const old = held.find((h) => h.replace === replace)
+  const ready = Boolean(old && choice && principleOf(choice))
+  const summary = !old ? 'Choose the principle to replace.' : !ready ? 'Choose a new principle.' : `${principleName(old.choice)} becomes ${principleName(choice)}.`
+  return (
+    <SwapShell title="Swap a principle" summary={summary} canSwap={ready} onSwap={() => old && choice && onSwap(old.replace, choice)} onClose={onClose}>
+      <SwapSection n={1} title="Which principle goes?">
+        <div className="swap-chips" role="radiogroup" aria-label="Principle to replace">
+          {held.map((h) => (
+            <label key={h.replace} className={h.replace === replace ? 'swap-chip swap-chip--on' : 'swap-chip'}>
+              <input type="radio" name={`${id}-from`} className="visually-hidden" checked={h.replace === replace} onChange={() => setReplace(h.replace)} />
+              {principleName(h.choice)}
+            </label>
+          ))}
+        </div>
+      </SwapSection>
+      <SwapSection n={2} title="What replaces it?">
+        {old ? <PrinciplePicker category={undefined} label="New principle" choice={choice} onChange={setChoice} swap={principleOptions(hero)} /> : <p className="gt-sub">Choose the principle first.</p>}
+      </SwapSection>
+      <SwapSection n={3} title="Old and new">
+        {old ? (
+          <div className="swap-cards">
+            <PrincipleCard heading="Old" choice={old.choice} />
+            <PrincipleCard heading="New" choice={choice} />
+          </div>
+        ) : (
+          <p className="gt-sub">Choose the principle first.</p>
+        )}
+      </SwapSection>
+    </SwapShell>
+  )
+}
+
+const ZONES: readonly Zone[] = ['green', 'yellow', 'red']
+
+/** Swap an ability. */
+export function AbilitySwapDialog({ hero, onSwap, onClose }: { hero: Hero; onSwap: (from: SwappableAbility, to: AbilityPick) => void; onClose: () => void }) {
+  const id = useId()
+  const now = advancedHero(hero)
+  const held = swappableAbilities(hero)
+  const [fromKey, setFromKey] = useState('')
+  const [pick, setPick] = useState<AbilityPick | undefined>()
+  const from = held.find((a) => a.key === fromKey)
+  const candidates = from ? abilityCandidates(hero, from) : []
+  const chosen = pick && candidates.find((a) => a.name === pick.name)
+  const issues = from && pick ? abilitySwapIssues(hero, from.pick, pick) : 0
+  const summary = !from ? 'Choose the ability to replace.' : !pick ? 'Choose a new ability.' : `${from.pick.customName?.trim() || from.pick.name} becomes ${pick.name}.${issues > 0 ? ` ${issues === 1 ? '1 rule issue' : `${issues} rule issues`}; you can swap anyway and fix it next.` : ''}`
+  return (
+    <SwapShell title="Swap an ability" summary={summary} canSwap={Boolean(from && pick)} onSwap={() => from && pick && onSwap(from, pick)} onClose={onClose}>
+      <SwapSection n={1} title="Which ability goes?">
+        <div role="radiogroup" aria-label="Ability to replace" className="swap-list">
+          {ZONES.filter((z) => held.some((a) => a.zone === z)).map((z) => (
+            <div key={z}>
+              <div className="gt-label">{ZONE_LABEL[z]}</div>
+              {held
+                .filter((a) => a.zone === z)
+                .map((a) => (
+                  <label key={a.key} className={a.key === fromKey ? 'swap-row swap-row--on' : 'swap-row'}>
+                    <input
+                      type="radio"
+                      name={`${id}-from`}
+                      checked={a.key === fromKey}
+                      onChange={() => {
+                        setFromKey(a.key)
+                        setPick(undefined)
+                      }}
+                    />
+                    <strong>{a.pick.customName?.trim() || a.pick.name}</strong>
+                    <span className="gt-sub">{a.tag}</span>
+                  </label>
+                ))}
+            </div>
+          ))}
+        </div>
+      </SwapSection>
+      <SwapSection n={2} title="What replaces it?">
+        {!from ? (
+          <p className="gt-sub">Choose the ability first.</p>
+        ) : candidates.length === 0 ? (
+          <p className="gt-sub">{noCandidatesText(hero, from)}</p>
+        ) : (
+          <>
+            <label className="visually-hidden" htmlFor={`${id}-to`}>
+              New ability
+            </label>
+            <select
+              id={`${id}-to`}
+              value={pick?.name ?? ''}
+              onChange={(e) => {
+                const next = candidates.find((a) => a.name === e.target.value)
+                setPick(next ? startingPick(from, next) : undefined)
+              }}
+            >
+              <option value="">Choose an ability…</option>
+              {candidates.map((a) => (
+                <option key={a.name} value={a.name}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+      </SwapSection>
+      <SwapSection n={3} title="The new ability">
+        {from && pick && chosen ? (
+          <AbilityPicker hero={now} traits={deriveTraits(now).traits} legend={`Fill in ${chosen.name}`} hideLegend options={[chosen]} source={from.pick.source} step="advancement" picks={[pick]} onChange={(p) => setPick(p[0] && { ...p[0], ...(from.pick.category ? { category: from.pick.category } : {}) })} fixed />
+        ) : (
+          <p className="gt-sub">Choose the new ability to see it.</p>
         )}
       </SwapSection>
     </SwapShell>

@@ -18,6 +18,8 @@ interface PrinciplePickerProps {
   label?: string
   choice: PrincipleChoice | undefined
   onChange: (choice: PrincipleChoice | undefined) => void
+  /** Swapping a principle: these categories come first, every other under "Other principles", and `exclude` isn't offered. */
+  swap?: { categories: readonly PrincipleCategoryId[]; exclude: readonly string[] }
 }
 
 function CustomFields({ custom, fixedCategory, onChange }: { custom: CustomPrinciple; fixedCategory: boolean; onChange: (custom: CustomPrinciple) => void }) {
@@ -73,7 +75,7 @@ function CustomFields({ custom, fixedCategory, onChange }: { custom: CustomPrinc
 
 const blankCustom = (category: PrincipleCategoryId): CustomPrinciple => ({ category, name: '', roleplaying: '', minorTwist: '', majorTwist: '', greenAbility: { name: '', text: '' } })
 
-export function PrinciplePicker({ category, label = 'Principle', choice, onChange }: PrinciplePickerProps) {
+export function PrinciplePicker({ category, label = 'Principle', choice, onChange, swap }: PrinciplePickerProps) {
   const id = useId()
   const categoryName = principleCategories.find((c) => c.id === category)?.name ?? category
   const options = principles.filter((p) => p.category === category)
@@ -97,13 +99,39 @@ export function PrinciplePicker({ category, label = 'Principle', choice, onChang
       >
         <option value="">Choose…</option>
         {offList && <option value={principle.id}>{principle.name} (not {categoryName})</option>}
-        {category
-          ? options.map((p) => (
+        {swap ? (
+          <>
+            {principleCategories
+              .filter((c) => swap.categories.includes(c.id))
+              .map((c) => (
+                <optgroup key={c.id} label={c.name}>
+                  {principles
+                    .filter((p) => p.category === c.id && !swap.exclude.includes(p.id))
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                </optgroup>
+              ))}
+            <optgroup label="Other principles">
+              {principles
+                .filter((p) => !swap.categories.includes(p.category) && !swap.exclude.includes(p.id))
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+            </optgroup>
+          </>
+        ) : category ? (
+          options.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))
-          : principleCategories.map((c) => (
+        ) : (
+          principleCategories.map((c) => (
               <optgroup key={c.id} label={c.name}>
                 {principles
                   .filter((p) => p.category === c.id)
@@ -113,7 +141,8 @@ export function PrinciplePicker({ category, label = 'Principle', choice, onChang
                     </option>
                   ))}
               </optgroup>
-            ))}
+            ))
+        )}
         <option value={CUSTOM_PRINCIPLE_ID}>Write my own principle…</option>
       </select>
       {isCustom && (

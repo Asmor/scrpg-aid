@@ -19,8 +19,9 @@ import { continueStep } from '../hero/wizard-steps'
 import { PopoverGroup } from '../library/Popover'
 import type { Clock } from '../play/state'
 import { addBackIssue, addStartingCollection, changeCosmetic, collectionsText, cosmeticFields, editBackIssue, recordCollection, removeBackIssue, shortDate, undoable, undoLast, type CosmeticKind, type IssueGame } from './records'
-import { swapTrait } from './swaps'
-import { TraitSwapDialog } from './SwapDialogs'
+import { openRewrite, startRewrite } from './rewrite'
+import { swapAbility, swapPrinciple, swapTrait } from './swaps'
+import { AbilitySwapDialog, PrincipleSwapDialog, TraitSwapDialog } from './SwapDialogs'
 
 const defaultClock = (): Clock => ({ now: new Date(), newId: () => newId() })
 
@@ -300,10 +301,10 @@ function CosmeticDialog({ hero, kind, onSave, onClose }: { hero: Hero; kind: Cos
   )
 }
 
-type ChangeDialog = { kind: 'cosmetic'; which: CosmeticKind } | { kind: 'swapTrait'; trait: 'power' | 'quality' }
+type ChangeDialog = { kind: 'cosmetic'; which: CosmeticKind } | { kind: 'swapTrait'; trait: 'power' | 'quality' } | { kind: 'swapPrinciple' } | { kind: 'swapAbility' } | { kind: 'rebuild' }
 
 /** Change the hero: its three groups, side by side. */
-function ChangeHero({ hero, apply, clock }: { hero: Hero; apply: (fn: (h: Hero) => Hero) => void; clock: () => Clock }) {
+function ChangeHero({ hero, apply, clock, rebuild }: { hero: Hero; apply: (fn: (h: Hero) => Hero) => void; clock: () => Clock; rebuild: () => void }) {
   const id = useId()
   const name = heroDisplayName(hero)
   const [dialog, setDialog] = useState<ChangeDialog | null>(null)
@@ -336,11 +337,41 @@ function ChangeHero({ hero, apply, clock }: { hero: Hero; apply: (fn: (h: Hero) 
           <button type="button" className="button button--small" onClick={open({ kind: 'swapTrait', trait: 'quality' })}>
             Swap a quality…
           </button>
+          <button type="button" className="button button--small" onClick={open({ kind: 'swapPrinciple' })}>
+            Swap a principle…
+          </button>
+          <button type="button" className="button button--small" onClick={open({ kind: 'swapAbility' })}>
+            Swap an ability…
+          </button>
+        </div>
+        <div className="adv-group">
+          <h3>Major rewrite</h3>
+          <span className="gt-sub">Rebuild with the constructed method. History and collections stay.</span>
+          {openRewrite(hero) ? (
+            <a className="button button--small" href={editPath(hero.id)}>
+              Continue rebuilding {name}…
+            </a>
+          ) : (
+            <button type="button" className="button button--small" onClick={open({ kind: 'rebuild' })}>
+              Rebuild {name}…
+            </button>
+          )}
         </div>
       </div>
       {warnings.length > 0 && <StepWarnings warnings={warnings} />}
       {dialog?.kind === 'cosmetic' && <CosmeticDialog hero={hero} kind={dialog.which} onSave={(values) => apply((h) => changeCosmetic(h, dialog.which, values, clock()))} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'swapTrait' && <TraitSwapDialog hero={hero} kind={dialog.trait} onSwap={(from, to) => apply((h) => swapTrait(h, from, to, clock()))} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'swapPrinciple' && <PrincipleSwapDialog hero={hero} onSwap={(replace, choice) => apply((h) => swapPrinciple(h, replace, choice, clock()))} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'swapAbility' && <AbilitySwapDialog hero={hero} onSwap={(from, to) => apply((h) => swapAbility(h, from, to, clock()))} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'rebuild' && (
+        <ConfirmDialog
+          title={`Rebuild ${name}?`}
+          text="You'll go through every step with the constructed method. Their history, back issues and collections stay. Their current build is saved, so Undo last change can restore it."
+          confirm="Rebuild"
+          onConfirm={rebuild}
+          onClose={() => setDialog(null)}
+        />
+      )}
     </section>
   )
 }
@@ -447,7 +478,15 @@ export function AdvancementPage({ id, clock = defaultClock }: { id: string; cloc
         <div className="adv-cols">
           <main className="adv-main">
             <BackIssues hero={hero} games={games} apply={apply} clock={clock} />
-            <ChangeHero hero={hero} apply={apply} clock={clock} />
+            <ChangeHero
+              hero={hero}
+              apply={apply}
+              clock={clock}
+              rebuild={() => {
+                apply((h) => startRewrite(h, clock()))
+                void flush().then((ok) => ok && navigate(editPath(hero.id)))
+              }}
+            />
           </main>
           <aside className="adv-side">
             <Collections hero={hero} apply={apply} clock={clock} />

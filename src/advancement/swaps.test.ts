@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import { abilitySwapOptions, advancedHero, changesInForce } from '../creation/advancement'
 import { buildSheet } from '../creation/sheet'
+import { parseSaved, toSaved } from '../hero/serialize'
 import { sheetDiff } from '../game/sheet-diff'
 import type { Hero } from '../hero/model'
 import type { Clock } from '../play/state'
 import { completeHero, P, Q } from '../test/heroes'
 import { changeCosmetic, undoable, undoLast, recordCollection, addBackIssue } from './records'
-import { heldTraits, swapTrait, traitCandidates, traitSwapPreview, traitSwapSummary } from './swaps'
+import { finishRewrite, openRewrite, startRewrite } from './rewrite'
+import { abilityCandidates, abilitySwapIssues, heldPrinciples, heldTraits, noCandidatesText, principleName, principleOptions, startingPick, swapAbility, swappableAbilities, swapPrinciple, swapTrait, traitCandidates, traitSwapPreview, traitSwapSummary, usedTrait } from './swaps'
 
 const c: Clock = (() => {
   let n = 0
@@ -138,5 +141,136 @@ describe('Undo last change', () => {
     const twice = swapTrait(swapTrait(hero(), P('fire'), P('cold'), c), P('cold'), P('sonic'), c)
     const once = undoLast(twice)
     expect(buildSheet(once).powers.map((t) => t.trait.id)).toContain('cold')
+  })
+})
+
+describe('swap a principle', () => {
+  it('holds both, offers the same categories first, and leaves out the ones held', () => {
+    const h = hero()
+    expect(heldPrinciples(h).map((p) => p.replace)).toEqual(['background', 'archetype'])
+    const { categories, exclude } = principleOptions(h)
+    expect(categories.length).toBeGreaterThan(0)
+    expect(exclude).toEqual(expect.arrayContaining(['business', 'gearhead']))
+  })
+
+  it('records it, and the sheet shows the new one', () => {
+    const next = swapPrinciple(hero(), 'background', { id: 'destiny' }, c)
+    expect(next.advancement[0]).toMatchObject({ kind: 'details', text: `Swapped ${principleName({ id: 'business' })} for Principle of Destiny.`, change: { kind: 'swapPrinciple', replace: 'background' } })
+    expect(buildSheet(next).principles.map((p) => p.name)).toContain('Principle of Destiny')
+    expect(heldPrinciples(next)[0]!.choice.id).toBe('destiny')
+    expect(buildSheet(undoLast(next)).principles.map((p) => p.name)).not.toContain('Principle of Destiny')
+  })
+})
+
+describe('swap an ability', () => {
+  const find = (h: Hero, name: string) => swappableAbilities(h).find((a) => a.pick.name === name)!
+
+  it('lists abilities Green first, tagged with where they came from', () => {
+    const list = swappableAbilities(hero())
+    const zones = list.map((a) => a.zone)
+    expect(zones).toEqual([...zones].sort((a, b) => ['green', 'yellow', 'red'].indexOf(a) - ['green', 'yellow', 'red'].indexOf(b)))
+    expect(find(hero(), 'Inflict').tag).toMatch(/^Power source: /)
+    expect(find(hero(), 'Paragon Feat')).toMatchObject({ zone: 'red', tag: 'Red ability: Athletic' })
+    const archetype = list.find((a) => a.pick.source.startsWith('archetype'))
+    expect(archetype?.tag).toMatch(/^Archetype: /)
+  })
+
+  it('offers only the same list, that can use the same trait, and not what the hero has', () => {
+    const h = hero()
+    const inflict = find(h, 'Inflict')
+    const candidates = abilityCandidates(h, inflict)
+    expect(candidates.map((a) => a.name)).not.toContain('Inflict')
+    const options = abilitySwapOptions(advancedHero(h), inflict.pick)
+    // Everything offered can take Fire in its first slot or names it.
+    for (const a of candidates) expect(options).toContainEqual(a)
+    expect(candidates.length).toBeGreaterThan(0)
+    expect(usedTrait(inflict)).toEqual(P('fire'))
+  })
+
+  it('starts the new ability with the same trait, and says when nothing qualifies', () => {
+    const h = hero()
+    const inflict = find(h, 'Inflict')
+    const next = abilityCandidates(h, inflict)[0]!
+    expect(startingPick(inflict, next).source).toBe(inflict.pick.source)
+    expect(noCandidatesText(h, inflict)).toBe(`No other Yellow abilities from ${inflict.sourceName} can use Fire.`)
+    expect(startingPick(find(h, 'Paragon Feat'), abilityCandidates(h, find(h, 'Paragon Feat'))[0]!).category).toBe('power:athletic')
+  })
+
+  it('records it, applied on the sheet, with no issue when it fits, and Undo takes it back', () => {
+    const h = hero()
+    const inflict = find(h, 'Inflict')
+    const to = startingPick(inflict, abilityCandidates(h, inflict)[0]!)
+    expect(abilitySwapIssues(h, inflict.pick, to)).toBe(0)
+    const next = swapAbility(h, inflict, to, c)
+    expect(next.advancement[0]!.text).toBe(`Swapped Inflict for ${to.name}. It uses Fire.`)
+    expect(buildSheet(next).abilities.map((a) => a.baseName)).toContain(to.name)
+    expect(buildSheet(next).abilities.map((a) => a.baseName)).not.toContain('Inflict')
+    expect(buildSheet(next).warnings).toEqual([])
+    expect(buildSheet(undoLast(next)).abilities.map((a) => a.baseName)).toContain('Inflict')
+  })
+
+  it('counts an issue when the player gives it another trait', () => {
+    const h = hero()
+    const inflict = find(h, 'Inflict')
+    const to = { ...startingPick(inflict, abilityCandidates(h, inflict)[0]!), uses: [P('speed')] }
+    expect(abilitySwapIssues(h, inflict.pick, to)).toBeGreaterThan(0)
+  })
+})
+
+describe('major rewrite', () => {
+  it('builds swaps in, keeps the build for Undo, goes Constructed, and keeps the records', () => {
+    let h: Hero = { ...hero(), method: 'guided', rollMode: 'manual' }
+    h = addBackIssue(h, { title: 'Issue' }, c)
+    h = swapTrait(h, P('fire'), P('cold'), c)
+    const started = startRewrite(h, c)
+    expect(started.method).toBe('constructed')
+    expect(started.rollMode).toBeUndefined()
+    expect(started.backIssues).toHaveLength(1)
+    expect(openRewrite(started)).toMatchObject({ kind: 'rewrite', open: true, after: 'Issue' })
+    // Built in, so it isn't applied twice: the choices themselves say Cold now.
+    expect(started.powerSource!.powers.some((a) => a.trait.id === 'cold')).toBe(true)
+    expect(changesInForce(started)).toEqual([])
+    expect(buildSheet(started).powers.map((t) => t.trait.id)).toContain('cold')
+    expect(startRewrite(started, c)).toBe(started)
+  })
+
+  it('done logs one entry with a summary of what changed', () => {
+    const started = startRewrite(hero(), c)
+    const edited = { ...started, details: { ...started.details, costume: 'Blue' } }
+    const done = finishRewrite(edited, c)
+    expect(openRewrite(done)).toBeUndefined()
+    expect(done.advancement).toHaveLength(1)
+    expect(done.advancement[0]!.text).toMatch(/^Rebuilt with the constructed method\. .*Blue\.$/)
+    expect(done.advancement[0]!.before).toBeDefined()
+    expect(finishRewrite(done, c)).toBe(done)
+  })
+
+  it('says when nothing changed, and counts past what it names', () => {
+    expect(finishRewrite(startRewrite(hero(), c), c).advancement[0]!.text).toBe('Rebuilt with the constructed method. Nothing changed.')
+    const started = startRewrite(hero(), c)
+    const look = { gender: 'a', age: 'b', height: 'c', eyes: 'd', hair: 'e', skin: 'f', build: 'g', costume: 'h' }
+    expect(finishRewrite({ ...started, details: { ...started.details, ...look } }, c).advancement[0]!.text).toContain('; and 2 more.')
+  })
+
+  it("doesn't report a swap from before as a change", () => {
+    const swapped = swapTrait(hero(), P('fire'), P('cold'), c)
+    const done = finishRewrite(startRewrite(swapped, c), c)
+    expect(done.advancement.at(-1)!.text).toBe('Rebuilt with the constructed method. Nothing changed.')
+  })
+
+  it('Undo restores the build exactly, with earlier swaps back in force', () => {
+    const before: Hero = swapTrait({ ...hero(), method: 'guided', rollMode: 'manual' }, P('fire'), P('cold'), c)
+    const started = startRewrite(before, c)
+    const edited: Hero = { ...started, details: { ...started.details, costume: 'Blue' }, redAbilities: [] }
+    const undone = undoLast(finishRewrite(edited, c))
+    expect(undone).toEqual(before)
+  })
+
+  it('later swaps apply on top of the rebuild, and survive save and read', () => {
+    const rebuilt = finishRewrite(startRewrite(swapTrait(hero(), P('fire'), P('cold'), c), c), c)
+    const again = swapTrait(rebuilt, P('cold'), P('sonic'), c)
+    expect(changesInForce(again)).toHaveLength(1)
+    expect(buildSheet(again).powers.map((t) => t.trait.id)).toContain('sonic')
+    expect(parseSaved(JSON.parse(JSON.stringify(toSaved(again))))).toMatchObject({ ok: true })
   })
 })
