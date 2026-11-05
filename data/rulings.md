@@ -434,6 +434,16 @@ These came from questions the user put to the rules-expert agent about an action
   - Unused defenses are lost at the start of the defended character's next turn.
 - **Basis:** Interpretation (the user's ruling).
 
+## Hero points (p. 31–32)
+
+### 69. When Hero Point Rewards can be used, and when bonuses end
+- **Pages:** Hero points and collections (p. 31–32).
+- **Question:** Hero points become bonuses at the end of an issue, and unused points and bonuses don't carry over. When can those bonuses be used, and when do they end?
+- **Decision:**
+  - At the end of each issue, a hero loses all current bonuses, wherever they came from.
+  - The hero then spends hero points on bonuses for the next issue.
+- **Basis:** Interpretation (the user's ruling).
+
 ## Data corrections
 
 These fix the data rather than settling an ambiguity.
