@@ -18,6 +18,7 @@ import { HeroSheetView } from './HeroSheetView'
 import { IssueBanner, ModeSwitch, type CharacterMode } from './CharacterHead'
 import { SheetTags } from '../library/SheetTags'
 import { AlsoIn, SoloPlayActions, UnreadablePlayState } from '../game/SoloPlay'
+import { appearanceOf, fillStyle } from '../colors/palette'
 import { changeSoloHeroPoints, soloHero, startOverSolo } from '../game/solo'
 import { changeHeroPlay } from '../game/table'
 import { gamesHolding, useListedGames, useSoloGame } from '../game/useGameEditor'
@@ -102,7 +103,9 @@ export function HeroPage({ id, mode = 'sheet', clock = defaultClock, random }: {
         <div className="character-head__row">
           <div className="character-head__name">
             <div className="character-head__title">
-              <h2>{heroDisplayName(hero)}</h2>
+              <h2 className="char-band char-fill" style={fillStyle(appearanceOf({ kind: 'hero', appearance: hero.appearance }))}>
+                {heroDisplayName(hero)}
+              </h2>
               {named && <span className="character-head__alias">{hero.details.alias}</span>}
             </div>
             <p className="character-head__identity">{heroIdentity(sheet)}</p>

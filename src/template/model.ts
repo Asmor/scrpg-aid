@@ -5,6 +5,7 @@
  *
  * Versioning (./serialize.ts) follows the hero's rules.
  */
+import type { CharColor } from '../colors/palette'
 import { newId } from '../hero/model'
 import type { BasicAction, Die } from '../rules/types'
 
@@ -19,6 +20,8 @@ export interface TemplateBase {
   /** The GM's own labels (docs/design/library/spec.md). */
   tags: string[]
   name: string
+  /** Unset: by side (docs/design/character-colors/spec.md). */
+  color?: CharColor
 }
 
 export { MAX_GROUP_SIZE, MAX_STEPS } from '../game/model'

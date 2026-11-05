@@ -45,7 +45,7 @@ describe('the display view', () => {
     expect(screen.getByRole('img', { name: /^Scene tracker at Green 1 of 8$/ })).toBeInTheDocument()
     expect(screen.getByText('Round 1')).toBeInTheDocument()
     const strip = screen.getByRole('list', { name: 'Turn order this round' })
-    expect(within(strip).getByText(/Maya Reyes/)).toHaveTextContent('acting now')
+    expect(within(strip).getByText(/Maya Reyes/).closest('li')).toHaveTextContent('acting now')
     const hero = screen.getByRole('article', { name: 'Maya Reyes' })
     expect(hero).toHaveTextContent('Alex')
     expect(hero.className).toContain('dv-card--acting')

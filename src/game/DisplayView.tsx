@@ -9,11 +9,14 @@
  */
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { DiceText, DieIcon } from '../components/icons'
+import { CardBand } from '../components/CharBand'
+import { appearanceOf, type Appearance } from '../colors/palette'
+import { TurnStrip } from './TurnStrip'
 import { heroPointCount, modName } from '../play/state'
 import type { PlayMod } from '../hero/model'
 import { betweenIssues, issueTitle, sceneDisplayName } from './model'
 import { heroOnTableName, viewName, type TableView } from './project'
-import { actorKey, boxLabel, groupSummary, sameActor, sceneZone, stepsText, turnStrip } from './table'
+import { boxLabel, groupSummary, sameActor, sceneZone, stepsText, turnStrip } from './table'
 import { STAGE_HEIGHT, STAGE_WIDTH, stageScale } from './display'
 import { ZoneChip } from './TableCenter'
 import { heroView, villainView } from './views'
@@ -70,9 +73,10 @@ function Hp({ health, maxHealth }: { health?: number; maxHealth?: number }) {
   )
 }
 
-function Card({ kind, name, acting, children }: { kind?: string; name: string; acting: boolean; children: ReactNode }) {
+function Card({ kind, name, acting, appearance, children }: { kind?: string; name: string; acting: boolean; appearance: Appearance; children: ReactNode }) {
   return (
     <article className={acting ? 'dv-card dv-card--acting' : 'dv-card'} aria-label={name}>
+      <CardBand appearance={appearance} />
       {kind && <div className="dv-label">{kind}</div>}
       <div className="dv-name">{name}</div>
       {children}
@@ -138,15 +142,7 @@ export function DisplayView({ table, watching, status }: Props) {
         </header>
 
         {!paused && strip.length > 0 && (
-          <ol className="dv-turns" aria-label="Turn order this round">
-            {strip.map(({ ref: r, state }) => (
-              <li key={actorKey(r)} className={`dv-actor dv-actor--${state}`}>
-                {name(r)}
-                {state !== 'waiting' && <span className="visually-hidden">{state === 'acted' ? ', acted' : ', acting now'}</span>}
-                {state === 'current' && <span className="dv-actor__state" aria-hidden="true"> · acting</span>}
-              </li>
-            ))}
-          </ol>
+          <TurnStrip game={table} name={name} room />
         )}
 
         {heroes.length > 0 && (
@@ -156,7 +152,7 @@ export function DisplayView({ table, watching, status }: Props) {
             </div>
             <div className="dv-grid">
             {heroes.map((h) => (
-              <Card key={h.ref.id} name={h.name} acting={acting('hero', h.ref.id)}>
+              <Card key={h.ref.id} name={h.name} acting={acting('hero', h.ref.id)} appearance={h.appearance}>
                 <div className="dv-sub">{h.sub}</div>
                 <div className="dv-row">
                   {h.zone && <ZoneChip zone={h.zone} />}
@@ -194,7 +190,7 @@ export function DisplayView({ table, watching, status }: Props) {
         {(table.villains.length > 0 || table.groups.length > 0 || table.challenges.length > 0) && (
           <section aria-label="Opposition" className="dv-grid">
             {table.villains.map(villainView).map((v) => (
-              <Card key={v.ref.id} kind={v.kind} name={v.name} acting={acting('villain', v.ref.id)}>
+              <Card key={v.ref.id} kind={v.kind} name={v.name} acting={acting('villain', v.ref.id)} appearance={v.appearance}>
                 {v.playersSee === 'name' ? (
                   <div className="dv-sub">The GM is keeping its condition secret.</div>
                 ) : (
@@ -209,7 +205,7 @@ export function DisplayView({ table, watching, status }: Props) {
               </Card>
             ))}
             {table.groups.map((g) => (
-              <Card key={g.id} kind={g.kind === 'minions' ? 'Minions' : 'Lieutenants'} name={g.name} acting={acting('group', g.id)}>
+              <Card key={g.id} kind={g.kind === 'minions' ? 'Minions' : 'Lieutenants'} name={g.name} acting={acting('group', g.id)} appearance={appearanceOf({ kind: 'group', environment: g.owner.kind === 'environment', color: g.color })}>
                 <ul className="dv-row dv-summary" aria-label="Dice">
                   {groupSummary(g).map((s) => (
                     <li key={s.die}>
@@ -231,7 +227,7 @@ export function DisplayView({ table, watching, status }: Props) {
               </Card>
             ))}
             {table.challenges.map((c) => (
-              <Card key={c.id} kind="Challenge" name={c.name} acting={false}>
+              <Card key={c.id} kind="Challenge" name={c.name} acting={false} appearance={appearanceOf({ kind: 'challenge', environment: c.owner.kind === 'environment', color: c.color })}>
                 <div className="dv-row">
                   {c.steps.map((step, i) => (
                     <span key={i} className={step.done ? 'dv-step dv-step--done' : 'dv-step'} role="img" aria-label={`${step.label}${step.done ? ', done' : ''}`} />

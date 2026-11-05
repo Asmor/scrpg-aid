@@ -17,6 +17,7 @@ import { modeLimits } from '../creation/format'
 import { ABILITY_TYPE_LABEL, PLAY_ZONE_LABEL, ZONE_LABEL } from '../hero/labels'
 import type { Hero, PlayHistoryEntry, PlayState } from '../hero/model'
 import type { BasicAction, Die, Zone } from '../rules/types'
+import { appearanceOf, fillCss } from '../colors/palette'
 import { availabilityContext, basicActionBlocked, changesForm, currentForm, dividedForm, formDice, formNoun, formZoneNote, notInDividedForm, playAbilities, playForms, zoneLockNotice, type PlayAbility, type PlayForm } from './forms'
 import { diceChanges, noChanges } from '../creation/dice-changes'
 import type { HeroTrait } from '../creation/traits'
@@ -755,6 +756,7 @@ export function PlayView({ hero, play, changePlay, heroPoints, clock, random }: 
   const layout = phone ? (
     <div className="play-phone">
       <div className="play-topbar" role="region" aria-label="At a glance">
+        <span className="play-topbar__strip" style={{ background: fillCss(appearanceOf({ kind: 'hero', appearance: hero.appearance })) }} aria-hidden="true" />
         <div className="play-topbar__row">
           <div>
             <p className="play-topbar__name">{heroDisplayName(hero)}</p>

@@ -10,6 +10,7 @@
  * The NPC templates (minions, lieutenants and challenges) are library types too:
  * ./template-types.ts.
  */
+import { appearanceOf, type Appearance } from '../colors/palette'
 import { editPath, playPath, heroPath, newVillainPath, villainEditPath, villainPath, villainPlayPath } from '../app/route'
 import type { NewHeroes } from '../app/new-heroes'
 import { buildSheet } from '../creation/sheet'
@@ -49,6 +50,8 @@ export interface RowInfo {
   /** False until the item has a name (the placeholder shows in muted italics). */
   named: boolean
   draft: boolean
+  /** The item's colors, for the row's swatch. */
+  colors: Appearance
   /** The Details column: "Speedster · Accident", or a draft's step. */
   details: string
   /**
@@ -113,15 +116,17 @@ export const heroType: LibraryType<Hero> = {
     await stores.games.remove(soloGameId('hero', id))
   },
   row(hero) {
+    const colors = appearanceOf({ kind: 'hero', appearance: hero.appearance })
     const name = heroDisplayName(hero)
     const named = Boolean(hero.details.name.trim() || hero.details.alias.trim())
     if (isDraft(hero)) {
       const href = editPath(hero.id, continueStep(hero.furthestStep))
-      return { name, named, draft: true, details: draftStepText(hero.furthestStep), openHref: heroPath(hero.id), primary: { label: 'Continue', href }, editHref: href }
+      return { colors, name, named, draft: true, details: draftStepText(hero.furthestStep), openHref: heroPath(hero.id), primary: { label: 'Continue', href }, editHref: href }
     }
     const sheet = buildSheet(hero)
     const { archetype, powerSource } = sheet.characteristics
     return {
+      colors,
       name,
       named,
       draft: false,
@@ -158,16 +163,18 @@ export const villainType: LibraryType<Villain> = {
     await stores.games.remove(soloGameId('villain', id))
   },
   row(villain) {
+    const colors = appearanceOf({ kind: 'villain', appearance: villain.appearance })
     const name = villainDisplayName(villain)
     const named = Boolean(villain.details.name.trim() || villain.details.alias.trim())
     if (isVillainDraft(villain)) {
       const href = villainEditPath(villain.id, continueVillainStep(villain.furthestStep))
-      return { name, named, draft: true, details: villainDraftText(villain.furthestStep), openHref: villainPath(villain.id), primary: { label: 'Continue', href }, editHref: href }
+      return { colors, name, named, draft: true, details: villainDraftText(villain.furthestStep), openHref: villainPath(villain.id), primary: { label: 'Continue', href }, editHref: href }
     }
     const sheet = buildVillainSheet(villain)
     const archetype = [sheet.approach, sheet.archetype].filter(Boolean).join(' ')
     const first = sheet.warnings[0]
     return {
+      colors,
       name,
       named,
       draft: false,

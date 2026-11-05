@@ -19,12 +19,16 @@ import { betweenIssues, challengeDone, issueTitle, logByline, sceneDisplayName, 
 import { actedText, actorKey, boxLabel, groupSummary, memberLabel, memberName, nextStep, roundOver, sameActor, sceneZone, stepsText, turnStrip, waiting, type ItemRef } from './table'
 import type { BackIssueStatus } from './issues'
 import { heroOnTableName, viewHidden, viewName, type TableView } from './project'
+import { CardBand, CharSwatch } from '../components/CharBand'
+import { appearanceOf, type Appearance } from '../colors/palette'
+import { TurnStrip } from './TurnStrip'
 import { Modal } from '../components/Modal'
 
 /** What a hero's card shows. */
 export interface HeroView {
   ref: ActorRef
   name: string
+  appearance: Appearance
   /** The player's name, or where the hero comes from. */
   sub: string
   missing?: string
@@ -49,6 +53,7 @@ export interface HeroView {
 export interface VillainView {
   ref: { kind: 'villain'; id: string }
   name: string
+  appearance: Appearance
   kind: string
   missing?: string
   hidden: boolean
@@ -226,6 +231,7 @@ function SceneCard({ game, gm }: { game: Pick<TableView, 'scene' | 'environment'
         {env && (gm || !env.hidden) && (
           <>
             <div className="gt-sub">
+              <CharSwatch appearance={appearanceOf({ kind: 'environment', color: env.color })} />
               Environment: {env.name}
               {gm && env.hidden && (
                 <>
@@ -356,19 +362,7 @@ function TurnCard({ game, gm }: { game: TableView; gm?: GmControls }) {
       {strip.length === 0 ? (
         <p className="sheet-empty">Nobody is in the turn order yet. Heroes join it when they come in, and everything else when it's revealed.</p>
       ) : (
-        <ol className="gt-strip" aria-label="Turn order this round">
-          {strip.map(({ ref, state }) => (
-            <li key={actorKey(ref)} className={`gt-actor gt-actor--${state}`}>
-              {state === 'acted' && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="m5 12 5 5 9-10" />
-                </svg>
-              )}
-              {name(ref)}
-              {state !== 'waiting' && <span className="gt-actor__state">{state === 'acted' ? 'acted' : 'acting now'}</span>}
-            </li>
-          ))}
-        </ol>
+        <TurnStrip game={game} name={name} />
       )}
       {gm && askFirst && (
         <Modal title={`Who starts round ${game.round + 1}?`} onClose={() => setAskFirst(false)}>
@@ -419,6 +413,7 @@ function HeroCard({ hero, acting, gm }: { hero: HeroView; acting: boolean; gm?: 
   const id = `gt-hero-${hero.ref.id}`
   return (
     <article className={`card gt-ent${acting ? ' gt-ent--acting' : ''}`} aria-labelledby={id}>
+      <CardBand appearance={hero.appearance} />
       <div className="gt-row">
         <span className="gt-ent__name gt-grow" id={id}>
           {hero.name}
@@ -510,6 +505,7 @@ function VillainCard({ villain, acting, gm }: { villain: VillainView; acting: bo
   const see = gm ? 'health' : villain.playersSee
   return (
     <article className={cardClass(villain.hidden, isRunning(gm, villain.ref), acting)} aria-labelledby={id}>
+      <CardBand appearance={villain.appearance} />
       <div className="gt-row">
         <div className="gt-grow">
           <div className="gt-sub">{villain.kind}</div>
@@ -557,6 +553,7 @@ function GroupCard({ group, acting, envName, gm }: { group: NpcGroup; acting: bo
   const ref = { kind: 'group' as const, id: group.id }
   return (
     <article className={cardClass(group.hidden, isRunning(gm, ref), acting)} aria-labelledby={id}>
+      <CardBand appearance={appearanceOf({ kind: 'group', environment: group.owner.kind === 'environment', color: group.color })} />
       <div className="gt-row">
         <div className="gt-grow">
           <div className="gt-sub">
@@ -620,6 +617,7 @@ function ChallengeCard({ challenge, game, gm }: { challenge: Challenge; game: Ta
   const heroName = (heroId: string) => viewName(game, { kind: 'hero', id: heroId }, heroOnTableName)
   return (
     <article className={`${cardClass(challenge.hidden, false, false)}${done ? ' gt-challenge--done' : ''}`} aria-labelledby={id}>
+      <CardBand appearance={appearanceOf({ kind: 'challenge', environment: challenge.owner.kind === 'environment', color: challenge.color })} />
       <div className="gt-row">
         <div className="gt-sub gt-grow">Challenge{challenge.owner.kind === 'environment' ? ` · ${game.environment?.name ?? 'Environment'}` : ''}</div>
         <span className={done ? 'gt-progress gt-progress--done' : 'gt-progress'}>{stepsText(challenge)}</span>

@@ -25,6 +25,7 @@ import { useVillainEditor } from './useVillainEditor'
 import { AlsoIn, SoloPlayActions, UnreadablePlayState } from '../game/SoloPlay'
 import { soloVillain, startOverSolo } from '../game/solo'
 import { changeVillainPlay } from '../game/table'
+import { appearanceOf, fillStyle } from '../colors/palette'
 import { gamesHolding, useListedGames, useSoloGame } from '../game/useGameEditor'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -115,7 +116,9 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
         <a href={villainPath(id)}>← Sheet</a>
       </div>
       <div className="gt-row">
-        <h2 className="hero-editor__name gt-grow">{villainDisplayName(villain)}</h2>
+        <h2 className="hero-editor__name gt-grow char-band char-fill" style={fillStyle(appearanceOf({ kind: 'villain', appearance: villain.appearance }))}>
+          {villainDisplayName(villain)}
+        </h2>
         <SoloPlayActions name={villainDisplayName(villain)} clears="mods, twists, counts and the play log are cleared" onStartOver={() => solo.apply(startOverSolo)} />
       </div>
       <AlsoIn name={villainDisplayName(villain)} games={gamesHolding(listed.games ?? [], 'villain', id)} />

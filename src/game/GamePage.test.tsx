@@ -518,7 +518,7 @@ describe('the game table', () => {
 
     await menuItem('Start round 1', 'Ironclad')
     expect(turns().getByRole('heading')).toHaveTextContent('Round 1')
-    expect(turns().getByRole('list')).toHaveTextContent('Ironcladacting now')
+    expect(turns().getByRole('list')).toHaveTextContent('Ironclad, GM side, acting now')
     // The villain's reaction is ready again; the hero's isn't (it's not their turn yet).
     await waitFor(async () => expect((await savedVillain()).play.reactionUsed).toBe(false))
     expect((await savedHero()).play.reactionUsed).toBe(true)

@@ -10,6 +10,7 @@
  * The GM's own table renders from the same shape (`project(game, 'gm')`), hidden items and all,
  * so one component draws the center for everyone.
  */
+import type { Appearance } from '../colors/palette'
 import type { Defense } from '../play/defense'
 import { buildVillainSheet } from '../villain/sheet'
 import type { HeroInGame } from './model'
@@ -36,6 +37,8 @@ export interface VillainOnTable {
   id: string
   name: string
   major: boolean
+  /** Its colors, set only when chosen. Everyone sees them, whatever else they see. */
+  appearance?: Appearance
   hidden: boolean
   playersSee: PlayersSee
   zone?: PlayZone
@@ -81,7 +84,7 @@ export interface TableView {
 
 function villainFor(v: Game['villains'][number], audience: Audience, game: Game): VillainOnTable {
   const { name, health, maxHealth, zone, mods, twists } = villainSummary(v.sheet, v.play)
-  const base = { id: v.id, name, major: buildVillainSheet(v.sheet).major, hidden: v.hidden, playersSee: v.playersSee }
+  const base = { id: v.id, name, major: buildVillainSheet(v.sheet).major, ...(v.sheet.appearance ? { appearance: v.sheet.appearance } : {}), hidden: v.hidden, playersSee: v.playersSee }
   const defenses = v.play.defenses?.length ? { defenses: v.play.defenses } : {}
   if (audience === 'gm') {
     const status = villainStatus(v, game)
@@ -94,7 +97,7 @@ function villainFor(v: Game['villains'][number], audience: Audience, game: Game)
 
 /** The environment as players see it: its name and description. Its aspects, twists and twist use are the GM's only. */
 function environmentForPlayers(env: EnvironmentOnTable): EnvironmentOnTable {
-  return { id: env.id, name: env.name, hidden: env.hidden, ...(env.description ? { description: env.description } : {}) }
+  return { id: env.id, name: env.name, hidden: env.hidden, ...(env.color ? { color: env.color } : {}), ...(env.description ? { description: env.description } : {}) }
 }
 
 /** A group without its abilities. */

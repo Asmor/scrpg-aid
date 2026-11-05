@@ -3,6 +3,7 @@
  * the rail of views, the title row with New, the filter bar (or the selection bar while rows
  * are checked), the table, and the footer.
  */
+import { CharSwatch } from '../components/CharBand'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { GameLink, LibraryModel } from './LibraryPage'
 import { PopoverDialog, PopoverMenu } from './Popover'
@@ -55,6 +56,7 @@ export function InGamesLine({ games }: { games: readonly GameLink[] }) {
 export function NameCell({ row }: { row: RowInfo }) {
   return (
     <>
+      <CharSwatch appearance={row.colors} />
       <a className={row.named ? 'library-name' : 'library-name library-name--unnamed'} href={row.openHref}>
         {row.name}
       </a>

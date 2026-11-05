@@ -2,6 +2,7 @@
  * Structural checks for a game read from storage or an imported file, which are untrusted.
  * Shape only, like ../hero/validate.ts.
  */
+import { charColor } from '../colors/validate'
 import { arrayOf, boolean, integer, isRecord, nonEmptyString, object, oneOf, positiveInteger, string, type Check } from '../shape'
 import { die, heroShape, playStateShape } from '../hero/validate'
 import { villainPlayShape, villainShape } from '../villain/validate'
@@ -19,6 +20,7 @@ const position: Check = (v, path) => integer(v, path) ?? ((v as number) < 0 ? `$
 
 const environmentShape = object({
   id: nonEmptyString,
+  'color?': charColor,
   'templateId?': nonEmptyString,
   name: string,
   hidden: boolean,
@@ -29,6 +31,7 @@ const environmentShape = object({
 })
 const villainInGame = object({ id: nonEmptyString, sourceId: nonEmptyString, sheet: villainShape, play: villainPlayShape, hidden: boolean, playersSee: oneOf('name', 'status', 'health'), 'statusOverride?': object({ 'die?': die, 'count?': integer }), 'dangerUsed?': object({ 'box?': position, 'failed?': oneOf(true) }) })
 const groupShape = object({
+  'color?': charColor,
   id: nonEmptyString,
   'templateId?': nonEmptyString,
   kind: oneOf('minions', 'lieutenants'),
@@ -39,7 +42,7 @@ const groupShape = object({
   'abilities?': arrayOf(object({ name: string, type: oneOf('A', 'R', 'I'), text: string, 'saveBonus?': positiveInteger })),
   members: arrayOf(object({ id: nonEmptyString, n: integer, die, mods: arrayOf(mod), acted: boolean, 'defenses?': arrayOf(object({ id: nonEmptyString, value: integer, from: string })) })),
 })
-const challengeShape = object({ id: nonEmptyString, 'templateId?': nonEmptyString, name: string, hidden: boolean, owner: object({ kind: oneOf('gm', 'environment') }), steps: arrayOf(object({ label: string, done: boolean })), requests: arrayOf(object({ id: nonEmptyString, heroId: nonEmptyString, total: integer, 'trait?': string, at: string })), 'description?': string, 'whenDone?': string, 'linkedVillainId?': nonEmptyString })
+const challengeShape = object({ id: nonEmptyString, 'color?': charColor, 'templateId?': nonEmptyString, name: string, hidden: boolean, owner: object({ kind: oneOf('gm', 'environment') }), steps: arrayOf(object({ label: string, done: boolean })), requests: arrayOf(object({ id: nonEmptyString, heroId: nonEmptyString, total: integer, 'trait?': string, at: string })), 'description?': string, 'whenDone?': string, 'linkedVillainId?': nonEmptyString })
 const opposition = object({ kind: oneOf('villain', 'group', 'challenge', 'environment'), id: nonEmptyString })
 const sceneItem = object({
   ref: opposition,

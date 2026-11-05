@@ -5775,45 +5775,6 @@ button.gt-box {
   margin-right: 0.25rem;
 }
 
-.gt-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.gt-actor {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  min-height: 2.125rem;
-  box-sizing: border-box;
-  padding: 0.1875rem 0.75rem 0.1875rem 0.5rem;
-  border: 1px solid var(--ui-border);
-  border-radius: 999px;
-  background: var(--ui-surface);
-  font-size: 0.875rem;
-}
-
-.gt-actor--acted {
-  color: var(--ui-muted);
-  background: var(--ui-surface-2);
-}
-
-.gt-actor--current {
-  border: 2px solid var(--ui-accent);
-  background: var(--ui-accent-soft);
-  font-weight: 600;
-}
-
-.gt-actor__state {
-  font-size: 0.6875rem;
-  font-weight: 500;
-  color: var(--ui-muted);
-}
-
 .gt-choices {
   display: flex;
   flex-direction: column;
@@ -5844,16 +5805,6 @@ button.gt-box {
   .gt-grid--heroes {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.5rem;
-  }
-
-  .gt-strip {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 0.25rem;
-  }
-
-  .gt-actor {
-    flex: none;
   }
 
   .gt-box {
@@ -6746,40 +6697,8 @@ span.gt-step--done {
   outline-offset: 3px;
 }
 
-.dv-turns {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.dv-actor {
-  border: 2px solid var(--ui-border);
-  border-radius: 999px;
-  padding: 8px 24px;
-  font-size: 26px;
-}
-
-.dv-actor--acted {
-  color: var(--ui-muted);
-  background: var(--ui-surface-2);
-}
-
-.dv-actor__state {
-  font-weight: 400;
-  color: var(--ui-muted);
-}
-
 .dv-die {
   display: inline-flex;
-}
-
-.dv-actor--current {
-  border: 4px solid var(--ui-accent);
-  background: var(--ui-accent-soft);
-  font-weight: 700;
 }
 
 .dv-grid {
@@ -9361,4 +9280,152 @@ a.menu-item {
 .color-preview.char-theme-dark {
   background: #1b1e2a;
   color: #e8eaf2;
+}
+
+.turn-strip {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  /* Room above every chip, on every row, for the chevron, so nothing shifts when the turn moves. */
+  gap: 1.25rem 0.875rem;
+  margin: 0;
+  padding: 1.25rem 0.25rem 0.25rem;
+  list-style: none;
+}
+
+.turn-strip__item {
+  display: inline-flex;
+}
+
+.turn-strip__chevron {
+  position: absolute;
+  top: 0;
+  left: -10px;
+  width: 20px;
+  height: 12px;
+  transition: transform 150ms ease-out;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not(.motion-allow) .turn-strip__chevron {
+    transition: none;
+  }
+}
+
+.turn-strip__divider {
+  width: 2px;
+  height: 44px;
+  margin: 0 0.375rem;
+  border-radius: 1px;
+  background: var(--ui-muted);
+}
+
+.turn-chip__check {
+  flex: none;
+}
+
+.turn-strip--room {
+  gap: 24px;
+  padding: 24px 8px 8px;
+}
+
+.turn-strip--room .char-chip__fill {
+  min-height: 52px;
+  padding: 8px 22px;
+  font-size: 24px;
+}
+
+@media (max-width: 759px) {
+  .turn-strip:not(.turn-strip--room) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .turn-strip__item,
+  .turn-strip__divider {
+    flex: none;
+  }
+}
+
+/* A zone sitting on a character color keeps its own fill, with an edge. */
+.char-fill .zone-chip {
+  outline: 1px solid var(--ui-surface);
+  text-shadow: none;
+}
+
+.char-card-band {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  border-radius: inherit;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.gt-ent,
+.dv-card {
+  position: relative;
+}
+
+.gt-ent:has(> .char-card-band) {
+  padding-top: 1rem;
+}
+
+.char-swatch {
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-right: 0.375rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 50%;
+  vertical-align: -2px;
+}
+
+/* The sheet's header band: 56 px, 40 on phones. It prints in its colors, or as an outline without them. */
+.character-head h2.char-band,
+.hero-editor__name.char-band {
+  margin: 0;
+  min-height: 3.5rem;
+  line-height: 1.1;
+  text-shadow:
+    1.5px 0 0 color-mix(in srgb, var(--char-line) 95%, transparent),
+    -1.5px 0 0 color-mix(in srgb, var(--char-line) 95%, transparent),
+    0 1.5px 0 color-mix(in srgb, var(--char-line) 95%, transparent),
+    0 -1.5px 0 color-mix(in srgb, var(--char-line) 95%, transparent),
+    1.5px 1.5px 0 color-mix(in srgb, var(--char-line) 95%, transparent),
+    -1.5px 1.5px 0 color-mix(in srgb, var(--char-line) 95%, transparent),
+    1.5px -1.5px 0 color-mix(in srgb, var(--char-line) 95%, transparent),
+    -1.5px -1.5px 0 color-mix(in srgb, var(--char-line) 95%, transparent);
+}
+
+@media (max-width: 759px) {
+  .character-head h2.char-band,
+  .hero-editor__name.char-band {
+    min-height: 2.5rem;
+    font-size: 1.375rem;
+  }
+}
+
+@media print {
+  .char-band {
+    border: 1px solid #1a1d2b;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+.play-topbar__strip {
+  display: block;
+  height: 4px;
+  margin: -0.5rem -0.75rem 0.5rem;
+}
+
+.character-head__title .char-band {
+  flex: 1;
+  min-width: min(100%, 16rem);
 }

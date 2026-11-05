@@ -2,6 +2,7 @@
  * What the table's cards show (./TableCenter.tsx), from a game's heroes and villains: the GM's
  * full game, or the projection a player's device received (./project.ts). Pure.
  */
+import { appearanceOf } from '../colors/palette'
 import { buildSheet } from '../creation/sheet'
 import { heroDisplayName } from '../hero/model'
 import { formDice } from '../play/forms'
@@ -21,6 +22,7 @@ export function heroView(h: HeroInGame | HeroOnTable, game: HasTracker, extra: {
   return {
     ref: { kind: 'hero', id: h.id },
     name: heroDisplayName(h.sheet),
+    appearance: appearanceOf({ kind: 'hero', appearance: h.sheet.appearance }),
     sub: h.player ? h.player.name || 'A player' : "GM's hero",
     ...(zone ? { zone } : {}),
     ...(health !== undefined ? { health } : {}),
@@ -41,6 +43,7 @@ export function villainView(v: VillainOnTable): VillainView {
   return {
     ref: { kind: 'villain', id: v.id },
     name: v.name,
+    appearance: appearanceOf({ kind: 'villain', appearance: v.appearance }),
     kind: v.major ? 'Major villain' : 'Minor villain',
     hidden: v.hidden,
     playersSee: v.playersSee,

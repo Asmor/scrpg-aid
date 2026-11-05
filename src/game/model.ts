@@ -27,6 +27,7 @@
  * Versioning (./serialize.ts) follows the hero's rules. The copied sheets are hero and villain
  * documents, so a change to their format needs a new game version too.
  */
+import type { CharColor } from '../colors/palette'
 import type { Defense } from '../play/defense'
 import { newId, type Hero, type PlayMod, type PlayState } from '../hero/model'
 import { emptyPlay } from '../play/state'
@@ -125,6 +126,8 @@ export interface NpcGroup extends Visible {
   templateId?: string
   kind: 'minions' | 'lieutenants'
   name: string
+  /** Unset: by side (docs/design/character-colors/spec.md). */
+  color?: CharColor
   owner: GroupOwner
   /** The basic actions its members can take; quick add allows any. */
   actions: 'any' | BasicAction[]
@@ -151,6 +154,8 @@ export interface ChallengeRequest {
 
 export interface Challenge extends Visible {
   id: string
+  /** Unset: by side (docs/design/character-colors/spec.md). */
+  color?: CharColor
   /** The library template it came from, if any. */
   templateId?: string
   name: string
@@ -200,6 +205,8 @@ export type AttachedOnTable = AttachedGroupOnTable | AttachedChallengeOnTable
  */
 export interface EnvironmentOnTable extends Visible {
   id: string
+  /** Unset: by side (docs/design/character-colors/spec.md). */
+  color?: CharColor
   /** The template it came from, if any. */
   templateId?: string
   name: string

@@ -3,6 +3,7 @@
  * lieutenants, challenges and environments. They hold no play state, so they have no primary action, and the
  * In games column lists games holding something made from them.
  */
+import { appearanceOf } from '../colors/palette'
 import { templatePath } from '../app/route'
 import { actionsText } from '../game/npc'
 import type { DocStore } from '../store/doc-store'
@@ -45,7 +46,7 @@ function templateType<D extends TemplateBase>(spec: TemplateTypeSpec<D>): Librar
     },
     row(doc) {
       const href = templatePath(spec.kind, doc.id)
-      return { name: templateName(doc, spec.kind), named: Boolean(doc.name.trim()), draft: false, ...spec.details(doc), openHref: href, editHref: href }
+      return { colors: appearanceOf(spec.kind === 'environment' ? { kind: 'environment', color: doc.color } : spec.kind === 'challenge' ? { kind: 'challenge', color: doc.color } : { kind: 'group', color: doc.color }), name: templateName(doc, spec.kind), named: Boolean(doc.name.trim()), draft: false, ...spec.details(doc), openHref: href, editHref: href }
     },
     duplicate: (doc) => duplicateTemplate(doc),
     exportFile: (doc) => ({ name: fileName(doc, spec.kind), text: templateJson(spec.envelope, doc) }),

@@ -56,7 +56,7 @@ describe('hero rows', () => {
   it('shows archetype · power source and Play, and nothing from play', () => {
     const hero = exampleHero({ id: 'h' })
     const row = heroType.row(hero)
-    expect(row).toEqual({ name: 'Maya Reyes', named: true, draft: false, details: 'Speedster · Accident', openHref: '#/hero/h', primary: { label: 'Play', href: '#/hero/h/play' }, editHref: '#/hero/h/edit' })
+    expect(row).toEqual({ colors: expect.anything(), name: 'Maya Reyes', named: true, draft: false, details: 'Speedster · Accident', openHref: '#/hero/h', primary: { label: 'Play', href: '#/hero/h/play' }, editHref: '#/hero/h/edit' })
   })
 
   it('counts rule issues, linking to the edit summary', () => {
@@ -89,7 +89,7 @@ describe('hero rows', () => {
 describe('villain rows', () => {
   it('shows approach archetype · category and Play, and nothing from play', () => {
     const row = villainType.row(adaptiveBruiser())
-    expect(row).toEqual({ name: 'Ironclad', named: true, draft: false, details: 'Adaptive Bruiser', kind: 'Minor', openHref: '#/villain/v1', primary: { label: 'Play', href: '#/villain/v1/play' }, editHref: '#/villain/v1/edit' })
+    expect(row).toEqual({ colors: expect.anything(), name: 'Ironclad', named: true, draft: false, details: 'Adaptive Bruiser', kind: 'Minor', openHref: '#/villain/v1', primary: { label: 'Play', href: '#/villain/v1/play' }, editHref: '#/villain/v1/edit' })
   })
 
   it('counts issues, linking to the first step with one', () => {
@@ -99,7 +99,7 @@ describe('villain rows', () => {
 
   it('shows a draft as its step, with Continue', () => {
     const draft = { ...adaptiveBruiser(), status: 'draft' as const, furthestStep: 3 }
-    expect(villainType.row(draft)).toEqual({ name: 'Ironclad', named: true, draft: true, details: 'Step 3 of 7 · Archetype', openHref: '#/villain/v1', primary: { label: 'Continue', href: '#/villain/v1/edit/archetype' }, editHref: '#/villain/v1/edit/archetype' })
+    expect(villainType.row(draft)).toEqual({ colors: { primary: 'red' }, name: 'Ironclad', named: true, draft: true, details: 'Step 3 of 7 · Archetype', openHref: '#/villain/v1', primary: { label: 'Continue', href: '#/villain/v1/edit/archetype' }, editHref: '#/villain/v1/edit/archetype' })
     expect(villainType.row({ ...draft, furthestStep: undefined }).details).toBe('Step 1 of 7 · Concept')
     expect(villainType.row({ ...draft, furthestStep: 99 }).details).toBe('Step 7 of 7 · Finishing touches')
   })

@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import { listPath, navigate, villainEditPath, villainPlayPath } from '../app/route'
 import { useVillainStore } from '../app/villain-store-context'
 import type { VillainGetResult } from './store'
+import { appearanceOf, fillStyle } from '../colors/palette'
 import { IssueBanner, ModeSwitch } from '../components/CharacterHead'
 import { ExportMenu } from '../components/ExportMenu'
 import { buildVillainSheet, villainIdentity } from './sheet'
@@ -61,7 +62,9 @@ export function VillainPage({ id }: { id: string }) {
         <div className="character-head__row">
           <div className="character-head__name">
             <div className="character-head__title">
-              <h2>{sheet.name}</h2>
+              <h2 className="char-band char-fill" style={fillStyle(appearanceOf({ kind: 'villain', appearance: villain.appearance }))}>
+                {sheet.name}
+              </h2>
               {sheet.alias && sheet.alias !== sheet.name && <span className="character-head__alias">{sheet.alias}</span>}
             </div>
             <p className="character-head__identity">{villainIdentity(sheet)}</p>

@@ -11,6 +11,7 @@ import type { HeroAction } from '../game/actions'
 import { VIEW_HISTORY, type TableView } from '../game/project'
 import type { Hero } from '../hero/model'
 import { normalizeRoomCode } from './code'
+import { appearanceShape, charColor } from '../colors/validate'
 import { die, heroShape, playStateShape } from '../hero/validate'
 import { groupActions } from '../game/validate'
 import { arrayOf, boolean, integer, isRecord, nonEmptyString, object, oneOf, type Check } from '../shape'
@@ -207,7 +208,7 @@ const tableViewShape = object({
   issues: list(issueView, 1000),
   'currentIssueId?': id,
   scene: object({ name: text(MAX_NAME), tracker: list(zone, 30), position, number: range(1, 1000) }),
-  'environment?': object({ id, name: text(MAX_NAME), hidden: boolean, 'description?': text(MAX_TEXT) }),
+  'environment?': object({ id, 'color?': charColor, name: text(MAX_NAME), hidden: boolean, 'description?': text(MAX_TEXT) }),
   round: position,
   heroPoints: position,
   turn: object({ order: list(actor, 100), acted: list(actor, 100), 'current?': actor }),
@@ -215,6 +216,7 @@ const tableViewShape = object({
   villains: list(
     object({
       id,
+      'appearance?': appearanceShape,
       name: text(MAX_NAME),
       major: boolean,
       hidden: boolean,
@@ -232,6 +234,7 @@ const tableViewShape = object({
   groups: list(
     object({
       id,
+      'color?': charColor,
       'templateId?': id,
       kind: oneOf('minions', 'lieutenants'),
       name: text(MAX_NAME),
@@ -242,7 +245,7 @@ const tableViewShape = object({
     }),
     50,
   ),
-  challenges: list(object({ id, 'templateId?': id, name: text(MAX_NAME), hidden: boolean, owner: object({ kind: oneOf('gm', 'environment') }), steps: list(object({ label: text(MAX_NAME), done: boolean }), 20), requests: list(object({ id, heroId: id, total: range(-100, 100), 'trait?': text(MAX_NAME), at: text(40) }), 50), 'description?': text(MAX_TEXT), 'whenDone?': text(MAX_TEXT) }), 50),
+  challenges: list(object({ id, 'color?': charColor, 'templateId?': id, name: text(MAX_NAME), hidden: boolean, owner: object({ kind: oneOf('gm', 'environment') }), steps: list(object({ label: text(MAX_NAME), done: boolean }), 20), requests: list(object({ id, heroId: id, total: range(-100, 100), 'trait?': text(MAX_NAME), at: text(40) }), 50), 'description?': text(MAX_TEXT), 'whenDone?': text(MAX_TEXT) }), 50),
   'pendingHits?': list(object({ id, heroId: id, by: text(MAX_NAME), amount: range(0, 1000), at: text(MAX_NAME), 'gmOnly?': oneOf(true) }), 50),
   feed: list(feedEntry, VIEW_FEED),
 })

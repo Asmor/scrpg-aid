@@ -2,12 +2,13 @@
  * Structural checks for templates read from storage or an imported file, which are untrusted.
  * Shape only, like ../hero/validate.ts.
  */
+import { charColor } from '../colors/validate'
 import { die } from '../hero/validate'
 import { groupActions } from '../game/validate'
 import { arrayOf, integer, nonEmptyString, object, oneOf, positiveInteger, string, type Check } from '../shape'
 import { ASPECT_COUNT, MAX_ATTACHED, MAX_GROUP_SIZE, MAX_STEPS, MAX_TWISTS } from './model'
 
-const base = { id: nonEmptyString, createdAt: string, updatedAt: string, tags: arrayOf(string), name: string }
+const base = { id: nonEmptyString, createdAt: string, updatedAt: string, tags: arrayOf(string), name: string, 'color?': charColor }
 const size: Check = (v, path) => integer(v, path) ?? ((v as number) < 1 || (v as number) > MAX_GROUP_SIZE ? `${path} should be 1–${MAX_GROUP_SIZE}` : undefined)
 const minion = { ...base, die, groupSize: size, actions: groupActions, notes: string }
 
