@@ -6,7 +6,7 @@ import { useId, useState } from 'react'
 import { BackIssuePips } from '../components/BackIssuePips'
 import { Modal } from '../components/Modal'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
-import { defaultIssueTitle, finishRows, modsToClear, oppositionStaying, scenesPlayed, type FinishChoices, type OwnHeroState } from './issues'
+import { defaultIssueTitle, finishRows, modsToClear, oppositionStaying, scenesPlayed, type FinishChoices } from './issues'
 import { currentIssue, currentScene, gameDisplayName, sceneName, sceneNumber, type Game } from './model'
 import { TrackerBoxes } from './ScenesTab'
 import { EndOfIssue } from './TableCenter'
@@ -15,22 +15,21 @@ interface Props {
   game: Game
   /** The client ids of players connected now. */
   connected: ReadonlySet<string>
-  own: (sourceId: string) => OwnHeroState
   onFinish: (choices: FinishChoices) => void
   onClose: () => void
 }
 
-export function FinishIssueDialog({ game, connected, own, onFinish, onClose }: Props) {
+export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props) {
   const id = useId()
   const issue = currentIssue(game)
   const [title, setTitle] = useState(() => (issue ? issue.title?.trim() || defaultIssueTitle(game, issue) : ''))
   const [summary, setSummary] = useState('')
-  // Everyone starts checked, except a GM's hero whose library document is gone.
+  // Every player's hero starts checked.
   const [unchecked, setUnchecked] = useState<ReadonlySet<string>>(new Set())
   if (!issue) return null
   const checked = new Set(game.heroes.filter((h) => !unchecked.has(h.id)).map((h) => h.id))
-  const rows = finishRows(game, checked, connected, own)
-  const heroIds = rows.filter((r) => checked.has(r.heroId) && !r.disabled).map((r) => r.heroId)
+  const rows = finishRows(game, checked, connected)
+  const heroIds = rows.filter((r) => checked.has(r.heroId)).map((r) => r.heroId)
   const named = title.trim()
   const scene = currentScene(game)
   const played = scenesPlayed(game)
@@ -98,18 +97,17 @@ export function FinishIssueDialog({ game, connected, own, onFinish, onClose }: P
         <section className="gt-start__section" aria-labelledby={`${id}-back`}>
           <h3 id={`${id}-back`}>Back issues</h3>
           <p className="gt-sub">
-            Each checked hero gets "{named || title}" as a back issue. Players confirm it on their own device; your own heroes get it now.
+            Each checked hero gets "{named || title}" as a back issue. Players confirm it on their own device.
           </p>
           <ul className="gt-finish__facts">
             {rows.map((r) => {
-              const on = checked.has(r.heroId) && !r.disabled
+              const on = checked.has(r.heroId)
               return (
                 <li key={r.heroId} className="gt-row">
                   <label className="checkbox gt-grow">
                     <input
                       type="checkbox"
                       checked={on}
-                      disabled={r.disabled}
                       aria-label={r.name}
                       onChange={(e) => {
                         const next = new Set(unchecked)

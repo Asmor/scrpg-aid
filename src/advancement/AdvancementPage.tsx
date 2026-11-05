@@ -21,7 +21,7 @@ import type { Clock } from '../play/state'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
 import { BackIssuePrompt } from '../game/BackIssuePrompt'
 import { setIssuePrompt, type JoinedGame } from '../game/joined-store'
-import { addBackIssue, addOfferedIssue, addStartingCollection, backIssueOffer, changeCosmetic, collectionsText, cosmeticFields, dismissIssue, editBackIssue, heroIssues, holdsIssue, recordCollection, removeBackIssue, shortDate, undoable, undoLast, type CosmeticKind, type HeroIssue, type IssueGame, type IssueSource } from './records'
+import { addBackIssue, addOfferedIssue, addStartingCollection, backIssueOffer, changeCosmetic, collectionsText, cosmeticFields, editBackIssue, heroIssues, holdsIssue, recordCollection, removeBackIssue, shortDate, undoable, undoLast, type CosmeticKind, type HeroIssue, type IssueGame, type IssueSource } from './records'
 import { openRewrite, startRewrite } from './rewrite'
 import { swapAbility, swapPrinciple, swapTrait } from './swaps'
 import { AbilitySwapDialog, PrincipleSwapDialog, TraitSwapDialog } from './SwapDialogs'
@@ -560,12 +560,10 @@ export function AdvancementPage({ id, clock = defaultClock }: { id: string; cloc
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map((g) => ({ id: g.id, name: gameDisplayName(g) }))
   const sources: IssueSource[] = [
-    ...(listed.games ?? []).map((g) => ({ game: { id: g.id, name: gameDisplayName(g) }, joined: false, issues: g.issues })),
-    ...joined.filter((j) => j.heroSourceId === hero.id).map((j) => ({ game: { id: j.id, name: gameDisplayName(j.table) }, gm: j.gm, joined: true, issues: j.table.issues, ...(j.issuePrompts ? { prompts: j.issuePrompts } : {}) })),
+    ...joined.filter((j) => j.heroSourceId === hero.id).map((j) => ({ game: { id: j.id, name: gameDisplayName(j.table) }, gm: j.gm, issues: j.table.issues, ...(j.issuePrompts ? { prompts: j.issuePrompts } : {}) })),
   ]
   const issues = heroIssues(hero, sources)
   const dismiss = (issue: HeroIssue) => {
-    if (!issue.joined) return apply((h) => dismissIssue(h, issue.id))
     setJoined((list) => list.map((j) => (j.id === issue.game.id ? { ...j, issuePrompts: { ...j.issuePrompts, [issue.id]: 'dismissed' } } : j)))
     if (joinedStore) setIssuePrompt(joinedStore, issue.game.id, issue.id, 'dismissed').catch(() => {})
   }

@@ -87,30 +87,25 @@ export interface IssueSource {
   game: IssueGame
   /** Who finished it, for the prompt: the GM's name, or nothing when it's this device's own game. */
   gm?: string
-  joined: boolean
   issues: readonly { id: string; number: number; title?: string; state: 'now' | 'finished'; offeredTo?: readonly { sourceId: string }[] }[]
   prompts?: Readonly<Record<string, 'later' | 'dismissed'>>
 }
 
 export interface HeroIssue extends OfferedIssue {
   gm?: string
-  joined: boolean
   dismissed: boolean
 }
 
-/** Every finished issue offered to this hero, newest game first as `sources` has them. */
-export function heroIssues(hero: Pick<Hero, 'id' | 'dismissedIssues'>, sources: readonly IssueSource[]): HeroIssue[] {
+/** Every finished issue offered to this hero in the games joined on this device, newest first as `sources` has them. */
+export function heroIssues(hero: Pick<Hero, 'id'>, sources: readonly IssueSource[]): HeroIssue[] {
   return sources.flatMap((s) =>
     s.issues.flatMap((i) => {
       if (i.state !== 'finished' || !i.offeredTo?.some((o) => o.sourceId === hero.id)) return []
-      const dismissed = s.prompts?.[i.id] === 'dismissed' || Boolean(hero.dismissedIssues?.includes(i.id))
-      return [{ id: i.id, number: i.number, title: i.title?.trim() || `Issue ${i.number}`, game: s.game, ...(s.gm ? { gm: s.gm } : {}), joined: s.joined, dismissed }]
+      const dismissed = s.prompts?.[i.id] === 'dismissed'
+      return [{ id: i.id, number: i.number, title: i.title?.trim() || `Issue ${i.number}`, game: s.game, ...(s.gm ? { gm: s.gm } : {}), dismissed }]
     }),
   )
 }
-
-/** Takes an issue from a game this device runs off the list for good. */
-export const dismissIssue = (hero: Hero, issueId: string): Hero => (hero.dismissedIssues?.includes(issueId) ? hero : { ...hero, dismissedIssues: [...(hero.dismissedIssues ?? []), issueId] })
 
 /** Changes a back issue's title and game. `game` undefined means None. */
 export function editBackIssue(hero: Hero, id: string, input: { title: string; game?: IssueGame }): Hero {

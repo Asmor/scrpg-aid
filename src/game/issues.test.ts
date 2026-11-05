@@ -177,33 +177,25 @@ describe('issues and scenes', () => {
 })
 
 describe('the Finish dialog rows', () => {
-  const own = () => ({ gone: false })
-
-  it("says what will happen for each hero", () => {
+  it('says what will happen for each player\'s hero', () => {
     const g = table()
-    const rows = (connected: string[], checked = ['h1', 'h2']) => finishRows(g, new Set(checked), new Set(connected), own)
+    const rows = (connected: string[], checked = ['h1', 'h2']) => finishRows(g, new Set(checked), new Set(connected))
     expect(rows(['c1'])[0]).toMatchObject({ who: 'Alex', note: 'Alex confirms on their device.' })
     expect(rows([])[0]).toMatchObject({ who: 'Alex · disconnected', note: 'Alex gets the prompt next time they join.' })
-    expect(rows(['c1'])[1]).toMatchObject({ who: 'your hero', note: 'Added to your library hero when you finish.' })
     expect(rows(['c1'], ['h2'])[0]!.note).toBe('No back issue for this hero.')
+  })
+
+  it("leaves out the GM's own heroes", () => {
+    expect(finishRows(table(), new Set(['h1', 'h2']), new Set()).map((r) => r.heroId)).toEqual(['h1'])
   })
 
   it('tags a hero reaching six and one already there', () => {
     const g = table()
     const issues = (n2: number) => Array.from({ length: n2 }, (_, i) => ({ id: `b${i}`, title: 'x', at: 'x' }))
     g.heroes[0]!.sheet.backIssues = issues(5)
-    g.heroes[1]!.sheet.backIssues = issues(6)
-    const rows = finishRows(g, new Set(['h1', 'h2']), new Set(['c1']), own)
-    expect(rows[0]).toMatchObject({ tag: 'Reaches six', count: 5 })
-    expect(rows[1]).toMatchObject({ tag: 'Full', note: 'Already at six. Name a collection on the Advancement page first.' })
+    expect(finishRows(g, new Set(['h1']), new Set(['c1']))[0]).toMatchObject({ tag: 'Reaches six', count: 5 })
     g.heroes[0]!.sheet.backIssues = issues(6)
-    expect(finishRows(g, new Set(['h1']), new Set(['c1']), own)[0]!.note).toBe('Already at six. Alex is asked to name a collection first.')
-  })
-
-  it("disables the GM's hero whose library document is gone, and counts the library's back issues", () => {
-    const g = table()
-    expect(finishRows(g, new Set(['h2']), new Set(), () => ({ gone: true }))[1]).toMatchObject({ disabled: true, note: 'Not in your library any more.' })
-    expect(finishRows(g, new Set(['h2']), new Set(), () => ({ gone: false, backIssues: 3 }))[1]!.count).toBe(3)
+    expect(finishRows(g, new Set(['h1']), new Set(['c1']))[0]).toMatchObject({ tag: 'Full', note: 'Already at six. Alex is asked to name a collection first.' })
   })
 
   it('names what stays on the table', () => {
@@ -215,14 +207,16 @@ describe('the Finish dialog rows', () => {
 })
 
 describe('who has recorded the issue', () => {
-  it('reads each offered hero from the answers', () => {
+  it('reads each offered hero from the answers, and never offers the GM\'s own', () => {
     const g = finishIssue(table(), { ...choices, heroIds: ['h1', 'h2'] }, clock)
     const id = g.issues[0]!.id
-    expect(backIssueStatuses(g, new Set())).toMatchObject([{ name: 'Afterimage', who: 'Alex · disconnected', text: 'Not seen yet', added: false }, { name: 'Redline', who: 'your hero', text: 'Not seen yet' }])
+    expect(g.issues[0]!.offeredTo!.map((o) => o.heroId)).toEqual(['h1'])
+    expect(backIssueStatuses(g, new Set())).toMatchObject([{ name: 'Afterimage', who: 'Alex · disconnected', text: 'Not seen yet', added: false }])
+    expect(recordIssueAck(g, id, 'h2', { status: 'added', count: 1 }, clock)).toBe(g)
     const later = recordIssueAck(g, id, 'h1', { status: 'later' }, clock)
     expect(backIssueStatuses(later, new Set(['c1']))[0]).toMatchObject({ who: 'Alex', text: 'Later', added: false })
-    const added = recordIssueAck(later, id, 'h2', { status: 'added', count: 3 }, clock)
-    expect(backIssueStatuses(added, new Set())[1]).toMatchObject({ text: 'Added · 3 of 6', added: true })
+    const added = recordIssueAck(later, id, 'h1', { status: 'added', count: 3 }, clock)
+    expect(backIssueStatuses(added, new Set())[0]).toMatchObject({ text: 'Added · 3 of 6', added: true })
     expect(backIssueStatuses(table(), new Set())).toEqual([])
   })
 })
@@ -241,7 +235,6 @@ describe('what a player is asked about', () => {
 
   it("skips one already on the hero, or dismissed there", () => {
     expect(issueToPrompt(issues, 's', { ...hero, backIssues: [{ id: 'b', title: 'x', issueId: 'i1', at: 'x' }] }, {})?.id).toBe('i2')
-    expect(issueToPrompt(issues, 's', { ...hero, dismissedIssues: ['i1'] }, {})?.id).toBe('i2')
   })
 })
 

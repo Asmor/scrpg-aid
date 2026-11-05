@@ -280,7 +280,7 @@ describe('the Advancement page', () => {
 })
 
 describe('issues on the Advancement page', () => {
-  async function finished(hero: Hero = maya(), joined: Partial<JoinedGame> | null = null) {
+  async function finished(hero: Hero = maya(), joined: Partial<JoinedGame> | null = {}) {
     const heroes = new MemoryHeroStore()
     const games = new MemoryGameStore()
     const joinedStore = new MemoryJoinedStore()
@@ -327,15 +327,13 @@ describe('issues on the Advancement page', () => {
     expect((await saved()).collections[0]!.name).toBe('The Arc')
   })
 
-  it('Dismiss on a game you run stays with the hero', async () => {
-    const { saved } = await finished()
-    await userEvent.click(await screen.findByRole('button', { name: 'Dismiss The Gravelord Saga' }))
+  it("never offers an issue from a game this device runs: the GM's own heroes are NPCs", async () => {
+    await finished(maya(), null)
     expect(screen.queryByRole('button', { name: 'Add The Gravelord Saga' })).not.toBeInTheDocument()
-    await waitFor(async () => expect((await saved()).dismissedIssues).toHaveLength(1))
   })
 
   it('Dismiss on a joined game stays with the joined game', async () => {
-    const { joinedStore } = await finished(maya(), {})
+    const { joinedStore } = await finished()
     await userEvent.click(await screen.findByRole('button', { name: 'Dismiss The Gravelord Saga' }))
     expect(screen.queryByRole('button', { name: 'Add The Gravelord Saga' })).not.toBeInTheDocument()
     await waitFor(async () => expect(Object.values((await joinedStore.get('g1'))!.issuePrompts ?? {})).toEqual(['dismissed']))

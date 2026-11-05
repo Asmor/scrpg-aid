@@ -397,7 +397,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
   }
 
   // Put off with Later, and not added since.
-  const notRecordedHere = sourceId && heroNow ? offeredIssues(issues, sourceId).filter((i) => prompts[i.id] === 'later' && !heroNow.dismissedIssues?.includes(i.id) && !holdsIssue(heroNow, i.id)) : []
+  const notRecordedHere = sourceId && heroNow ? offeredIssues(issues, sourceId).filter((i) => prompts[i.id] === 'later' && !holdsIssue(heroNow, i.id)) : []
 
   /** Adds the back issue to the library hero: the latest copy, since the Advancement page may have changed it. */
   const addIssue = (i: IssueOnTable, collection?: string) => {

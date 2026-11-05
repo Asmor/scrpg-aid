@@ -1,7 +1,7 @@
 /**
  * The end of an issue (docs/design/issues/spec.md): finishing one, and what the Finish dialog says
- * about it. Pure: each change takes the game and returns the new one. Back issues go on library
- * heroes, which the game never changes, so adding them is the caller's.
+ * about it. Pure: each change takes the game and returns the new one. Back issues go on players'
+ * library heroes, on their own devices; the game never changes those.
  */
 import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 import { heroDisplayName, type Hero } from '../hero/model'
@@ -22,7 +22,7 @@ export function defaultIssueTitle(game: Pick<Game, 'name' | 'issues'>, issue: Pi
 export interface FinishChoices {
   title: string
   summary: string
-  /** The heroes offered a back issue (the game's ids). */
+  /** The players' heroes offered a back issue (the game's ids). */
   heroIds: readonly string[]
 }
 
@@ -54,7 +54,7 @@ export function finishIssue(game: Game, choices: FinishChoices, clock: Clock): G
     if (s.id !== settled.currentSceneId) return s
     return { ...s, state: 'done', summary: sceneEndSummary(settled), opposition: record, ...(settled.environment ? { environmentId: settled.environment.id, environmentHidden: settled.environment.hidden } : {}) }
   })
-  const offeredTo = settled.heroes.filter((h) => choices.heroIds.includes(h.id)).map((h) => ({ heroId: h.id, sourceId: h.sourceId, name: heroDisplayName(h.sheet) }))
+  const offeredTo = settled.heroes.filter((h) => h.player && choices.heroIds.includes(h.id)).map((h) => ({ heroId: h.id, sourceId: h.sourceId, name: heroDisplayName(h.sheet) }))
   const issues = settled.issues.map((i): Issue => {
     if (i.id !== issue.id) return i
     const { summary: _, ...rest } = i
@@ -98,44 +98,34 @@ export function recordIssueAck(game: Game, issueId: string, heroId: string, ack:
   return { ...game, issues: game.issues.map((i) => (i === issue ? { ...i, acks: { ...i.acks, [heroId]: entry } } : i)) }
 }
 
-/** The library hero behind one of the GM's own heroes: `gone` when it's been deleted. */
-export type OwnHeroState = { gone: boolean; backIssues?: number }
-
 /** A hero's row in the Finish dialog. */
 export interface FinishRow {
   heroId: string
   name: string
-  /** The player, or "your hero", and whether they're connected. */
+  /** The player, and whether they're connected. */
   who: string
   /** What will happen. */
   note: string
   /** Back issues now, as last known: a hint for a player's hero. */
   count: number
-  /** The GM's hero whose library document is gone. */
-  disabled: boolean
   /** A checked hero's tag. */
   tag?: 'Full' | 'Reaches six'
 }
 
-function finishRow(game: Pick<Game, 'heroes'>, hero: HeroInGame, on: boolean, connected: ReadonlySet<string>, own: (sourceId: string) => OwnHeroState): FinishRow {
-  const name = heroLabel(game.heroes, hero)
-  const mine = !hero.player
-  const state = mine ? own(hero.sourceId) : undefined
-  const count = state?.backIssues ?? hero.sheet.backIssues.length
+function finishRow(game: Pick<Game, 'heroes'>, hero: HeroInGame, on: boolean, connected: ReadonlySet<string>): FinishRow {
+  const count = hero.sheet.backIssues.length
   const away = Boolean(hero.player && !connected.has(hero.player.clientId))
   const player = hero.player?.name || 'The player'
-  const base = { heroId: hero.id, name, who: hero.player ? `${player}${away ? ' · disconnected' : ''}` : 'your hero', count, disabled: Boolean(state?.gone) }
-  if (state?.gone) return { ...base, note: 'Not in your library any more.' }
+  const base = { heroId: hero.id, name: heroLabel(game.heroes, hero), who: `${player}${away ? ' · disconnected' : ''}`, count }
   if (!on) return { ...base, note: 'No back issue for this hero.' }
-  if (count >= BACK_ISSUES_PER_COLLECTION) return { ...base, tag: 'Full', note: mine ? 'Already at six. Name a collection on the Advancement page first.' : `Already at six. ${player} is asked to name a collection first.` }
+  if (count >= BACK_ISSUES_PER_COLLECTION) return { ...base, tag: 'Full', note: `Already at six. ${player} is asked to name a collection first.` }
   const tag = count === BACK_ISSUES_PER_COLLECTION - 1 ? ({ tag: 'Reaches six' } as const) : {}
-  if (mine) return { ...base, ...tag, note: 'Added to your library hero when you finish.' }
   return { ...base, ...tag, note: away ? `${player} gets the prompt next time they join.` : `${player} confirms on their device.` }
 }
 
-/** Every hero's row, as the dialog's checkboxes stand. */
-export function finishRows(game: Pick<Game, 'heroes'>, checked: ReadonlySet<string>, connected: ReadonlySet<string>, own: (sourceId: string) => OwnHeroState): FinishRow[] {
-  return game.heroes.map((h) => finishRow(game, h, checked.has(h.id), connected, own))
+/** A row for each player's hero, as the dialog's checkboxes stand. The GM's own heroes are NPCs, with no back issues. */
+export function finishRows(game: Pick<Game, 'heroes'>, checked: ReadonlySet<string>, connected: ReadonlySet<string>): FinishRow[] {
+  return game.heroes.filter((h) => h.player).map((h) => finishRow(game, h, checked.has(h.id), connected))
 }
 
 /** The scenes of the issue being finished, played so far. */
@@ -164,15 +154,15 @@ export function backIssueStatuses(game: Pick<Game, 'issues' | 'heroes'>, connect
   return (issue.offeredTo ?? []).map((o) => {
     const hero = game.heroes.find((h) => h.id === o.heroId)
     const ack = issue.acks?.[o.heroId]
-    const who = !hero ? 'left the game' : hero.player ? `${hero.player.name || 'A player'}${connected.has(hero.player.clientId) ? '' : ' · disconnected'}` : 'your hero'
+    const who = !hero?.player ? 'left the game' : `${hero.player.name || 'A player'}${connected.has(hero.player.clientId) ? '' : ' · disconnected'}`
     const text = !ack ? 'Not seen yet' : ack.status === 'later' ? 'Later' : `Added${ack.count !== undefined ? ` · ${ack.count} of ${BACK_ISSUES_PER_COLLECTION}` : ''}`
     return { heroId: o.heroId, name: o.name, who, text, added: ack?.status === 'added' }
   })
 }
 
 /** What a player's device asks about next: the oldest issue offered to this hero and not answered. */
-export function issueToPrompt<I extends { id: string; state: 'now' | 'finished'; offeredTo?: readonly { sourceId: string }[] }>(issues: readonly I[], sourceId: string, hero: Pick<Hero, 'backIssues' | 'collections' | 'dismissedIssues'> | undefined, prompts: Readonly<Record<string, string>>): I | undefined {
-  return offeredIssues(issues, sourceId).find((i) => !prompts[i.id] && !hero?.dismissedIssues?.includes(i.id) && !(hero && holdsIssue(hero, i.id)))
+export function issueToPrompt<I extends { id: string; state: 'now' | 'finished'; offeredTo?: readonly { sourceId: string }[] }>(issues: readonly I[], sourceId: string, hero: Pick<Hero, 'backIssues' | 'collections'> | undefined, prompts: Readonly<Record<string, string>>): I | undefined {
+  return offeredIssues(issues, sourceId).find((i) => !prompts[i.id] && !(hero && holdsIssue(hero, i.id)))
 }
 
 /** Every finished issue offered to this hero. */

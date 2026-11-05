@@ -30,12 +30,10 @@ import { applySaves } from './npc'
 import { applyAttack, applyGroupRoll, giveMod, protect } from './resolve'
 import { parseTarget } from './roll-targets'
 import { applyHeroChange, type HeroChange } from './hero-changes'
-import { betweenIssues, currentIssue, currentScene, gameDisplayName, issueTitle, nextIssueNumber, sceneName, sceneNumber, sceneOnTable, type ActorRef, type Issue, type OfferedHero, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
-import { backIssueStatuses, changeHeroPoints, finishIssue, issueStartFacts, recordIssueAck, setIssueRecord, startIssue, type FinishChoices, type OwnHeroState } from './issues'
+import { betweenIssues, currentIssue, currentScene, gameDisplayName, issueTitle, nextIssueNumber, sceneName, sceneNumber, sceneOnTable, type ActorRef, type Issue, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
+import { backIssueStatuses, changeHeroPoints, finishIssue, issueStartFacts, setIssueRecord, startIssue, type FinishChoices } from './issues'
 import { FinishIssueDialog } from './FinishIssueDialog'
 import { finishedPill } from './summary'
-import { addBackIssue, backIssueOffer } from '../advancement/records'
-import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 import { healthLine, reconcile, reconcileVillain } from './reconcile'
 import { SceneEditor, type EditorTarget } from './SceneEditor'
 import type { SceneDraft } from './scenes'
@@ -210,33 +208,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   }
   const addToast = (text: string, warn = false) => setToasts((t) => [...t, { id: clock().newId(), text, ...(warn ? { warn: true } : {}) }])
 
-  /** What the Finish dialog needs to know about the GM's own heroes' library documents. */
-  const ownHeroState = (sourceId: string): OwnHeroState => {
-    const entry = libraryHeroes.entries.get(sourceId)
-    if (entry?.status === 'missing') return { gone: true }
-    return entry?.status === 'ready' ? { gone: false, backIssues: entry.doc.backIssues.length } : { gone: false }
-  }
-
-  /** A back issue on one of the GM's own library heroes: what the toast says, and the status for the Back issues card. */
-  const addOwnBackIssue = async (finished: Issue, offered: OfferedHero) => {
-    const title = issueTitle(finished)
-    const r = await heroStore.get(offered.sourceId)
-    if (r.status !== 'found') return
-    const { situation, count } = backIssueOffer(r.hero, finished.id)
-    if (situation === 'recorded') return
-    if (situation === 'alreadySix') {
-      addToast(`${offered.name} already has six back issues. Name a collection on the Advancement page, then add ${title} from there.`)
-      apply((g) => recordIssueAck(g, finished.id, offered.heroId, { status: 'later', count }, clock()))
-      return
-    }
-    const c = clock()
-    const after = addBackIssue(r.hero, { title, game: { id: game.id, name: gameDisplayName(game) }, issue: { id: finished.id, number: finished.number } }, c)
-    await heroStore.save({ ...after, updatedAt: c.now.toISOString() })
-    addToast(`Added ${title} to ${offered.name}'s back issues (${count + 1} of ${BACK_ISSUES_PER_COLLECTION}).`)
-    apply((g) => recordIssueAck(g, finished.id, offered.heroId, { status: 'added', count: count + 1 }, clock()))
-  }
-
-  /** Finishes the issue, with Undo on its log line; the GM's own heroes get their back issues straight away. */
+  /** Finishes the issue, with Undo on its log line. */
   const finish = (choices: FinishChoices) => {
     let finished: Issue | undefined
     let undo: NonNullable<typeof sceneUndo> | null = null
@@ -245,7 +217,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       const entry = next.feed.at(-1)
       if (next !== g && entry) {
         finished = next.issues.find((i) => i.id === g.currentIssueId)
-        undo = { entryId: entry.id, before: structuredClone(g), label: `Undo finishing issue ${finished!.number}`, undone: 'Issue finish undone.', toast: 'Undone. Back issues already added stay; remove them on the Advancement page if needed.' }
+        undo = { entryId: entry.id, before: structuredClone(g), label: `Undo finishing issue ${finished!.number}`, undone: 'Issue finish undone.', toast: 'Undone. Back issues players already added stay; they can remove them on the Advancement page.' }
       }
       return next
     })
@@ -253,10 +225,6 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     const done = finished as Issue | undefined
     if (!done) return
     setAnnounce(`Issue ${done.number} finished: ${issueTitle(done)}.`)
-    for (const offered of done.offeredTo ?? []) {
-      if (T.findHero(game, offered.heroId)?.player) continue
-      addOwnBackIssue(done, offered).catch((e: unknown) => addToast(`Couldn't add the back issue to ${offered.name}: ${errorText(e)}`, true))
-    }
   }
 
   const startHosting = (name: string) => {
@@ -771,7 +739,6 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         <FinishIssueDialog
           game={game}
           connected={connected}
-          own={ownHeroState}
           onFinish={(choices) => {
             setDialog(null)
             setRunning(null)

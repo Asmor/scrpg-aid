@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createHero } from '../hero/model'
 import { parseSaved, toSaved } from '../hero/serialize'
 import type { Clock } from '../play/state'
-import { addBackIssue, addOfferedIssue, addStartingCollection, backIssueOffer, dismissIssue, heroIssues, collectionsText, editBackIssue, followed, recordCollection, removeBackIssue } from './records'
+import { addBackIssue, addOfferedIssue, addStartingCollection, backIssueOffer, heroIssues, collectionsText, editBackIssue, followed, recordCollection, removeBackIssue } from './records'
 
 const c: Clock = (() => {
   let n = 0
@@ -148,7 +148,7 @@ describe('adding an offered issue', () => {
 })
 
 describe("a hero's issues", () => {
-  const source = (prompts = {}) => ({ game, joined: true, prompts, issues: [{ id: 'i1', number: 1, title: 'Saga', state: 'finished' as const, offeredTo: [{ sourceId: 'h' }] }, { id: 'i2', number: 2, state: 'finished' as const, offeredTo: [{ sourceId: 'other' }] }, { id: 'i3', number: 3, state: 'now' as const }] })
+  const source = (prompts = {}) => ({ game, prompts, issues: [{ id: 'i1', number: 1, title: 'Saga', state: 'finished' as const, offeredTo: [{ sourceId: 'h' }] }, { id: 'i2', number: 2, state: 'finished' as const, offeredTo: [{ sourceId: 'other' }] }, { id: 'i3', number: 3, state: 'now' as const }] })
 
   it('are the finished ones offered to it', () => {
     const list = heroIssues({ id: 'h' }, [source()])
@@ -158,8 +158,6 @@ describe("a hero's issues", () => {
   it('know when they were dismissed, on the joined game or the hero', () => {
     expect(heroIssues({ id: 'h' }, [source({ i1: 'dismissed' })])[0]!.dismissed).toBe(true)
     expect(heroIssues({ id: 'h' }, [source({ i1: 'later' })])[0]!.dismissed).toBe(false)
-    const hero = dismissIssue(withIssues(0), 'i1')
-    expect(heroIssues(hero, [source()])[0]!.dismissed).toBe(true)
   })
 })
 

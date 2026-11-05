@@ -374,8 +374,6 @@ export interface Hero {
   /** Back issues since the last collection, at most six. */
   backIssues: BackIssue[]
   collections: Collection[]
-  /** Finished issues from games you run that you've said not to list as "Not recorded yet" (a joined game keeps its own). */
-  dismissedIssues?: string[]
   /** Everything that changed the hero after creation, oldest first. Creation choices stay as they were made, with the swaps applied on top. */
   advancement: AdvancementEntry[]
   notes?: string

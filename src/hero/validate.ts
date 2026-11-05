@@ -161,7 +161,6 @@ export const heroShape = object({
   'pendingRolls?': object({ 'background?': rollRecord, 'powerSource?': rollRecord, 'archetype?': rollRecord, 'personality?': rollRecord, 'secondaryArchetype?': rollRecord }),
   backIssues: arrayOf(object({ id: nonEmptyString, title: string, 'gameId?': string, 'gameName?': string, 'issueId?': string, 'issueNumber?': integer, at: string })),
   collections: arrayOf(object({ id: nonEmptyString, name: string, at: string, issues: arrayOf(object({ title: string, 'gameName?': string, 'issueId?': string, 'issueNumber?': integer, at: string })), 'starting?': oneOf(true) })),
-  'dismissedIssues?': arrayOf(nonEmptyString),
   advancement: arrayOf(object({ id: nonEmptyString, at: string, kind: oneOf('collection', 'cosmetic', 'details', 'rewrite'), text: string, 'after?': string, 'change?': advancementChange, 'before?': buildShape, 'open?': oneOf(true) })),
   'status?': oneOf('draft', 'complete'),
   'furthestStep?': integer,

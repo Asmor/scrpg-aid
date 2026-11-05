@@ -729,9 +729,11 @@ describe('the game table', () => {
 describe('finishing the issue', () => {
   const finishing = async () => {
     const page = await setup((g, { hero }) => {
-      const own = heroCopy(hero, 'h1')
-      own.play = { ...emptyPlay(), mods: [{ id: 'm1', label: 'high ground', value: 2 }] }
-      g.heroes.push(own)
+      const played = heroCopy(hero, 'h1', { clientId: 'c1', name: 'Alex' })
+      played.play = { ...emptyPlay(), mods: [{ id: 'm1', label: 'high ground', value: 2 }] }
+      // The GM's own hero, an NPC.
+      const npc = heroCopy({ ...hero, id: 'npc-src', details: { ...hero.details, name: 'Redline' } }, 'h2')
+      g.heroes.push(played, npc)
       g.scenes[0]!.name = 'The Foundry'
       g.round = 4
       g.scenes.push(createScene({ id: 's2', name: 'Into the Tunnels' }))
@@ -740,13 +742,14 @@ describe('finishing the issue', () => {
     return { ...page, dialog: within(screen.getByRole('dialog', { name: 'Finish issue 1?' })) }
   }
 
-  it('shows the end card, adds the back issue to the library hero, and offers Undo', async () => {
+  it("shows the end card, leaves the GM's own hero out, and offers Undo", async () => {
     const { dialog, saved, libraryHero } = await finishing()
     expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue('Thursday game')
     expect(dialog.getByText('Thursday game · Scene 1, The Foundry, ends after round 4.')).toBeInTheDocument()
     expect(dialog.getByText('Maya Reyes +2')).toBeInTheDocument()
-    expect(dialog.getByText('Added to your library hero when you finish.')).toBeInTheDocument()
+    expect(dialog.getByText('Alex gets the prompt next time they join.')).toBeInTheDocument()
     expect(dialog.getByRole('img', { name: '0 of 6 back issues, 1 after this' })).toBeInTheDocument()
+    expect(dialog.queryByRole('checkbox', { name: 'Redline' })).not.toBeInTheDocument()
     await userEvent.clear(dialog.getByRole('textbox', { name: 'Title' }))
     expect(dialog.getByRole('button', { name: 'Finish issue 1' })).toBeDisabled()
     await userEvent.type(dialog.getByRole('textbox', { name: 'Title' }), 'The Gravelord Saga')
@@ -756,25 +759,26 @@ describe('finishing the issue', () => {
     expect(screen.getByText('END OF ISSUE 1')).toBeInTheDocument()
     expect(screen.getByText(/1 scene · finished .*Next up: scene 2, Into the Tunnels \(planned\)\./)).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Scene tracker' })).not.toBeInTheDocument()
-    expect(await screen.findByText("Added The Gravelord Saga to Maya Reyes's back issues (1 of 6).")).toBeInTheDocument()
-    await waitFor(async () => expect((await saved()).issues[0]!.acks?.h1).toMatchObject({ status: 'added', count: 1 }))
-    expect(within(screen.getByRole('region', { name: 'Back issues' })).getByText('Added · 1 of 6')).toBeInTheDocument()
-    expect((await libraryHero()).backIssues[0]).toMatchObject({ title: 'The Gravelord Saga', gameName: 'Thursday game', issueNumber: 1 })
+    const card = within(screen.getByRole('region', { name: 'Back issues' }))
+    expect(card.getByText('Not seen yet')).toBeInTheDocument()
+    expect(card.queryByText('Redline')).not.toBeInTheDocument()
+    await waitFor(async () => expect((await saved()).issues[0]!.offeredTo).toMatchObject([{ heroId: 'h1' }]))
+    expect((await libraryHero()).backIssues).toEqual([])
 
     await userEvent.click(within(log()).getByRole('button', { name: 'Undo finishing issue 1' }))
     expect(screen.getByRole('heading', { name: 'The Foundry' })).toBeInTheDocument()
-    expect(await screen.findByText(/Undone. Back issues already added stay/)).toBeInTheDocument()
+    expect(await screen.findByText(/Undone. Back issues players already added stay/)).toBeInTheDocument()
     await waitFor(async () => expect((await saved()).currentIssueId).toBeDefined())
     expect((await saved()).heroes[0]!.play.mods).toHaveLength(1)
   })
 
-  it("adds nothing for an unchecked hero", async () => {
-    const { dialog, saved, libraryHero } = await finishing()
+  it("offers nothing for an unchecked hero", async () => {
+    const { dialog, saved } = await finishing()
     await userEvent.click(dialog.getByRole('checkbox', { name: 'Maya Reyes' }))
     expect(dialog.getByText('No back issue for this hero.')).toBeInTheDocument()
     await userEvent.click(dialog.getByRole('button', { name: 'Finish issue 1' }))
     await waitFor(async () => expect((await saved()).currentIssueId).toBeUndefined())
-    expect((await libraryHero()).backIssues).toEqual([])
+    expect((await saved()).issues[0]!.offeredTo).toEqual([])
   })
 })
 
