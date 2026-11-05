@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createGame, heroCopy } from '../game/model'
 import { addChallenge, addVillain } from '../game/table'
 import { completeHero } from '../test/heroes'
+import { PlayProviders } from '../test/play'
+import { playStores } from '../test/play-stores'
 import { adaptiveBruiser } from '../test/villains'
 import { deliverAlerts, gmAlerts, gmWatch, needsHomeScreen, playerAlerts, type AlertChannels, type PlayerWatch } from './alerts'
 import { SettingsContext } from './context'
@@ -117,7 +119,9 @@ describe('the Alerts section', () => {
   const page = (store = new MemorySettingsStore()) => {
     render(
       <SettingsProvider store={store}>
-        <SettingsPage />
+        <PlayProviders stores={playStores()}>
+          <SettingsPage />
+        </PlayProviders>
       </SettingsProvider>,
     )
     return store

@@ -12,6 +12,8 @@ import { parseSavedVillain, villainToSaved, VILLAIN_FORMAT, type SavedVillain } 
 import { extractEmbedded } from './embed'
 import { parseSavedSearch, searchToSaved, type SavedSearch, type SavedSearchEnvelope } from '../library/saved-searches'
 import type { Game } from '../game/model'
+import { joinedToSaved, parseSavedJoined, type JoinedGame } from '../game/joined-store'
+import { parseSettings, SETTINGS_FORMAT, settingsToSaved, type Settings } from '../settings/model'
 import { GAME_FORMAT, gameToSaved, parseSavedGame, type SavedGame } from '../game/serialize'
 import { templateFormat } from '../template/serialize'
 import { emptyTemplateLists, TEMPLATE_LIST_INFO, TEMPLATE_LIST_KEYS, type TemplateLists } from '../template/lists'
@@ -20,10 +22,10 @@ export const BACKUP_FORMAT = 'scrpg-backup'
 /**
  * Version 2 added villains, version 3 the library's saved searches, version 4 games, and version
  * 5 the NPC templates (../template/lists.ts), and version 6 environment templates; older backups
- * still read. A multi-item export from
+ * still read. Version 7 added joined games and this device's settings. A multi-item export from
  * the library uses the same format, with no saved searches.
  */
-export const BACKUP_VERSION = 6
+export const BACKUP_VERSION = 7
 
 export interface Backup {
   format: typeof BACKUP_FORMAT
@@ -37,6 +39,10 @@ export interface Backup {
   lieutenantTemplates: unknown[]
   challengeTemplates: unknown[]
   environmentTemplates: unknown[]
+  /** Games joined as a player, as cached here. */
+  joined?: unknown[]
+  /** This device's settings. */
+  settings?: unknown
 }
 
 /** One hero as JSON, the same envelope the app stores. */
@@ -56,7 +62,7 @@ export function gameJson(game: Game): string {
 
 /** Heroes, villains, games and saved searches in one JSON file: a backup, or a library export. `now` is injectable for tests. */
 export function backupJson(
-  { heroes = [], villains = [], games = [], savedSearches = [], templates = {} }: { heroes?: readonly Hero[]; villains?: readonly Villain[]; games?: readonly Game[]; savedSearches?: readonly SavedSearch[]; templates?: Partial<TemplateLists> },
+  { heroes = [], villains = [], games = [], savedSearches = [], templates = {}, joined = [], settings }: { joined?: readonly JoinedGame[]; settings?: Settings; heroes?: readonly Hero[]; villains?: readonly Villain[]; games?: readonly Game[]; savedSearches?: readonly SavedSearch[]; templates?: Partial<TemplateLists> },
   now: Date = new Date(),
 ): string {
   const backup: Backup = {
@@ -71,6 +77,8 @@ export function backupJson(
     lieutenantTemplates: [],
     challengeTemplates: [],
     environmentTemplates: [],
+    ...(joined.length ? { joined: joined.map(joinedToSaved) } : {}),
+    ...(settings ? { settings: settingsToSaved(settings) } : {}),
   }
   for (const key of TEMPLATE_LIST_KEYS) backup[key] = (templates[key] ?? []).map((doc) => TEMPLATE_LIST_INFO[key].envelope.toSaved(doc))
   return JSON.stringify(backup, null, 2)
@@ -115,7 +123,7 @@ export interface SkippedHero {
   error: string
 }
 
-export type ImportResult = { ok: true; heroes: Hero[]; villains: Villain[]; games: Game[]; savedSearches: SavedSearch[]; templates: TemplateLists; skipped: SkippedHero[] } | { ok: false; error: string }
+export type ImportResult = { ok: true; heroes: Hero[]; villains: Villain[]; games: Game[]; savedSearches: SavedSearch[]; templates: TemplateLists; joined?: JoinedGame[]; settings?: Settings; skipped: SkippedHero[] } | { ok: false; error: string }
 
 /** An import result with nothing in it but what's given. */
 const only = (given: Partial<Omit<Extract<ImportResult, { ok: true }>, 'ok'>>): ImportResult => ({ ok: true, heroes: [], villains: [], games: [], savedSearches: [], templates: emptyTemplateLists(), skipped: [], ...given })
@@ -217,7 +225,16 @@ function readBackup(value: Record<string, unknown>): ImportResult {
       else skipped.push({ kind: TEMPLATE_LIST_INFO[key].kind, index: i + 1, error: result.error })
     })
   }
-  return { ok: true, heroes, villains, games, savedSearches, templates, skipped }
+  // Version 7 added joined games and settings. They only restore from Settings.
+  const joined: JoinedGame[] = []
+  if (Array.isArray(value.joined)) {
+    value.joined.forEach((saved, i) => {
+      const result = parseSavedJoined(saved)
+      if (result.ok) joined.push(result.doc)
+      else skipped.push({ kind: 'game', index: i + 1, error: result.error })
+    })
+  }
+  return { ok: true, heroes, villains, games, savedSearches, templates, ...(joined.length ? { joined } : {}), ...(isRecord(value.settings) && value.settings.format === SETTINGS_FORMAT ? { settings: parseSettings(value.settings) } : {}), skipped }
 }
 
 /** How to import a hero or villain whose id is already saved. */

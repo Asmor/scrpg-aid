@@ -5,6 +5,7 @@ import { DICE } from '../rules/dice'
 import { countsText, TRACKER_PRESETS } from '../rules/trackers'
 import { askToNotify, canVibrate, needsHomeScreen, playChime } from './alerts'
 import { useSettings } from './context'
+import { DataSection } from './DataSection'
 import type { Settings } from './model'
 
 const SAVED_FOR = 1800
@@ -253,6 +254,7 @@ export function SettingsPage() {
           saved={mark === 'see'}
         />
       </Section>
+      <DataSection />
     </div>
   )
 }

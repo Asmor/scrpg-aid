@@ -6,6 +6,8 @@ import { createGame, villainCopy } from '../game/model'
 import { draftOfNew } from '../game/scenes'
 import { addVillain } from '../game/table'
 import { presetCounts } from '../rules/trackers'
+import { PlayProviders } from '../test/play'
+import { playStores } from '../test/play-stores'
 import { adaptiveBruiser } from '../test/villains'
 import { AddGroupDialog } from '../game/dialogs'
 import { applyToRoot, useSettings } from './context'
@@ -17,7 +19,9 @@ import { MemorySettingsStore } from './store'
 const page = (store = new MemorySettingsStore()) => {
   render(
     <SettingsProvider store={store}>
-      <SettingsPage />
+      <PlayProviders stores={playStores()}>
+        <SettingsPage />
+      </PlayProviders>
     </SettingsProvider>,
   )
   return store

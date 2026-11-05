@@ -2,14 +2,15 @@
  * Where games are saved: the same database as heroes (../store/records.ts), in its own
  * object store, each record holding the versioned SavedGame envelope from ./serialize.
  */
+import { isRecord } from '../shape'
 import { IndexedDbRecords, MemoryRecords, readAll, type StoredRecord } from '../store/records'
 import type { Game } from './model'
 import { parseSavedGame, gameToSaved } from './serialize'
 
 export interface GameList {
   games: Game[]
-  /** Saved records that couldn't be read. */
-  unreadable: { id: string; error: string }[]
+  /** Saved records that couldn't be read, with what can still be made out of them. */
+  unreadable: { id: string; error: string; name?: string; updatedAt?: string }[]
 }
 
 export type GameGetResult = { status: 'found'; game: Game } | { status: 'missing' } | { status: 'unreadable'; error: string }
@@ -28,7 +29,14 @@ const parse = (saved: unknown) => {
 
 function readRecords(records: readonly StoredRecord[]): GameList {
   const { docs, unreadable } = readAll(records, parse)
-  return { games: docs, unreadable }
+  return {
+    games: docs,
+    unreadable: unreadable.map((u) => {
+      const saved = records.find((r) => r.id === u.id)?.saved
+      const game = isRecord(saved) && isRecord(saved.game) ? saved.game : {}
+      return { ...u, ...(typeof game.name === 'string' && game.name ? { name: game.name } : {}), ...(typeof game.updatedAt === 'string' ? { updatedAt: game.updatedAt } : {}) }
+    }),
+  }
 }
 
 function readOne(record: StoredRecord | undefined): GameGetResult {
