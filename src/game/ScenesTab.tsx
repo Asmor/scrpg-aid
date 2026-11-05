@@ -7,7 +7,7 @@
 import { useState, type DragEvent, type KeyboardEvent } from 'react'
 import type { MenuItem } from '../library/Popover'
 import { sceneName, sceneNumber, trackerFromCounts, type Game, type OppositionRef, type Scene } from './model'
-import { asideChips, refKey, sceneChips, sceneDetail, trackerLine, type AsideChip } from './scenes'
+import { asideChips, plannedForText, refKey, sceneChips, sceneDetail, trackerLine, type AsideChip } from './scenes'
 import { MenuButton } from './TableCenter'
 
 export interface SceneActions {
@@ -124,14 +124,18 @@ function SceneRow({ game, scene, next, actions, sheets, lifted, onHandleKey, onD
 function AsideItem({ game, chip, actions, sheets }: { game: Game; chip: AsideChip; actions: SceneActions; sheets: boolean }) {
   const items: MenuItem[] = [
     ...game.scenes
-      .filter((s) => s.state === 'planned')
+      .filter((s) => s.state === 'planned' && !chip.plannedFor.includes(sceneNumber(game, s.id)))
       .map((s) => ({ label: `Add to scene ${sceneNumber(game, s.id)}: ${sceneName(s)}`, onSelect: () => actions.addAside(chip.ref, s.id) })),
     { label: 'Add to the current scene', onSelect: () => actions.addAside(chip.ref, game.currentSceneId) },
     { label: 'Remove from the game…', danger: true, onSelect: () => actions.removeAside(chip) },
   ]
+  const planned = plannedForText(chip.plannedFor)
   return (
     <li className="gt-scene-chip gt-scene-chip--aside">
-      {chip.text}
+      <span>
+        {chip.text}
+        {planned && <span className="gt-sub"> · {planned}</span>}
+      </span>
       <MenuButton label={`Actions for ${chip.name}`} items={items} sheets={sheets} />
     </li>
   )

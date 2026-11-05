@@ -15,7 +15,7 @@ import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, NameDialog } from '.
 import { environmentFromTemplate } from './environment'
 import { BringInTab, type BringIn, type QuickAddKind } from './GmScreen'
 import { MAX_BOXES, sceneNumber, sceneOnTable, trackerFromCounts, type Game, type SceneItem, type SceneItemSource } from './model'
-import { asideChips, draftAddChallenge, draftAddGroup, draftAddVillain, draftOfCurrent, draftOfNew, draftOfPlanned, draftSetEnvironment, findItem, hasChanged, itemKind, itemTitle, refKey, sameRef, sourceText, type SceneDraft } from './scenes'
+import { asideChips, plannedForText, draftAddChallenge, draftAddGroup, draftAddVillain, draftOfCurrent, draftOfNew, draftOfPlanned, draftSetEnvironment, findItem, hasChanged, itemKind, itemTitle, refKey, sameRef, sourceText, type AsideChip, type SceneDraft } from './scenes'
 import { TrackerBoxes } from './ScenesTab'
 import { boxLabel, newEnvironment } from './table'
 import { foundAttached, useLibraryItems } from './useLibraryItems'
@@ -245,6 +245,7 @@ export function SceneEditor({ game, target, clock, onSave, onDelete, onSaveAndSt
   }
   const aside = asideChips(game).filter((c) => c.ref.kind !== 'environment' && !draft.rows.some((r) => sameRef(r.ref, c.ref)))
   const asideEnvironments = asideChips(game).filter((c) => c.ref.kind === 'environment')
+  const plannedElsewhere = (c: AsideChip) => plannedForText(c.plannedFor.filter((n) => n !== number))
 
   return (
     <Modal title={current ? `Edit scene ${number}` : `Plan scene ${number}`} onClose={onClose} wide>
@@ -355,6 +356,7 @@ export function SceneEditor({ game, target, clock, onSave, onDelete, onSaveAndSt
                   onClick={() => change({ rows: [...draft.rows, { ref: c.ref, startHidden: false, source: { kind: 'aside', ...(c.afterScene ? { afterScene: c.afterScene } : {}) } }] })}
                 >
                   + {c.text}
+                  {plannedElsewhere(c) && <span className="gt-sub"> · {plannedElsewhere(c)}</span>}
                 </button>
               ))}
               {aside.length === 0 && <span className="gt-sub">nothing left</span>}

@@ -591,6 +591,8 @@ function ChallengeCard({ challenge, gm }: { challenge: Challenge; gm?: GmControl
 /** Undo on the log line of a scene that just started (the GM's, for 30 seconds). */
 export interface LogUndo {
   entryId: string
+  /** The button's accessible name: "Undo starting scene 2". */
+  label: string
   onUndo: () => void
 }
 
@@ -610,7 +612,7 @@ export function TableLog({ entries, now, gm, undo }: { entries: readonly GameFee
             {gm && undo?.entryId === e.id && (
               <>
                 {' '}
-                <button type="button" className="button button--small" onClick={undo.onUndo}>
+                <button type="button" className="button button--small" aria-label={undo.label} onClick={undo.onUndo}>
                   Undo
                 </button>
               </>

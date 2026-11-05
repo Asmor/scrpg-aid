@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { AboutButton, AboutDialog, issuesUrl, repoUrl } from './About'
@@ -41,6 +41,16 @@ describe('the About dialog', () => {
     expect(screen.getByRole('heading', { name: 'About SCRPG Aid' })).toHaveFocus()
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(about).toHaveFocus()
+  })
+
+  it("gives focus back even when clicking doesn't focus the button (Safari, Firefox on a Mac)", async () => {
+    render(<AboutButton />)
+    const about = screen.getByRole('button', { name: 'About' })
+    // fireEvent, unlike userEvent, clicks without focusing.
+    fireEvent.click(about)
+    expect(screen.getByRole('heading', { name: 'About SCRPG Aid' })).toHaveFocus()
+    await userEvent.click(within(screen.getByRole('dialog')).getAllByRole('button', { name: 'Close' }).at(-1)!)
     expect(about).toHaveFocus()
   })
 })

@@ -139,21 +139,34 @@ export interface SceneChip {
   hidden: boolean
 }
 
+/** " (1)", " (2)" for chips that would otherwise read the same, and nothing for the rest. */
+function repeatNumbers(texts: readonly string[]): string[] {
+  const seen = new Map<string, number>()
+  return texts.map((text) => {
+    if (texts.indexOf(text) === texts.lastIndexOf(text)) return ''
+    const n = (seen.get(text) ?? 0) + 1
+    seen.set(text, n)
+    return ` (${n})`
+  })
+}
+
 /** The scene's opposition as chips. A done scene has none: it's what happened, in its summary. */
 export function sceneChips(game: Game, scene: Scene): SceneChip[] {
   if (scene.state === 'done') return []
-  if (scene.state === 'now') {
-    return tableOpposition(game).flatMap((ref) => {
-      const item = findItem(game, ref)
-      return item ? [{ key: refKey(ref), text: itemTitle(item, ref), hidden: (item as { hidden: boolean }).hidden }] : []
-    })
-  }
-  return scene.opposition.flatMap((i) => {
-    const item = findItem(game, i.ref)
-    if (!item) return []
-    const aside = game.aside.some((a) => sameRef(a.ref, i.ref))
-    return [{ key: refKey(i.ref), text: `${itemTitle(item, i.ref)}${aside ? ' (set aside)' : ''}`, hidden: i.startHidden }]
-  })
+  const rows =
+    scene.state === 'now'
+      ? tableOpposition(game).flatMap((ref) => {
+          const item = findItem(game, ref)
+          return item ? [{ key: refKey(ref), title: itemTitle(item, ref), note: '', hidden: (item as { hidden: boolean }).hidden }] : []
+        })
+      : scene.opposition.flatMap((i) => {
+          const item = findItem(game, i.ref)
+          if (!item) return []
+          const aside = game.aside.some((a) => sameRef(a.ref, i.ref))
+          return [{ key: refKey(i.ref), title: itemTitle(item, i.ref), note: aside ? ' (set aside)' : '', hidden: i.startHidden }]
+        })
+  const numbers = repeatNumbers(rows.map((r) => r.title + r.note))
+  return rows.map((r, i) => ({ key: r.key, text: `${r.title}${numbers[i]}${r.note}`, hidden: r.hidden }))
 }
 
 /** Scene numbers and names for the card and menus: "Scene 3" for an unnamed scene. */
@@ -388,14 +401,26 @@ export interface AsideChip {
   /** "Ironclad · 41 / 75", "Bank guards · 3". */
   text: string
   name: string
+  /** The numbers of the planned scenes already holding it. */
+  plannedFor: number[]
 }
 
-/** What's set aside, each with its Health or count. */
+/** "Planned for scene 3", "Planned for scenes 3 and 4", or nothing. */
+export function plannedForText(numbers: readonly number[]): string {
+  if (numbers.length === 0) return ''
+  if (numbers.length === 1) return `Planned for scene ${numbers[0]}`
+  return `Planned for scenes ${numbers.slice(0, -1).join(', ')} and ${numbers.at(-1)}`
+}
+
+/** What's set aside, each with its Health or count and the planned scenes holding it. */
 export function asideChips(game: Game): AsideChip[] {
-  return game.aside.flatMap((entry) => {
+  const chips = game.aside.flatMap((entry): AsideChip[] => {
     const item = findIn(game.offTable, entry.ref)
     if (!item) return []
-    const base = { ref: entry.ref, ...(entry.afterScene ? { afterScene: entry.afterScene } : {}) }
+    const plannedFor = game.scenes
+      .filter((s) => s.state === 'planned' && (s.opposition.some((i) => sameRef(i.ref, entry.ref)) || (entry.ref.kind === 'environment' && s.environmentId === entry.ref.id)))
+      .map((s) => sceneNumber(game, s.id))
+    const base = { ref: entry.ref, plannedFor, ...(entry.afterScene ? { afterScene: entry.afterScene } : {}) }
     if (entry.ref.kind === 'villain') {
       const copy = item as VillainInGame
       const { name, health, maxHealth } = villainSummary(copy.sheet, copy.play)
@@ -408,6 +433,8 @@ export function asideChips(game: Game): AsideChip[] {
     const named = item as Challenge | EnvironmentOnTable
     return [{ ...base, name: named.name, text: named.name }]
   })
+  const numbers = repeatNumbers(chips.map((c) => c.text))
+  return chips.map((c, i) => ({ ...c, text: `${c.text}${numbers[i]}`, name: `${c.name}${numbers[i]}` }))
 }
 
 /** Adds something set aside to a planned scene (it stays set aside until it reaches the table), or brings it on now, hidden. */

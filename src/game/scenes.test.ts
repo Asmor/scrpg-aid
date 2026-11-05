@@ -4,7 +4,7 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { createGame, currentScene, emptyOffTable, sceneOnTable, type Game } from './model'
 import { project } from './project'
-import { addAsideTo, ALL_RESETS, asideChips, defaultChoices, deleteScene, draftAddChallenge, draftAddGroup, draftAddVillain, draftOfCurrent, draftOfNew, draftOfPlanned, draftSetEnvironment, duplicateGame, duplicateScene, gcOffTable, hasChanged, itemTitle, moveScene, moveToTable, playersWillSee, refKey, removeAside, saveCurrentScene, savePlannedScene, sceneChips, sceneDetail, setAside, setSceneRecord, sourceText, startPlan, startScene, trackerLine, waitingNote, type SceneDraft, type SceneResets, type StartChoices } from './scenes'
+import { addAsideTo, ALL_RESETS, asideChips, defaultChoices, deleteScene, draftAddChallenge, draftAddGroup, draftAddVillain, draftOfCurrent, draftOfNew, draftOfPlanned, draftSetEnvironment, duplicateGame, duplicateScene, gcOffTable, hasChanged, itemTitle, moveScene, moveToTable, plannedForText, playersWillSee, refKey, removeAside, saveCurrentScene, savePlannedScene, sceneChips, sceneDetail, setAside, setSceneRecord, sourceText, startPlan, startScene, trackerLine, waitingNote, type SceneDraft, type SceneResets, type StartChoices } from './scenes'
 import { addChallenge, addGroup, addHero, addVillain, newEnvironment, setEnvironment, setRound, setTrackerPosition, startRound } from './table'
 
 let n = 0
@@ -21,6 +21,39 @@ const texts = (g: Game) => g.feed.map((e) => e.text)
 const villainRef = (g: Game) => ({ kind: 'villain' as const, id: g.villains[0]!.id })
 const groupRef = (g: Game) => ({ kind: 'group' as const, id: g.groups[0]!.id })
 const challengeRef = (g: Game) => ({ kind: 'challenge' as const, id: g.challenges[0]!.id })
+
+describe('chips that would read the same', () => {
+  const twoBurglars = (counts: [number, number]) => {
+    let g: Game = createGame({ id: 'g' })
+    for (const count of counts) g = addGroup(g, { kind: 'minions', name: 'Burglar', die: 'd8', count, hidden: false }, clock)
+    return g
+  }
+
+  it('numbers identical scene chips and leaves the others alone', () => {
+    const same = twoBurglars([4, 4])
+    expect(sceneChips(same, same.scenes[0]!).map((c) => c.text)).toEqual(['Burglar ×4 (1)', 'Burglar ×4 (2)'])
+    const different = twoBurglars([1, 4])
+    expect(sceneChips(different, different.scenes[0]!).map((c) => c.text)).toEqual(['Burglar ×1', 'Burglar ×4'])
+  })
+
+  it('numbers identical set-aside chips, in their text and their name', () => {
+    let g = twoBurglars([4, 4])
+    for (const group of [...g.groups]) g = setAside(g, { kind: 'group', id: group.id }, 1, clock)
+    expect(asideChips(g).map((c) => [c.text, c.name])).toEqual([
+      ['Burglar · 4 (1)', 'Burglar (1)'],
+      ['Burglar · 4 (2)', 'Burglar (2)'],
+    ])
+  })
+})
+
+describe('plannedForText', () => {
+  it('names the scenes', () => {
+    expect(plannedForText([])).toBe('')
+    expect(plannedForText([3])).toBe('Planned for scene 3')
+    expect(plannedForText([3, 4])).toBe('Planned for scenes 3 and 4')
+    expect(plannedForText([3, 4, 6])).toBe('Planned for scenes 3, 4 and 6')
+  })
+})
 
 describe('reading scenes', () => {
   it('describes the tracker by state', () => {

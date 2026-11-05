@@ -249,6 +249,25 @@ describe('the game table', () => {
     expect((await saved()).aside).toEqual([])
   })
 
+  it('tags something set aside with the scene planning on it, and stops offering that scene', async () => {
+    await setup((g) => {
+      g.offTable.villains.push(villainCopy(adaptiveBruiser(), 'v1', true))
+      g.aside.push({ ref: { kind: 'villain', id: 'v1' } })
+      for (const n of [2, 3]) g.scenes.push({ ...g.scenes[0]!, id: `s${n}`, name: `Scene ${n}`, state: 'planned', opposition: [] })
+      g.scenes[1]!.opposition = [{ ref: { kind: 'villain', id: 'v1' }, startHidden: false, source: { kind: 'aside' } }]
+    })
+    await userEvent.click(screen.getByRole('tab', { name: 'Scenes' }))
+    const box = within(screen.getByRole('region', { name: 'Set aside' }))
+    expect(box.getByText('· Planned for scene 2')).toBeInTheDocument()
+    await userEvent.click(box.getByRole('button', { name: 'Actions for Ironclad' }))
+    expect(screen.queryByRole('menuitem', { name: /^Add to scene 2/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /^Add to scene 3/ })).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    // In the editor it's tagged for other scenes, and not for the one being edited.
+    await userEvent.click(screen.getByRole('button', { name: 'Edit Scene 3' }))
+    expect(within(screen.getByRole('dialog', { name: 'Plan scene 3' })).getByRole('button', { name: /^\+ Ironclad/ })).toHaveTextContent('Planned for scene 2')
+  })
+
   it('removes something set aside after a confirm, from its chip', async () => {
     const { saved } = await setup((g) => {
       g.offTable.villains.push(villainCopy(adaptiveBruiser(), 'v1', true))
@@ -291,13 +310,13 @@ describe('the game table', () => {
     expect((await saved()).scenes[0]).toMatchObject({ state: 'done', summary: 'Ended after round 3.' })
 
     // Undo puts the previous scene back exactly.
-    await userEvent.click(within(log()).getByRole('button', { name: 'Undo' }))
+    await userEvent.click(within(log()).getByRole('button', { name: 'Undo starting scene 2' }))
     expect(screen.getByRole('heading', { name: 'Rooftop chase' })).toBeInTheDocument()
     await waitFor(async () => expect((await saved()).currentSceneId).not.toBe('s2'))
     const back = await saved()
     expect(back).toMatchObject({ round: 3, scenes: [{ state: 'now' }, { state: 'planned' }] })
     expect(back.heroes[0]!.play.mods).toHaveLength(1)
-    expect(within(log()).queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+    expect(within(log()).queryByRole('button', { name: /^Undo/ })).not.toBeInTheDocument()
   })
 
   it('closes the Undo window after 30 seconds', async () => {
@@ -308,12 +327,12 @@ describe('the game table', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Start The Foundry' }))
     const spy = vi.spyOn(globalThis, 'setTimeout')
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Start scene 2: The Foundry?' })).getByRole('button', { name: 'Start scene 2' }))
-    expect(within(log()).getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+    expect(within(log()).getByRole('button', { name: 'Undo starting scene 2' })).toBeInTheDocument()
     const call = spy.mock.calls.find((c: unknown[]) => c[1] === 30_000)
     spy.mockRestore()
     expect(call).toBeDefined()
     act(() => (call![0] as () => void)())
-    expect(within(log()).queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+    expect(within(log()).queryByRole('button', { name: /^Undo/ })).not.toBeInTheDocument()
   })
 
   it('Save and start on a new scene when nothing is planned, and Edit first from the dialog', async () => {

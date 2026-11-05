@@ -230,7 +230,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const nextScene = planned[0]
   // Someone joining or leaving since makes "restore it exactly" wrong for them, so Undo goes.
   const sameHeroes = (a: Game, b: Game) => a.heroes.map((h) => h.id).join() === b.heroes.map((h) => h.id).join()
-  const logUndo = sceneUndo && sameHeroes(sceneUndo.before, game) ? { entryId: sceneUndo.entryId, onUndo: () => { const { before } = sceneUndo; setSceneUndo(null); apply(() => before); setAnnounce('Scene change undone.') } } : undefined
+  const logUndo = sceneUndo && sameHeroes(sceneUndo.before, game) ? { entryId: sceneUndo.entryId, label: `Undo starting scene ${sceneNumber(game, game.currentSceneId)}`, onUndo: () => { const { before } = sceneUndo; setSceneUndo(null); apply(() => before); setAnnounce('Scene change undone.') } } : undefined
   const gm: GmControls = {
     ...(logUndo ? { logUndo } : {}),
     setPosition: (i) => apply((g) => T.setTrackerPosition(g, i, clock())),

@@ -47,7 +47,15 @@ export function AboutButton() {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <button type="button" className="button button--quiet" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="button button--quiet"
+        onClick={(e) => {
+          // Safari and Firefox on a Mac don't focus a clicked button, and the dialog gives focus back to whatever had it.
+          e.currentTarget.focus()
+          setOpen(true)
+        }}
+      >
         About
       </button>
       {open && <AboutDialog onClose={() => setOpen(false)} />}
