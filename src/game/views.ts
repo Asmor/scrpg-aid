@@ -48,6 +48,7 @@ export function villainView(v: VillainOnTable): VillainView {
     ...(v.health !== undefined ? { health: v.health } : {}),
     ...(v.maxHealth !== undefined ? { maxHealth: v.maxHealth } : {}),
     ...(v.statusDie ? { statusDie: v.statusDie } : {}),
+    ...(v.statusReason ? { statusReason: v.statusReason } : {}),
     mods: v.mods ?? [],
     defenses: v.defenses ?? [],
   }

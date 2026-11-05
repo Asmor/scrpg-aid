@@ -598,6 +598,11 @@ function unusedTwists(env: EnvironmentOnTable): EnvironmentOnTable {
   }
 }
 
+function withoutOverride(villain: VillainInGame): VillainInGame {
+  const { statusOverride: _, ...rest } = villain
+  return rest
+}
+
 /** Applies the checked resets. `arrived` keep their bonuses and penalties: they were prepped, or left with them. */
 function applyResets(game: Game, resets: SceneResets, arrived: ReadonlySet<string>): Game {
   const heroes = game.heroes.map((h) => {
@@ -614,7 +619,8 @@ function applyResets(game: Game, resets: SceneResets, arrived: ReadonlySet<strin
       const { sceneAdvanced: _, ...rest } = play
       play = rest
     }
-    return { ...v, play }
+    // The new scene's counts start fresh (the villains and challenges spec, section 6).
+    return withoutOverride({ ...v, play })
   })
   const groups = game.groups.map((g) => ({
     ...g,
@@ -627,7 +633,8 @@ function applyResets(game: Game, resets: SceneResets, arrived: ReadonlySet<strin
   }))
   const environment = resets.twists && game.environment ? { environment: unusedTwists(game.environment) } : {}
   const round = resets.round ? { round: 0, turn: { order: [], acted: [] } } : {}
-  return { ...game, heroes, villains, groups, ...environment, ...round }
+  const offTable = { ...game.offTable, villains: game.offTable.villains.map(withoutOverride) }
+  return { ...game, heroes, villains, groups, offTable, ...environment, ...round }
 }
 
 /**
@@ -720,7 +727,7 @@ export function duplicateGame(game: Game, options: { id?: string; now?: Date } =
   const opensOnCurrent = copy.scenes[0]?.id === copy.currentSceneId
   const freshGroup = (x: NpcGroup): NpcGroup => ({ ...x, ...(opensOnCurrent ? {} : { owner: { kind: 'gm' as const } }), members: x.members.map((m) => ({ ...clearDefenses(m), mods: [], acted: false })) })
   const freshChallenge = (x: Challenge): Challenge => ({ ...x, steps: x.steps.map(() => false) })
-  const freshVillain = (x: VillainInGame): VillainInGame => ({ ...x, play: emptyVillainPlay() })
+  const freshVillain = (x: VillainInGame): VillainInGame => ({ ...withoutOverride(x), play: emptyVillainPlay() })
   // Everything starts off the table, then the first scene brings its own on.
   const offTable: OffTable = {
     villains: [...copy.villains, ...copy.offTable.villains].map(freshVillain),

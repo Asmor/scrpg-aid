@@ -67,6 +67,8 @@ export type PlayersSee = 'name' | 'status' | 'health'
 /** A villain brought in by the GM: a copy, so its damage stays in this game. */
 export interface VillainInGame extends CharacterInGame<Villain, VillainPlayState>, Visible {
   playersSee: PlayersSee
+  /** The GM's overrides of its status die (the villains and challenges spec, section 1); cleared when a new scene starts. */
+  statusOverride?: { die?: Die; count?: number }
 }
 
 /**
@@ -133,6 +135,8 @@ export interface Challenge extends Visible {
   labels?: string[]
   description?: string
   whenDone?: string
+  /** A Titan's challenge: its completed parts lower that villain's status die. */
+  linkedVillainId?: string
 }
 
 /** A twist on the table: the template's, and the round it was marked used in, if it was. */
@@ -169,6 +173,8 @@ export interface EnvironmentOnTable extends Visible {
 /** A line in the table log. `gmOnly` marks one about something hidden, which only the GM sees. */
 export interface GameFeedEntry extends FeedEntry {
   gmOnly?: true
+  /** A villain's status die line: the villain it's about, so changes close together share one line. */
+  statusOf?: string
 }
 
 /** An opposition item or environment, wherever it is in the game. */

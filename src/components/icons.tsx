@@ -4,8 +4,8 @@ import { ACTION_LABEL, actionMentions, effectMentions, type Action } from '../cr
 import type { Die } from '../rules/types'
 import { IconSource } from './icon-source'
 
-/** How big a die is drawn: 24px in dice rows, slots and tables; 18px in compact lists; 16px inline in a sentence. */
-export type DieSize = 'normal' | 'compact' | 'inline'
+/** How big a die is drawn: 44px beside a villain's status; 24px in dice rows, slots and tables; 18px in compact lists; 16px inline in a sentence. */
+export type DieSize = 'large' | 'normal' | 'compact' | 'inline'
 
 /**
  * A die, shown as its icon alone, with its size ("d8") as the alt text. The size is only

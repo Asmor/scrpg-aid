@@ -5,7 +5,7 @@
  * are in ./table.ts and ./hero-changes.ts; this page wires them to the shared center
  * (./TableCenter.tsx) and the GM screen (./GmScreen.tsx).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { gameDisplayPath, gamesPath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useVillainStore } from '../app/villain-store-context'
@@ -43,6 +43,8 @@ import { useGameEditor } from './useGameEditor'
 import { InviteDialog, StartHostingDialog } from './hosting'
 import { project } from './project'
 import { heroView, villainView } from './views'
+import type { VillainStatusActions } from './VillainStatusPanel'
+import { logStatusChanges, newStatusLines, setHandCount, setStatusOverride, setWeakness } from './villain-status'
 import { useHostSnapshot, useSession } from '../session/context'
 import { formatAgo } from '../library/when'
 import { newRoomCode } from '../session/code'
@@ -138,6 +140,14 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   }, [sceneUndo])
   const observed = useMemo(() => (game ? project(game, 'observer') : undefined), [game])
   useDisplayBroadcast(id, observed, host?.room)
+  // A villain's status die changing is announced to the GM, in the words of its log line.
+  const seenFeed = useRef(game?.feed)
+  const feed = game?.feed
+  useEffect(() => {
+    const lines = seenFeed.current && feed ? newStatusLines(seenFeed.current, feed) : []
+    seenFeed.current = feed
+    if (lines.length) setAnnounce(lines.join(' '))
+  }, [feed])
 
   if (!game) {
     return (
@@ -164,7 +174,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     )
   }
 
-  const apply = host ? (fn: (g: Game) => Game) => host.apply(fn) : editor.apply
+  // The host logs status changes itself, since players' actions go straight to it.
+  const apply = host ? (fn: (g: Game) => Game) => host.apply(fn) : (fn: (g: Game) => Game) => editor.apply((g) => logStatusChanges(g, fn(g), clock()))
   const turnKey = `${game.round}:${game.turn.current ? T.actorKey(game.turn.current) : ''}`
   if (turnKey !== seenTurn) {
     setSeenTurn(turnKey)
@@ -330,6 +341,12 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         villain: runningVillain,
         change: (fn: (p: VillainPlayState, c: Clock) => VillainPlayState) => changeVillain(runningVillain.id, fn),
         advance: () => apply((g) => T.advanceTracker(T.changeVillainPlay(g, runningVillain.id, (p) => advanceScene(p, clock()), clock()), clock())),
+        status: {
+          setOverride: (override) => apply((g) => setStatusOverride(g, runningVillain.id, override)),
+          setHandCount: (n) => apply((g) => setHandCount(g, runningVillain.id, n, clock())),
+          setWeakness: (tier, condition) => apply((g) => setWeakness(g, runningVillain.id, tier, condition, clock())),
+          setStep: (challenge, i, done) => apply((g) => T.setChallengeStep(g, challenge.id, i, done, clock())),
+        } satisfies VillainStatusActions,
         attack: ((results) =>
           apply((g) =>
             results.reduce((x, a) => {

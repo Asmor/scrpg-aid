@@ -4,7 +4,7 @@
  */
 import { useId, useState } from 'react'
 import { villainPath } from '../app/route'
-import { ActionIcon, DieIcon } from '../components/icons'
+import { ActionIcon } from '../components/icons'
 import { ABILITY_TYPE_LABEL } from '../hero/labels'
 import type { PlayMod } from '../hero/model'
 import type { LibraryItem } from '../library/registry'
@@ -19,7 +19,7 @@ import { addDefense, defenseText, removeDefense } from '../play/defense'
 import { RollDialog, type RollSubject } from '../play/RollDialog'
 import { addMod, addTwist, currentHealth, describeMod, modName, removeMod, removeTwist, setHealth, setReactionUsed, type Clock } from '../play/state'
 import { villainDisplayName, type VillainPlayState } from '../villain/model'
-import { villainHealth, villainStatusDie, villainZone } from '../villain/play'
+import { villainHealth, villainZone } from '../villain/play'
 import { buildVillainSheet, villainTraits } from '../villain/sheet'
 import type { EnvironmentOnTable, Game, NpcGroup, VillainInGame } from './model'
 import { RunningEnvironment, type EnvironmentActions } from './RunningEnvironment'
@@ -28,6 +28,8 @@ import { targetId } from './roll-targets'
 import { gmTable, targetOptions } from './target-options'
 import { ScenesTab, type SceneActions } from './ScenesTab'
 import { ZoneChip } from './TableCenter'
+import { villainStatus } from './villain-status'
+import { VillainStatusPanel, type VillainStatusActions } from './VillainStatusPanel'
 
 function LockIcon() {
   return (
@@ -49,7 +51,7 @@ export type VillainAttacks = (results: ({ kind: 'attack' | 'defend'; to: string;
 export type GmTab = 'bring' | 'scenes' | 'notes'
 
 /** The villain's copy in this game: its sheet and its play state here. */
-function RunningVillain({ game, copy, change, attack, advance, random }: { game: Game; copy: VillainInGame; change: VillainChange; attack: VillainAttacks; advance: () => void; random?: () => number }) {
+function RunningVillain({ game, copy, change, attack, advance, status: statusActions, random }: { game: Game; copy: VillainInGame; change: VillainChange; attack: VillainAttacks; advance: () => void; status: VillainStatusActions; random?: () => number }) {
   const { sheet: villain, play } = copy
   const id = useId()
   const [amount, setAmount] = useState('')
@@ -60,7 +62,7 @@ function RunningVillain({ game, copy, change, attack, advance, random }: { game:
   const health = villainHealth(villain, play)
   const current = currentHealth(health, play)
   const zone = villainZone(health, play)
-  const statusDie = sheet.status ? villainStatusDie(sheet.status, { ...play, zone }) : undefined
+  const statusDie = villainStatus(copy, game)?.die
   const out = zone === 'out'
   const traits = villainTraits(villain).traits
   const dice = {
@@ -76,6 +78,7 @@ function RunningVillain({ game, copy, change, attack, advance, random }: { game:
   const by = (n: number) => change((p, c) => setHealth(p, villainHealth(villain, p), (currentHealth(villainHealth(villain, p), p) ?? 0) + n, c))
   return (
     <>
+      <VillainStatusPanel game={game} copy={copy} actions={statusActions} />
       {current === undefined ? (
         <p className="sheet-empty">This villain has no Health yet: choose its approach and archetype.</p>
       ) : (
@@ -107,11 +110,6 @@ function RunningVillain({ game, copy, change, attack, advance, random }: { game:
             </button>
           </div>
         </>
-      )}
-      {statusDie && (
-        <p className="gt-row">
-          <span className="gt-sub">Status die</span> <DieIcon die={statusDie} />
-        </p>
       )}
       <label className="checkbox">
         <input type="checkbox" checked={play.reactionUsed} onChange={(e) => change((p, c) => setReactionUsed(p, e.target.checked, c))} />
@@ -397,7 +395,7 @@ export type QuickAddKind = 'minions' | 'lieutenants' | 'challenge'
 interface GmScreenProps {
   game: Game
   quickAdd: (kind: QuickAddKind) => void
-  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange; attack: VillainAttacks; advance: () => void } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'environment'; env: EnvironmentOnTable; actions: EnvironmentActions } | { kind: 'missing' }
+  running?: { kind: 'villain'; villain: VillainInGame; change: VillainChange; attack: VillainAttacks; advance: () => void; status: VillainStatusActions } | { kind: 'group'; group: NpcGroup; actions: GroupActions } | { kind: 'environment'; env: EnvironmentOnTable; actions: EnvironmentActions } | { kind: 'missing' }
   stopRunning: () => void
   bring: BringIn
   setNotes: (notes: string) => void
@@ -471,7 +469,7 @@ export function GmScreen({ game, quickAdd, running, stopRunning, bring, setNotes
             </button>
           </div>
           {running.kind === 'villain' ? (
-            <RunningVillain key={running.villain.id} game={game} copy={running.villain} change={running.change} attack={running.attack} advance={running.advance} random={random} />
+            <RunningVillain key={running.villain.id} game={game} copy={running.villain} change={running.change} attack={running.attack} advance={running.advance} status={running.status} random={random} />
           ) : running.kind === 'environment' ? (
             <RunningEnvironment key={running.env.id} game={game} env={running.env} actions={running.actions} sheets={sheets} random={random} />
           ) : (

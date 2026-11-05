@@ -10,6 +10,7 @@
  * TV, say) get the observer projection and can't send anything but hello.
  */
 import { applyHeroAction, trackChanges, type FieldVersions } from '../game/actions'
+import { logStatusChanges } from '../game/villain-status'
 import type { Game, HeroInGame } from '../game/model'
 import { project, type Audience, type TableView } from '../game/project'
 import type { GameStore } from '../game/store'
@@ -229,7 +230,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
   apply(fn: (game: Game) => Game): void {
     const game = this.snapshot.game
     if (!game) return
-    const next = fn(game)
+    const next = logStatusChanges(game, fn(game), this.clock())
     if (next === game) return
     const version = this.snapshot.version + 1
     this.versions = trackChanges(game, next, version, this.versions)

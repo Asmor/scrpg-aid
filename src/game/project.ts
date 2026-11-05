@@ -19,6 +19,7 @@ import type { PlayZone } from '../play/state'
 import type { Die } from '../rules/types'
 import { sceneOnTable, type ActorRef, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type NpcGroup, type PendingHit, type PlayersSee, type SceneOnTable } from './model'
 import { groupLabel, isHidden, sameActor } from './table'
+import { villainStatus } from './villain-status'
 
 export type Audience = 'gm' | 'player' | 'observer'
 
@@ -40,8 +41,9 @@ export interface VillainOnTable {
   zone?: PlayZone
   health?: number
   maxHealth?: number
-  /** The GM's only. */
+  /** The GM's only: the die now, and why. */
   statusDie?: Die
+  statusReason?: string
   mods?: PlayMod[]
   /** Its Defends (ruling 65), shown with its mods. */
   defenses?: Defense[]
@@ -66,12 +68,13 @@ export interface TableView {
   feed: GameFeedEntry[]
 }
 
-function villainFor(v: Game['villains'][number], audience: Audience): VillainOnTable {
-  const { name, health, maxHealth, zone, statusDie, mods, twists } = villainSummary(v.sheet, v.play)
+function villainFor(v: Game['villains'][number], audience: Audience, game: Game): VillainOnTable {
+  const { name, health, maxHealth, zone, mods, twists } = villainSummary(v.sheet, v.play)
   const base = { id: v.id, name, major: buildVillainSheet(v.sheet).major, hidden: v.hidden, playersSee: v.playersSee }
   const defenses = v.play.defenses?.length ? { defenses: v.play.defenses } : {}
   if (audience === 'gm') {
-    return { ...base, ...(zone ? { zone } : {}), ...(health !== undefined ? { health } : {}), ...(maxHealth !== undefined ? { maxHealth } : {}), ...(statusDie ? { statusDie } : {}), mods, ...defenses, twists }
+    const status = villainStatus(v, game)
+    return { ...base, ...(zone ? { zone } : {}), ...(health !== undefined ? { health } : {}), ...(maxHealth !== undefined ? { maxHealth } : {}), ...(status?.die ? { statusDie: status.die } : {}), ...(status ? { statusReason: status.reason } : {}), mods, ...defenses, twists }
   }
   // Name only: the name and kind. Status adds the zone, mods and defenses; Status and Health adds Health.
   if (v.playersSee === 'name') return base
@@ -114,7 +117,7 @@ export function project(game: Game, audience: Audience): TableView {
       play: { ...h.play, history: h.play.history.slice(-VIEW_HISTORY) },
       ...(player ? { player: { name: player.name, ...(player.since ? { since: player.since } : {}) } } : {}),
     })),
-    villains: shown(game.villains).map((v) => villainFor(v, audience)),
+    villains: shown(game.villains).map((v) => villainFor(v, audience, game)),
     // A lieutenant's abilities are the GM's notes, like a hidden villain's sheet.
     groups: gm ? shown(game.groups) : shown(game.groups).map(withoutAbilities),
     challenges: shown(game.challenges),

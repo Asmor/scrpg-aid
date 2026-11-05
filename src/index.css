@@ -8169,3 +8169,98 @@ ol.vw-conditions li {
     margin-right: auto;
   }
 }
+
+/* A villain's status die (docs/design/villains-and-challenges/spec.md, section 1). */
+.die-icon--large {
+  height: 44px;
+  width: auto;
+}
+
+.gt-villain-status {
+  flex-wrap: nowrap;
+  font-size: 0.875rem;
+}
+
+.gt-status-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gt-status-panel__head {
+  font-size: 1.125rem;
+}
+
+.gt-status-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  background: var(--ui-surface-2);
+}
+
+.gt-ladder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gt-rung {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 56px;
+  padding: 4px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+}
+
+.gt-rung--on {
+  padding: 3px 9px;
+  border: 2px solid var(--ui-accent);
+  background: var(--ui-accent-soft);
+  font-weight: 600;
+}
+
+.gt-weakness {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.gt-weakness__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.gt-weakness__row:has(input:checked) {
+  padding: 5px 9px;
+  border: 2px solid var(--ui-accent);
+  background: var(--ui-accent-soft);
+}
+
+.gt-titan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px dashed var(--ui-border);
+  border-radius: 10px;
+}

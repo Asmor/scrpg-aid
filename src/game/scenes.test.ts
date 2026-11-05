@@ -739,6 +739,18 @@ describe('starting a scene', () => {
   })
 })
 
+describe('starting a scene and status overrides', () => {
+  it('clears them on and off the table, whatever the resets', () => {
+    const t = table()
+    const planned = savePlannedScene(t, undefined, { ...draftOfNew(t), rows: [] }, clock)
+    const override = { die: 'd4' as const }
+    const g: Game = { ...planned.game, villains: planned.game.villains.map((v) => ({ ...v, statusOverride: override })), offTable: { ...planned.game.offTable, villains: planned.game.villains.map((v) => ({ ...v, id: 'waiting', statusOverride: override })) }, aside: [{ ref: { kind: 'villain', id: 'waiting' } }] }
+    const next = startScene(g, planned.sceneId, { ...defaultChoices(startPlan(g, planned.sceneId)), fates: { [refKey(villainRef(t))]: 'along' }, resets: { round: false, mods: false, once: false, twists: false } }, clock)
+    expect(next.villains[0]!.statusOverride).toBeUndefined()
+    expect(next.offTable.villains[0]!.statusOverride).toBeUndefined()
+  })
+})
+
 describe('duplicating a game with scenes', () => {
   it('copies every scene back to planned, the first one current, with fresh play state', () => {
     const t = table()

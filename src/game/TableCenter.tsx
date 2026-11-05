@@ -55,6 +55,8 @@ export interface VillainView {
   health?: number
   maxHealth?: number
   statusDie?: Die
+  /** Why it's that die: "5 GM minions and lieutenants". */
+  statusReason?: string
   mods: readonly PlayMod[]
   defenses: readonly Defense[]
 }
@@ -450,14 +452,17 @@ function VillainCard({ villain, acting, gm }: { villain: VillainView; acting: bo
           <div className="gt-row">
             {villain.zone && <ZoneChip zone={villain.zone} label={villain.zone === 'out' ? 'Defeated' : undefined} />}
             {see === 'health' && <Health health={villain.health} maxHealth={villain.maxHealth} />}
-            <span className="gt-grow" />
-            {gm && villain.statusDie && (
-              <span className="gt-status-die">
-                <span className="visually-hidden">Status die </span>
-                <DieIcon die={villain.statusDie} />
-              </span>
-            )}
           </div>
+          {gm && villain.statusReason !== undefined && (
+            <div className="gt-row gt-villain-status">
+              {villain.statusDie && <DieIcon die={villain.statusDie} size="large" />}
+              <span>
+                <strong>{villain.statusDie ? `Status ${villain.statusDie}` : 'No status die'}</strong>
+                <br />
+                <span className="gt-sub">{villain.statusReason}</span>
+              </span>
+            </div>
+          )}
           {gm && villain.playersSee !== 'health' && !villain.hidden && <p className="gt-sub">Players see {SEE_LABEL[villain.playersSee].toLowerCase()}.</p>}
           <ModChips mods={villain.mods} defenses={villain.defenses} />
         </>
