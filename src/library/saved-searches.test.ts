@@ -1,6 +1,6 @@
 import { IDBFactory } from 'fake-indexeddb'
 import { describe, expect, it } from 'vitest'
-import { checkSearchName, createSavedSearch, IndexedDbSavedSearchStore, parseSavedSearch, parseSavedSearchJson, searchesToRestore, searchToSaved, SEARCH_FORMAT, type SavedSearch } from './saved-searches'
+import { checkSearchName, createSavedSearch, IndexedDbSavedSearchStore, parseSavedSearch, searchesToRestore, searchToSaved, SEARCH_FORMAT, type SavedSearch } from './saved-searches'
 
 const now = new Date('2026-10-31T12:00:00Z')
 const search = (id: string, name: string): SavedSearch => createSavedSearch(name, { text: '', types: [], tags: ['scene-3'] }, { id, now })
@@ -9,11 +9,10 @@ describe('saved search format', () => {
   it('round-trips through its envelope', () => {
     const s = search('a', 'Scene 3')
     expect(searchToSaved(s)).toEqual({ format: SEARCH_FORMAT, version: 1, search: s })
-    expect(parseSavedSearchJson(JSON.stringify(searchToSaved(s)))).toEqual({ ok: true, search: s })
+    expect(parseSavedSearch(JSON.parse(JSON.stringify(searchToSaved(s))))).toEqual({ ok: true, search: s })
   })
 
   it('rejects malformed ones, and tidies names and tags', () => {
-    expect(parseSavedSearchJson('{')).toEqual({ ok: false, error: 'not valid JSON' })
     expect(parseSavedSearch({ format: SEARCH_FORMAT, version: 1, search: { ...search('a', 'x'), query: { text: '', types: [] } } })).toEqual({ ok: false, error: 'search.query.tags should be a list' })
     expect(parseSavedSearch(searchToSaved({ ...search('a', 'x'), name: 'y'.repeat(61) }))).toMatchObject({ ok: false, error: expect.stringContaining('60 characters') })
     expect(parseSavedSearch(searchToSaved({ ...search('a', '  Prep  '), query: { text: '', types: [], tags: [' a ', 'A'] } }))).toMatchObject({ ok: true, search: { name: 'Prep', query: { tags: ['a'] } } })

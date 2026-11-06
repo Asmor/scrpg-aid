@@ -1,5 +1,5 @@
 /** The versioned save formats for templates, like ../hero/serialize.ts: one format per kind. */
-import { parseJson, readEnvelope } from '../saved'
+import { readEnvelope } from '../saved'
 import type { DocEnvelope } from '../store/doc-store'
 import type { ChallengeTemplate, EnvironmentTemplate, LieutenantTemplate, MinionTemplate } from './model'
 import { challengeTemplateProblem, environmentTemplateProblem, lieutenantTemplateProblem, minionTemplateProblem } from './validate'
@@ -34,9 +34,3 @@ export const environmentTemplateEnvelope = envelope<EnvironmentTemplate>('enviro
 
 /** A template as JSON text, in its envelope: the single-item export. */
 export const templateJson = <T>(env: DocEnvelope<T>, doc: T) => JSON.stringify(env.toSaved(doc), null, 2)
-
-/** Reads a template from JSON text. */
-export function parseTemplateJson<T>(env: DocEnvelope<T>, text: string): { ok: true; doc: T } | { ok: false; error: string } {
-  const json = parseJson(text)
-  return json.ok ? env.parse(json.value) : json
-}

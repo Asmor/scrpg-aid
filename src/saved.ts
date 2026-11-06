@@ -37,12 +37,3 @@ export function readEnvelope<T>(value: unknown, spec: EnvelopeSpec): EnvelopeRes
   const problem = spec.problem(doc)
   return problem ? { ok: false, error: problem } : { ok: true, doc: doc as T }
 }
-
-/** Parses JSON text, or says it isn't JSON. */
-export function parseJson(text: string): { ok: true; value: unknown } | { ok: false; error: string } {
-  try {
-    return { ok: true, value: JSON.parse(text) as unknown }
-  } catch {
-    return { ok: false, error: 'not valid JSON' }
-  }
-}

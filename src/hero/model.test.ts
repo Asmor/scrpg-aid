@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHero, emptyDetails, heroDisplayName, newId, traitName } from './model'
+import { createHero, emptyDetails, heroDisplayName, newId } from './model'
 
 describe('hero model', () => {
   it('creates a blank hero with the given method', () => {
@@ -43,12 +43,5 @@ describe('hero model', () => {
     const id = newId({ getRandomValues: <T extends ArrayBufferView | null>(a: T) => a })
     expect(id).toBe('0'.repeat(32))
     expect(newId({ getRandomValues: (a) => a, randomUUID: () => 'a-b-c-d-e' })).toBe('a-b-c-d-e')
-  })
-
-  it('looks up the player’s names for traits', () => {
-    const hero = createHero('guided')
-    hero.traitNames['quality:roleplaying-quality'] = 'Raised by Wolves'
-    expect(traitName(hero, { kind: 'quality', id: 'roleplaying-quality' })).toBe('Raised by Wolves')
-    expect(traitName(hero, { kind: 'power', id: 'signature-weaponry' })).toBeUndefined()
   })
 })

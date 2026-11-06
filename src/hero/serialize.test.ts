@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createHero, emptyDetails } from './model'
 import { dividedHero, formChangerHero, minionMakerHero, modularHero } from '../test/heroes'
-import { CURRENT_VERSION, HERO_FORMAT, parseSaved, parseSavedJson, toSaved } from './serialize'
+import { CURRENT_VERSION, HERO_FORMAT, parseSaved, toSaved } from './serialize'
 
 const hero = () => createHero('guided', { id: 'h1', now: new Date('2026-10-23T12:00:00Z') })
 
@@ -11,12 +11,11 @@ describe('serialize', () => {
   })
 
   it('round-trips through JSON', () => {
-    const result = parseSavedJson(JSON.stringify(toSaved(hero())))
+    const result = parseSaved(JSON.parse(JSON.stringify(toSaved(hero()))))
     expect(result).toEqual({ ok: true, hero: hero() })
   })
 
   it('rejects things that are not saved heroes', () => {
-    expect(parseSavedJson('{nope')).toEqual({ ok: false, error: 'not valid JSON' })
     expect(parseSaved(null)).toMatchObject({ ok: false, error: 'not a saved hero' })
     expect(parseSaved([])).toMatchObject({ ok: false, error: 'not a saved hero' })
     expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION - 1, hero: hero() })).toEqual({ ok: false, error: `saved by an older version of the app (format ${CURRENT_VERSION - 1})` })
@@ -84,7 +83,7 @@ describe('serialize', () => {
 
   it('keeps draft status, furthest step, and who rolls; rejects bad values', () => {
     const draft = { ...hero(), status: 'draft' as const, furthestStep: 4, rollMode: 'manual' as const }
-    expect(parseSavedJson(JSON.stringify(toSaved(draft)))).toEqual({ ok: true, hero: draft })
+    expect(parseSaved(JSON.parse(JSON.stringify(toSaved(draft))))).toEqual({ ok: true, hero: draft })
     expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: { ...hero(), status: 'half' } }).ok).toBe(false)
     expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: { ...hero(), rollMode: 'gm' } }).ok).toBe(false)
     expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: { ...hero(), furthestStep: 1.5 } }).ok).toBe(false)
@@ -130,7 +129,7 @@ describe('serialize', () => {
     divided.archetype!.divided!.split = { always: [], civilian: [{ kind: 'power', id: 'fire' }], heroic: [] }
     divided.retcon = { id: 'upgrade-red-status', kind: 'upgradeStatusDie', form: 'heroic' }
     for (const h of [formChangerHero(), minionMakerHero(), divided, modularHero()]) {
-      expect(parseSavedJson(JSON.stringify(toSaved(h)))).toEqual({ ok: true, hero: h })
+      expect(parseSaved(JSON.parse(JSON.stringify(toSaved(h))))).toEqual({ ok: true, hero: h })
     }
   })
 

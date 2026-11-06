@@ -4,7 +4,7 @@
  * document, and included in backups.
  */
 import { newId } from '../hero/model'
-import { parseJson, readEnvelope } from '../saved'
+import { readEnvelope } from '../saved'
 import { arrayOf, nonEmptyString, object, string } from '../shape'
 import { IndexedDbRecords, MemoryRecords, type StoredRecord } from '../store/records'
 import type { LibraryQuery } from './query'
@@ -47,11 +47,6 @@ export function parseSavedSearch(value: unknown): SearchParseResult {
   const name = checkName(search.name)
   if (!name.ok) return { ok: false, error: `search.name: ${name.error}` }
   return { ok: true, search: { ...search, name: name.name, query: { ...search.query, tags: cleanTags(search.query.tags) } } }
-}
-
-export function parseSavedSearchJson(text: string): SearchParseResult {
-  const json = parseJson(text)
-  return json.ok ? parseSavedSearch(json.value) : json
 }
 
 export const MAX_SEARCH_NAME = 60

@@ -1,7 +1,28 @@
 import { describe, expect, it } from 'vitest'
 import { bullyOverlord, adaptiveBruiser } from '../test/villains'
 import { buildVillainSheet, healthBreakdown, villainIdentity } from './sheet'
-import { statusRows } from './status'
+import { villainArchetypesById } from '../rules/villain-data'
+import { statusDetailLines, statusRows, statusSummary } from './status'
+
+const rule = (id: string) => villainArchetypesById.get(id)!.status
+
+describe('a villain’s status rule', () => {
+  it('sums each kind of rule up in a line', () => {
+    expect(statusSummary(rule('bruiser'))).toBe('Status follows its Health zone.')
+    expect(statusSummary(rule('domain'))).toMatch(/^Status depends on the number of /)
+    expect(statusSummary(rule('indomitable'))).toBe('Status: d8, always.')
+    expect(statusSummary(rule('formidable'))).toBe('Status depends on penalties related to its weakness.')
+    expect(statusSummary(rule('titan'))).toBe('Status starts at d12 and drops as its challenge is completed.')
+  })
+
+  it('gives each rule’s details as text, for the exports', () => {
+    expect(statusDetailLines(rule('bruiser'))).toEqual(['Green d6, Yellow d8, Red d10'])
+    expect(statusDetailLines(rule('indomitable'))).toEqual([])
+    expect(statusDetailLines(rule('titan'))).toEqual([expect.stringMatching(/\(2 successes\)$/), expect.stringMatching(/\(1 success\)$/)])
+    expect(statusDetailLines(rule('formidable'))).toHaveLength(3)
+    expect(statusDetailLines({ basis: 'count', summary: '', counts: 'minions', tiers: [{ min: 4, die: 'd12' }, { min: 2, max: 3, die: 'd10' }, { min: 1, max: 1, die: 'd8' }] })).toEqual(['4 or more: d12', '2–3: d10', '1: d8'])
+  })
+})
 
 describe('statusRows', () => {
   it('lists each kind of status rule as condition and die', () => {

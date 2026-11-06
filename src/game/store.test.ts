@@ -1,7 +1,7 @@
 import { IDBFactory } from 'fake-indexeddb'
 import { describe, expect, it } from 'vitest'
 import { createGame } from './model'
-import { gameToSaved, parseSavedGame, parseSavedGameJson } from './serialize'
+import { gameToSaved, parseSavedGame } from './serialize'
 import { IndexedDbGameStore } from './store'
 import { addGroup, addHero, addVillain } from './table'
 import { completeHero } from '../test/heroes'
@@ -56,7 +56,6 @@ describe('the saved game format', () => {
     expect(parseSavedGame({ ...gameToSaved(g), game: { ...withVillain, villains: [{ ...v, play: { ...v.play, heroCount: 0 } }] } })).toEqual({ ok: false, error: 'game.villains[0].play.heroCount should be at least 1' })
     expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, solo: { kind: 'game', sourceId: 'x' } } })).toEqual({ ok: false, error: 'game.solo.kind has an unknown value' })
     expect(parseSavedGame({ ...gameToSaved(g), version: GAME_VERSION + 1 }).ok).toBe(false)
-    expect(parseSavedGameJson('nope')).toEqual({ ok: false, error: 'not valid JSON' })
   })
 
   it('does not read an older version: there are no real saves to carry forward', () => {

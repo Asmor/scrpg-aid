@@ -22,7 +22,7 @@
  */
 import type { Appearance, CharColor } from '../colors/palette'
 import type { Defense } from '../play/defense'
-import { traitKey, type TraitRef } from '../rules/catalog'
+import type { TraitRef } from '../rules/catalog'
 import type { RollRecord } from '../rules/rolling'
 import type { AbilityEffect, BasicAction, Die, PrincipleCategoryId } from '../rules/types'
 
@@ -506,11 +506,6 @@ export function isDraft(hero: Pick<Hero, 'status'>): boolean {
 /** The name to show for a hero in lists. */
 export function heroDisplayName(hero: Hero): string {
   return hero.details.name.trim() || hero.details.alias.trim() || 'Unnamed hero'
-}
-
-/** The player's name for a trait, if they've given it one. */
-export function traitName(hero: Hero, trait: TraitRef): string | undefined {
-  return hero.traitNames[traitKey(trait)]
 }
 
 /**

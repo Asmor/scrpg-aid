@@ -87,7 +87,3 @@ export function parseSlots(text: string): Slot[] {
 export function traitSlots(text: string): TraitSlot[] {
   return parseSlots(text).filter((s): s is TraitSlot => s.type === 'trait')
 }
-
-export function choiceSlots(text: string): ChoiceSlot[] {
-  return parseSlots(text).filter((s): s is ChoiceSlot => s.type === 'choice')
-}

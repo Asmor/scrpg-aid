@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RuleWarning } from '../creation/warnings'
 import { createHero } from './model'
-import { continueStep, NUMBERED_STEPS, progressText, stepIssues, stepStates, WIZARD_STEPS, wizardStepIndex } from './wizard-steps'
+import { continueStep, NUMBERED_STEPS, stepIssues, stepStates, WIZARD_STEPS, wizardStepIndex } from './wizard-steps'
 
 describe('wizard steps', () => {
   it('has Start, then eight numbered steps', () => {
@@ -17,11 +17,6 @@ describe('wizard steps', () => {
     expect(continueStep(3)).toBe('archetype')
     expect(continueStep(99)).toBe('details')
     expect(continueStep(-2)).toBe('start')
-  })
-
-  it("says how far a draft got", () => {
-    expect(progressText(undefined)).toBe('At Start')
-    expect(progressText(5)).toBe('Step 5 of 8')
   })
 })
 

@@ -78,13 +78,6 @@ export function allTags(items: readonly { tags: readonly string[] }[]): TagCount
 /** Alphabetical order, ignoring case and accents, with numbers in number order ("scene-2" before "scene-10"). */
 export const compareText = (a: string, b: string): number => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true }) || a.localeCompare(b)
 
-/** The spelling to save for a typed tag: an existing tag's spelling if it matches one, ignoring case. */
-export function spellingFor(typed: string, existing: readonly TagCount[]): string | undefined {
-  const tag = normalizeTag(typed)
-  if (!tag) return undefined
-  return existing.find((t) => tagKey(t.name) === tagKey(tag))?.name ?? tag
-}
-
 /** The add-tag popover's choices for what's typed. */
 export interface TagSuggestions {
   /** Up to six existing tags containing the text and not already on the item, alphabetical (an exact match first). */

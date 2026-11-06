@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createVillain, DEFAULT_HERO_COUNT, villainDisplayName, villainTraitName } from './model'
-import { parseSavedVillain, parseSavedVillainJson, villainToSaved, VILLAIN_FORMAT, VILLAIN_VERSION } from './serialize'
+import { createVillain, DEFAULT_HERO_COUNT, villainDisplayName } from './model'
+import { parseSavedVillain, villainToSaved, VILLAIN_FORMAT, VILLAIN_VERSION } from './serialize'
 import { villainProblem } from './validate'
 
 const now = new Date('2026-10-27T12:00:00Z')
@@ -20,8 +20,6 @@ describe('the villain document', () => {
     expect(villainDisplayName(v)).toBe('The Hand')
     v.details.name = 'Baron Blade'
     expect(villainDisplayName(v)).toBe('Baron Blade')
-    v.traitNames['quality:roleplaying-quality'] = 'Vengeful Genius'
-    expect(villainTraitName(v, { kind: 'quality', id: 'roleplaying-quality' })).toBe('Vengeful Genius')
   })
 })
 
@@ -42,12 +40,10 @@ describe('saving villains', () => {
   it('round-trips through the versioned envelope and JSON', () => {
     const v = full()
     expect(villainToSaved(v)).toEqual({ format: VILLAIN_FORMAT, version: 4, villain: v })
-    expect(parseSavedVillain(villainToSaved(v))).toEqual({ ok: true, villain: v })
-    expect(parseSavedVillainJson(JSON.stringify(villainToSaved(v)))).toEqual({ ok: true, villain: v })
+    expect(parseSavedVillain(JSON.parse(JSON.stringify(villainToSaved(v))))).toEqual({ ok: true, villain: v })
   })
 
   it('rejects what isn’t a well-formed villain', () => {
-    expect(parseSavedVillainJson('nope')).toEqual({ ok: false, error: 'not valid JSON' })
     expect(parseSavedVillain({ format: 'scrpg-hero', version: 1, hero: {} })).toEqual({ ok: false, error: 'not a saved villain' })
     expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 9, villain: {} })).toEqual({ ok: false, error: 'saved by a newer version of the app (format 9)' })
     expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: VILLAIN_VERSION })).toEqual({ ok: false, error: 'missing villain' })
@@ -79,7 +75,7 @@ describe('saving villains', () => {
     v.suggest = { approach: ['bully', 'ninja', 'leech'] }
     v.upgrades.push({ id: 'power-upgrade', abilities: [], extra: [{ source: 'archetype', name: 'Feel No Pain' }] })
     v.upgrades[1]!.vehicle!.name = 'Siege Crawler'
-    expect(parseSavedVillainJson(JSON.stringify(villainToSaved(v)))).toEqual({ ok: true, villain: v })
+    expect(parseSavedVillain(JSON.parse(JSON.stringify(villainToSaved(v))))).toEqual({ ok: true, villain: v })
     expect(villainProblem({ ...v, status: 'done' })).toBe('villain.status has an unknown value')
     expect(villainProblem({ ...v, attached: [{ templateId: 't1', kind: 'minion', role: 'boss' }] })).toBe('villain.attached[0].role has an unknown value')
   })

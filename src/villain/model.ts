@@ -18,7 +18,7 @@
 import type { Appearance } from '../colors/palette'
 import type { Defense } from '../play/defense'
 import { newId, type PlayHistoryEntry, type PlayMod, type PlayTwist, type TraitAssignment } from '../hero/model'
-import { traitKey, type TraitRef } from '../rules/catalog'
+import type { TraitRef } from '../rules/catalog'
 import type { Die } from '../rules/types'
 
 /** Where a villain's ability came from. */
@@ -176,11 +176,6 @@ export function isVillainDraft(villain: Pick<Villain, 'status'>): boolean {
 /** The name to show for a villain in lists. */
 export function villainDisplayName(villain: Villain): string {
   return villain.details.name.trim() || villain.details.alias.trim() || 'Unnamed villain'
-}
-
-/** The GM's name for a trait, if they've given it one. */
-export function villainTraitName(villain: Villain, trait: TraitRef): string | undefined {
-  return villain.traitNames[traitKey(trait)]
 }
 
 /** A copy of the villain to save as a new one, like ../hero/model.ts duplicateHero. */

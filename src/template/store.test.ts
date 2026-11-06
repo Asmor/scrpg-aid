@@ -4,7 +4,7 @@ import { IndexedDbHeroStore } from '../hero/store'
 import { createHero } from '../hero/model'
 import { IndexedDbDocStore } from '../store/doc-store'
 import { createChallengeTemplate, createEnvironmentTemplate, createLieutenantTemplate, createMinionTemplate, createTwist, duplicateTemplate, templateName, type EnvironmentTemplate, type MinionTemplate } from './model'
-import { challengeTemplateEnvelope, environmentTemplateEnvelope, lieutenantTemplateEnvelope, minionTemplateEnvelope, parseTemplateJson, templateJson } from './serialize'
+import { challengeTemplateEnvelope, environmentTemplateEnvelope, lieutenantTemplateEnvelope, minionTemplateEnvelope, templateJson } from './serialize'
 import { createDefaultTemplateStores, memoryTemplateStores } from './store'
 
 const now = new Date('2026-11-03T12:00:00Z')
@@ -30,9 +30,9 @@ describe('new templates', () => {
 describe('saved templates', () => {
   it('round-trip through their envelopes, each kind only as itself', () => {
     const l = { ...createLieutenantTemplate({ id: 'l', now }), name: 'Static Choir', abilities: [{ name: 'Harmonize', type: 'A' as const, text: 'Boost another lieutenant.' }] }
-    expect(parseTemplateJson(lieutenantTemplateEnvelope, templateJson(lieutenantTemplateEnvelope, l))).toEqual({ ok: true, doc: l })
-    expect(parseTemplateJson(minionTemplateEnvelope, templateJson(lieutenantTemplateEnvelope, l))).toEqual({ ok: false, error: 'not a saved minion' })
-    expect(parseTemplateJson(minionTemplateEnvelope, 'nope')).toEqual({ ok: false, error: 'not valid JSON' })
+    const json = JSON.parse(templateJson(lieutenantTemplateEnvelope, l))
+    expect(lieutenantTemplateEnvelope.parse(json)).toEqual({ ok: true, doc: l })
+    expect(minionTemplateEnvelope.parse(json)).toEqual({ ok: false, error: 'not a saved minion' })
   })
 
   it('turn away malformed ones', () => {
@@ -57,7 +57,7 @@ describe('saved templates', () => {
       twists: [{ id: 't1', zone: 'green', kind: 'minor', name: 'Loose gear', text: 'Something slides toward the edge.' }, { id: 't2', zone: 'red', kind: 'major', text: 'The roof gives way.' }],
       attached: [{ kind: 'minion', templateId: 'm' }],
     }
-    expect(parseTemplateJson(environmentTemplateEnvelope, templateJson(environmentTemplateEnvelope, e))).toEqual({ ok: true, doc: e })
+    expect(environmentTemplateEnvelope.parse(JSON.parse(templateJson(environmentTemplateEnvelope, e)))).toEqual({ ok: true, doc: e })
     const ok = (doc: object) => environmentTemplateEnvelope.parse(environmentTemplateEnvelope.toSaved({ ...e, ...doc } as EnvironmentTemplate)).ok
     expect(ok({ aspects: e.aspects.slice(0, 2) })).toBe(false)
     expect(ok({ twists: [{ id: 't', zone: 'blue', kind: 'minor', text: '' }] })).toBe(false)

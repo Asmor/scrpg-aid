@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { archetypes, personalities, powerSources, principles, redAbilityCategories } from './data'
-import { choiceSlots, isKnownBracket, parseSlots, traitSlots } from './slots'
+import { isKnownBracket, parseSlots, traitSlots } from './slots'
 
 function allTexts(node: unknown, out: string[] = []): string[] {
   if (Array.isArray(node)) node.forEach((n) => allTexts(n, out))
@@ -36,11 +36,11 @@ describe('slots', () => {
   })
 
   it('reads choices, with fixed options where the bracket lists them', () => {
-    expect(choiceSlots('[Boost or Hinder] using [power].')).toEqual([
+    expect(parseSlots('[Boost or Hinder].')).toEqual([
       { type: 'choice', label: 'Boost or Hinder', options: ['Boost', 'Hinder'] },
     ])
-    expect(choiceSlots('Take [choose two basic actions].')[0]).toMatchObject({ count: 2, options: expect.arrayContaining(['Attack', 'Overcome']) })
-    expect(choiceSlots('Affinity for [energy/element].')).toEqual([{ type: 'choice', label: 'energy/element' }])
+    expect(parseSlots('Take [choose two basic actions].')[0]).toMatchObject({ count: 2, options: expect.arrayContaining(['Attack', 'Overcome']) })
+    expect(parseSlots('Affinity for [energy/element].')).toEqual([{ type: 'choice', label: 'energy/element' }])
   })
 
   it('treats unknown brackets as free-text choices', () => {

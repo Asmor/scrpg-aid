@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { allTags, cleanTags, compareText, enterChoice, hasTag, normalizeTag, spellingFor, suggestTags, withoutTag, withTag } from './tags'
+import { allTags, cleanTags, compareText, enterChoice, hasTag, normalizeTag, suggestTags, withoutTag, withTag } from './tags'
 
 describe('normalizeTag', () => {
   it('trims, collapses inner whitespace, and caps at 40 characters', () => {
@@ -48,12 +48,6 @@ describe('allTags', () => {
 
 describe('suggestions', () => {
   const existing = allTags([{ tags: ['scene-3', 'scene-30', 'prep', 'aprep', 'one-shot', 'thursday-game', 'scene-1', 'scene-2', 'scene-4'] }])
-
-  it('uses an existing spelling for typed text that matches ignoring case', () => {
-    expect(spellingFor('  PREP ', existing)).toBe('prep')
-    expect(spellingFor('new tag', existing)).toBe('new tag')
-    expect(spellingFor('  ', existing)).toBeUndefined()
-  })
 
   it('lists up to six tags containing the text, not on the item, alphabetical', () => {
     expect(suggestTags('scene', existing, ['scene-2'])).toEqual({ suggestions: ['scene-1', 'scene-3', 'scene-4', 'scene-30'], create: 'scene' })

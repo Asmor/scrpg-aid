@@ -85,9 +85,3 @@ export function continueStep(furthest: number | undefined): WizardStepId {
   const index = Math.min(Math.max(0, Math.trunc(furthest ?? 0)), NUMBERED_STEPS)
   return WIZARD_STEPS[index]!.id
 }
-
-/** "Step 3 of 8" for a draft's furthest step; Start reads as "At Start". */
-export function progressText(furthest: number | undefined): string {
-  const index = wizardStepIndex(continueStep(furthest))
-  return index === 0 ? 'At Start' : `Step ${index} of ${NUMBERED_STEPS}`
-}

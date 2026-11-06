@@ -170,19 +170,6 @@ export function traitSwapOptions(hero: Hero, kind: TraitRef['kind']): CatalogTra
   return traitsOfKind(kind).filter((t) => !held.has(traitKey(t)) && !names.has(traitLabel(hero, t)))
 }
 
-/** A one-line description of a change, for lists. */
-export function describeChange(hero: Hero, change: AdvancementChange): string {
-  switch (change.kind) {
-    case 'swapPower':
-    case 'swapQuality':
-      return `Swapped ${traitLabel(hero, change.from)} for ${traitLabel(hero, change.to)}`
-    case 'swapPrinciple':
-      return `Swapped your ${change.replace} principle for ${principleOf(change.with)?.name ?? 'another'}`
-    case 'swapAbility':
-      return `Swapped ${change.from.name} for ${change.to.customName?.trim() || change.to.name}`
-  }
-}
-
 function checkChange(before: Hero, change: AdvancementChange, n: number): RuleWarning[] {
   const warn = (code: IssueCode, message: string) => [warning('advancement', code, `Change ${n}: ${message}`)]
   const traits = deriveTraits(before).traits

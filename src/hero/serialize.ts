@@ -3,7 +3,7 @@
  * SavedHero envelope.
  */
 import type { Hero } from './model'
-import { parseJson, readEnvelope } from '../saved'
+import { readEnvelope } from '../saved'
 import { heroProblem } from './validate'
 import { cleanTags } from '../library/tags'
 
@@ -27,10 +27,4 @@ export function parseSaved(value: unknown): ParseResult {
   const result = readEnvelope<Hero>(value, { format: HERO_FORMAT, key: 'hero', currentVersion: CURRENT_VERSION, problem: heroProblem })
   if (!result.ok) return result
   return { ok: true, hero: { ...result.doc, tags: cleanTags(result.doc.tags) } }
-}
-
-/** Reads a saved hero from JSON text (e.g. an imported file). */
-export function parseSavedJson(text: string): ParseResult {
-  const json = parseJson(text)
-  return json.ok ? parseSaved(json.value) : json
 }

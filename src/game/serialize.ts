@@ -1,5 +1,5 @@
 /** The versioned save format for games, like ../hero/serialize.ts. */
-import { parseJson, readEnvelope } from '../saved'
+import { readEnvelope } from '../saved'
 import { cleanTags } from '../library/tags'
 import type { Game } from './model'
 import { gameProblem } from './validate'
@@ -24,10 +24,4 @@ export function parseSavedGame(value: unknown): GameParseResult {
   const result = readEnvelope<Game>(value, { format: GAME_FORMAT, key: 'game', currentVersion: GAME_VERSION, problem: gameProblem })
   if (!result.ok) return result
   return { ok: true, game: { ...result.doc, tags: cleanTags(result.doc.tags) } }
-}
-
-/** Reads a saved game from JSON text. */
-export function parseSavedGameJson(text: string): GameParseResult {
-  const json = parseJson(text)
-  return json.ok ? parseSavedGame(json.value) : json
 }

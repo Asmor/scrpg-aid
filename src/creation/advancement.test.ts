@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AdvancementChange, AdvancementEntry, Hero } from '../hero/model'
 import { completeHero, dividedHero, formChangerHero, P, Q } from '../test/heroes'
-import { abilitySwapOptions, advancedHero, changesInForce, checkAdvancement, describeChange, swappablePicks, traitSwapIssues, traitSwapOptions } from './advancement'
+import { abilitySwapOptions, advancedHero, changesInForce, checkAdvancement, swappablePicks, traitSwapIssues, traitSwapOptions } from './advancement'
 import { buildSheet } from './sheet'
 import { deriveTraits } from './traits'
 
@@ -132,10 +132,8 @@ describe('advancement', () => {
     expect(changesInForce(hero)).toEqual([{ kind: 'swapPower', from: P('cold'), to: P('sonic') }])
   })
 
-  it('describes changes, and offers traits the hero doesn’t have', () => {
+  it('offers traits the hero doesn’t have', () => {
     const hero = completeHero()
-    expect(describeChange(hero, { kind: 'swapPrinciple', replace: 'archetype', with: { id: 'destiny' } })).toBe('Swapped your archetype principle for Principle of Destiny')
-    expect(describeChange(hero, { kind: 'swapAbility', from: { source: 'red', name: 'A' }, to: { source: 'red', name: 'B', customName: 'Bee' } })).toBe('Swapped A for Bee')
     expect(traitSwapOptions(hero, 'power').some((t) => t.id === 'fire')).toBe(false)
     expect(traitSwapOptions(hero, 'power').some((t) => t.id === 'cold')).toBe(true)
   })
