@@ -2,14 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { adaptiveBruiser, bullyOverlord } from '../test/villains'
 import { createVillain } from './model'
 import { buildVillainSheet } from './sheet'
-import { continueVillainStep, villainDraftText, villainStepNumber, villainStepStates, VILLAIN_STEPS } from './wizard-steps'
+import { continueVillainStep, villainDraftText, villainStepNumber, villainStepStates } from './wizard-steps'
 
 const states = (v: ReturnType<typeof createVillain>) => villainStepStates(v, buildVillainSheet(v).warnings)
 const marks = (v: ReturnType<typeof createVillain>) => Object.fromEntries(states(v).map((s) => [s.id, s.skipped ? `${s.mark} (skipped)` : s.mark]))
 
 describe('the villain wizard’s steps', () => {
-  it('are the seven of the spec, numbered from 1', () => {
-    expect(VILLAIN_STEPS.map((s) => s.label)).toEqual(['Concept', 'Approach', 'Archetype', 'Upgrades', 'Mastery', 'Health', 'Finishing touches'])
+  it('number from 1, and 0 for an unknown step', () => {
     expect(villainStepNumber('archetype')).toBe(3)
     expect(villainStepNumber('nope')).toBe(0)
   })

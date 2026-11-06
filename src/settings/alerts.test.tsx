@@ -1,4 +1,4 @@
-import { renderHook, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, renderHook, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -139,9 +139,7 @@ describe('the Alerts section', () => {
     Object.defineProperty(navigator, 'vibrate', { value: undefined, configurable: true })
     page()
     expect(screen.queryByRole('checkbox', { name: 'Vibrate' })).not.toBeInTheDocument()
-  })
-
-  it('shows Vibrate where it can', () => {
+    cleanup()
     Object.defineProperty(navigator, 'vibrate', { value: () => true, configurable: true })
     page()
     expect(screen.getByRole('checkbox', { name: 'Vibrate' })).toBeInTheDocument()

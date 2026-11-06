@@ -21,12 +21,14 @@ const tap = async (...ns: number[]) => {
 const accept = () => screen.getByRole('button', { name: 'Accept' })
 
 describe('the dice pad', () => {
-  it('disables numbers no die can show, saying why', () => {
+  it('disables numbers no die can show, saying why, and ignores their keys', async () => {
     pad()
     expect(key(8)).toBeEnabled()
     expect(key(9)).toBeDisabled()
     expect(key(9)).toHaveAccessibleDescription('No d10 in this roll')
     expect(key(12)).toHaveAccessibleDescription('No d12 in this roll')
+    await userEvent.keyboard('9')
+    expect(screen.getByRole('list', { name: 'Entered numbers, 0 of 3' })).toBeInTheDocument()
   })
 
   it('takes the numbers, drops the oldest past full, and accepts them', async () => {
@@ -82,12 +84,6 @@ describe('the dice pad', () => {
     expect(onAccept).toHaveBeenCalledWith([5, 10, 12])
     await userEvent.keyboard('{Escape}')
     expect(onCancel).toHaveBeenCalled()
-  })
-
-  it('ignores a number key for a number no die can show', async () => {
-    pad()
-    await userEvent.keyboard('9')
-    expect(screen.getByRole('list', { name: 'Entered numbers, 0 of 3' })).toBeInTheDocument()
   })
 
   it('moves between keys with the arrows, one stop in the tab order', async () => {

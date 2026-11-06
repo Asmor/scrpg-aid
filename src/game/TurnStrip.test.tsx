@@ -73,8 +73,6 @@ describe('the turn strip', () => {
   it('puts a divider between the acted and the rest, only when there are both', () => {
     const v = (g: Game) => g.villains[0]!.id
     const none = table()
-    const { unmount } = render(<div />)
-    unmount()
     let list = strip(turn(none, []))
     expect(screen.getByRole('list').querySelector('.turn-strip__divider')).toBeNull()
     expect(list.getAllByRole('listitem')).toHaveLength(3)

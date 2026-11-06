@@ -35,6 +35,7 @@ describe('useTheme (through the app header)', () => {
     const media = fakeMedia('none')
     vi.stubGlobal('matchMedia', media.matchMedia)
     render(<App />)
+    expect(screen.getByRole('group', { name: 'Color theme' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'System' })).toBeChecked()
     expect(theme()).toBe('light')
     act(() => media.set('dark'))

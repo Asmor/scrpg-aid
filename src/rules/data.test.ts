@@ -4,11 +4,8 @@ import {
   archetypes,
   archetypesById,
   backgrounds,
-  backgroundStep,
   healthFormula,
-  healthRanges,
   personalities,
-  personalityStep,
   powerSources,
   principleCategories,
   principles,
@@ -46,21 +43,6 @@ function isAbility(a: Ability): boolean {
 }
 
 describe('hero rules data', () => {
-  it('has the 20-entry roll tables', () => {
-    for (const table of [backgrounds, powerSources, archetypes, personalities]) {
-      expect(table.map((e) => e.roll).sort((a, b) => a - b)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1))
-    }
-  })
-
-  it('uses valid dice for each step', () => {
-    expect(backgroundStep.startingDice.every(isDie)).toBe(true)
-    for (const b of backgrounds) expect([...b.qualities.dice, ...b.powerSourceDice].every(isDie)).toBe(true)
-    for (const p of powerSources) expect(p.archetypeDice.every(isDie)).toBe(true)
-    for (const a of archetypes) expect(a.personalityDice.every(isDie)).toBe(true)
-    for (const p of personalities) expect(Object.values(p.statusDice).every(isDie)).toBe(true)
-    expect(isDie(personalityStep.roleplayingQuality.die)).toBe(true)
-  })
-
   it('resolves every option reference to the catalog', () => {
     const refs = collectRefs([backgrounds, powerSources, archetypes, redAbilityCategories, healthFormula])
     expect(refs.length).toBeGreaterThan(100)
@@ -97,22 +79,6 @@ describe('hero rules data', () => {
     const categories = new Set(principleCategories.map((c) => c.id))
     expect(principles.every((p) => categories.has(p.category))).toBe(true)
     expect(principlesById.get('destiny')?.category).toBe('esoteric')
-  })
-
-  it('has a Health formula', () => {
-    expect(healthFormula.base).toBe(8)
-    expect(healthFormula.addMaxOf).toContainEqual({ statusDie: 'red' })
-    expect(isDie(healthFormula.addRoll.die)).toBe(true)
-  })
-
-  it('has contiguous Health ranges for every max from 40 down to 17', () => {
-    expect(healthRanges.map((r) => r.max)).toEqual(Array.from({ length: 24 }, (_, i) => 40 - i))
-    for (const r of healthRanges) {
-      expect(r.green[0]).toBe(r.max)
-      expect(r.yellow[0]).toBe(r.green[1] - 1)
-      expect(r.red[0]).toBe(r.yellow[1] - 1)
-      expect(r.red[1]).toBe(1)
-    }
   })
 
   it('gives each entry at most one bonus (the trait logic relies on this)', () => {

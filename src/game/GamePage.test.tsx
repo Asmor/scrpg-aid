@@ -398,7 +398,7 @@ describe('the game table', () => {
     await waitFor(async () => expect((await savedVillain()).dangerUsed).toBeUndefined())
   })
 
-  it("a villain's + Twist: a minor one with Resolve, Captured after a confirm, and Escapes set aside", async () => {
+  it("a villain's + Twist: a minor one with Resolve, and Escapes set aside", async () => {
     const { saved } = await setup()
     await bringInIronclad()
     await userEvent.click(screen.getByRole('button', { name: 'Run Ironclad' }))

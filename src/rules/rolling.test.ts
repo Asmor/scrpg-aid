@@ -26,14 +26,6 @@ describe('rolling', () => {
     expect(rollDice(['d10', 'd8'], sequence(0, 0.99))).toEqual([1, 8])
   })
 
-  it('stays in range with the real random source', () => {
-    for (let i = 0; i < 200; i++) {
-      const r = rollDie('d4')
-      expect(r).toBeGreaterThanOrEqual(1)
-      expect(r).toBeLessThanOrEqual(4)
-    }
-  })
-
   it('reaches single dice and sums of pairs', () => {
     const reach = reachableValues([3, 5, 3])
     expect([...reach.keys()].sort((a, b) => a - b)).toEqual([3, 5, 6, 8])

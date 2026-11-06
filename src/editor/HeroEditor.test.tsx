@@ -371,13 +371,6 @@ describe('HeroEditor', () => {
     expect(screen.getByRole('button', { name: 'Re-roll (1 left)' })).toBeInTheDocument()
   })
 
-  it('asks for a background before rolling for a power source', async () => {
-    renderEditor(await storeWith(), 'power-source')
-    expect(await screen.findByText(/Choose a background first/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Roll/ })).not.toBeInTheDocument()
-    expect(screen.queryAllByRole('radio')).toHaveLength(0)
-  })
-
   it('builds a power source the constructed way: powers, abilities, and bonus, with no issues left', async () => {
     const store = await storeWith((h) => {
       h.method = 'constructed'
@@ -464,9 +457,14 @@ describe('HeroEditor', () => {
     await waitFor(async () => expect((await saved(store)).pendingRolls?.powerSource).toEqual({ dice: ['d10', 'd8'], results: [4, 5], manual: true }))
   })
 
-  it('asks for a power source before rolling for an archetype', async () => {
-    renderEditor(await storeWith((h) => (h.background = { id: 'upper-class', qualities: [] })), 'archetype')
-    expect(await screen.findByText(/Choose a power source first/)).toBeInTheDocument()
+  it.each([
+    ['background', 'power-source', () => {}],
+    ['power source', 'archetype', (h: Hero) => (h.background = { id: 'upper-class', qualities: [] })],
+    ['archetype', 'personality', () => {}],
+  ])('asks for a %s before rolling for the %s', async (needed, step, change) => {
+    renderEditor(await storeWith(change), step)
+    expect(await screen.findByText(new RegExp(`Choose an? ${needed} first`))).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Roll/ })).not.toBeInTheDocument()
     expect(screen.queryAllByRole('radio')).toHaveLength(0)
   })
 
@@ -849,10 +847,7 @@ describe('HeroEditor', () => {
     expect(screen.getByText('No rule issues in this step.')).toBeInTheDocument()
   })
 
-  it('asks for an archetype before rolling for a personality, then rolls its dice', async () => {
-    const { unmount } = renderEditor(await storeWith(), 'personality')
-    expect(await screen.findByText(/Choose an archetype first/)).toBeInTheDocument()
-    unmount()
+  it('rolls for a personality with the archetype’s dice', async () => {
     const store = await storeWith((h) => {
       Object.assign(h, { ...validHero(), id: 'h1' })
       h.method = 'guided'

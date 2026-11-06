@@ -29,11 +29,14 @@ describe('icons', () => {
     expect(container.querySelectorAll('img')).toHaveLength(3)
   })
 
-  it('shows each die size in text as its icon', () => {
+  it('shows each die size in text as its icon, in plain and ability text', () => {
     const { container } = render(<DiceText text="Choose d8 (your Fitness is d10); not d7 or add6." />)
     expect(readable(container)).toBe('Choose d8 (your Fitness is d10); not d7 or add6.')
     expect([...container.querySelectorAll('img')].map((i) => i.getAttribute('alt'))).toEqual(['d8', 'd10'])
     expect(container.textContent).not.toMatch(/\bd(8|10)\b/)
+    const ability = render(<AbilityText text="Gain a d8 minion. Then roll a d6 and Boost using your Min die." />).container
+    expect(readable(ability)).toBe('Gain a d8 minion. Then roll a d6 and Boost using your Min die.')
+    expect(ability.textContent).not.toMatch(/\bd(6|8)\b/)
   })
 
   it('names an action icon that stands on its own', () => {
@@ -45,14 +48,6 @@ describe('icons', () => {
     const { container } = render(<AbilityText text="Attack using Fire. Hinder that same target using your Min die. When hit with an Attack, nothing." />)
     expect(container).toHaveTextContent('Attack using Fire. Hinder that same target using your Min die. When hit with an Attack, nothing.')
     expect([...container.querySelectorAll('img')].map((i) => i.getAttribute('src'))).toEqual(['/icons/action/attack.png', '/icons/action/hinder.png'])
-  })
-
-  it('shows die sizes in ability text as icons too', () => {
-    const { container } = render(<AbilityText text="Gain a d8 minion. Then roll a d6 and Boost using your Min die." />)
-    expect(readable(container)).toBe('Gain a d8 minion. Then roll a d6 and Boost using your Min die.')
-    expect(screen.getByRole('img', { name: 'd8' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'd6' })).toBeInTheDocument()
-    expect(container.textContent).not.toMatch(/\bd(6|8)\b/)
   })
 
   it('takes its icons from the IconSource context', () => {

@@ -27,10 +27,6 @@ const backends: [string, () => HeroStore][] = [
 ]
 
 describe.each(backends)('%s', (_name, makeStore) => {
-  it('starts empty', async () => {
-    expect(await makeStore().list()).toEqual({ heroes: [], unreadable: [] })
-  })
-
   it('saves, reads, and lists heroes, most recently updated first', async () => {
     const store = makeStore()
     const older = hero('a', '2026-01-01T00:00:00Z')

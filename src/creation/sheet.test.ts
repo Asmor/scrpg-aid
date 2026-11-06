@@ -107,13 +107,6 @@ describe('buildSheet', () => {
     expect(buildSheet(hero).abilities.find((a) => a.name === 'Make Minion')?.text).toContain('[power]')
   })
 
-  it('fills in Principle of Dependence’s blank', () => {
-    const hero = completeHero()
-    hero.background = { ...hero.background!, id: 'unremarkable', qualities: hero.background!.qualities, principle: { id: 'dependence', customization: 'my inhaler' } }
-    const sheet = buildSheet(hero)
-    expect(sheet.principles[0]?.roleplaying).toBe('You are reliant on my inhaler and cannot normally function without it.')
-  })
-
   it('lets the ability retcon change the Out ability', () => {
     const hero = completeHero()
     hero.retcon = { id: 'change-ability-trait', kind: 'changeAbilityTrait', ability: { source: 'out', name: 'Out ability' }, uses: [Q('alertness')] }

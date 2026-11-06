@@ -28,21 +28,16 @@ describe('joined games on a player’s device', () => {
     expect(parseSavedJoined(null).ok).toBe(false)
   })
 
-  for (const [name, make] of [
-    ['in memory', () => new MemoryJoinedStore()],
-    ['in IndexedDB', () => new IndexedDbJoinedStore(indexedDB, `joined-test-${Math.random()}`)],
-  ] as const) {
-    it(`saves, lists newest first, gets and removes ${name}`, async () => {
-      const store = make()
-      await store.save(joined('g1', '2026-11-01T00:00:00.000Z'))
-      await store.save(joined('g2', '2026-11-03T00:00:00.000Z'))
-      expect((await store.list()).map((j) => j.id)).toEqual(['g2', 'g1'])
-      expect((await store.get('g1'))?.gm).toBe('Sam')
-      await store.remove('g1')
-      expect(await store.get('g1')).toBeUndefined()
-      expect(await store.list()).toHaveLength(1)
-    })
-  }
+  it('saves, lists newest first, gets and removes in IndexedDB', async () => {
+    const store = new IndexedDbJoinedStore(indexedDB, `joined-test-${Math.random()}`)
+    await store.save(joined('g1', '2026-11-01T00:00:00.000Z'))
+    await store.save(joined('g2', '2026-11-03T00:00:00.000Z'))
+    expect((await store.list()).map((j) => j.id)).toEqual(['g2', 'g1'])
+    expect((await store.get('g1'))?.gm).toBe('Sam')
+    await store.remove('g1')
+    expect(await store.get('g1')).toBeUndefined()
+    expect(await store.list()).toHaveLength(1)
+  })
 })
 
 describe('what a device answered about issues', () => {

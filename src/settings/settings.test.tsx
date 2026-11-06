@@ -55,10 +55,6 @@ describe('the Settings page', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Starts hidden' }))
     await userEvent.click(screen.getByRole('radio', { name: 'Name only' }))
     await waitFor(async () => expect((await store.load()).newGame).toEqual({ trackerPreset: 'epic', startHidden: false, playersSee: 'name' }))
-  })
-
-  it('chooses how dice are rolled', async () => {
-    const store = page()
     expect(screen.getByRole('radio', { name: /The app rolls/ })).toBeChecked()
     await userEvent.click(screen.getByRole('radio', { name: /I roll physical dice/ }))
     await waitFor(async () => expect((await store.load()).rolling).toBe('physical'))

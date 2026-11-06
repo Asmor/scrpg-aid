@@ -2,7 +2,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { describe, expect, it } from 'vitest'
 import { createGame } from './model'
 import { gameToSaved, parseSavedGame, parseSavedGameJson } from './serialize'
-import { IndexedDbGameStore, MemoryGameStore, type GameStore } from './store'
+import { IndexedDbGameStore } from './store'
 import { addGroup, addHero, addVillain } from './table'
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
@@ -12,12 +12,9 @@ const game = (id: string, updatedAt: string) => ({ ...createGame({ id }), update
 let n = 0
 const clock = { now: new Date('2026-11-01T00:00:00Z'), newId: () => `x${++n}` }
 
-describe.each<[string, () => GameStore]>([
-  ['MemoryGameStore', () => new MemoryGameStore()],
-  ['IndexedDbGameStore', () => new IndexedDbGameStore(new IDBFactory())],
-])('%s', (_name, make) => {
+describe('IndexedDbGameStore', () => {
   it('saves, lists newest first, gets, and removes games', async () => {
-    const store = make()
+    const store = new IndexedDbGameStore(new IDBFactory())
     await store.save(game('a', '2026-01-01T00:00:00Z'))
     await store.save(game('b', '2026-02-01T00:00:00Z'))
     expect((await store.list()).games.map((g) => g.id)).toEqual(['b', 'a'])

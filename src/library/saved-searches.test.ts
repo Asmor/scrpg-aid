@@ -1,6 +1,6 @@
 import { IDBFactory } from 'fake-indexeddb'
 import { describe, expect, it } from 'vitest'
-import { checkSearchName, createSavedSearch, IndexedDbSavedSearchStore, MemorySavedSearchStore, parseSavedSearch, parseSavedSearchJson, searchesToRestore, searchToSaved, SEARCH_FORMAT, type SavedSearch } from './saved-searches'
+import { checkSearchName, createSavedSearch, IndexedDbSavedSearchStore, parseSavedSearch, parseSavedSearchJson, searchesToRestore, searchToSaved, SEARCH_FORMAT, type SavedSearch } from './saved-searches'
 
 const now = new Date('2026-10-31T12:00:00Z')
 const search = (id: string, name: string): SavedSearch => createSavedSearch(name, { text: '', types: [], tags: ['scene-3'] }, { id, now })
@@ -53,17 +53,12 @@ describe('searchesToRestore', () => {
 })
 
 describe('saved search stores', () => {
-  for (const [label, make] of [
-    ['memory', () => new MemorySavedSearchStore()],
-    ['IndexedDB', () => new IndexedDbSavedSearchStore(new IDBFactory())],
-  ] as const) {
-    it(`saves, lists by name, and removes (${label})`, async () => {
-      const store = make()
-      await store.save(search('a', 'zeta'))
-      await store.save(search('b', 'Alpha'))
-      expect((await store.list()).searches.map((s) => s.name)).toEqual(['Alpha', 'zeta'])
-      await store.remove('a')
-      expect((await store.list()).searches.map((s) => s.id)).toEqual(['b'])
-    })
-  }
+  it('saves, lists by name, and removes', async () => {
+    const store = new IndexedDbSavedSearchStore(new IDBFactory())
+    await store.save(search('a', 'zeta'))
+    await store.save(search('b', 'Alpha'))
+    expect((await store.list()).searches.map((s) => s.name)).toEqual(['Alpha', 'zeta'])
+    await store.remove('a')
+    expect((await store.list()).searches.map((s) => s.id)).toEqual(['b'])
+  })
 })

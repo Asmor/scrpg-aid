@@ -119,12 +119,6 @@ describe('adding an offered issue', () => {
     return { ...h, details: { ...h.details, name: 'Afterimage' } }
   }
 
-  it('adds one', () => {
-    const r = addOfferedIssue(hero(4), offered, undefined, c)
-    expect(r.hero.backIssues).toHaveLength(5)
-    expect(r.text).toBe('Added. Afterimage has 5 of 6 back issues.')
-  })
-
   it('reaches six, with or without a collection', () => {
     expect(addOfferedIssue(hero(5), offered, undefined, c).text).toBe('Added. Afterimage has 6 of 6 back issues. Name a collection on the Advancement page.')
     const r = addOfferedIssue(hero(5), offered, 'Arc', c)
@@ -141,7 +135,10 @@ describe('adding an offered issue', () => {
     expect(r.hero.backIssues).toMatchObject([{ issueId: 'i1' }])
   })
 
-  it('never adds the same issue twice', () => {
+  it('adds one, but never the same issue twice', () => {
+    const first = addOfferedIssue(hero(4), offered, undefined, c)
+    expect(first.hero.backIssues).toHaveLength(5)
+    expect(first.text).toBe('Added. Afterimage has 5 of 6 back issues.')
     const once = addOfferedIssue(hero(1), offered, undefined, c).hero
     expect(addOfferedIssue(once, offered, undefined, c)).toEqual({ hero: once, text: 'Already recorded.' })
   })

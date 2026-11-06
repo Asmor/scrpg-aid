@@ -89,7 +89,7 @@ describe('HeroPage', () => {
     window.location.hash = ''
   })
 
-  it('offers Play and Edit for a finished hero, but only Continue for a draft, which still exports as a draft', async () => {
+  it('offers only Continue for a draft, which still exports as a draft', async () => {
     const draft = { ...exampleHero({ id: 'x' }), status: 'draft' as const, furthestStep: 2 }
     vi.mocked(downloadFile).mockClear()
     renderPage(storeReturning(async () => ({ status: 'found', hero: draft })))
@@ -198,38 +198,19 @@ describe('HeroPage', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('exports the hero as JSON that imports back', async () => {
+  it.each([
+    ['JSON', 'maya-reyes.json', 'application/json'],
+    ['Markdown', 'maya-reyes.md', 'text/markdown'],
+    ['HTML', 'maya-reyes.html', 'text/html'],
+  ])('exports the hero as %s that imports back', async (format, fileName, mediaType) => {
     vi.mocked(downloadFile).mockClear()
     const hero = exampleHero({ id: 'x' })
     renderPage(storeReturning(async () => ({ status: 'found', hero })))
-    await exportAs('JSON')
-    const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
-    expect(name).toBe('maya-reyes.json')
-    expect(type).toBe('application/json')
-    expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
-  })
-
-  it('exports the hero as Markdown that imports back', async () => {
-    vi.mocked(downloadFile).mockClear()
-    const hero = exampleHero({ id: 'x' })
-    renderPage(storeReturning(async () => ({ status: 'found', hero })))
-    await exportAs('Markdown')
-    const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
-    expect(name).toBe('maya-reyes.md')
-    expect(type).toBe('text/markdown')
-    expect(text).toMatch(/^# Maya Reyes\n/)
-    expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
-  })
-
-  it('exports the hero as an HTML page that imports back', async () => {
-    vi.mocked(downloadFile).mockClear()
-    const hero = exampleHero({ id: 'x' })
-    renderPage(storeReturning(async () => ({ status: 'found', hero })))
-    await exportAs('HTML')
+    await exportAs(format)
     await waitFor(() => expect(downloadFile).toHaveBeenCalled())
     const [name, text, type] = vi.mocked(downloadFile).mock.calls[0]!
-    expect(name).toBe('maya-reyes.html')
-    expect(type).toBe('text/html')
+    expect(name).toBe(fileName)
+    expect(type).toBe(mediaType)
     expect(readImport(text as string)).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
   })
 

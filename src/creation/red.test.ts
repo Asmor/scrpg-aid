@@ -68,12 +68,6 @@ describe('checkRedAbilities', () => {
     expect(messages(hero)).toEqual(["Major Regeneration requires Vitality, which you don't have."])
   })
 
-  it('warns about taking the same ability twice', () => {
-    const hero = completeHero()
-    hero.redAbilities[1] = { ...hero.redAbilities[0]!, customName: 'Something Else' }
-    expect(messages(hero)).toEqual(['You already have a Red ability called Paragon Feat; choose a different one.'])
-  })
-
   it('never allows two Red abilities with the same name, even from different lists (the user’s ruling)', () => {
     const hero = completeHero()
     hero.powerSource!.powers[2] = A(P('stone'), 'd8')

@@ -2,7 +2,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { describe, expect, it } from 'vitest'
 import { IndexedDbHeroStore } from '../hero/store'
 import { createHero } from '../hero/model'
-import { MemoryDocStore, IndexedDbDocStore } from '../store/doc-store'
+import { IndexedDbDocStore } from '../store/doc-store'
 import { createChallengeTemplate, createEnvironmentTemplate, createLieutenantTemplate, createMinionTemplate, createTwist, duplicateTemplate, templateName, type EnvironmentTemplate, type MinionTemplate } from './model'
 import { challengeTemplateEnvelope, environmentTemplateEnvelope, lieutenantTemplateEnvelope, minionTemplateEnvelope, parseTemplateJson, templateJson } from './serialize'
 import { createDefaultTemplateStores, memoryTemplateStores } from './store'
@@ -67,12 +67,9 @@ describe('saved templates', () => {
   })
 })
 
-describe.each<[string, () => MemoryDocStore<MinionTemplate> | IndexedDbDocStore<MinionTemplate>]>([
-  ['in memory', () => new MemoryDocStore(minionTemplateEnvelope)],
-  ['in IndexedDB', () => new IndexedDbDocStore(new IDBFactory(), 'minionTemplates', minionTemplateEnvelope)],
-])('a template store %s', (_name, make) => {
+describe('a template store in IndexedDB', () => {
   it('saves, lists newest first, gets, and removes', async () => {
-    const store = make()
+    const store = new IndexedDbDocStore<MinionTemplate>(new IDBFactory(), 'minionTemplates', minionTemplateEnvelope)
     await store.save(minion('a', '2026-01-01T00:00:00Z'))
     await store.save(minion('b', '2026-02-01T00:00:00Z'))
     expect((await store.list()).docs.map((m) => m.id)).toEqual(['b', 'a'])

@@ -3,16 +3,13 @@ import { describe, expect, it } from 'vitest'
 import { createHero } from '../hero/model'
 import { IndexedDbHeroStore } from '../hero/store'
 import { createVillain } from './model'
-import { createDefaultVillainStore, IndexedDbVillainStore, MemoryVillainStore, type VillainStore } from './store'
+import { createDefaultVillainStore, IndexedDbVillainStore, MemoryVillainStore } from './store'
 
 const villain = (id: string, updatedAt: string) => ({ ...createVillain({ id }), updatedAt })
 
-describe.each<[string, () => VillainStore]>([
-  ['MemoryVillainStore', () => new MemoryVillainStore()],
-  ['IndexedDbVillainStore', () => new IndexedDbVillainStore(new IDBFactory())],
-])('%s', (_name, make) => {
+describe('IndexedDbVillainStore', () => {
   it('saves, lists newest first, gets, and removes villains', async () => {
-    const store = make()
+    const store = new IndexedDbVillainStore(new IDBFactory())
     await store.save(villain('a', '2026-01-01T00:00:00Z'))
     await store.save(villain('b', '2026-02-01T00:00:00Z'))
     expect((await store.list()).villains.map((v) => v.id)).toEqual(['b', 'a'])

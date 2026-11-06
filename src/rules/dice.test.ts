@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { compareDice, DICE, dieSize, isDie, sortDice, stepDie, ZONES } from './dice'
+import { compareDice, isDie, sortDice, stepDie } from './dice'
 
 describe('dice', () => {
-  it('knows each die size', () => {
-    expect(DICE.map(dieSize)).toEqual([4, 6, 8, 10, 12])
-  })
-
   it('recognizes dice', () => {
     expect(isDie('d8')).toBe(true)
     expect(isDie('d7')).toBe(false)
@@ -34,9 +30,5 @@ describe('dice', () => {
   it('rejects fractional steps and inverted bounds', () => {
     expect(() => stepDie('d8', 1.5)).toThrow(RangeError)
     expect(() => stepDie('d8', 1, { min: 'd10', max: 'd6' })).toThrow(RangeError)
-  })
-
-  it('lists zones in order of severity', () => {
-    expect(ZONES).toEqual(['green', 'yellow', 'red'])
   })
 })

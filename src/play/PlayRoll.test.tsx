@@ -208,8 +208,12 @@ describe('using abilities', () => {
     expect((await saved(store)).play).not.toHaveProperty('defenses')
   })
 
-  it('changes nothing when cancelled at any step', async () => {
+  it('changes nothing when cancelled at any step, or closed with Escape', async () => {
     const store = await setup()
+    await userEvent.click(abilities().getByRole('button', { name: 'Use Always on the Move' }))
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect((await saved(store)).play).toBeUndefined()
     await userEvent.click(abilities().getByRole('button', { name: 'Use Always on the Move' }))
     let dialog = within(screen.getByRole('dialog'))
     await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
@@ -425,13 +429,5 @@ describe('using abilities', () => {
     expect([...rest].map((li) => li.textContent)).toEqual([expect.stringContaining('Added Drone'), expect.stringContaining('Gained a hero point (now 1).')])
     // Dice in the history show as their icons.
     expect(within(rest[0] as HTMLElement).getByRole('img', { name: 'd8' })).toBeInTheDocument()
-  })
-
-  it('closes on Escape without recording anything', async () => {
-    const store = await setup()
-    await userEvent.click(abilities().getByRole('button', { name: 'Use Always on the Move' }))
-    await userEvent.keyboard('{Escape}')
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect((await saved(store)).play).toBeUndefined()
   })
 })
