@@ -2,7 +2,7 @@
  * Exporting heroes, villains and games to files and reading them back in (Phases 2 and 5, and
  * the game table). A single hero, villain or game is saved in the same versioned envelope as
  * the browser store (../hero/serialize.ts, ../villain/serialize.ts, ../game/serialize.ts), and a backup wraps several in a versioned
- * envelope of its own. Imports go through the same checks and migrations as loading a saved
+ * envelope of its own. Imports go through the same checks as loading a saved
  * document.
  */
 import { newId, type Hero } from '../hero/model'
@@ -19,12 +19,7 @@ import { templateFormat } from '../template/serialize'
 import { emptyTemplateLists, TEMPLATE_LIST_INFO, TEMPLATE_LIST_KEYS, type TemplateLists } from '../template/lists'
 
 export const BACKUP_FORMAT = 'scrpg-backup'
-/**
- * Version 2 added villains, version 3 the library's saved searches, version 4 games, and version
- * 5 the NPC templates (../template/lists.ts), and version 6 environment templates; older backups
- * still read. Version 7 added joined games and this device's settings. A multi-item export from
- * the library uses the same format, with no saved searches.
- */
+/** A multi-item export from the library uses the same format, with no saved searches. */
 export const BACKUP_VERSION = 7
 
 export interface Backup {
@@ -182,12 +177,10 @@ function readBackup(value: Record<string, unknown>): ImportResult {
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) return { ok: false, error: "This backup couldn't be read: missing or invalid version." }
   if (version > BACKUP_VERSION) return { ok: false, error: `This backup was made by a newer version of the app (format ${version}).` }
   if (!Array.isArray(value.heroes)) return { ok: false, error: "This backup couldn't be read: it has no list of heroes." }
-  // Version 1 had no villains.
-  if (version >= 2 && !Array.isArray(value.villains)) return { ok: false, error: "This backup couldn't be read: it has no list of villains." }
-  // Version 3 added saved searches.
-  if (version >= 3 && !Array.isArray(value.savedSearches)) return { ok: false, error: "This backup couldn't be read: it has no list of saved searches." }
-  // Version 4 added games.
-  if (version >= 4 && !Array.isArray(value.games)) return { ok: false, error: "This backup couldn't be read: it has no list of games." }
+  if (version < BACKUP_VERSION) return { ok: false, error: `This backup was made by an older version of the app (format ${version}).` }
+  if (!Array.isArray(value.villains)) return { ok: false, error: "This backup couldn't be read: it has no list of villains." }
+  if (!Array.isArray(value.savedSearches)) return { ok: false, error: "This backup couldn't be read: it has no list of saved searches." }
+  if (!Array.isArray(value.games)) return { ok: false, error: "This backup couldn't be read: it has no list of games." }
   const heroes: Hero[] = []
   const villains: Villain[] = []
   const games: Game[] = []
@@ -198,25 +191,23 @@ function readBackup(value: Record<string, unknown>): ImportResult {
     if (result.ok) heroes.push(result.hero)
     else skipped.push({ kind: 'hero', index: i + 1, error: result.error })
   })
-  ;((version >= 2 ? value.villains : []) as unknown[]).forEach((saved, i) => {
+  value.villains.forEach((saved, i) => {
     const result = parseSavedVillain(saved)
     if (result.ok) villains.push(result.villain)
     else skipped.push({ kind: 'villain', index: i + 1, error: result.error })
   })
-  ;((version >= 4 ? value.games : []) as unknown[]).forEach((saved, i) => {
+  value.games.forEach((saved, i) => {
     const result = parseSavedGame(saved)
     if (result.ok) games.push(result.game)
     else skipped.push({ kind: 'game', index: i + 1, error: result.error })
   })
-  ;((version >= 3 ? value.savedSearches : []) as unknown[]).forEach((saved, i) => {
+  value.savedSearches.forEach((saved, i) => {
     const result = parseSavedSearch(saved)
     if (result.ok) savedSearches.push(result.search)
     else skipped.push({ kind: 'savedSearch', index: i + 1, error: result.error })
   })
-  // Version 5 added the NPC templates, and version 6 environments.
   const templates = emptyTemplateLists()
   for (const key of TEMPLATE_LIST_KEYS) {
-    if (version < TEMPLATE_LIST_INFO[key].since) continue
     const list = value[key]
     if (!Array.isArray(list)) return { ok: false, error: `This backup couldn't be read: it has no list of ${TEMPLATE_LIST_INFO[key].many}.` }
     list.forEach((saved, i) => {
@@ -225,7 +216,7 @@ function readBackup(value: Record<string, unknown>): ImportResult {
       else skipped.push({ kind: TEMPLATE_LIST_INFO[key].kind, index: i + 1, error: result.error })
     })
   }
-  // Version 7 added joined games and settings. They only restore from Settings.
+  // Only full backups have joined games and settings, and they only restore from Settings.
   const joined: JoinedGame[] = []
   if (Array.isArray(value.joined)) {
     value.joined.forEach((saved, i) => {

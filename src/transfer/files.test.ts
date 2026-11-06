@@ -19,21 +19,15 @@ const hero = (id: string, name = '') => {
   return h
 }
 
+/** A current backup holding just these lists; an undefined list is left out. */
+const backupOf = (fields: object) => JSON.stringify({ ...JSON.parse(backupJson({}, now)), ...fields })
+
 describe('heroJson', () => {
   it('saves a hero in the stored envelope, and reads it back unchanged', () => {
     const h = { ...dividedHero(), id: 'd1' }
     const text = heroJson(h)
     expect(JSON.parse(text)).toEqual({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: h })
     expect(readImport(text)).toEqual({ ok: true, heroes: [h], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
-  })
-})
-
-describe('play state', () => {
-  it('is dropped from a hero file or backup made by an older app: games hold it now', () => {
-    const plain = hero('a', 'Ann')
-    const old = { ...plain, play: { health: 4, reactionUsed: false, mods: [], twists: [], history: [] } }
-    expect(readImport(heroJson(old))).toEqual({ ok: true, heroes: [plain], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
-    expect(readImport(backupJson({ heroes: [old] }, now))).toEqual({ ok: true, heroes: [plain], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
   })
 })
 
@@ -47,20 +41,16 @@ describe('backupJson', () => {
 })
 
 describe('saved searches in backups', () => {
-  it('backs up saved searches and reads them back; a version-2 backup has none', () => {
+  it('backs up saved searches and reads them back', () => {
     const search = createSavedSearch('Scene 3', { text: '', types: ['villain'], tags: ['scene-3'] }, { id: 's1', now })
     const text = backupJson({ savedSearches: [search] }, now)
     expect(JSON.parse(text)).toMatchObject({ version: BACKUP_VERSION, savedSearches: [searchToSaved(search)] })
     expect(readImport(text)).toEqual({ ok: true, heroes: [], villains: [], games: [], savedSearches: [search], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
-    const v2 = JSON.stringify({ format: BACKUP_FORMAT, version: 2, exportedAt: 'x', heroes: [], villains: [] })
-    expect(readImport(v2)).toEqual({ ok: true, heroes: [], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
   })
 
-  it('skips a bad saved search, and needs the list in a version-3 backup', () => {
-    const bad = JSON.stringify({ format: BACKUP_FORMAT, version: 3, exportedAt: 'x', heroes: [], villains: [], games: [], savedSearches: [{ nope: 1 }] })
+  it('skips a bad saved search', () => {
+    const bad = backupOf({ savedSearches: [{ nope: 1 }] })
     expect(readImport(bad)).toEqual({ ok: true, heroes: [], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [{ kind: 'savedSearch', index: 1, error: 'not a saved search' }] })
-    const missing = JSON.stringify({ format: BACKUP_FORMAT, version: 3, exportedAt: 'x', heroes: [], villains: [] })
-    expect(readImport(missing)).toEqual({ ok: false, error: "This backup couldn't be read: it has no list of saved searches." })
   })
 
   it('keeps tags with heroes and villains', () => {
@@ -105,12 +95,19 @@ describe('readImport', () => {
       ok: false,
       error: `This backup was made by a newer version of the app (format ${BACKUP_VERSION + 1}).`,
     })
-    expect(readImport(backup({ version: 1 }))).toEqual({ ok: false, error: "This backup couldn't be read: it has no list of heroes." })
+    expect(readImport(backup({ version: BACKUP_VERSION - 1, heroes: [] }))).toEqual({
+      ok: false,
+      error: `This backup was made by an older version of the app (format ${BACKUP_VERSION - 1}).`,
+    })
+    const lists = { heroes: 'heroes', villains: 'villains', savedSearches: 'saved searches', games: 'games', minionTemplates: 'minions', lieutenantTemplates: 'lieutenants', challengeTemplates: 'challenges', environmentTemplates: 'environments' }
+    for (const [key, name] of Object.entries(lists)) {
+      expect(readImport(backupOf({ [key]: undefined }))).toEqual({ ok: false, error: `This backup couldn't be read: it has no list of ${name}.` })
+    }
   })
 
   it('imports the heroes in a backup it can read, and lists the rest', () => {
     const good = hero('a')
-    const text = JSON.stringify({ format: BACKUP_FORMAT, version: 1, heroes: [{ nope: true }, toSaved(good), { format: HERO_FORMAT, version: 1, hero: { ...good, method: 'freeform' } }] })
+    const text = backupOf({ heroes: [{ nope: true }, toSaved(good), { format: HERO_FORMAT, version: CURRENT_VERSION, hero: { ...good, method: 'freeform' } }] })
     expect(readImport(text)).toEqual({
       ok: true,
       heroes: [good],
@@ -165,21 +162,18 @@ describe('villains in files', () => {
     expect(villainFileName(createVillain({ id: 'x' }), 'json')).toBe('villain.json')
   })
 
-  it('backs up heroes and villains together, and still reads a version-1 backup of heroes', () => {
+  it('backs up heroes and villains together', () => {
     const v = adaptiveBruiser()
     const h = hero('a', 'Ann')
     const text = backupJson({ heroes: [h], villains: [v] }, now)
     expect(JSON.parse(text)).toMatchObject({ version: BACKUP_VERSION, villains: [villainToSaved(v)] })
     expect(readImport(text)).toEqual({ ok: true, heroes: [h], villains: [v], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
-    const v1 = JSON.stringify({ format: BACKUP_FORMAT, version: 1, exportedAt: 'x', heroes: [toSaved(h)] })
-    expect(readImport(v1)).toEqual({ ok: true, heroes: [h], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
   })
 
   it('lists villains in a backup it can’t read, and explains a damaged villain file', () => {
     const v = adaptiveBruiser()
-    const text = JSON.stringify({ format: BACKUP_FORMAT, version: 2, exportedAt: 'x', heroes: [], villains: [{ nope: 1 }, villainToSaved(v)] })
+    const text = backupOf({ villains: [{ nope: 1 }, villainToSaved(v)] })
     expect(readImport(text)).toEqual({ ok: true, heroes: [], villains: [v], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [{ kind: 'villain', index: 1, error: 'not a saved villain' }] })
-    expect(readImport(JSON.stringify({ format: BACKUP_FORMAT, version: 2, exportedAt: 'x', heroes: [] }))).toEqual({ ok: false, error: "This backup couldn't be read: it has no list of villains." })
     expect(readImport(JSON.stringify({ format: VILLAIN_FORMAT, version: 99, villain: {} }))).toEqual({ ok: false, error: "This villain couldn't be read: saved by a newer version of the app (format 99)." })
   })
 
@@ -200,14 +194,10 @@ describe('games', () => {
     expect(readImport(text)).toEqual({ ok: true, heroes: [], villains: [], games: [g], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
   })
 
-  it('skips a damaged game, still reads a version-3 backup, and needs the list from version 4', () => {
+  it('skips a damaged game', () => {
     const g = createGame({ id: 'g', now })
-    const v4 = JSON.stringify({ format: BACKUP_FORMAT, version: 4, exportedAt: 'x', heroes: [], villains: [], games: [{ nope: 1 }, gameToSaved(g)], savedSearches: [] })
-    expect(readImport(v4)).toEqual({ ok: true, heroes: [], villains: [], games: [g], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [{ kind: 'game', index: 1, error: 'not a saved game' }] })
-    const v3 = JSON.stringify({ format: BACKUP_FORMAT, version: 3, exportedAt: 'x', heroes: [], villains: [], savedSearches: [] })
-    expect(readImport(v3)).toEqual({ ok: true, heroes: [], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
-    const missing = JSON.stringify({ format: BACKUP_FORMAT, version: 4, exportedAt: 'x', heroes: [], villains: [], savedSearches: [] })
-    expect(readImport(missing)).toEqual({ ok: false, error: "This backup couldn't be read: it has no list of games." })
+    const text = backupOf({ games: [{ nope: 1 }, gameToSaved(g)] })
+    expect(readImport(text)).toEqual({ ok: true, heroes: [], villains: [], games: [g], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [{ kind: 'game', index: 1, error: 'not a saved game' }] })
   })
 })
 
@@ -232,16 +222,5 @@ describe('templates in files', () => {
     broken.lieutenantTemplates.unshift({ nope: 1 })
     const result = readImport(JSON.stringify(broken))
     expect(result.ok && result.skipped).toEqual([{ kind: 'lieutenant', index: 1, error: 'not a saved lieutenant' }])
-  })
-
-  it('read a version 5 backup, which has no environments, and need the list from version 6', () => {
-    const v5 = { format: BACKUP_FORMAT, version: 5, exportedAt: 'x', heroes: [], villains: [], games: [], savedSearches: [], minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [] }
-    expect(readImport(JSON.stringify(v5))).toMatchObject({ ok: true, templates: { environmentTemplates: [] } })
-    expect(readImport(JSON.stringify({ ...v5, version: 6 }))).toEqual({ ok: false, error: "This backup couldn't be read: it has no list of environments." })
-  })
-
-  it('turn away a version 5 backup without a template list', () => {
-    const text = JSON.stringify({ format: BACKUP_FORMAT, version: 5, exportedAt: 'x', heroes: [], villains: [], games: [], savedSearches: [], minionTemplates: [], lieutenantTemplates: [] })
-    expect(readImport(text)).toEqual({ ok: false, error: "This backup couldn't be read: it has no list of challenges." })
   })
 })

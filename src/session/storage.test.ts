@@ -44,15 +44,6 @@ describe('session storage', () => {
     expect(store.loadLastGame()).toBeUndefined()
   })
 
-  it('forgets the old game sessions’ saves', () => {
-    const storage = memoryStorage()
-    storage.setItem('scrpg.session.gm', '{"v":1,"room":"X","password":"pw"}')
-    storage.setItem('scrpg.session.player', '{"v":1}')
-    localSessionStore(storage)
-    expect(storage.data.has('scrpg.session.gm')).toBe(false)
-    expect(storage.data.has('scrpg.session.player')).toBe(false)
-  })
-
   it('keeps one client id per browser', () => {
     const storage = memoryStorage()
     const id = localSessionStore(storage).clientId()

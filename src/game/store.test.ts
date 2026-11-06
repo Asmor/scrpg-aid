@@ -61,6 +61,6 @@ describe('the saved game format', () => {
 
   it('does not read an older version: there are no real saves to carry forward', () => {
     const g = createGame({ id: 'g' })
-    expect(parseSavedGame({ format: 'scrpg-game', version: 2, game: g })).toEqual({ ok: false, error: 'no migration from format 2' })
+    expect(parseSavedGame({ format: 'scrpg-game', version: 2, game: g })).toEqual({ ok: false, error: 'saved by an older version of the app (format 2)' })
   })
 })

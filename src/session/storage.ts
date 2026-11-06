@@ -68,8 +68,6 @@ export function localSessionStore(storage: StorageLike | null | undefined = defa
       // Unavailable or full: the session just won't survive a reload.
     }
   }
-  // The old game sessions' saves (before the game table) can't be resumed: forget them.
-  for (const old of ['scrpg.session.gm', 'scrpg.session.player']) write(old, undefined)
   return {
     loadLastGame: () => readLastGame(read(KEYS.lastGame)),
     saveLastGame: (game) => write(KEYS.lastGame, game),

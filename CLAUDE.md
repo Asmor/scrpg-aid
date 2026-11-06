@@ -50,7 +50,7 @@ The Core Rules is currently the only source book. More sources may be added late
 
 - Drive game rules from `data/`. Don't hardcode mechanics in UI components.
 - Keep rules logic (calculations, validation, creation-step state) in pure, UI-independent modules so unit tests can cover it.
-- Saved and shared content needs a versioned format. If you change the format, keep old saves loading or add a migration.
+- Saved and shared content needs a versioned format, validated when read. The app has no real users yet, so changing a format just bumps its version: older versions are refused, with no migration.
 - The UI must work at phone width, and once loaded the app should keep working offline.
 
 ## Definition of done

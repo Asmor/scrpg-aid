@@ -5,14 +5,6 @@ import { CURRENT_VERSION, HERO_FORMAT, parseSaved, parseSavedJson, toSaved } fro
 
 const hero = () => createHero('guided', { id: 'h1', now: new Date('2026-10-23T12:00:00Z') })
 
-describe('version 3 heroes', () => {
-  it('read with empty lists, dropping the old advancement', () => {
-    const { backIssues: _b, collections: _c, advancement: _a, ...old } = createHero('guided', { id: 'old' })
-    const r = parseSaved({ format: HERO_FORMAT, version: 3, hero: { ...old, advancement: { backIssues: 2, collections: [], changes: [] } } })
-    expect(r).toMatchObject({ ok: true, hero: { backIssues: [], collections: [], advancement: [] } })
-  })
-})
-
 describe('serialize', () => {
   it('wraps a hero in a versioned envelope', () => {
     expect(toSaved(hero())).toEqual({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: hero() })
@@ -27,8 +19,9 @@ describe('serialize', () => {
     expect(parseSavedJson('{nope')).toEqual({ ok: false, error: 'not valid JSON' })
     expect(parseSaved(null)).toMatchObject({ ok: false, error: 'not a saved hero' })
     expect(parseSaved([])).toMatchObject({ ok: false, error: 'not a saved hero' })
+    expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION - 1, hero: hero() })).toEqual({ ok: false, error: `saved by an older version of the app (format ${CURRENT_VERSION - 1})` })
     expect(parseSaved({ format: 'other', version: 1, hero: hero() })).toMatchObject({ ok: false })
-    expect(parseSaved({ format: HERO_FORMAT, version: 1 })).toEqual({ ok: false, error: 'missing hero' })
+    expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION })).toEqual({ ok: false, error: 'missing hero' })
   })
 
   it('rejects bad versions, including ones newer than the app', () => {
@@ -87,14 +80,6 @@ describe('serialize', () => {
     for (const [patch, error] of cases) {
       expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: { ...hero(), ...patch } })).toEqual({ ok: false, error })
     }
-  })
-
-  it('drops play state on load: it lives in games now', () => {
-    const play = { health: 12, reactionUsed: true, mods: [], twists: [], history: [] }
-    // A version 2 hero with play state is migrated without it.
-    expect(parseSaved({ format: HERO_FORMAT, version: 2, hero: { ...hero(), play, currentHealth: 12 } })).toEqual({ ok: true, hero: hero(), migratedFrom: 2 })
-    // Play state an older app wrote back into a current hero is dropped too, even malformed.
-    expect(parseSaved({ format: HERO_FORMAT, version: CURRENT_VERSION, hero: { ...hero(), play: { heroPoints: 'x' } } })).toEqual({ ok: true, hero: hero() })
   })
 
   it('keeps draft status, furthest step, and who rolls; rejects bad values', () => {
@@ -173,81 +158,16 @@ describe('serialize', () => {
     expect(badModular((h) => Object.assign(h.archetype!.modular!, { powerless: [{}] }))).toBe(false)
   })
 
-  it('reads a version-1 hero with no tags, and tidies the tags it reads', () => {
-    const { tags: _, ...v1 } = hero()
-    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: v1 })).toEqual({ ok: true, hero: hero(), migratedFrom: 1 })
+  it('tidies the tags it reads', () => {
     const messy = { ...hero(), tags: ['  scene   3 ', 'Scene 3', '   ', 'x'.repeat(50)] }
     expect(parseSaved(toSaved(messy))).toEqual({ ok: true, hero: { ...hero(), tags: ['scene 3', 'x'.repeat(40)] } })
     expect(parseSaved(toSaved({ ...hero(), tags: [3] as unknown as string[] }))).toEqual({ ok: false, error: 'hero.tags[0] should be text' })
   })
 
-  it('migrates old versions forward, one version at a time', () => {
-    const migrations = {
-      1: (h: Record<string, unknown>) => ({ ...h, notes: 'from v1' }),
-      2: (h: Record<string, unknown>) => ({ ...h, notes: `${String(h.notes)}, then v2` }),
-    }
-    const result = parseSaved({ format: HERO_FORMAT, version: 1, hero: hero() }, migrations, 3)
-    expect(result).toEqual({ ok: true, hero: { ...hero(), notes: 'from v1, then v2' }, migratedFrom: 1 })
-  })
-
-  it('reports a missing migration', () => {
-    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: hero() }, {}, 2)).toEqual({
-      ok: false,
-      error: 'no migration from format 1',
-    })
-  })
-
-  it('checks the migrated result too', () => {
-    const broken = { 1: (h: Record<string, unknown>) => ({ ...h, method: 'oops' }) }
-    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: hero() }, broken, 2)).toEqual({
-      ok: false,
-      error: 'hero.method has an unknown value',
-    })
-  })
-
-  it('reports a migration that throws instead of throwing', () => {
-    const throwing = {
-      1: () => {
-        throw new Error('boom')
-      },
-    }
-    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: hero() }, throwing, 2)).toEqual({
-      ok: false,
-      error: 'migration from format 1 failed: boom',
-    })
-    const throwsText = {
-      1: () => {
-        throw 'plain text'
-      },
-    }
-    expect(parseSaved({ format: HERO_FORMAT, version: 1, hero: hero() }, throwsText, 2)).toEqual({
-      ok: false,
-      error: 'migration from format 1 failed: plain text',
-    })
-  })
-
-  it('never lets migrations or callers change the input', () => {
-    const input = { format: HERO_FORMAT, version: 1, hero: hero() }
-    const mutating = {
-      1: (h: Record<string, unknown>) => {
-        ;(h.details as Record<string, string>).name = 'changed by migration'
-        return h
-      },
-    }
-    const result = parseSaved(input, mutating, 2)
-    expect(result.ok && result.hero.details.name).toBe('changed by migration')
+  it('never lets callers change the input', () => {
+    const input = toSaved(hero())
+    const result = parseSaved(input)
+    if (result.ok) result.hero.details.name = 'changed by caller'
     expect(input.hero.details.name).toBe('')
-    const plain = parseSaved(input)
-    if (plain.ok) plain.hero.details.name = 'changed by caller'
-    expect(input.hero.details.name).toBe('')
-  })
-})
-
-describe('colors on a hero', () => {
-  it('round-trip, with unset reading as the default, and a bad color is refused', () => {
-    const hero = { ...createHero('guided', { id: 'h' }), appearance: { primary: 'blue' as const, secondary: 'cyan' as const, gradient: 'radial' as const, invert: true } }
-    expect(parseSaved(toSaved(hero))).toEqual({ ok: true, hero })
-    expect(parseSaved(toSaved(createHero('guided', { id: 'h' })))).toMatchObject({ ok: true, hero: { id: 'h' } })
-    expect(parseSaved(toSaved({ ...hero, appearance: { primary: 'plaid' } } as never))).toMatchObject({ ok: false })
   })
 })

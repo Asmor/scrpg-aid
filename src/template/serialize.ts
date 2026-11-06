@@ -1,5 +1,5 @@
 /** The versioned save formats for templates, like ../hero/serialize.ts: one format per kind. */
-import { parseJson, readEnvelope, type Migration } from '../saved'
+import { parseJson, readEnvelope } from '../saved'
 import type { DocEnvelope } from '../store/doc-store'
 import type { ChallengeTemplate, EnvironmentTemplate, LieutenantTemplate, MinionTemplate } from './model'
 import { challengeTemplateProblem, environmentTemplateProblem, lieutenantTemplateProblem, minionTemplateProblem } from './validate'
@@ -18,17 +18,12 @@ export type TemplateKind = keyof typeof KINDS
 export const templateFormat = (kind: TemplateKind) => KINDS[kind].format
 
 export const TEMPLATE_VERSION = 1
-/** Migrations keyed by the version they upgrade from (none yet). */
-const MIGRATIONS: Readonly<Record<number, Migration>> = {}
 
 function envelope<T>(kind: TemplateKind): DocEnvelope<T> {
   const { format, key, problem } = KINDS[kind]
   return {
     toSaved: (doc) => ({ format, version: TEMPLATE_VERSION, [key]: doc }),
-    parse: (saved) => {
-      const result = readEnvelope<T>(saved, { format, key, currentVersion: TEMPLATE_VERSION, migrations: MIGRATIONS, problem })
-      return result.ok ? { ok: true, doc: result.doc } : result
-    },
+    parse: (saved) => readEnvelope<T>(saved, { format, key, currentVersion: TEMPLATE_VERSION, problem }),
   }
 }
 

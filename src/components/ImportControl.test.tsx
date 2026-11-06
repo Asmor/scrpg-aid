@@ -118,7 +118,7 @@ describe('ImportControl', () => {
     const { upload } = await renderOver(new MemoryHeroStore())
     await upload('not json')
     expect(await screen.findByRole('alert')).toHaveTextContent("This file isn't a hero, villain, template, game, or backup the app can read.")
-    await upload(JSON.stringify({ format: 'scrpg-backup', version: 1, heroes: [{ nope: 1 }, toSaved(named('n1', 'Nova'))] }))
+    await upload(JSON.stringify({ ...JSON.parse(backupJson({}, new Date())), heroes: [{ nope: 1 }, toSaved(named('n1', 'Nova'))] }))
     expect(await screen.findByRole('status')).toHaveTextContent("Imported one hero. Hero 1 in the file couldn't be read: not a saved hero.")
   })
 

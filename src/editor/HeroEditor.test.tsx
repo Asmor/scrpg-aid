@@ -197,12 +197,6 @@ describe('HeroEditor', () => {
     expect(hero.advancement[0]!.open).toBeUndefined()
   })
 
-  it('sends the old Advancement step to its own page', async () => {
-    window.location.hash = '#/hero/h1/edit/advancement'
-    renderEditor(await storeWith(), 'advancement')
-    await waitFor(() => expect(window.location.hash).toBe('#/hero/h1/advancement'))
-  })
-
   it('falls back to the first step for an unknown step, fixing the address', async () => {
     window.location.hash = '#/hero/h1/edit/nope'
     renderEditor(await storeWith(), 'nope')

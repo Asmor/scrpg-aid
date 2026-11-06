@@ -4,7 +4,7 @@
  * document, and included in backups.
  */
 import { newId } from '../hero/model'
-import { parseJson, readEnvelope, type Migration } from '../saved'
+import { parseJson, readEnvelope } from '../saved'
 import { arrayOf, nonEmptyString, object, string } from '../shape'
 import { IndexedDbRecords, MemoryRecords, type StoredRecord } from '../store/records'
 import type { LibraryQuery } from './query'
@@ -26,9 +26,6 @@ export interface SavedSearchEnvelope {
   search: SavedSearch
 }
 
-/** Migrations keyed by the version they upgrade from (none yet). */
-export const SEARCH_MIGRATIONS: Readonly<Record<number, Migration>> = {}
-
 const searchShape = object({
   id: nonEmptyString,
   name: nonEmptyString,
@@ -43,8 +40,8 @@ export function searchToSaved(search: SavedSearch): SavedSearchEnvelope {
 export type SearchParseResult = { ok: true; search: SavedSearch } | { ok: false; error: string }
 
 /** Reads a saved search (from storage or a backup, so untrusted). */
-export function parseSavedSearch(value: unknown, migrations = SEARCH_MIGRATIONS, currentVersion = SEARCH_VERSION): SearchParseResult {
-  const result = readEnvelope<SavedSearch>(value, { format: SEARCH_FORMAT, key: 'search', currentVersion, migrations, problem: (doc) => searchShape(doc, 'search') })
+export function parseSavedSearch(value: unknown): SearchParseResult {
+  const result = readEnvelope<SavedSearch>(value, { format: SEARCH_FORMAT, key: 'search', currentVersion: SEARCH_VERSION, problem: (doc) => searchShape(doc, 'search') })
   if (!result.ok) return result
   const search = result.doc
   const name = checkName(search.name)

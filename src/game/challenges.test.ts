@@ -203,7 +203,6 @@ describe('what each audience receives', () => {
     const g = overcome(withHeroes(), 0)
     const r = parseSavedGame(gameToSaved(g))
     expect(r.ok).toBe(true)
-    expect(parseSavedGame({ format: 'scrpg-game', version: 3, game: g }).ok).toBe(false)
   })
 })
 

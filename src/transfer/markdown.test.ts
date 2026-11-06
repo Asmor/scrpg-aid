@@ -106,13 +106,6 @@ describe('heroMarkdown', () => {
 })
 
 describe('embedded JSON', () => {
-  it('carries the sheet only, and play state an older app embedded is dropped on import', () => {
-    const hero = createHero('guided', { id: 'h1' })
-    expect(JSON.parse(embeddableJson(hero)).hero).not.toHaveProperty('play')
-    const old = { ...hero, play: { health: 3, reactionUsed: false, mods: [], twists: [], history: [] } }
-    expect(readImport(heroMarkdown(old))).toEqual({ ok: true, heroes: [hero], villains: [], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
-  })
-
   it('can’t close its comment or script tag, whatever the player typed', () => {
     const hero = createHero('guided', { id: 'h1' })
     hero.details.name = 'a --> b </script> c <!-- d & e ---'
@@ -166,12 +159,6 @@ describe('villainMarkdown', () => {
       expect(md).toContain(expected)
     }
     expect(readImport(md)).toEqual({ ok: true, heroes: [], villains: [v], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
-  })
-
-  it('leaves a villain’s play state out of its sheet exports', () => {
-    const v = { ...adaptiveBruiser(), play: { health: 3, reactionUsed: false, mods: [], twists: [], history: [] } }
-    const { play: _, ...withoutPlay } = v
-    expect(readImport(villainMarkdown(v))).toEqual({ ok: true, heroes: [], villains: [withoutPlay], games: [], savedSearches: [], templates: { minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] }, skipped: [] })
   })
 
   it('writes a blank villain, and each kind of status rule', () => {

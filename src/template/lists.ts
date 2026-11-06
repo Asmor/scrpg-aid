@@ -25,15 +25,13 @@ export interface TemplateListInfo {
   /** "minion", "minions". */
   one: string
   many: string
-  /** The backup version that added this list. */
-  since: number
 }
 
 export const TEMPLATE_LIST_INFO: Record<TemplateListKey, TemplateListInfo> = {
-  minionTemplates: { kind: 'minion', envelope: minionTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.minions as unknown as DocStore<TemplateBase>, one: 'minion', many: 'minions', since: 5 },
-  lieutenantTemplates: { kind: 'lieutenant', envelope: lieutenantTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.lieutenants as unknown as DocStore<TemplateBase>, one: 'lieutenant', many: 'lieutenants', since: 5 },
-  challengeTemplates: { kind: 'challenge', envelope: challengeTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.challenges as unknown as DocStore<TemplateBase>, one: 'challenge', many: 'challenges', since: 5 },
-  environmentTemplates: { kind: 'environment', envelope: environmentTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.environments as unknown as DocStore<TemplateBase>, one: 'environment', many: 'environments', since: 6 },
+  minionTemplates: { kind: 'minion', envelope: minionTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.minions as unknown as DocStore<TemplateBase>, one: 'minion', many: 'minions' },
+  lieutenantTemplates: { kind: 'lieutenant', envelope: lieutenantTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.lieutenants as unknown as DocStore<TemplateBase>, one: 'lieutenant', many: 'lieutenants' },
+  challengeTemplates: { kind: 'challenge', envelope: challengeTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.challenges as unknown as DocStore<TemplateBase>, one: 'challenge', many: 'challenges' },
+  environmentTemplates: { kind: 'environment', envelope: environmentTemplateEnvelope as unknown as DocEnvelope<TemplateBase>, store: (s) => s.environments as unknown as DocStore<TemplateBase>, one: 'environment', many: 'environments' },
 }
 
 export const emptyTemplateLists = (): TemplateLists => ({ minionTemplates: [], lieutenantTemplates: [], challengeTemplates: [], environmentTemplates: [] })

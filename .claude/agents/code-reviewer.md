@@ -20,7 +20,7 @@ Start from what changed: `git status`, `git diff`, and `git diff --staged` (plus
 **Correctness**
 - Logic bugs, unhandled edge cases, off-by-one errors, broken state transitions.
 - Game-rule fidelity: any mechanic (HP calculation, die assignments, archetype/power/quality options, principles, abilities, etc.) must match the extracted data in `data/` and cite its page reference. Flag rules that are hardcoded in UI code instead of driven by `data/`.
-- Saved/shared content: changes to persisted formats must stay backward compatible or include a migration.
+- Saved/shared content: changes to persisted formats must bump the version and stay validated. Backward compatibility and migrations aren't wanted while the app has no real users: older versions are refused.
 
 **Tests**
 - New or changed logic has unit tests that would fail if the logic were wrong. Coverage should be as complete as practical, especially for rules calculations and validation.

@@ -17,9 +17,8 @@
  * Versioning (see ./serialize.ts): an optional field may be added without a new version
  * only if an older app that ignores it still reads the hero correctly. Anything that
  * changes how existing data is read (e.g. the complex archetypes' extra structure) bumps
- * the version, even if the migration is a no-op, so older open tabs refuse instead of
- * misreading. Until the first public release there are no real saves, so v1 may still
- * change freely.
+ * the version, so older open tabs refuse instead of misreading. There are no real saves
+ * yet, so older versions aren't carried forward: they read as unreadable.
  */
 import type { Appearance, CharColor } from '../colors/palette'
 import type { Defense } from '../play/defense'

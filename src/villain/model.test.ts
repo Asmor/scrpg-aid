@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createVillain, DEFAULT_HERO_COUNT, villainDisplayName, villainTraitName } from './model'
-import { parseSavedVillain, parseSavedVillainJson, villainToSaved, VILLAIN_FORMAT } from './serialize'
+import { parseSavedVillain, parseSavedVillainJson, villainToSaved, VILLAIN_FORMAT, VILLAIN_VERSION } from './serialize'
 import { villainProblem } from './validate'
 
 const now = new Date('2026-10-27T12:00:00Z')
@@ -50,11 +50,11 @@ describe('saving villains', () => {
     expect(parseSavedVillainJson('nope')).toEqual({ ok: false, error: 'not valid JSON' })
     expect(parseSavedVillain({ format: 'scrpg-hero', version: 1, hero: {} })).toEqual({ ok: false, error: 'not a saved villain' })
     expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 9, villain: {} })).toEqual({ ok: false, error: 'saved by a newer version of the app (format 9)' })
-    expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 1 })).toEqual({ ok: false, error: 'missing villain' })
+    expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: VILLAIN_VERSION })).toEqual({ ok: false, error: 'missing villain' })
     const bad = (change: (v: Record<string, unknown>) => void) => {
       const v = full() as unknown as Record<string, unknown>
       change(v)
-      return parseSavedVillain({ format: VILLAIN_FORMAT, version: 1, villain: v })
+      return parseSavedVillain({ format: VILLAIN_FORMAT, version: VILLAIN_VERSION, villain: v })
     }
     expect(bad((v) => (v.heroCount = 0))).toEqual({ ok: false, error: 'villain.heroCount should be at least 1' })
     expect(bad((v) => (v.heroCount = 2.5))).toEqual({ ok: false, error: 'villain.heroCount should be a whole number' })
@@ -65,24 +65,10 @@ describe('saving villains', () => {
     expect(bad((v) => (v.upgrades = [{ id: 'villainous-vehicle', abilities: [], vehicle: { die: 'd10' } }]))).toEqual({ ok: false, error: 'villain.upgrades[0].vehicle.abilities should be a list' })
   })
 
-  it('reads a version-1 villain with no tags, and tidies the tags it reads', () => {
-    const { tags: _, ...v1 } = full()
-    expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 1, villain: v1 })).toEqual({ ok: true, villain: { ...v1, tags: [] }, migratedFrom: 1 })
+  it('tidies the tags it reads', () => {
     const messy = { ...full(), tags: ['  scene   3 ', 'Scene 3', '', 'prep'] }
     expect(parseSavedVillain(villainToSaved(messy))).toEqual({ ok: true, villain: { ...messy, tags: ['scene 3', 'prep'] } })
     expect(parseSavedVillain(villainToSaved({ ...full(), tags: 'prep' as unknown as string[] }))).toEqual({ ok: false, error: 'villain.tags should be a list' })
-  })
-
-  it('drops play state on load: it lives in games now', () => {
-    const v = full()
-    const play = { health: 20, reactionUsed: true, mods: [], twists: [], history: [] }
-    expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 2, villain: { ...v, play } })).toEqual({ ok: true, villain: v, migratedFrom: 2 })
-    expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 4, villain: { ...v, play: 'junk' } })).toEqual({ ok: true, villain: v })
-  })
-
-  it('reads a version-3 villain as complete, with nothing attached', () => {
-    const { status: _s, attached: _a, ...v3 } = full()
-    expect(parseSavedVillain({ format: VILLAIN_FORMAT, version: 3, villain: v3 })).toEqual({ ok: true, villain: { ...v3, status: 'complete', attached: [] }, migratedFrom: 3 })
   })
 
   it('keeps the wizard’s draft state, attachments, Suggest 3 picks and extra abilities', () => {
@@ -96,12 +82,5 @@ describe('saving villains', () => {
     expect(parseSavedVillainJson(JSON.stringify(villainToSaved(v)))).toEqual({ ok: true, villain: v })
     expect(villainProblem({ ...v, status: 'done' })).toBe('villain.status has an unknown value')
     expect(villainProblem({ ...v, attached: [{ templateId: 't1', kind: 'minion', role: 'boss' }] })).toBe('villain.attached[0].role has an unknown value')
-  })
-
-  it('migrates an older version forward', () => {
-    const v = full()
-    const old = { format: VILLAIN_FORMAT, version: 1, villain: { ...v, heroCount: undefined } }
-    const result = parseSavedVillain(old, { 1: (doc) => ({ ...doc, heroCount: 3 }) }, 2)
-    expect(result).toEqual({ ok: true, villain: { ...v, heroCount: 3 }, migratedFrom: 1 })
   })
 })

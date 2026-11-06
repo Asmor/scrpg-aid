@@ -189,7 +189,7 @@ describe('HeroPage', () => {
         </GameStoreContext.Provider>
       </StoreContext.Provider>,
     )
-    expect(await screen.findByRole('alert')).toHaveTextContent("This hero's play state couldn't be read: no migration from format 2")
+    expect(await screen.findByRole('alert')).toHaveTextContent("This hero's play state couldn't be read: saved by an older version of the app (format 2)")
     // Not the ⋯ menu's Start over: that one changes a loaded game, and there isn't one.
     expect(screen.queryByRole('button', { name: "More for Maya Reyes's Play page" })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Start over…' }))

@@ -175,8 +175,6 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
     refocusRevert.current = false
     revertButton.current?.focus()
   })
-  // Advancement left the wizard for a page of its own.
-  const movedAdvancement = stepId === 'advancement'
   const found = wizardStepIndex(stepId)
   const index = Math.max(0, found)
   const step = WIZARD_STEPS[index]!
@@ -244,9 +242,8 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
     })
   // An unknown step in the address shows the first step; put that step's address in its place.
   useEffect(() => {
-    if (movedAdvancement) window.location.replace(advancementPath(id))
-    else if (stepId !== undefined && found < 0) window.location.replace(editPath(id, WIZARD_STEPS[0].id))
-  }, [id, stepId, found, movedAdvancement])
+    if (stepId !== undefined && found < 0) window.location.replace(editPath(id, WIZARD_STEPS[0].id))
+  }, [id, stepId, found])
   useEffect(() => {
     if (!goTo || goTo.step !== WIZARD_STEPS[index]!.id) return
     const panel = document.querySelector<HTMLElement>('.wizard__step')

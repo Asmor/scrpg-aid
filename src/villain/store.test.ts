@@ -20,28 +20,15 @@ describe('IndexedDbVillainStore', () => {
 })
 
 describe('the shared database', () => {
-  it('keeps heroes and villains apart, and adds the villains store to a database from before it existed', async () => {
+  it('keeps heroes and villains apart', async () => {
     const factory = new IDBFactory()
-    // A version-1 database, which only had heroes.
-    await new Promise<void>((resolve, reject) => {
-      const request = factory.open('old-db', 1)
-      request.onupgradeneeded = () => request.result.createObjectStore('heroes', { keyPath: 'id' })
-      request.onsuccess = () => {
-        const tx = request.result.transaction('heroes', 'readwrite')
-        tx.objectStore('heroes').put({ id: 'h1', saved: { format: 'scrpg-hero', version: 1, hero: createHero('guided', { id: 'h1' }) } })
-        tx.oncomplete = () => {
-          request.result.close()
-          resolve()
-        }
-        tx.onerror = () => reject(tx.error)
-      }
-    })
-    const villains = new IndexedDbVillainStore(factory, 'old-db')
+    const villains = new IndexedDbVillainStore(factory, 'shared')
     await villains.save(villain('v1', '2026-01-01T00:00:00Z'))
+    const heroes = new IndexedDbHeroStore(factory, 'shared')
+    await heroes.save(createHero('guided', { id: 'h1' }))
     expect((await villains.list()).villains.map((v) => v.id)).toEqual(['v1'])
-    await villains.close()
-    const heroes = new IndexedDbHeroStore(factory, 'old-db')
     expect((await heroes.list()).heroes.map((h) => h.id)).toEqual(['h1'])
+    await villains.close()
     await heroes.close()
   })
 

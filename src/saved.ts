@@ -1,28 +1,24 @@
 /**
  * The versioned envelope every saved or shared document is wrapped in (heroes, villains):
- * `{ format, version, <key>: document }`. Reading one checks the format and version,
- * migrates an older version forward, and checks the result's shape (the data is untrusted).
+ * `{ format, version, <key>: document }`. Reading one checks the format and version, and the
+ * document's shape (the data is untrusted). There are no real saves yet, so only the current
+ * version reads: older ones aren't carried forward.
  */
 import { isRecord } from './shape'
 
-/** Upgrades a saved document from version N to N + 1. */
-export type Migration = (doc: Record<string, unknown>) => Record<string, unknown>
-
-export type EnvelopeResult<T> = { ok: true; doc: T; migratedFrom?: number } | { ok: false; error: string }
+export type EnvelopeResult<T> = { ok: true; doc: T } | { ok: false; error: string }
 
 export interface EnvelopeSpec {
   format: string
   /** The envelope's key holding the document, and the word for it in errors ("hero"). */
   key: string
   currentVersion: number
-  /** Keyed by the version they upgrade from. */
-  migrations: Readonly<Record<number, Migration>>
   /** The document's first structural problem, or undefined. */
   problem: (doc: unknown) => string | undefined
 }
 
 export function readEnvelope<T>(value: unknown, spec: EnvelopeSpec): EnvelopeResult<T> {
-  const { format, key, currentVersion, migrations } = spec
+  const { format, key, currentVersion } = spec
   if (!isRecord(value) || value.format !== format) return { ok: false, error: `not a saved ${key}` }
   const { version } = value
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
@@ -31,22 +27,15 @@ export function readEnvelope<T>(value: unknown, spec: EnvelopeSpec): EnvelopeRes
   if (version > currentVersion) {
     return { ok: false, error: `saved by a newer version of the app (format ${version})` }
   }
+  if (version < currentVersion) {
+    return { ok: false, error: `saved by an older version of the app (format ${version})` }
+  }
   if (!isRecord(value[key])) return { ok: false, error: `missing ${key}` }
 
-  // Work on a copy so neither migrations nor callers can change the stored record.
-  let doc: Record<string, unknown> = structuredClone(value[key] as Record<string, unknown>)
-  for (let v = version; v < currentVersion; v++) {
-    const migrate = migrations[v]
-    if (!migrate) return { ok: false, error: `no migration from format ${v}` }
-    try {
-      doc = migrate(doc)
-    } catch (error) {
-      return { ok: false, error: `migration from format ${v} failed: ${error instanceof Error ? error.message : String(error)}` }
-    }
-  }
+  // Work on a copy so callers can't change the stored record.
+  const doc = structuredClone(value[key])
   const problem = spec.problem(doc)
-  if (problem) return { ok: false, error: problem }
-  return version < currentVersion ? { ok: true, doc: doc as T, migratedFrom: version } : { ok: true, doc: doc as T }
+  return problem ? { ok: false, error: problem } : { ok: true, doc: doc as T }
 }
 
 /** Parses JSON text, or says it isn't JSON. */
