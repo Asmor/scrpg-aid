@@ -152,8 +152,6 @@ describe('HeroEditor', () => {
     renderEditor(store, 'background')
     const nav = await screen.findByRole('navigation', { name: 'Creation steps' })
     const current = within(nav).getByRole('link', { current: 'step' })
-    expect(current).toHaveTextContent('Background')
-    expect(current).toHaveTextContent(/issues?/)
     expect(current).toHaveTextContent(/Background.*, 2 issues$/)
     expect(screen.getByRole('heading', { level: 3, name: '1 · Background' })).toBeInTheDocument()
     expect(screen.getAllByText('Core Rules, p. 49')[0]).toBeInTheDocument()
@@ -341,6 +339,8 @@ describe('HeroEditor', () => {
     const store = await storeWith()
     const view = renderEditor(store, 'background')
     await userEvent.click(await screen.findByRole('button', { name: 'Roll d10 and d10' }))
+    expect(screen.getByText(/You rolled/)).not.toHaveTextContent('typed in')
+    expect(screen.getByRole('button', { name: 'Re-roll (1 left)' })).toBeInTheDocument()
     await waitFor(async () => expect((await saved(store)).pendingRolls?.background).toMatchObject({ dice: ['d10', 'd10'], manual: false }))
     const { results } = (await saved(store)).pendingRolls!.background!
     view.unmount()
@@ -355,14 +355,6 @@ describe('HeroEditor', () => {
       expect(hero.background?.roll?.results).toEqual(results)
       expect(hero.pendingRolls).toBeUndefined()
     })
-  })
-
-  it('rolls in the app too', async () => {
-    const store = await storeWith()
-    renderEditor(store, 'background')
-    await userEvent.click(await screen.findByRole('button', { name: 'Roll d10 and d10' }))
-    expect(screen.getByText(/You rolled/)).not.toHaveTextContent('typed in')
-    expect(screen.getByRole('button', { name: 'Re-roll (1 left)' })).toBeInTheDocument()
   })
 
   it('builds a power source the constructed way: powers, abilities, and bonus, with no issues left', async () => {
@@ -837,8 +829,8 @@ describe('HeroEditor', () => {
     renderEditor(await storeWith((h) => Object.assign(h, { ...modularHero(), id: 'h1' })), 'archetype')
     await openPart('Green mode')
     await openAllParts()
-    expect(await screen.findByRole('group', { name: 'Patch Job' })).toBeInTheDocument()
     expect(screen.getByText('No rule issues in this step.')).toBeInTheDocument()
+    expect(screen.getAllByRole('combobox').filter((c) => c.getAttribute('aria-invalid'))).toEqual([])
   })
 
   it('rolls for a personality with the archetype’s dice', async () => {

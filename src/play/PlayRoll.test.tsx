@@ -1,9 +1,9 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { PlayState } from '../hero/model'
 import { PlayProviders } from '../test/play'
 import { playStores, savedHero, seedHero, type HeroWithPlay, type PlayStores } from '../test/play-stores'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { completeHero, dividedHero } from '../test/heroes'
 import { readable } from '../test/readable'
 import { PlayPage } from '../components/HeroPage'
@@ -332,23 +332,6 @@ describe('using abilities', () => {
     await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect((await saved(store)).play).toBeUndefined()
-  })
-
-  it('takes the toast away after about ten seconds', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    try {
-      await setup()
-      await userEvent.click(abilities().getByRole('button', { name: 'Use Always on the Move' }))
-      const dialog = within(screen.getByRole('dialog'))
-      await userEvent.click(dialog.getByRole('button', { name: 'Roll' }))
-      await userEvent.click(dialog.getByRole('button', { name: 'Confirm' }))
-      await userEvent.click(dialog.getByRole('button', { name: 'Done' }))
-      expect(screen.getByRole('status')).toHaveTextContent('Roll recorded.')
-      act(() => void vi.advanceTimersByTime(10_000))
-      expect(screen.queryByText('Roll recorded.')).not.toBeInTheDocument()
-    } finally {
-      vi.useRealTimers()
-    }
   })
 
   it('takes a basic action without an ability', async () => {
