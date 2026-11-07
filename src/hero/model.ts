@@ -254,7 +254,7 @@ export interface BackIssue {
   title: string
   gameId?: string
   gameName?: string
-  /** The finished issue it came from, if any (docs/design/issues/spec.md, section 6). A hero never holds one twice. */
+  /** The finished issue it came from, if any (scrpg-aid-designs/issues/spec.md, section 6). A hero never holds one twice. */
   issueId?: string
   issueNumber?: number
   at: string
@@ -284,7 +284,7 @@ export interface ColorsChange {
   before?: Appearance
 }
 
-/** One change in a hero's history (docs/design/advancement/spec.md, section 5). */
+/** One change in a hero's history (scrpg-aid-designs/advancement/spec.md, section 5). */
 export interface AdvancementEntry {
   id: string
   at: string
@@ -356,9 +356,9 @@ export interface Hero {
   status?: HeroStatus
   /** A draft's furthest wizard step reached: 0 for Start, 1–8 for the numbered steps. */
   furthestStep?: number
-  /** The player's own labels for organizing the library (docs/design/library/spec.md); see ../library/tags.ts. */
+  /** The player's own labels for organizing the library (scrpg-aid-designs/library/spec.md); see ../library/tags.ts. */
   tags: string[]
-  /** The hero's colors (docs/design/character-colors/spec.md); unset reads as the default. */
+  /** The hero's colors (scrpg-aid-designs/character-colors/spec.md); unset reads as the default. */
   appearance?: Appearance
   details: HeroDetails
   /**
@@ -395,7 +395,7 @@ export interface PlayMod {
   value: number
   persistent?: true
   exclusive?: true
-  /** Bought with hero points: it lasts the issue, through scene changes (docs/design/issues/spec.md, section 4a). */
+  /** Bought with hero points: it lasts the issue, through scene changes (scrpg-aid-designs/issues/spec.md, section 4a). */
   source?: 'heroPoint'
 }
 
@@ -419,7 +419,7 @@ export interface PlayHistoryEntry {
 /**
  * What the game aid tracks for a hero during play. It lives in a game, next to the game's copy
  * of the hero's sheet (../game/model.ts), never on the hero document: library documents are
- * sheets only (docs/design/game-table/spec.md, section 1).
+ * sheets only (scrpg-aid-designs/game-table/spec.md, section 1).
  */
 export interface PlayState {
   /** Current Health; until set, the hero is at their max. */
@@ -451,7 +451,7 @@ export interface PlayState {
 export interface PlayMinion {
   id: string
   name: string
-  /** Unset: the hero's primary (docs/design/character-colors/spec.md). */
+  /** Unset: the hero's primary (scrpg-aid-designs/character-colors/spec.md). */
   color?: CharColor
   die: Die
   action: BasicAction | 'any'

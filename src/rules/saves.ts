@@ -1,5 +1,5 @@
 /**
- * Minion and lieutenant saves (docs/design/npcs/spec.md, section 1; Core Rules p. 16–17, 207;
+ * Minion and lieutenant saves (scrpg-aid-designs/npcs/spec.md, section 1; Core Rules p. 16–17, 207;
  * ruling 58). When one takes damage it rolls its own die, with its own mods, as a save: a total
  * equal to or higher than the damage succeeds.
  *

@@ -1,5 +1,5 @@
 /**
- * Solo games (docs/design/game-table/spec.md, section 12): a hero's or villain's standalone Play
+ * Solo games (scrpg-aid-designs/game-table/spec.md, section 12): a hero's or villain's standalone Play
  * page keeps its play state in a game of its own, made the first time the page opens. It holds
  * the one copied character, has no turn order or tracker on screen, and takes its scene zone
  * from the Play page's scene control. It isn't listed on the Games page or in the library: it

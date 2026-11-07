@@ -1,5 +1,5 @@
 /**
- * The pieces every target picker shares (docs/design/npcs/spec.md, "Choosing targets"): a
+ * The pieces every target picker shares (scrpg-aid-designs/npcs/spec.md, "Choosing targets"): a
  * select's options (the likely side, the other side as a labeled group, the sections always
  * shown, then No target), and the one "Show allies too" or "Show opponents too" checkbox per
  * dialog. Who is listed comes from ../game/target-options.ts.

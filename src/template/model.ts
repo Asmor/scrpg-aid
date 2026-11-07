@@ -1,5 +1,5 @@
 /**
- * NPC templates in the library (docs/design/npcs/spec.md, section 2): minions, lieutenants,
+ * NPC templates in the library (scrpg-aid-designs/npcs/spec.md, section 2): minions, lieutenants,
  * challenges and environments the GM prepares, then brings into games, where each copy starts
  * fresh. Templates hold no play state.
  *
@@ -17,10 +17,10 @@ export interface TemplateBase {
   id: string
   createdAt: string
   updatedAt: string
-  /** The GM's own labels (docs/design/library/spec.md). */
+  /** The GM's own labels (scrpg-aid-designs/library/spec.md). */
   tags: string[]
   name: string
-  /** Unset: by side (docs/design/character-colors/spec.md). */
+  /** Unset: by side (scrpg-aid-designs/character-colors/spec.md). */
   color?: CharColor
 }
 

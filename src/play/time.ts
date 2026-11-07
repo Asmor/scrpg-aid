@@ -1,5 +1,5 @@
 /**
- * History timestamps (docs/design/hero-sheet/spec.md, History; GOAL.md, Phase 3): relative for a
+ * History timestamps (scrpg-aid-designs/hero-sheet/spec.md, History; GOAL.md, Phase 3): relative for a
  * week ("now", "3 minutes ago", "2 hours ago", "1 day ago"), then the full date and time in the
  * user's locale and time zone. Days count elapsed time, so they say "1 day ago" rather than a
  * calendar "yesterday". `locale` and `timeZone` are injectable for tests.

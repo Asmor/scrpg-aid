@@ -1,5 +1,5 @@
 /**
- * When the user last backed up everything (docs/design/library/spec.md, "Last backup"), kept in
+ * When the user last backed up everything (scrpg-aid-designs/library/spec.md, "Last backup"), kept in
  * localStorage and guarded like the session store (../session/storage.ts): if storage is
  * unavailable, the app just doesn't remember. "Changed since" is counted, not stored.
  */

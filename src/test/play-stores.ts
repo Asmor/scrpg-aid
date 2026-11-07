@@ -1,6 +1,6 @@
 /**
  * Test helpers for Play pages. Play state lives in a character's solo game, not on its document
- * (docs/design/game-table/spec.md, sections 1 and 12), so tests that start a hero or villain with
+ * (scrpg-aid-designs/game-table/spec.md, sections 1 and 12), so tests that start a hero or villain with
  * some play state, or check what was saved, go through these.
  */
 import { createSoloGame, soloGameId, soloHero, soloVillain } from '../game/solo'

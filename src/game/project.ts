@@ -1,5 +1,5 @@
 /**
- * What each audience receives of a game (docs/design/game-table/spec.md, section 10, "What each
+ * What each audience receives of a game (scrpg-aid-designs/game-table/spec.md, section 10, "What each
  * audience receives"). The GM's device keeps the full game; after each change it sends players
  * and observers their **projection**, made here. Pure.
  *

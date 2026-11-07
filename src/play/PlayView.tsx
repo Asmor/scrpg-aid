@@ -1,5 +1,5 @@
 /**
- * Play mode of the character page (docs/design/hero-sheet/spec.md, "Play mode"): a status
+ * Play mode of the character page (scrpg-aid-designs/hero-sheet/spec.md, "Play mode"): a status
  * column (Health, scene and status die, form or mode, dice, hero points and the reaction,
  * bonuses and penalties, twists, the game) beside an actions column (basic actions, the ability
  * bands with Use or why not, and the history). Every change is free and immediate, saved with
@@ -262,7 +262,7 @@ export function PlayView({ hero, play, changePlay, heroPoints, clock, random }: 
   const [rolling, setRolling] = useState<RollSubject | null>(null)
   const [toast, setToast] = useState<{ id: number; text: string; undo: () => void } | null>(null)
   const toastCount = useRef(0)
-  // On a phone (docs/design/hero-sheet/spec.md, "Play on a phone"): a sticky top bar and three tabs.
+  // On a phone (scrpg-aid-designs/hero-sheet/spec.md, "Play on a phone"): a sticky top bar and three tabs.
   const phone = !useMediaQuery('(min-width: 760px)')
   const [tab, setTab] = useState<PhoneTab>('actions')
 

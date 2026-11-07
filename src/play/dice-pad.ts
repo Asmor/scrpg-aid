@@ -1,5 +1,5 @@
 /**
- * The dice pad's rules (docs/design/settings/spec.md, section 3). Which die rolled which number
+ * The dice pad's rules (scrpg-aid-designs/settings/spec.md, section 3). Which die rolled which number
  * doesn't matter, so the pad only asks for the numbers, and these check that the dice could show them.
  */
 import { dieSize } from '../rules/dice'

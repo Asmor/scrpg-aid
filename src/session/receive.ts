@@ -1,5 +1,5 @@
 /**
- * Accepting received items (docs/design/game-table/spec.md, section 15): they go into the
+ * Accepting received items (scrpg-aid-designs/game-table/spec.md, section 15): they go into the
  * library through the import path (../transfer/files.ts), tags included. An item whose id is
  * already saved here comes in as a copy with a new id, so nothing is replaced.
  */

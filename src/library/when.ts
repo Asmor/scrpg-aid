@@ -1,6 +1,6 @@
 /**
  * Relative times in the library: "2 hours ago", "Yesterday", "Last week" in the Changed column,
- * and "19 days ago" for the last backup (docs/design/library/spec.md). `locale` is injectable
+ * and "19 days ago" for the last backup (scrpg-aid-designs/library/spec.md). `locale` is injectable
  * for tests.
  */
 const MINUTE = 60_000

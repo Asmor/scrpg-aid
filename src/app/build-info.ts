@@ -1,4 +1,4 @@
-/** The app's version and build date, for the About dialog (docs/design/library/spec.md, 8a). */
+/** The app's version and build date, for the About dialog (scrpg-aid-designs/library/spec.md, 8a). */
 
 export const appVersion: string = __APP_VERSION__
 export const buildTime: string = __BUILD_TIME__

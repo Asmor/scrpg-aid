@@ -1,5 +1,5 @@
 /**
- * The library under 760 px (docs/design/library/spec.md, "Phone"): the view's name opens a
+ * The library under 760 px (scrpg-aid-designs/library/spec.md, "Phone"): the view's name opens a
  * sheet of views, Filters opens a sheet of type and tag filters, and rows are a list. Press and
  * hold a row (or ⋯ Select) to start selecting; a bottom bar holds the bulk actions.
  */

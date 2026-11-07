@@ -1,5 +1,5 @@
 /**
- * Spending hero points between issues (docs/design/issues/spec.md, section 4a): buy generic,
+ * Spending hero points between issues (scrpg-aid-designs/issues/spec.md, section 4a): buy generic,
  * exclusive bonuses for the next issue, each costing its size (ruling 70), and take them back until
  * it starts. On a player's panel: the GM's own heroes are NPCs, with no hero points.
  */

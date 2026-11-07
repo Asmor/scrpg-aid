@@ -1,5 +1,5 @@
 /**
- * Watch a game (docs/design/game-table/spec.md, sections 10 and 13): the game code and "Name this
+ * Watch a game (scrpg-aid-designs/game-table/spec.md, sections 10 and 13): the game code and "Name this
  * screen" (remembered on the device), then Start watching. While this device watches the game,
  * the page is the display view: the table as players see it, read-only, filling the screen.
  */

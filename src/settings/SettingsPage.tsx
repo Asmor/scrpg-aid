@@ -1,4 +1,4 @@
-/** The Settings page (docs/design/settings/spec.md): every change saves at once, with a short "Saved" beside it. */
+/** The Settings page (scrpg-aid-designs/settings/spec.md): every change saves at once, with a short "Saved" beside it. */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { DieIcon } from '../components/icons'
 import type { BackupTimeStore } from '../library/backup-time'

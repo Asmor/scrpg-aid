@@ -1,5 +1,5 @@
 /**
- * The hero sheet (docs/design/hero-sheet/spec.md): Roleplaying (who they are, the principles,
+ * The hero sheet (scrpg-aid-designs/hero-sheet/spec.md): Roleplaying (who they are, the principles,
  * and a record strip), Mechanics (powers, qualities, status dice and Health), abilities in
  * Green, Yellow, Red and Out bands, then the auxiliary sheet (forms, modes, minion forms,
  * Divided's split). Everything shown comes from buildSheet. Rule issues are shown by the page,

@@ -1,5 +1,5 @@
 /**
- * A player's actions on their hero (docs/design/game-table/spec.md, section 10, "Player
+ * A player's actions on their hero (scrpg-aid-designs/game-table/spec.md, section 10, "Player
  * actions"). Players never change the game themselves: each control sends one action, and the
  * GM's device checks it against the current game, applies it, and logs it. Pure.
  *
@@ -44,7 +44,7 @@ export interface RollAction {
   others: { to: TableTarget; mod: ModInput }[]
   /** Minions the roll made. */
   made: NewMinion[]
-  /** Attack results with a target: the result's index in the record, and who it hits (docs/design/npcs/spec.md, section 5). */
+  /** Attack results with a target: the result's index in the record, and who it hits (scrpg-aid-designs/npcs/spec.md, section 5). */
   attacks: { result: number; to: TableTarget }[]
   /** Defend results: the result's index, and who it protects (none: the hero; ruling 65). */
   defends: { result: number; to?: TableTarget }[]
@@ -57,7 +57,7 @@ export type HeroAction =
   | { kind: 'removeMod'; modId: string }
   | { kind: 'addTwist'; twist: Omit<PlayTwist, 'id'> }
   | { kind: 'removeTwist'; twistId: string }
-  /** Between issues only: a bonus for the next issue, or taking one back (docs/design/issues/spec.md, section 4a). */
+  /** Between issues only: a bonus for the next issue, or taking one back (scrpg-aid-designs/issues/spec.md, section 4a). */
   | { kind: 'buyHeroPointBonus'; size: number }
   | { kind: 'returnHeroPointBonus'; buyId: string }
   | { kind: 'reaction'; used: boolean }
@@ -76,7 +76,7 @@ export type HeroAction =
   | { kind: 'chooseDefense'; hitId: string; defenseId: string }
   | { kind: 'handOff'; to: ActorRef }
   | { kind: 'startRound'; first: ActorRef }
-  /** An Overcome put against a challenge, for the GM to answer (docs/design/villains-and-challenges/spec.md, section 4). */
+  /** An Overcome put against a challenge, for the GM to answer (scrpg-aid-designs/villains-and-challenges/spec.md, section 4). */
   | { kind: 'overcomeChallenge'; challengeId: string; total: number; trait?: string }
 
 /** `notes` are lines for the player as toasts: a minion's or lieutenant's save against their Attack. */

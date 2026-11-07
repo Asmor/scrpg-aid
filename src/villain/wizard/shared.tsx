@@ -1,5 +1,5 @@
 /**
- * Components the villain wizard's steps share (docs/design/villain-wizard/spec.md): the option
+ * Components the villain wizard's steps share (scrpg-aid-designs/villain-wizard/spec.md): the option
  * cards a step chooses from, and a section with a heading. ./choices.ts has the rest.
  */
 import { useId, type ReactNode } from 'react'

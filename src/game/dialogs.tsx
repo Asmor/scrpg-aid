@@ -360,7 +360,7 @@ export interface SyncReview {
 }
 
 /**
- * "Update Gravelord from your library?" (docs/design/game-table/spec.md, section 9): what changed
+ * "Update Gravelord from your library?" (scrpg-aid-designs/game-table/spec.md, section 9): what changed
  * on the sheet (`sheetDiff`), what happens in this game (`reconcile`'s adjustments, or the line on
  * Health), and that only this game's copy changes. With `review`, a player's sheet update for the
  * GM to approve or decline (section 8).

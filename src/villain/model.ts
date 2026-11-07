@@ -95,9 +95,9 @@ export interface Villain {
   id: string
   createdAt: string
   updatedAt: string
-  /** The GM's own labels for organizing the library (docs/design/library/spec.md); see ../library/tags.ts. */
+  /** The GM's own labels for organizing the library (scrpg-aid-designs/library/spec.md); see ../library/tags.ts. */
   tags: string[]
-  /** The villain's colors (docs/design/character-colors/spec.md); unset reads as the default. */
+  /** The villain's colors (scrpg-aid-designs/character-colors/spec.md); unset reads as the default. */
   appearance?: Appearance
   /** A new villain is a draft until the GM finishes it in the wizard; drafts can't be brought into games. */
   status: VillainStatus

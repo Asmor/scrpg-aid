@@ -1,5 +1,5 @@
 /**
- * A hero's Advancement page (docs/design/advancement/spec.md): back issues up to six, naming a
+ * A hero's Advancement page (scrpg-aid-designs/advancement/spec.md): back issues up to six, naming a
  * collection, changes to the hero, the collections and the history. The player has full control.
  */
 import { useEffect, useId, useRef, useState, type FormEvent, type MouseEvent } from 'react'

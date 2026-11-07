@@ -1,5 +1,5 @@
 /**
- * The library's types (docs/design/library/spec.md, "Library types"): what the table needs from
+ * The library's types (scrpg-aid-designs/library/spec.md, "Library types"): what the table needs from
  * each kind of document, so a new type plugs in by adding an entry here. The type chips, the New
  * menu, and the Details column all read from it; the In games column comes from the games
  * holding a copy of the item (../game/model.ts).
@@ -39,7 +39,7 @@ export interface LibraryStores {
   heroes: HeroStore
   villains: VillainStore
   games: GameStore
-  /** NPC templates (docs/design/npcs/spec.md, section 2); a page without them lists none. */
+  /** NPC templates (scrpg-aid-designs/npcs/spec.md, section 2); a page without them lists none. */
   templates?: TemplateStores
 }
 
@@ -56,13 +56,13 @@ export interface RowInfo {
   details: string
   /**
    * The kind shown after the type at every size, "Villain (Major)" or "Minion (d8)"
-   * (docs/design/library/spec.md, section 4, the spec's kindLabel). Unset when the type has none.
+   * (scrpg-aid-designs/library/spec.md, section 4, the spec's kindLabel). Unset when the type has none.
    */
   kind?: string
   /** Rule issues, linking to where they can be fixed. */
   issues?: { count: number; href: string }
   openHref: string
-  /** Play, or Continue for a draft; templates have none (docs/design/library/spec.md, section 4). */
+  /** Play, or Continue for a draft; templates have none (scrpg-aid-designs/library/spec.md, section 4). */
   primary?: { label: 'Play' | 'Continue'; href: string }
   editHref: string
 }
@@ -110,7 +110,7 @@ export const heroType: LibraryType<Hero> = {
     return { docs: heroes, unreadable }
   },
   save: (stores, hero) => stores.heroes.save(hero),
-  // Deleting a character deletes its solo game (docs/design/game-table/spec.md, section 12).
+  // Deleting a character deletes its solo game (scrpg-aid-designs/game-table/spec.md, section 12).
   remove: async (stores, id) => {
     await stores.heroes.remove(id)
     await stores.games.remove(soloGameId('hero', id))

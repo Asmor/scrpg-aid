@@ -1,5 +1,5 @@
 /**
- * The library at 760 px and up (docs/design/library/spec.md, "Page layout" and "The table"):
+ * The library at 760 px and up (scrpg-aid-designs/library/spec.md, "Page layout" and "The table"):
  * the rail of views, the title row with New, the filter bar (or the selection bar while rows
  * are checked), the table, and the footer.
  */
@@ -384,7 +384,7 @@ function ariaSort(model: LibraryModel, keys: readonly SortKey[]) {
 }
 
 /**
- * The condensed four-column table (docs/design/library/spec.md, section 4): select; name, type
+ * The condensed four-column table (scrpg-aid-designs/library/spec.md, section 4): select; name, type
  * and details; in games and tags; changed with the actions. Rows grow taller instead of the
  * table scrolling sideways.
  */

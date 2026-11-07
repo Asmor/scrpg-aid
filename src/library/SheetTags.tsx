@@ -1,5 +1,5 @@
 /**
- * The tag row on a hero's or villain's sheet (docs/design/library/spec.md, "Tags on an item's
+ * The tag row on a hero's or villain's sheet (scrpg-aid-designs/library/spec.md, "Tags on an item's
  * own page"): the same chips and + popover as the library. A tag's name opens the library
  * filtered by it. Sheet mode only; it's left out of print.
  */

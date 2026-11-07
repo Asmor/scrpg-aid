@@ -1,5 +1,5 @@
 /**
- * The game table's messages (docs/design/game-table/spec.md, section 10), version 8. The GM's
+ * The game table's messages (scrpg-aid-designs/game-table/spec.md, section 10), version 8. The GM's
  * device hosts a game; players and observers say hello with their role, players send each
  * action as its own message and get a result, and the GM's device sends each peer its
  * projection of the game (../game/project.ts) after every change.
@@ -40,9 +40,9 @@ export type ClientMessage =
   | { v: 10; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
   | { v: 10; type: 'syncRequest'; heroId: string; sheet: Hero }
   | { v: 10; type: 'syncCancel'; heroId: string }
-  /** A player's colors, applied at once: they're cosmetic, so they skip the GM's review (docs/design/character-colors/spec.md, section 6). */
+  /** A player's colors, applied at once: they're cosmetic, so they skip the GM's review (scrpg-aid-designs/character-colors/spec.md, section 6). */
   | { v: 10; type: 'appearance'; heroId: string; appearance?: Appearance }
-  /** What a player did about a back issue, for the GM's list (docs/design/issues/spec.md, section 3). Only ever information. */
+  /** What a player did about a back issue, for the GM's list (scrpg-aid-designs/issues/spec.md, section 3). Only ever information. */
   | { v: 10; type: 'issueAck'; issueId: string; heroId: string; status: 'added' | 'later'; count?: number }
 
 /** Who a state message is for: a player's own hero in the game, and when it first joined. */
@@ -58,7 +58,7 @@ export type HostMessage =
   | { v: 10; type: 'result'; id: string; ok: false; reason: string }
   | { v: 10; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
   | { v: 10; type: 'refused'; reason: RefusedReason }
-  /** The GM got a new code for the game: kept peers move to it (docs/design/game-table/game-table-spec-addendum-game-codes.md). */
+  /** The GM got a new code for the game: kept peers move to it (scrpg-aid-designs/game-table/game-table-spec-addendum-game-codes.md). */
   | { v: 10; type: 'codeChanged'; code: string }
   /** The GM removed this peer from the game (Remove, or left behind by a new code). */
   | { v: 10; type: 'removed'; reason?: string }

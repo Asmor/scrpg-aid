@@ -1,4 +1,4 @@
-/** Holding a dialog back while someone is typing in a field (docs/design/issues/spec.md, section 9). */
+/** Holding a dialog back while someone is typing in a field (scrpg-aid-designs/issues/spec.md, section 9). */
 import { useEffect, useState } from 'react'
 
 const typing = () => {

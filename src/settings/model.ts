@@ -1,5 +1,5 @@
 /**
- * Settings (docs/design/settings/spec.md): preferences that belong to this device and whoever is
+ * Settings (scrpg-aid-designs/settings/spec.md): preferences that belong to this device and whoever is
  * holding it. Nothing here is per game or per character, and nothing syncs between devices.
  */
 import type { PlayersSee } from '../game/model'

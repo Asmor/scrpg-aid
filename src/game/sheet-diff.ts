@@ -1,5 +1,5 @@
 /**
- * What changed between two copies of a character's sheet (docs/design/game-table/spec.md,
+ * What changed between two copies of a character's sheet (scrpg-aid-designs/game-table/spec.md,
  * section 8): the game's copy and the library's. Pure. It compares the build itself, through the
  * built sheets, so timestamps, tags, notes and anything else that isn't the build don't count.
  *
@@ -103,7 +103,7 @@ function heroDiff(a: Hero, b: Hero): DiffSection[] {
   const status = (['green', 'yellow', 'red'] as const).flatMap((z) => (before.statusDice?.[z] === after.statusDice?.[z] ? [] : [`${ZONE_LABEL[z]} status die ${none(before.statusDice?.[z])} → ${none(after.statusDice?.[z])}`]))
   return sections([
     ['Name', changed('', heroDisplayName(a), heroDisplayName(b))],
-    // The look of the hero: a cosmetic change is a sheet change (docs/design/advancement/spec.md, section 4).
+    // The look of the hero: a cosmetic change is a sheet change (scrpg-aid-designs/advancement/spec.md, section 4).
     ['Appearance', LOOK_FIELDS.flatMap((f) => changed(`${DETAIL_LABEL[f]}: `, a.details[f].trim(), b.details[f].trim()))],
     ['Dice', traits.dice],
     ['Powers and qualities', traits.added],

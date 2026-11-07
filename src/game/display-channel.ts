@@ -1,5 +1,5 @@
 /**
- * Open display view on the GM's own device (docs/design/game-table/spec.md, section 13): the GM's
+ * Open display view on the GM's own device (scrpg-aid-designs/game-table/spec.md, section 13): the GM's
  * table and a display window opened from it talk over a `BroadcastChannel`, with no network and
  * no hosting. The table sends the observer projection after every change, so the window never
  * holds anything a player couldn't see; the window asks for it when it opens.

@@ -3,7 +3,7 @@
  * die by the archetype's rule, mods, minor twists, the reaction, the once-per-scene scene
  * advance, its abilities (all usable, no zones), basic actions, and a timestamped history.
  * The villain document is the sheet only: play state lives in the villain's solo game
- * (docs/design/game-table/spec.md, section 12), saved as it changes (./play.ts has the rules).
+ * (scrpg-aid-designs/game-table/spec.md, section 12), saved as it changes (./play.ts has the rules).
  */
 import { useId, useState, type ReactNode } from 'react'
 import { listPath, villainEditPath, villainPath } from '../app/route'

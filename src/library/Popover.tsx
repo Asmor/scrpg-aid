@@ -1,5 +1,5 @@
 /**
- * Popovers and menus for the library (docs/design/library/spec.md, "Accessibility"): each is a
+ * Popovers and menus for the library (scrpg-aid-designs/library/spec.md, "Accessibility"): each is a
  * dialog or a menu that takes focus when it opens and gives it back to its trigger when it
  * closes. Escape or a click outside closes it, and opening one closes any other.
  */

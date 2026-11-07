@@ -1,5 +1,5 @@
 /**
- * The swap dialogs' logic (docs/design/advancement/spec.md, section 2): who can be swapped, what
+ * The swap dialogs' logic (scrpg-aid-designs/advancement/spec.md, section 2): who can be swapped, what
  * for, and what changes. Pure. The rules checks themselves are in ../creation/advancement.ts,
  * which also applies a swap on top of the creation choices.
  */

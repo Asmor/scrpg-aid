@@ -1,5 +1,5 @@
 /**
- * Filtering and sorting the library (docs/design/library/spec.md). Pure, so the library table,
+ * Filtering and sorting the library (scrpg-aid-designs/library/spec.md). Pure, so the library table,
  * saved searches' counts, and later the GM table ("add everything tagged scene-3") all use the
  * same rules: a case-insensitive name search, any of the chosen types, and every chosen tag,
  * combined with AND.
@@ -107,7 +107,7 @@ export function sortItems<T extends Sortable>(items: readonly T[], sort: Sort): 
 export type LibraryView = { kind: 'all' } | { kind: 'saved'; id: string } | { kind: 'query'; query: LibraryQuery }
 
 /**
- * Reads the view from the hash's query string (docs/design/library/spec.md, "URL"):
+ * Reads the view from the hash's query string (scrpg-aid-designs/library/spec.md, "URL"):
  * "" for All, "s=<id>" for a saved search, "q=<text>&type=hero,villain&tag=a&tag=b" for filters.
  */
 export function parseView(search: string): LibraryView {

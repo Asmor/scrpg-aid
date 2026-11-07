@@ -62,7 +62,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
   const [templateStores] = useState(() => givenTemplates ?? createDefaultTemplateStores())
   const [settingsStore] = useState(() => givenSettings ?? createDefaultSettingsStore())
   const route = useRoute()
-  // The display view is dark unless the player chose light (docs/design/game-table/spec.md, section 13).
+  // The display view is dark unless the player chose light (scrpg-aid-designs/game-table/spec.md, section 13).
   const [theme, setTheme] = useTheme(route.name === 'watch' || route.name === 'gameDisplay' ? 'dark' : undefined)
   return (
     <SettingsProvider store={settingsStore} roomScale={route.name === 'watch' || route.name === 'gameDisplay'}>

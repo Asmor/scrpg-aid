@@ -1,5 +1,5 @@
 /**
- * The Scenes tab of the GM screen (docs/design/scenes/spec.md, section 3): every scene in order,
+ * The Scenes tab of the GM screen (scrpg-aid-designs/scenes/spec.md, section 3): every scene in order,
  * then + Plan a scene, then what's set aside. Planned scenes reorder by drag, or from the handle
  * with the keyboard (Space to pick up, arrows to move, Space to drop); phones use Move up and
  * Move down in each row's ⋯.

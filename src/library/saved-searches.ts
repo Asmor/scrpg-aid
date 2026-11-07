@@ -1,5 +1,5 @@
 /**
- * Saved searches (docs/design/library/spec.md, "Saved searches"): a named library query,
+ * Saved searches (scrpg-aid-designs/library/spec.md, "Saved searches"): a named library query,
  * kept in the database's savedSearches store in a versioned envelope like every other saved
  * document, and included in backups.
  */

@@ -1,8 +1,8 @@
 /**
- * The character page for a hero (docs/design/hero-sheet/spec.md): one page with two modes,
+ * The character page for a hero (scrpg-aid-designs/hero-sheet/spec.md): one page with two modes,
  * Sheet (`#/hero/<id>`) and Play (`#/hero/<id>/play`). The router keeps the same page across
  * the two, so switching doesn't reload the hero or lose what's open. The hero document is the
- * sheet only; Play works on the hero's solo game (docs/design/game-table/spec.md, section 12),
+ * sheet only; Play works on the hero's solo game (scrpg-aid-designs/game-table/spec.md, section 12),
  * which keeps its own copy of the sheet up to date and saves as changes are made.
  */
 import { useLayoutEffect, useRef, type MouseEvent } from 'react'

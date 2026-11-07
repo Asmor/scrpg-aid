@@ -1,12 +1,12 @@
 /**
- * Join as a player (docs/design/game-table/spec.md, section 7): the game code (from the GM's link,
+ * Join as a player (scrpg-aid-designs/game-table/spec.md, section 7): the game code (from the GM's link,
  * or typed in), the player's name (remembered on the device), and Bring a hero, a list of the
  * player's finished heroes. A hero already in this game rejoins as the game's copy; any other is
  * copied in when the GM's device takes the hello.
  *
  * Joining waits here until the GM's device answers, then opens the table. A code no game answers
  * on (changed by the GM, or not hosted yet) gets an error under the code field instead
- * (docs/design/game-table/game-table-spec-addendum-game-codes.md).
+ * (scrpg-aid-designs/game-table/game-table-spec-addendum-game-codes.md).
  */
 import { useEffect, useId, useRef, useState } from 'react'
 import { gamesPath, joinPath, listPath, navigate, tablePath } from '../app/route'

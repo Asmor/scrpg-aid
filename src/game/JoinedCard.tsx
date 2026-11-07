@@ -1,5 +1,5 @@
 /**
- * A game joined as a player, on the Games page (docs/design/game-table/spec.md, section 3, "A
+ * A game joined as a player, on the Games page (scrpg-aid-designs/game-table/spec.md, section 3, "A
  * joined game"): from this device's cache, so it shows what the player last saw. Hidden things
  * never appear, since players never receive them.
  */

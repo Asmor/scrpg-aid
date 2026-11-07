@@ -1,4 +1,4 @@
-/** Renaming and deleting a saved search (docs/design/library/spec.md, "Left rail"). */
+/** Renaming and deleting a saved search (scrpg-aid-designs/library/spec.md, "Left rail"). */
 import { useId, useState } from 'react'
 import { Modal } from '../components/Modal'
 import type { SavedSearch } from './saved-searches'

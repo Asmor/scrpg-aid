@@ -1,4 +1,4 @@
-/** Gives components the NPC templates' stores (docs/design/npcs/spec.md, section 2), so tests can pass in-memory ones. */
+/** Gives components the NPC templates' stores (scrpg-aid-designs/npcs/spec.md, section 2), so tests can pass in-memory ones. */
 import { createContext, useContext } from 'react'
 import type { TemplateStores } from '../template/store'
 

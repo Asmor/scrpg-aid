@@ -183,7 +183,7 @@ export function removeTwist<P extends PlayCore>(play: P, id: string, clock: Cloc
 }
 
 /**
- * Start over (standalone Play, docs/design/game-table/spec.md section 12): fresh play state, so
+ * Start over (standalone Play, scrpg-aid-designs/game-table/spec.md section 12): fresh play state, so
  * Health at max with no mods, twists, minions, form or mode, and an empty history.
  */
 export function startOver(): PlayState {
@@ -191,7 +191,7 @@ export function startOver(): PlayState {
 }
 
 /**
- * Heroes recover for a new issue (docs/design/issues/spec.md, section 5): full Health, no mods,
+ * Heroes recover for a new issue (scrpg-aid-designs/issues/spec.md, section 5): full Health, no mods,
  * twists, minions or defenses, the base form or default mode, and the reaction ready. What hero
  * points bought is the issue's own business.
  */

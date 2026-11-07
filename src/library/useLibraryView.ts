@@ -1,5 +1,5 @@
 /**
- * The library's view (docs/design/library/spec.md): which view is current (All, a saved
+ * The library's view (scrpg-aid-designs/library/spec.md): which view is current (All, a saved
  * search, or unsaved filters), kept in the URL; the snapshot of rows it shows, retaken only on
  * the events the spec lists under Stability; the sort; and the selection.
  */

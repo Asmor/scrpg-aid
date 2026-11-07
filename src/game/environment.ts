@@ -1,5 +1,5 @@
 /**
- * The environment on the table (docs/design/npcs/spec.md, section 6): what a template brings in,
+ * The environment on the table (scrpg-aid-designs/npcs/spec.md, section 6): what a template brings in,
  * its dice, its twists and its attached minions and lieutenants. Pure, given the dice.
  *
  * - Its aspects are the environment dice. Rolling them all gives Min, Mid and Max, each from an

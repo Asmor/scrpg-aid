@@ -1,4 +1,4 @@
-/** Die icons as radio buttons, each labeled with its size (docs/design/npcs/spec.md, section 8). */
+/** Die icons as radio buttons, each labeled with its size (scrpg-aid-designs/npcs/spec.md, section 8). */
 import { useId } from 'react'
 import { DICE } from '../rules/dice'
 import type { Die } from '../rules/types'

@@ -1,5 +1,5 @@
 /**
- * The About dialog (docs/design/library/spec.md, section 8a): the version and build date, the
+ * The About dialog (scrpg-aid-designs/library/spec.md, section 8a): the version and build date, the
  * credits, the Greater Than Games disclaimer, and plain links to the issues page and the repo.
  * Nothing here sends data anywhere, and the links carry nothing from the user's library.
  */

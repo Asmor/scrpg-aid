@@ -1,5 +1,5 @@
 /**
- * The hero wizard: making or editing a hero, one step at a time (docs/design/hero-wizard/spec.md).
+ * The hero wizard: making or editing a hero, one step at a time (scrpg-aid-designs/hero-wizard/spec.md).
  * It's a header, a step rail, the current step and a live sheet preview. Every change saves
  * straight away. Each step shows its own rule problems; nothing blocks moving on (the user's
  * "warn only" decision), and going back keeps later choices, flagging the ones that no
@@ -334,7 +334,7 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
     }
   }
   const docked = wide && previewShown
-  // A major rewrite (docs/design/advancement/spec.md, section 3): done logs what changed, back on the Advancement page.
+  // A major rewrite (scrpg-aid-designs/advancement/spec.md, section 3): done logs what changed, back on the Advancement page.
   const rebuilding = !draft && Boolean(openRewrite(hero))
   const finishRebuild = (e: MouseEvent<HTMLAnchorElement>) => {
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return

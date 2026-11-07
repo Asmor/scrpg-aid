@@ -1,4 +1,4 @@
-/** What Send… sends (docs/design/game-table/spec.md, section 15), and the templates in a backup. */
+/** What Send… sends (scrpg-aid-designs/game-table/spec.md, section 15), and the templates in a backup. */
 import type { Hero } from '../hero/model'
 import { backupJson } from '../transfer/files'
 import type { Villain } from '../villain/model'

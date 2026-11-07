@@ -1505,7 +1505,7 @@ a.button--primary {
   padding: 0.125rem 0.625rem;
 }
 
-/* The hero wizard (docs/design/hero-wizard/spec.md, "Wizard shell") */
+/* The hero wizard (scrpg-aid-designs/hero-wizard/spec.md, "Wizard shell") */
 .app-main--wide {
   max-width: 1440px;
   padding: 1.25rem 2rem 3rem;
@@ -3290,7 +3290,7 @@ html.motion-allow .rolled-die {
   }
 }
 
-/* Play mode (docs/design/hero-sheet/spec.md, "Play mode"): a status column beside the actions. */
+/* Play mode (scrpg-aid-designs/hero-sheet/spec.md, "Play mode"): a status column beside the actions. */
 .play-layout {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
@@ -4018,7 +4018,7 @@ span.status-chips > span {
   }
 }
 
-/* The roll (docs/design/hero-sheet/spec.md, "Roll flow"): a 560px dialog, full screen on a phone. */
+/* The roll (scrpg-aid-designs/hero-sheet/spec.md, "Roll flow"): a 560px dialog, full screen on a phone. */
 .dialog-backdrop:has(.roll-dialog) {
   align-items: center;
 }
@@ -4250,7 +4250,7 @@ span.status-chips > span {
 }
 
 /*
- * Toasts (docs/design/game-table/game-table-spec-addendum-game-codes.md, "Toasts"): a stack
+ * Toasts (scrpg-aid-designs/game-table/game-table-spec-addendum-game-codes.md, "Toasts"): a stack
  * floating bottom right, 16 px in, up to 360 px wide (never wider than the screen less its
  * margins); bottom center on phones, above a bottom bar. Newer ones sit below older ones, so the
  * stack grows upward.
@@ -4310,7 +4310,7 @@ span.status-chips > span {
 }
 
 /*
- * Printing (docs/design/hero-sheet/spec.md, "Printed PDF"): the Sheet page itself, always in
+ * Printing (scrpg-aid-designs/hero-sheet/spec.md, "Printed PDF"): the Sheet page itself, always in
  * the light theme (../theme/tokens.css keeps dark to screens). Page 1 has the header,
  * Roleplaying and Mechanics; abilities and forms or modes start page 2. Controls are left
  * out, cards and ability rows never split, and every page has a footer (the name is added
@@ -4447,7 +4447,7 @@ span.status-chips > span {
   }
 }
 
-/* The library: the home screen (docs/design/library/spec.md) */
+/* The library: the home screen (scrpg-aid-designs/library/spec.md) */
 
 .library-header {
   position: relative;
@@ -5070,7 +5070,7 @@ span.tag-chip__name {
   background: var(--ui-surface);
 }
 
-/* The condensed four-column table (docs/design/library/spec.md, section 4): it fits from 760 px
+/* The condensed four-column table (scrpg-aid-designs/library/spec.md, section 4): it fits from 760 px
    up, and rows grow taller instead of the table scrolling sideways. */
 .library-table {
   width: 100%;
@@ -5578,7 +5578,7 @@ span.tag-chip__name {
   }
 }
 
-/* The game table (docs/design/game-table/spec.md) */
+/* The game table (scrpg-aid-designs/game-table/spec.md) */
 
 .gt-page {
   min-height: 100vh;
@@ -6177,7 +6177,7 @@ span.gt-step--done {
   font-weight: 600;
 }
 
-/* The Games page (docs/design/game-table/spec.md, section 3) */
+/* The Games page (scrpg-aid-designs/game-table/spec.md, section 3) */
 
 .games-page {
   max-width: 1240px;
@@ -6318,7 +6318,7 @@ span.gt-step--done {
   padding-left: 1.25rem;
 }
 
-/* ---- Hosting (docs/design/game-table/spec.md, section 10) ---- */
+/* ---- Hosting (scrpg-aid-designs/game-table/spec.md, section 10) ---- */
 
 .gt-header {
   flex-wrap: wrap;
@@ -6413,7 +6413,7 @@ span.gt-step--done {
   margin: 0 0 0.5rem;
 }
 
-/* ---- A player at the table (docs/design/game-table/spec.md, sections 10, 11 and 14) ---- */
+/* ---- A player at the table (scrpg-aid-designs/game-table/spec.md, sections 10, 11 and 14) ---- */
 
 .gt-title {
   margin: 0;
@@ -6562,7 +6562,7 @@ span.gt-step--done {
   border-radius: 0.5rem;
 }
 
-/* A player's phone: heroes and opposition as rows (docs/design/game-table/spec.md, section 14, "Phones"). */
+/* A player's phone: heroes and opposition as rows (scrpg-aid-designs/game-table/spec.md, section 14, "Phones"). */
 .gt-center--compact .gt-grid {
   grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
@@ -6595,7 +6595,7 @@ span.gt-step--done {
   white-space: nowrap;
 }
 
-/* ---- Display view (docs/design/game-table/spec.md, section 13): a 1920×1080 stage scaled to fit ---- */
+/* ---- Display view (scrpg-aid-designs/game-table/spec.md, section 13): a 1920×1080 stage scaled to fit ---- */
 
 .dv-window {
   position: fixed;
@@ -6833,7 +6833,7 @@ span.gt-step--done {
   margin: 0 auto;
 }
 
-/* ---- Game codes (docs/design/game-table/game-table-spec-addendum-game-codes.md) ---- */
+/* ---- Game codes (scrpg-aid-designs/game-table/game-table-spec-addendum-game-codes.md) ---- */
 
 .gt-code,
 .toast__code {
@@ -6882,7 +6882,7 @@ span.gt-step--done {
   margin: 0.25rem 0 0;
 }
 
-/* ---- Receive (docs/design/game-table/spec.md, section 15) ---- */
+/* ---- Receive (scrpg-aid-designs/game-table/spec.md, section 15) ---- */
 
 .receive-list {
   display: flex;
@@ -6903,7 +6903,7 @@ span.gt-step--done {
   border-radius: 0.5rem;
 }
 
-/* ---- Running a group (docs/design/npcs/spec.md, sections 4, 5 and 7) ---- */
+/* ---- Running a group (scrpg-aid-designs/npcs/spec.md, sections 4, 5 and 7) ---- */
 
 .gt-group-run {
   display: flex;
@@ -7015,7 +7015,7 @@ span.gt-step--done {
   align-self: flex-start;
 }
 
-/* ---- NPC template editors (docs/design/npcs/spec.md, section 2) ---- */
+/* ---- NPC template editors (scrpg-aid-designs/npcs/spec.md, section 2) ---- */
 
 .template-fields {
   display: flex;
@@ -7108,7 +7108,7 @@ span.gt-step--done {
   min-width: 0;
 }
 
-/* The environment's Running panel (docs/design/npcs/spec.md, section 6). */
+/* The environment's Running panel (scrpg-aid-designs/npcs/spec.md, section 6). */
 .gt-env {
   display: flex;
   flex-direction: column;
@@ -7195,7 +7195,7 @@ span.gt-step--done {
   margin: 0.125rem 0 0;
 }
 
-/* An environment template's aspects, twists and attached templates (docs/design/npcs/spec.md, section 2). */
+/* An environment template's aspects, twists and attached templates (scrpg-aid-designs/npcs/spec.md, section 2). */
 .template-aspect {
   display: flex;
   flex-wrap: wrap;
@@ -7240,7 +7240,7 @@ span.gt-step--done {
   list-style: none;
 }
 
-/* A challenge's labeled steps, from a template (docs/design/npcs/spec.md, section 2). */
+/* A challenge's labeled steps, from a template (scrpg-aid-designs/npcs/spec.md, section 2). */
 .gt-steps {
   display: flex;
   flex-direction: column;
@@ -7264,7 +7264,7 @@ span.gt-step--done {
   width: 3.5rem;
 }
 
-/* The villain wizard (docs/design/villain-wizard/spec.md), on the hero wizard's shell */
+/* The villain wizard (scrpg-aid-designs/villain-wizard/spec.md), on the hero wizard's shell */
 .type-chip {
   font-size: 0.8125rem;
   font-weight: 600;
@@ -7719,7 +7719,7 @@ ol.vw-conditions li {
   gap: 0.375rem;
 }
 
-/* The About dialog (docs/design/library/spec.md, section 8a) */
+/* The About dialog (scrpg-aid-designs/library/spec.md, section 8a) */
 
 .about p {
   margin: 0 0 0.75rem;
@@ -7748,7 +7748,7 @@ ol.vw-conditions li {
   gap: 0.5rem;
 }
 
-/* ---- Scenes (docs/design/scenes/spec.md) ---- */
+/* ---- Scenes (scrpg-aid-designs/scenes/spec.md) ---- */
 
 .modal--wide {
   width: min(100%, 52rem);
@@ -8098,7 +8098,7 @@ ol.vw-conditions li {
   }
 }
 
-/* A villain's status die (docs/design/villains-and-challenges/spec.md, section 1). */
+/* A villain's status die (scrpg-aid-designs/villains-and-challenges/spec.md, section 1). */
 .die-icon--large {
   height: 44px;
   width: auto;
@@ -8205,7 +8205,7 @@ ol.vw-conditions li {
   border-radius: 10px;
 }
 
-/* A challenge on the table (docs/design/villains-and-challenges/spec.md, section 4). */
+/* A challenge on the table (scrpg-aid-designs/villains-and-challenges/spec.md, section 4). */
 .gt-challenge--done {
   border-color: var(--ui-accent);
 }
@@ -8265,7 +8265,7 @@ ol.vw-conditions li {
   margin: 0;
 }
 
-/* The Running panel's tracker Overcome and twists (docs/design/villains-and-challenges/spec.md, sections 2 and 3). */
+/* The Running panel's tracker Overcome and twists (scrpg-aid-designs/villains-and-challenges/spec.md, sections 2 and 3). */
 .gt-danger {
   display: flex;
   flex-wrap: wrap;
@@ -8324,7 +8324,7 @@ ol.vw-conditions li {
   cursor: pointer;
 }
 
-/* A hero's Advancement page (docs/design/advancement/spec.md). */
+/* A hero's Advancement page (scrpg-aid-designs/advancement/spec.md). */
 .adv-page {
   max-width: 1180px;
   margin: 0 auto;
@@ -8516,7 +8516,7 @@ ol.vw-conditions li {
   }
 }
 
-/* The swap dialogs (docs/design/advancement/spec.md, section 2). */
+/* The swap dialogs (scrpg-aid-designs/advancement/spec.md, section 2). */
 .swap-ref {
   margin: 0;
 }
@@ -8656,7 +8656,7 @@ ol.vw-conditions li {
   }
 }
 
-/* The end of an issue (docs/design/issues/spec.md) */
+/* The end of an issue (scrpg-aid-designs/issues/spec.md) */
 
 .gt-end__over {
   font-family: var(--font-heading);
@@ -8802,7 +8802,7 @@ ol.vw-conditions li {
   opacity: 0.45;
 }
 
-/* ---- Settings (docs/design/settings/spec.md) ---- */
+/* ---- Settings (scrpg-aid-designs/settings/spec.md) ---- */
 
 html[data-text-size='large'] {
   font-size: 112.5%;
@@ -8908,7 +8908,7 @@ a.menu-item {
   text-decoration: none;
 }
 
-/* ---- The dice pad (docs/design/settings/spec.md, section 3) ---- */
+/* ---- The dice pad (scrpg-aid-designs/settings/spec.md, section 3) ---- */
 
 .dice-pad {
   display: flex;
@@ -9066,7 +9066,7 @@ a.menu-item {
   min-width: 12rem;
 }
 
-/* ---- Character colors (docs/design/character-colors/spec.md) ---- */
+/* ---- Character colors (scrpg-aid-designs/character-colors/spec.md) ---- */
 
 /* Text on a fill: the better ink with an outline in the other, in eight directions (section 5). */
 .char-fill {

@@ -1,5 +1,5 @@
 /**
- * The template editors (docs/design/npcs/spec.md, section 2, and templates.dc.html): one page
+ * The template editors (scrpg-aid-designs/npcs/spec.md, section 2, and templates.dc.html): one page
  * each for minions, lieutenants, challenges and environments, with the hero wizard's header pattern. The name
  * is renamed from the header, every change saves straight away, and Revert changes puts the
  * template back as it was when the page opened. No steps.
@@ -563,7 +563,7 @@ export function TemplateEditor({ kind, id }: { kind: TemplateKind; id: string })
 
 /**
  * A new minion template made in a dialog, for another editor to attach (the villain wizard's
- * Mook Squad, docs/design/villain-wizard/spec.md section 5): the minion editor's fields over a
+ * Mook Squad, scrpg-aid-designs/villain-wizard/spec.md section 5): the minion editor's fields over a
  * template held in memory. Save adds it to the library and hands it to `onSaved`; Cancel
  * leaves nothing behind.
  */

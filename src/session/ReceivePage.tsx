@@ -1,5 +1,5 @@
 /**
- * Receive (docs/design/game-table/spec.md, section 15): Play together, then Receive, then the
+ * Receive (scrpg-aid-designs/game-table/spec.md, section 15): Play together, then Receive, then the
  * code someone is sending with. The page shows what's coming, and Accept adds it to the
  * library (./receive.ts), tags included.
  */

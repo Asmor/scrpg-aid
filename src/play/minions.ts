@@ -1,5 +1,5 @@
 /**
- * A Minion-Maker's minions in play (docs/design/hero-sheet/spec.md, "Your minions"; Core Rules
+ * A Minion-Maker's minions in play (scrpg-aid-designs/hero-sheet/spec.md, "Your minions"; Core Rules
  * p. 86–88). Pure: making, shrinking and removing minions, their own bonuses and penalties, and
  * a minion's roll of its single die. Every change returns the new state with a history entry.
  *

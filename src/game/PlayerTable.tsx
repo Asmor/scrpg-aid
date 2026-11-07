@@ -1,5 +1,5 @@
 /**
- * A player at the table (docs/design/game-table/spec.md, sections 7, 8, 10, 11 and 14): the shared
+ * A player at the table (scrpg-aid-designs/game-table/spec.md, sections 7, 8, 10, 11 and 14): the shared
  * center, drawn from the projection the GM's device sent (the same component the GM sees, with no
  * GM controls), and the player's own panel on the game's copy of their hero.
  *
@@ -274,7 +274,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     if (!mine) setReactionBack(false)
   }, [mine, copy])
 
-  // This device's answers about back issues (docs/design/issues/spec.md, section 3).
+  // This device's answers about back issues (scrpg-aid-designs/issues/spec.md, section 3).
   const gameId = table?.id
   const [prompts, setPrompts] = useState<IssuePrompts>({})
   useEffect(() => {
@@ -315,7 +315,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     setPointsToast({ id: `points-${lastIssue.id}`, text: `You have ${pointsLeft} hero ${pointsLeft === 1 ? 'point' : 'points'} to spend on bonuses for issue ${lastIssue.number + 1}.`, action: { label: 'Spend', onClick: focusPoints } })
   }, [remindNow, lastIssue, pointsLeft, focusPoints])
 
-  // Colors reach the game at once, with no review (docs/design/character-colors/spec.md, section 6).
+  // Colors reach the game at once, with no review (scrpg-aid-designs/character-colors/spec.md, section 6).
   const libraryColors = heroNowColors(loaded?.hero)
   const tableColors = copy ? JSON.stringify(copy.sheet.appearance ?? null) : undefined
   const sentColors = useRef<string | undefined>(undefined)
@@ -327,7 +327,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     if (client.sendAppearance(loaded?.hero?.appearance)) sentColors.current = difference
   }, [live, client, copy, libraryColors, tableColors, loaded])
 
-  // Alerts (docs/design/settings/spec.md, section 4).
+  // Alerts (scrpg-aid-designs/settings/spec.md, section 4).
   const alertWatch = useMemo<PlayerWatch | undefined>(() => {
     if (!table || !copy) return undefined
     return {

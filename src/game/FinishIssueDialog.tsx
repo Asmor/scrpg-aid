@@ -1,5 +1,5 @@
 /**
- * Finishing the issue (docs/design/issues/spec.md, section 2): the title and summary, what becomes
+ * Finishing the issue (scrpg-aid-designs/issues/spec.md, section 2): the title and summary, what becomes
  * of scenes and opposition, a checkbox per hero for their back issue, and a preview of the end card.
  */
 import { useId, useState } from 'react'

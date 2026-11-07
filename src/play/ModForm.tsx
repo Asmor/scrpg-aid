@@ -89,7 +89,7 @@ export function ModForm({ targets = [], self = true, submitLabel, onSubmit }: Pr
         <input type="checkbox" checked={exclusive} onChange={(e) => setExclusive(e.target.checked)} />
         Exclusive
       </label>
-      {/* A mod needs a name (docs/design/hero-sheet/spec.md, "Bonuses and penalties"). */}
+      {/* A mod needs a name (scrpg-aid-designs/hero-sheet/spec.md, "Bonuses and penalties"). */}
       <button type="submit" className="button" disabled={blocked || !label.trim()}>
         {submitLabel ?? (target ? 'Give' : 'Add')}
       </button>

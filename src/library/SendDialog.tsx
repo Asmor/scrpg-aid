@@ -1,5 +1,5 @@
 /**
- * Send… (docs/design/game-table/spec.md, section 15, and connect.dc.html): sends library items
+ * Send… (scrpg-aid-designs/game-table/spec.md, section 15, and connect.dc.html): sends library items
  * to another device. The dialog shows the items, whether their tags go too, and a short code,
  * and stays open until the other device accepts or the sender cancels.
  */

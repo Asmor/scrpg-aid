@@ -1,5 +1,5 @@
 /**
- * The GM's changes to a hero at the table (docs/design/game-table/spec.md, section 5, "The GM's
+ * The GM's changes to a hero at the table (scrpg-aid-designs/game-table/spec.md, section 5, "The GM's
  * ⋯ on a hero card"). They change the game's copy directly (./table.ts changeHeroPlay), and the
  * player sees the result like any other change. Each one goes in the hero's history marked as
  * the GM's ("GM: Lost 4 HP (18 → 14)."); a mod already says it's from the GM.

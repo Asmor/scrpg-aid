@@ -1,5 +1,5 @@
 /**
- * Templates and the game table (docs/design/npcs/spec.md, sections 2 and 3): what a template
+ * Templates and the game table (scrpg-aid-designs/npcs/spec.md, sections 2 and 3): what a template
  * brings in (a fresh copy each time), and the template quick add's "Save to library" makes.
  * Pure.
  */

@@ -1,5 +1,5 @@
 /**
- * The Status section at the top of the Running panel (docs/design/villains-and-challenges/spec.md,
+ * The Status section at the top of the Running panel (scrpg-aid-designs/villains-and-challenges/spec.md,
  * section 1): the die and its rule, Set by hand, and below that what drives it, by the rule's basis.
  */
 import { useId } from 'react'

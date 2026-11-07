@@ -1,6 +1,6 @@
 /*
  * The app's colors and typefaces. Every color in the app comes from a token here; nothing
- * else names a color value (docs/design/hero-wizard/spec.md, "Theme tokens").
+ * else names a color value (scrpg-aid-designs/hero-wizard/spec.md, "Theme tokens").
  *
  * Light is the base. Dark applies when data-theme="dark" is on <html> (src/theme/theme.ts
  * sets it; index.html sets it before the first paint), or, with no data-theme at all (scripts
@@ -44,7 +44,7 @@
 /*
  * The dark values appear twice: here, and in the no-script fallback below. Keep them in sync.
  * Both are for screens only: printing always uses the light values
- * (docs/design/hero-sheet/spec.md, "Printed PDF").
+ * (scrpg-aid-designs/hero-sheet/spec.md, "Printed PDF").
  */
 @media screen {
 :root[data-theme='dark'] {

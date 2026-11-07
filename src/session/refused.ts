@@ -1,4 +1,4 @@
-/** What a player sees when the GM's device turns them away (docs/design/game-table/spec.md, section 10). Pure. */
+/** What a player sees when the GM's device turns them away (scrpg-aid-designs/game-table/spec.md, section 10). Pure. */
 import type { RefusedReason } from './protocol'
 
 /** Why a player can't be in a game, for `gameName` ("Thursday game"). */

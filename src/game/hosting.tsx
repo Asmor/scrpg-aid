@@ -1,5 +1,5 @@
 /**
- * Hosting a game from the table (docs/design/game-table/spec.md, section 10, "Invite, join and
+ * Hosting a game from the table (scrpg-aid-designs/game-table/spec.md, section 10, "Invite, join and
  * watch"): starting to host, and the Invite dialog with the code, a QR code of the player link,
  * the player and watch links to copy, and who's connected (players, and observers' screens).
  */

@@ -1,5 +1,5 @@
 /**
- * The back issue prompt (docs/design/issues/spec.md, section 3): add a finished issue to a library
+ * The back issue prompt (scrpg-aid-designs/issues/spec.md, section 3): add a finished issue to a library
  * hero, in its three situations. It changes the library hero, never the game. The Advancement
  * page's Add uses it too, for a hero at five or six.
  */

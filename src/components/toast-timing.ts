@@ -1,4 +1,4 @@
-/** How toasts behave everywhere in the app (docs/design/game-table/game-table-spec-addendum-game-codes.md, "Toasts"). */
+/** How toasts behave everywhere in the app (scrpg-aid-designs/game-table/game-table-spec-addendum-game-codes.md, "Toasts"). */
 
 /** How long a toast stays. */
 export const TOAST_MS = 8000

@@ -1,5 +1,5 @@
 /**
- * A device's connection to the GM's device in a hosted game (docs/design/game-table/spec.md,
+ * A device's connection to the GM's device in a hosted game (scrpg-aid-designs/game-table/spec.md,
  * sections 10 and 11), shared by players (./client.ts) and observers (./watch.ts). It says hello
  * to every peer (only the GM answers), keeps the latest projection the GM's device sent, and
  * tracks whether the GM is reachable:

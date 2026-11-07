@@ -1,5 +1,5 @@
 /**
- * The sheet's forms and modes (docs/design/hero-sheet/spec.md, "Forms and modes"), after the
+ * The sheet's forms and modes (scrpg-aid-designs/hero-sheet/spec.md, "Forms and modes"), after the
  * abilities: a card per Modular mode or Form-Changer form showing only what it changes from
  * the base dice; Divided's powers and qualities by form; Minion-Maker's minion forms.
  */

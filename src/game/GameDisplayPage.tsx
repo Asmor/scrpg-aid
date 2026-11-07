@@ -1,5 +1,5 @@
 /**
- * Open display view on the GM's own device (docs/design/game-table/spec.md, section 13): a window
+ * Open display view on the GM's own device (scrpg-aid-designs/game-table/spec.md, section 13): a window
  * showing one game's display view, fed by the GM's table over a `BroadcastChannel`
  * (./display-channel.ts). It needs no network and no hosting. When the table isn't open, it shows
  * the game as last saved, projected for observers, until the table opens again.

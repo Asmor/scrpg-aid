@@ -1,5 +1,5 @@
 /**
- * "Your minions" (docs/design/hero-sheet/spec.md, status column item 8): one row per minion
+ * "Your minions" (scrpg-aid-designs/hero-sheet/spec.md, status column item 8): one row per minion
  * with its die, name, form, its action (or any, for an Autonomous one), its own bonuses and
  * penalties, and Use, Shrink and Remove. Use opens a small roll under the row: the minion's one
  * die plus its own checked mods, for the action it was made with. Each minion carries its

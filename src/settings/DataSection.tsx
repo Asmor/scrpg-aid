@@ -1,4 +1,4 @@
-/** Settings' Data section (docs/design/settings/spec.md, section 7). */
+/** Settings' Data section (scrpg-aid-designs/settings/spec.md, section 7). */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useGameStore } from '../app/game-store-context'
 import { useOptionalJoinedStore } from '../app/joined-store-context'

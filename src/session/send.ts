@@ -1,5 +1,5 @@
 /**
- * Sending library items peer to peer (docs/design/game-table/spec.md, section 15). The sender
+ * Sending library items peer to peer (scrpg-aid-designs/game-table/spec.md, section 15). The sender
  * opens a short code; a device that enters it (Play together, then Receive) says so, gets the
  * items, and says when it has accepted them. Only library documents travel: heroes, villains and
  * NPC templates, with their tags, in the backup file's format (../transfer/files.ts), so the receiver reads them the way

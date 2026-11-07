@@ -1,5 +1,5 @@
 /**
- * The library's header bar (docs/design/library/spec.md, "Page layout"): the app's name, the
+ * The library's header bar (scrpg-aid-designs/library/spec.md, "Page layout"): the app's name, the
  * Library | Games section tabs, Play together (host, join, or the game you're in), the color scheme
  * switch, Settings (which holds backups and importing, and carries the backup reminder) and About.
  * On phones, those last three share one menu, and the section tabs sit under the bar. The Games
@@ -154,7 +154,7 @@ export function PlayTogether({ heroName, now, compact = false }: { heroName: (id
   )
 }
 
-/** Receive (docs/design/game-table/spec.md, section 15), set apart from the game options. */
+/** Receive (scrpg-aid-designs/game-table/spec.md, section 15), set apart from the game options. */
 function ReceiveOption() {
   return (
     <>

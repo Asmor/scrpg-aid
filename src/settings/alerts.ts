@@ -1,5 +1,5 @@
 /**
- * Alerts (docs/design/settings/spec.md, section 4): working out from one state of the table to the
+ * Alerts (scrpg-aid-designs/settings/spec.md, section 4): working out from one state of the table to the
  * next what the person should be alerted to, and how. Every alert also shows in the page (the Your
  * turn bar, the Requests badge, the prompt), so sound is never the only sign.
  */

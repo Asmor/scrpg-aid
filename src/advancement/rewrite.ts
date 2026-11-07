@@ -1,5 +1,5 @@
 /**
- * Major rewrite (docs/design/advancement/spec.md, section 3; Core Rules p. 143): the hero is
+ * Major rewrite (scrpg-aid-designs/advancement/spec.md, section 3; Core Rules p. 143): the hero is
  * rebuilt with the constructed method, keeping history and collections. Pure.
  *
  * Starting builds the swaps in, so the wizard shows the hero as they are now and nothing is applied

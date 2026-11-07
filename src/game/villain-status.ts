@@ -1,5 +1,5 @@
 /**
- * A villain's status die at the table (docs/design/villains-and-challenges/spec.md, section 1):
+ * A villain's status die at the table (scrpg-aid-designs/villains-and-challenges/spec.md, section 1):
  * worked out from its archetype's rule and what's on the table. Pure.
  *
  * Only revealed things count: a hidden item is staged, not in the scene.

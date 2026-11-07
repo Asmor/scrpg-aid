@@ -1,5 +1,5 @@
 /**
- * Tags on an item (docs/design/library/spec.md, "Tags in a row"): each tag a chip whose name
+ * Tags on an item (scrpg-aid-designs/library/spec.md, "Tags in a row"): each tag a chip whose name
  * filters by it and whose X (always visible) removes it, then a dashed + that opens the add-tag
  * popover. The same pieces serve the library table, the bulk bar, and the sheets.
  */

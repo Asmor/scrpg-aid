@@ -1,5 +1,5 @@
 /**
- * The swap dialogs (docs/design/advancement/spec.md, section 2): one shape for all of them, in
+ * The swap dialogs (scrpg-aid-designs/advancement/spec.md, section 2): one shape for all of them, in
  * three numbered sections, then a footer with a one-line summary, Cancel and Swap.
  */
 import { useId, useState, type ReactNode } from 'react'

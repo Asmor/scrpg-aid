@@ -1,5 +1,5 @@
 /**
- * Tags: the user's own labels on library items (docs/design/library/spec.md, "Tags on every
+ * Tags: the user's own labels on library items (scrpg-aid-designs/library/spec.md, "Tags on every
  * item"). They have no built-in meaning. Matching ignores case, but a tag is shown as it was
  * typed. There's no registry: "all tags" is the union of the tags on current items.
  */

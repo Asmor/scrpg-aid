@@ -1,5 +1,5 @@
 /**
- * Games a player has joined, cached on their device (docs/design/game-table/spec.md, section 11):
+ * Games a player has joined, cached on their device (scrpg-aid-designs/game-table/spec.md, section 11):
  * the latest projection the GM's device sent for each, so the game can be opened later without
  * the GM, read-only. Only what the player was allowed to see is ever here. "Leave and remove from
  * this device" removes the cache; the hero stays in the GM's game.
@@ -36,7 +36,7 @@ export interface JoinedGame {
   updatedAt: string
   version: number
   table: TableView
-  /** What this device did about each issue's back issue, unless it added it: that's read from the hero (docs/design/issues/spec.md, section 7). */
+  /** What this device did about each issue's back issue, unless it added it: that's read from the hero (scrpg-aid-designs/issues/spec.md, section 7). */
   issuePrompts?: IssuePrompts
 }
 

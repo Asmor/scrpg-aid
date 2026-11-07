@@ -20,7 +20,7 @@ function same(a: unknown, b: unknown): boolean {
 
 /**
  * Whether the hero differs from the snapshot, ignoring when it was last saved. Tags are
- * outside the snapshot (docs/design/library/spec.md): changing them isn't an edit to revert.
+ * outside the snapshot (scrpg-aid-designs/library/spec.md): changing them isn't an edit to revert.
  */
 export function changedSince<T extends Doc>(snapshot: T, hero: T): boolean {
   return !same({ ...snapshot, updatedAt: '', tags: [] }, { ...hero, updatedAt: '', tags: [] })

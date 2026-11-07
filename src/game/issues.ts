@@ -1,5 +1,5 @@
 /**
- * The end of an issue (docs/design/issues/spec.md): finishing one, and what the Finish dialog says
+ * The end of an issue (scrpg-aid-designs/issues/spec.md): finishing one, and what the Finish dialog says
  * about it. Pure: each change takes the game and returns the new one. Back issues go on players'
  * library heroes, on their own devices; the game never changes those.
  */
@@ -66,9 +66,9 @@ export function finishIssue(game: Game, choices: FinishChoices, clock: Clock): G
 }
 
 /**
- * The GM changes the game's hero points (docs/design/game-table/spec.md, section 5), logged for
+ * The GM changes the game's hero points (scrpg-aid-designs/game-table/spec.md, section 5), logged for
  * everyone. Lowered below what a hero has already bought for the next issue, that hero's newest
- * bonuses go back until it fits (docs/design/issues/spec.md, section 4a).
+ * bonuses go back until it fits (scrpg-aid-designs/issues/spec.md, section 4a).
  */
 export function changeHeroPoints(game: Game, by: 1 | -1, clock: Clock): Game {
   const count = game.heroPoints + by
@@ -176,7 +176,7 @@ export interface IssueStartChoices extends StartChoices {
 }
 
 /**
- * Starts the next issue with a planned scene (docs/design/issues/spec.md, section 5): a new current
+ * Starts the next issue with a planned scene (scrpg-aid-designs/issues/spec.md, section 5): a new current
  * issue, the scene start steps, the hero resets, then bought bonuses become exclusive ones and any
  * points left are lost, whatever was chosen. The scene's "Bonuses and penalties" is the opposition's.
  */

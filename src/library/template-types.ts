@@ -1,5 +1,5 @@
 /**
- * The NPC templates as library types (docs/design/npcs/spec.md, section 2): minions,
+ * The NPC templates as library types (scrpg-aid-designs/npcs/spec.md, section 2): minions,
  * lieutenants, challenges and environments. They hold no play state, so they have no primary action, and the
  * In games column lists games holding something made from them.
  */

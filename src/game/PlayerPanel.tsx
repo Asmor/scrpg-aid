@@ -1,5 +1,5 @@
 /**
- * The player's side panel at the table (docs/design/game-table/spec.md, section 14, "The
+ * The player's side panel at the table (scrpg-aid-designs/game-table/spec.md, section 14, "The
  * player's side panel"): "My hero · game's copy". It works on the game's copy of the hero, as the
  * GM's device last sent it, and every control sends one action (section 10). Nothing changes here
  * until the GM's device answers: a pending change shows the old value muted with the new one

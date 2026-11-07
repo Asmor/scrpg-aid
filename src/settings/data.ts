@@ -1,5 +1,5 @@
 /**
- * Settings' Data section (docs/design/settings/spec.md, section 7): one backup of everything on this
+ * Settings' Data section (scrpg-aid-designs/settings/spec.md, section 7): one backup of everything on this
  * device, and restoring one, added to what's here or in place of it.
  */
 import { heroDisplayName, type Hero } from '../hero/model'

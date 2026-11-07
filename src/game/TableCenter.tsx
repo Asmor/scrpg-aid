@@ -1,5 +1,5 @@
 /**
- * The shared center of the game table (docs/design/game-table/spec.md, section 6): the scene,
+ * The shared center of the game table (scrpg-aid-designs/game-table/spec.md, section 6): the scene,
  * the turn order, the heroes, the opposition and the log. It's the same for everyone; `gm`
  * adds the GM's controls and never moves anything around. Without it, everything is read-only.
  */
@@ -288,7 +288,7 @@ export function EndOfIssue({ number, title, summary, headingId }: { number: numb
   )
 }
 
-/** Replaces the scene card and the turn order while the game is between issues (docs/design/issues/spec.md, section 4). */
+/** Replaces the scene card and the turn order while the game is between issues (scrpg-aid-designs/issues/spec.md, section 4). */
 function EndCard({ game, gm, gmName }: { game: TableView; gm?: GmControls | undefined; gmName?: string | undefined }) {
   const issue = game.issues.at(-1)
   if (!issue) return null

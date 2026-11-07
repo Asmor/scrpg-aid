@@ -98,7 +98,7 @@ export function villainOvercomeFails(value: number): boolean {
 }
 
 /**
- * The mods checked when a roll starts (docs/design/hero-sheet/spec.md, "Roll flow"; the user
+ * The mods checked when a roll starts (scrpg-aid-designs/hero-sheet/spec.md, "Roll flow"; the user
  * chose this over GOAL.md's older defaults): every non-exclusive penalty and the largest
  * exclusive penalty. Bonuses start unchecked.
  */

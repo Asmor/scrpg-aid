@@ -7,7 +7,7 @@ import { VitePWA } from "vite-plugin-pwa";
 // GitHub Pages serves the app from /<repo>/, so the deploy workflow sets BASE_PATH.
 const base = process.env.BASE_PATH ?? "/";
 
-// The About dialog shows the app's version and when it was built (docs/design/library/spec.md, 8a).
+// The About dialog shows the app's version and when it was built (scrpg-aid-designs/library/spec.md, 8a).
 const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string };
 
 export default defineConfig({

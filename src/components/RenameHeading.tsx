@@ -1,5 +1,5 @@
 /**
- * The name in a wizard's header, renamed in place (docs/design/hero-wizard/spec.md, Renaming
+ * The name in a wizard's header, renamed in place (scrpg-aid-designs/hero-wizard/spec.md, Renaming
  * from the header): a button with a pencil that swaps in a text field of the same size with
  * the name selected. Enter or leaving the field saves, Escape cancels, and an empty name keeps
  * the one there was. Focus goes back to the button afterwards.

@@ -1,4 +1,4 @@
-/** What colors an actor on the table has (docs/design/character-colors/spec.md, sections 2 and 4). Pure. */
+/** What colors an actor on the table has (scrpg-aid-designs/character-colors/spec.md, sections 2 and 4). Pure. */
 import { appearanceOf, side, SIDE_COLOR, type Appearance, type ColoredItem, type Side } from '../colors/palette'
 import type { ActorRef } from './model'
 import type { TableView } from './project'

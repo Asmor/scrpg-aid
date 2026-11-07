@@ -1,5 +1,5 @@
 /**
- * Running a group in the GM screen (docs/design/npcs/spec.md, section 4, and
+ * Running a group in the GM screen (scrpg-aid-designs/npcs/spec.md, section 4, and
  * group-rolling.dc.html): who has acted, the Action select and Roll all ready, and a row per
  * member with its die, mods, Acted or Ready, Roll and ⋯. Rolling opens the group roll dialog,
  * where targets are picked after the dice are rolled.

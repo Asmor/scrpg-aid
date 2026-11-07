@@ -1,5 +1,5 @@
 /**
- * A device watching a hosted game (docs/design/game-table/spec.md, sections 10 and 13): it says
+ * A device watching a hosted game (scrpg-aid-designs/game-table/spec.md, sections 10 and 13): it says
  * hello as an observer with the screen's name, and shows the latest projection the GM's device
  * sent. Observers send nothing else and keep no cache; when the GM goes away, the last table
  * stays on screen while the device keeps trying (./link.ts).

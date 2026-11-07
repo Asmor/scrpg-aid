@@ -1,5 +1,5 @@
 /**
- * A game's scenes (docs/design/scenes/spec.md): reading them for the Scenes tab, and the scene
+ * A game's scenes (scrpg-aid-designs/scenes/spec.md): reading them for the Scenes tab, and the scene
  * editor's draft and what saving it does. Pure: each change takes the game and returns the new
  * one. What's on the table stays in ./table.ts; this moves things on and off it.
  *
@@ -629,7 +629,7 @@ function applyResets(game: Game, resets: SceneResets, arrived: ReadonlySet<strin
   const heroes = game.heroes.map((h) => {
     let play = h.play
     if (resets.round) play = { ...clearDefenses(play), reactionUsed: false, ...(play.minions ? { minions: play.minions.map((m) => clearDefenses(m)) } : {}) }
-    // Hero point bonuses last the issue (docs/design/issues/spec.md, section 4a).
+    // Hero point bonuses last the issue (scrpg-aid-designs/issues/spec.md, section 4a).
     if (resets.mods && heroMods) play = { ...play, mods: play.mods.filter((m) => m.source === 'heroPoint'), ...(play.minions ? { minions: play.minions.map((m) => ({ ...m, mods: [] })) } : {}) }
     return { ...h, play }
   })

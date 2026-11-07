@@ -1,5 +1,5 @@
 /**
- * A villain's sheet (docs/design/hero-sheet/spec.md, "Villain sheet"), built from ./sheet.ts
+ * A villain's sheet (scrpg-aid-designs/hero-sheet/spec.md, "Villain sheet"), built from ./sheet.ts
  * with the hero sheet's components: About (left out in Play), Mechanics (powers and qualities,
  * the status rule as a table, Health and how it was built), then abilities grouped by where
  * they came from: the approach, the archetype, each upgrade that grants one, and the mastery.

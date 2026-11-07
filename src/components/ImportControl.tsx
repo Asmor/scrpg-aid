@@ -164,7 +164,7 @@ export function ImportControl({ savedIds, unreadableIds, disabled, onBusyChange,
           templates++
         }
       }
-      // A backup's saved searches come back too (docs/design/library/spec.md, "Saved searches").
+      // A backup's saved searches come back too (scrpg-aid-designs/library/spec.md, "Saved searches").
       let searches = 0
       if (searchStore && p.savedSearches.length) {
         for (const search of searchesToRestore(p.savedSearches, (await searchStore.list()).searches)) {

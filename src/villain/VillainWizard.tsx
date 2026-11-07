@@ -1,5 +1,5 @@
 /**
- * The villain wizard (docs/design/villain-wizard/spec.md): making or editing a villain on the
+ * The villain wizard (scrpg-aid-designs/villain-wizard/spec.md): making or editing a villain on the
  * hero wizard's shell (../editor/HeroEditor.tsx). It's a header with the villain type chip, a rail
  * of the seven steps, the current step, and a live preview of the villain sheet. Every change
  * saves straight away; each step shows its own rule issues, and nothing blocks moving on.

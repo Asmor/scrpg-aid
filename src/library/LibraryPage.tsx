@@ -1,5 +1,5 @@
 /**
- * The home screen: the library (docs/design/library/spec.md). One table of everything the user
+ * The home screen: the library (scrpg-aid-designs/library/spec.md). One table of everything the user
  * has made, filtered by name, type and tags, with saved searches in the rail. The rows shown
  * are a snapshot of the view (./useLibraryView.ts), so editing an item never moves rows.
  */
@@ -206,7 +206,7 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     busy,
     run,
     onImported: () => {
-      // The new items appear (docs/design/library/spec.md, "Stability").
+      // The new items appear (scrpg-aid-designs/library/spec.md, "Stability").
       void data.reload().then((next) => {
         if (next.status === 'ready') view.refresh(next.items, next.searches)
       })

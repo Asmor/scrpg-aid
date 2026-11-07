@@ -1,5 +1,5 @@
 /**
- * The PDF export (docs/design/hero-sheet/spec.md, "Printed PDF"): the browser prints the Sheet
+ * The PDF export (scrpg-aid-designs/hero-sheet/spec.md, "Printed PDF"): the browser prints the Sheet
  * page with the print stylesheet in ../index.css, so the screen and the PDF can't drift apart.
  * Printing to PDF is the browser's own "Save as PDF". This sets the paper size and puts the
  * character's name in the page footer for the one print, then takes them away again.

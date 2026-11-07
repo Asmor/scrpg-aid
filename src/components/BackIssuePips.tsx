@@ -1,4 +1,4 @@
-/** A hero's six back issue pips: the count now, and the one about to be added dotted (docs/design/issues/spec.md, sections 2 and 3). */
+/** A hero's six back issue pips: the count now, and the one about to be added dotted (scrpg-aid-designs/issues/spec.md, sections 2 and 3). */
 import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 
 export function BackIssuePips({ count, adding }: { count: number; adding: boolean }) {

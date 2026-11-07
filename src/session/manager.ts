@@ -1,5 +1,5 @@
 /**
- * The device's game session (docs/design/game-table/spec.md, section 10): at most one at a time,
+ * The device's game session (scrpg-aid-designs/game-table/spec.md, section 10): at most one at a time,
  * hosting a game (./host.ts), playing in one (./client.ts) or watching one (./watch.ts). It resumes after a reload
  * from what ./storage.ts saved. Not tied to React: ./context.ts shares it with the pages.
  */
@@ -155,7 +155,7 @@ export class SessionManager {
   }
 
   /**
-   * Gives a game a new code (docs/design/game-table/game-table-spec-addendum-game-codes.md). While
+   * Gives a game a new code (scrpg-aid-designs/game-table/game-table-spec-addendum-game-codes.md). While
    * this device hosts it, connected peers in `keep` move to the new code and the rest are removed;
    * otherwise the saved code is just replaced. Resolves with what happened, or why it couldn't.
    */

@@ -1,5 +1,5 @@
 /**
- * Toasts (docs/design/game-table/game-table-spec-addendum-game-codes.md, "Toasts"): they float
+ * Toasts (scrpg-aid-designs/game-table/game-table-spec-addendum-game-codes.md, "Toasts"): they float
  * over the page, bottom right (bottom center on phones), never in the content flow. New ones
  * stack upward, three at most; the oldest closes when a fourth arrives. Each closes itself after
  * 8 seconds (10 with an action), or with ×, and the timer pauses while the pointer is over it or

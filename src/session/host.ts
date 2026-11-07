@@ -1,5 +1,5 @@
 /**
- * The GM hosting a game (docs/design/game-table/spec.md, section 10). While hosting, this owns
+ * The GM hosting a game (scrpg-aid-designs/game-table/spec.md, section 10). While hosting, this owns
  * the game: it applies the GM's own changes and players' actions, saves each change, and sends
  * every connected peer its projection (../game/project.ts). Players never change the game
  * themselves; they send actions, which are checked here (../game/actions.ts) and answered.
@@ -156,7 +156,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
   }
 
   /**
-   * Moves the game to a new code (docs/design/game-table/game-table-spec-addendum-game-codes.md).
+   * Moves the game to a new code (scrpg-aid-designs/game-table/game-table-spec-addendum-game-codes.md).
    * Connected players and observers whose client ids are in `keep` are told the new code and
    * follow it; the others are removed, the same as Remove. Players who are away keep their place
    * but need the new code from the GM. The old room closes, so the old code finds no game.
@@ -265,7 +265,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
     this.sendToHero(heroId, { v: PROTOCOL_VERSION, type: 'syncResult', heroId, approved: false, adjustments: [] })
   }
 
-  /** Asks each connected player whose hero has hero points left to spend them (docs/design/issues/spec.md, section 4a). */
+  /** Asks each connected player whose hero has hero points left to spend them (scrpg-aid-designs/issues/spec.md, section 4a). */
   remindUnspent(): void {
     const game = this.snapshot.game
     if (!game) return

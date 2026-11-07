@@ -1,5 +1,5 @@
 /**
- * The turn order's chips (docs/design/character-colors/spec.md, section 4): each actor's colors in
+ * The turn order's chips (scrpg-aid-designs/character-colors/spec.md, section 4): each actor's colors in
  * a ring for its side, with a check and a grey ring once acted, a divider after the acted, and a
  * chevron over whoever is acting. The same on the table and, at room scale, on the display view.
  */

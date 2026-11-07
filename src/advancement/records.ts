@@ -1,5 +1,5 @@
 /**
- * A hero's back issues, collections and history (docs/design/advancement/spec.md, sections 1 and
+ * A hero's back issues, collections and history (scrpg-aid-designs/advancement/spec.md, sections 1 and
  * 5; Core Rules p. 142–143). Pure: each takes the hero and returns the next one. The player has
  * full control: nothing here asks a GM or checks when a change is allowed.
  */
@@ -53,7 +53,7 @@ export interface OfferedIssue extends IssueRef {
 }
 
 /**
- * Adds an offered issue as the prompt's three situations do (docs/design/issues/spec.md, section
+ * Adds an offered issue as the prompt's three situations do (scrpg-aid-designs/issues/spec.md, section
  * 3): `collection` names a collection, recorded after the sixth or before a seventh. Returns the
  * hero and what the toast says. Unchanged, and saying so, when the hero already holds it, or is at
  * six with no name given.

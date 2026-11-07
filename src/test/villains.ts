@@ -31,7 +31,7 @@ export function adaptiveBruiser(): Villain {
 }
 
 /**
- * The hero sheet design's test villain (docs/design/hero-sheet/villain-desktop.dc.html): a
+ * The hero sheet design's test villain (scrpg-aid-designs/hero-sheet/villain-desktop.dc.html): a
  * major Bully Overlord built for four heroes, with Mook Squad and Master of Conquest.
  * Powers: Strength d10, Fire d8, Vitality d8. Qualities: Criminal Underworld Info d8,
  * Imposing d8, plus the d8 roleplaying quality.

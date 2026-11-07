@@ -1,5 +1,5 @@
 /**
- * The color picker (docs/design/character-colors/spec.md, section 3): primary, an optional secondary
+ * The color picker (scrpg-aid-designs/character-colors/spec.md, section 3): primary, an optional secondary
  * and a gradient for heroes and villains, with previews in both themes. `SingleColorPicker` is the
  * one-color version for groups, challenges and environments, with By side first.
  */

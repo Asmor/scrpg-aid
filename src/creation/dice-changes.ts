@@ -1,5 +1,5 @@
 /**
- * What a form or mode changes from the hero's base dice (docs/design/hero-sheet/spec.md,
+ * What a form or mode changes from the hero's base dice (scrpg-aid-designs/hero-sheet/spec.md,
  * "Forms and modes"): powers and qualities whose die differs, ones it adds, and ones it
  * doesn't have. Unchanged ones aren't listed, so a card shows only what's different.
  */

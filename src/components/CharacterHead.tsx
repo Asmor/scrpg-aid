@@ -1,6 +1,6 @@
 /**
  * Parts of a character page's header shared by heroes and villains
- * (docs/design/hero-sheet/spec.md, "Header"): the Sheet/Play switch and the rule-issues banner.
+ * (scrpg-aid-designs/hero-sheet/spec.md, "Header"): the Sheet/Play switch and the rule-issues banner.
  */
 import { DiceText } from './icons'
 

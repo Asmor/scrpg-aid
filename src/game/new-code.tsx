@@ -1,5 +1,5 @@
 /**
- * New code… (docs/design/game-table/game-table-spec-addendum-game-codes.md): the GM gets a new
+ * New code… (scrpg-aid-designs/game-table/game-table-spec-addendum-game-codes.md): the GM gets a new
  * code for the game so someone with the old code, link or QR code can't get back in. While
  * hosting, the GM picks who comes along (connected players and screens, all checked to start);
  * the others are removed. Players who are away keep their place and need the new code.

@@ -1,5 +1,5 @@
 /**
- * The GM screen's Running panel for the environment (docs/design/npcs/spec.md, "The
+ * The GM screen's Running panel for the environment (scrpg-aid-designs/npcs/spec.md, "The
  * environment's turn", and environment-turn.dc.html): its dice and their roll, its twists by
  * zone with Mark used, its attached templates with Add, its groups with Run, + Challenge, and
  * Hand off. All of it is the GM's alone.

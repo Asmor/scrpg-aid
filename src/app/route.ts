@@ -20,7 +20,7 @@ export type Route =
   /** `search` is the library view's query string, without the "?". */
   | { name: 'list'; search: string }
   | { name: 'villain'; id: string }
-  /** A new villain: a draft in memory, opened in the wizard (docs/design/villain-wizard/spec.md, section 1). */
+  /** A new villain: a draft in memory, opened in the wizard (scrpg-aid-designs/villain-wizard/spec.md, section 1). */
   | { name: 'villainNew' }
   | { name: 'villainEdit'; id: string; step?: string }
   | { name: 'villainPlay'; id: string }
@@ -32,7 +32,7 @@ export type Route =
   | { name: 'table'; room: string }
   /** Watching a hosted game on a TV or second screen; no code yet asks for one. */
   | { name: 'watch'; room?: string }
-  /** An NPC template's editor (docs/design/npcs/spec.md, section 2). */
+  /** An NPC template's editor (scrpg-aid-designs/npcs/spec.md, section 2). */
   | { name: 'template'; kind: TemplateKindName; id: string }
   /** Receiving items someone is sending (section 15); no code yet asks for one. */
   | { name: 'receive'; code?: string }
@@ -170,7 +170,7 @@ export function villainEditPath(id: string, step?: string): string {
   return `${villainPath(id)}/edit${step ? `/${step}` : ''}`
 }
 
-/** The Games page (docs/design/game-table/spec.md, section 3). */
+/** The Games page (scrpg-aid-designs/game-table/spec.md, section 3). */
 export const gamesPath = '#/games'
 export const settingsPath = '#/settings'
 
@@ -183,7 +183,7 @@ export function gameDisplayPath(id: string): string {
   return `${gamePath(id)}/display`
 }
 
-/** A hosted game a player is in (docs/design/game-table/spec.md, section 14). */
+/** A hosted game a player is in (scrpg-aid-designs/game-table/spec.md, section 14). */
 export function tablePath(room: string): string {
   return `#/table/${encodeURIComponent(room)}`
 }
@@ -197,7 +197,7 @@ export function joinUrl(room: string): string {
   return `${window.location.origin}${window.location.pathname}${joinPath(room)}`
 }
 
-/** Watching a hosted game (docs/design/game-table/spec.md, section 10). */
+/** Watching a hosted game (scrpg-aid-designs/game-table/spec.md, section 10). */
 export function watchPath(room?: string): string {
   return room ? `#/watch/${encodeURIComponent(room)}` : '#/watch'
 }
@@ -212,7 +212,7 @@ export function templatePath(kind: TemplateKindName, id: string): string {
   return `#/${kind}/${encodeURIComponent(id)}`
 }
 
-/** Receiving items someone is sending (docs/design/game-table/spec.md, section 15). */
+/** Receiving items someone is sending (scrpg-aid-designs/game-table/spec.md, section 15). */
 export function receivePath(code?: string): string {
   return code ? `#/receive/${encodeURIComponent(code)}` : '#/receive'
 }

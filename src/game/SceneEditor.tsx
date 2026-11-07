@@ -1,5 +1,5 @@
 /**
- * Planning a scene, or editing the current one (docs/design/scenes/spec.md, section 4). It works
+ * Planning a scene, or editing the current one (scrpg-aid-designs/scenes/spec.md, section 4). It works
  * on a draft (./scenes.ts): nothing reaches the game until Save.
  */
 import { useId, useState } from 'react'

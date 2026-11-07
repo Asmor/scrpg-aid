@@ -1,5 +1,5 @@
 /**
- * The game table for the GM (docs/design/game-table/spec.md; Phase 1: no network). The game is
+ * The game table for the GM (scrpg-aid-designs/game-table/spec.md; Phase 1: no network). The game is
  * the single source of truth: heroes and villains on the table are copies inside it, so every
  * change, the GM's edits to heroes included, changes the game and is saved with it. The rules
  * are in ./table.ts and ./hero-changes.ts; this page wires them to the shared center
@@ -136,7 +136,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const hosted = useHostSnapshot(host)
   const editor = useGameEditor(host ? '' : id)
   const game = host ? hosted?.game : editor.state.status === 'ready' ? editor.state.doc : undefined
-  // Alerts (docs/design/settings/spec.md, section 4): only a hosted game changes without the GM.
+  // Alerts (scrpg-aid-designs/settings/spec.md, section 4): only a hosted game changes without the GM.
   const ownChange = useRef<string | null>(null)
   const alertWatch = useMemo(() => (host && game ? gmWatch(game) : undefined), [host, game])
   useAlerts(alertWatch, (before, after) => (JSON.stringify(after) === ownChange.current ? [] : gmAlerts(before, after)), game ? gameDisplayName(game) : '')

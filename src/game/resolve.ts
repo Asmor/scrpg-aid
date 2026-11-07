@@ -1,5 +1,5 @@
 /**
- * Carrying out a roll's results on whoever they target (docs/design/npcs/spec.md, sections 4 and
+ * Carrying out a roll's results on whoever they target (scrpg-aid-designs/npcs/spec.md, sections 4 and
  * 5, and "Choosing targets": anyone can target anyone). Pure, given the dice.
  *
  * - An Attack on a hero or villain takes Health, after one of its defenses (ruling 65, ./hits.ts).

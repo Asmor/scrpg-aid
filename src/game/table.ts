@@ -1,5 +1,5 @@
 /**
- * The game table's rules (docs/design/game-table/spec.md, sections 3–9). Pure: each change
+ * The game table's rules (scrpg-aid-designs/game-table/spec.md, sections 3–9). Pure: each change
  * takes the game and returns the new one, with a line in the table log where the table should
  * know. A line about something hidden is marked `gmOnly`.
  *
@@ -286,7 +286,7 @@ export function newGroup(group: GroupSpec, clock: Clock): NpcGroup | undefined {
   return { id: clock.newId(), ...(group.color ? { color: group.color } : {}), ...(group.templateId ? { templateId: group.templateId } : {}), kind: group.kind, name, hidden: group.hidden, owner: group.owner ?? { kind: 'gm' }, actions, ...(abilities.length ? { abilities } : {}), members }
 }
 
-/** Quick add, or a template brought in (docs/design/npcs/spec.md, section 3): a group on the table. */
+/** Quick add, or a template brought in (scrpg-aid-designs/npcs/spec.md, section 3): a group on the table. */
 export function addGroup(game: Game, group: GroupSpec, clock: Clock): Game {
   const added = newGroup(group, clock)
   if (!added) return game
@@ -509,7 +509,7 @@ export function updateSheet(game: Game, ref: { kind: 'hero'; id: string; sheet: 
     const { play, adjustments } = reconcile(hero.play, ref.sheet, hero.sheet)
     const text = `The sheet was updated ${why}.`
     const entry: PlayHistoryEntry = { id: clock.newId(), at, text, ...(adjustments.length ? { details: adjustments } : {}) }
-    // A player's colors reach the game by themselves (docs/design/character-colors/spec.md, section 6): a sheet waiting for review may hold older ones.
+    // A player's colors reach the game by themselves (scrpg-aid-designs/character-colors/spec.md, section 6): a sheet waiting for review may hold older ones.
     const { appearance: _, ...rest } = structuredClone(ref.sheet)
     const kept = hero.player ? (hero.sheet.appearance ? { appearance: hero.sheet.appearance } : {}) : ref.sheet.appearance ? { appearance: ref.sheet.appearance } : {}
     const updated = { ...hero, sheet: { ...rest, ...kept }, play: { ...play, history: [...play.history, entry] } }
@@ -891,7 +891,7 @@ export function renameGame(game: Game, name: string): Game {
 }
 
 /**
- * A new code for the game (docs/design/game-table/game-table-spec-addendum-game-codes.md): the
+ * A new code for the game (scrpg-aid-designs/game-table/game-table-spec-addendum-game-codes.md): the
  * old one stops working. While hosting, `moved` says who came along to the new code and who was
  * removed; the GM-only log line records it.
  */

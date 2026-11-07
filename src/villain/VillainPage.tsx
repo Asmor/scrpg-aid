@@ -1,5 +1,5 @@
 /**
- * A villain's character page in Sheet mode (docs/design/hero-sheet/spec.md, "Villain sheet"):
+ * A villain's character page in Sheet mode (scrpg-aid-designs/hero-sheet/spec.md, "Villain sheet"):
  * the hero page's header (breadcrumb, name and alias, identity line, the Sheet/Play switch,
  * Edit and Export) over the villain's sheet. Villain Play belongs with the GM screens, so Play
  * is still its own page for now. Give it `key={id}`.
@@ -88,7 +88,7 @@ export function VillainPage({ id }: { id: string }) {
         tags={villain.tags}
         itemName={sheet.name}
         onChange={(tags) => {
-          // A tag change is a change to the villain: saved with a new updatedAt (docs/design/library/spec.md).
+          // A tag change is a change to the villain: saved with a new updatedAt (scrpg-aid-designs/library/spec.md).
           const next = { ...villain, tags, updatedAt: new Date().toISOString() }
           setState({ status: 'found', villain: next })
           setSaveError(null)

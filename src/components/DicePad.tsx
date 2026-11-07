@@ -1,5 +1,5 @@
 /**
- * The dice pad (docs/design/settings/spec.md, section 3): three taps and Accept for three dice. Used
+ * The dice pad (scrpg-aid-designs/settings/spec.md, section 3): three taps and Accept for three dice. Used
  * in the roll dialog, and wherever else a roll is made with physical dice. `MemberPad` takes one
  * number per member of a group, in turn.
  */

@@ -1,5 +1,5 @@
 /**
- * Who a result can go to (docs/design/npcs/spec.md, "Choosing targets"). Pure; every target
+ * Who a result can go to (scrpg-aid-designs/npcs/spec.md, "Choosing targets"). Pure; every target
  * picker in the app uses it.
  *
  * Anyone can target anyone, but the list starts with the likely side: opponents for Attack and

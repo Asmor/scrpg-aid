@@ -1,5 +1,5 @@
 /**
- * The GM screen: the GM's side panel (docs/design/game-table/spec.md, section 7). Quick add,
+ * The GM screen: the GM's side panel (scrpg-aid-designs/game-table/spec.md, section 7). Quick add,
  * Running (the villain or group the GM is working), and the Bring in, Scenes and Notes tabs.
  */
 import { useId, useState } from 'react'

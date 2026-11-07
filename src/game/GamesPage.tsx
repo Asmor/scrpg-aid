@@ -1,5 +1,5 @@
 /**
- * The Games page (docs/design/game-table/spec.md, section 3; `#/games`): games aren't library
+ * The Games page (scrpg-aid-designs/game-table/spec.md, section 3; `#/games`): games aren't library
  * rows, so they're listed here as cards, reached from the header's Library | Games tabs. Phase 1
  * has the games you run; players' cached joined games come with hosting (Phase 2). Solo games
  * belong to their characters' Play pages and aren't listed.

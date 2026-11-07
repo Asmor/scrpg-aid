@@ -1,5 +1,5 @@
 /**
- * The display view (docs/design/game-table/spec.md, section 13): the shared center, read-only, at
+ * The display view (scrpg-aid-designs/game-table/spec.md, section 13): the shared center, read-only, at
  * room scale for a TV or a second screen. It's laid out on a 1920×1080 stage and scaled to fit
  * the window, so it never scrolls: a table with more on it than fits at full size scales down
  * as a whole. There's nothing to click.

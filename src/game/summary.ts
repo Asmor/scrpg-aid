@@ -1,4 +1,4 @@
-/** What the Games page's cards say about a game (docs/design/game-table/spec.md, section 3). Pure. */
+/** What the Games page's cards say about a game (scrpg-aid-designs/game-table/spec.md, section 3). Pure. */
 import { betweenIssues, type Game, type Issue } from './model'
 import { heroOnTableName, viewName, type TableView } from './project'
 import { itemName } from './table'

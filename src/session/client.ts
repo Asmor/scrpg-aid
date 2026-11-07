@@ -1,5 +1,5 @@
 /**
- * A player's device in a hosted game (docs/design/game-table/spec.md, sections 7, 8, 10 and 11).
+ * A player's device in a hosted game (scrpg-aid-designs/game-table/spec.md, sections 7, 8, 10 and 11).
  * It says hello with the player's hero, keeps the latest projection the GM's device sent, and
  * sends each action as its own message, waiting for the result. Nothing changes on the player's
  * side until the GM's device says so: there are no optimistic changes.

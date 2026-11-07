@@ -1,5 +1,5 @@
 /**
- * Fitting play state to a new sheet (docs/design/game-table/spec.md, section 8, "Adjustments"):
+ * Fitting play state to a new sheet (scrpg-aid-designs/game-table/spec.md, section 8, "Adjustments"):
  * when a character's copy in a game gets a newer sheet, its play state is kept except where it
  * no longer fits. Pure. Each function returns the new play state and a human-readable line for
  * every adjustment, shown before an update is approved, in the toast and in the log.

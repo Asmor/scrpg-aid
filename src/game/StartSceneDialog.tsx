@@ -1,5 +1,5 @@
 /**
- * Starting the next scene (docs/design/scenes/spec.md, section 5): what's leaving and what becomes
+ * Starting the next scene (scrpg-aid-designs/scenes/spec.md, section 5): what's leaving and what becomes
  * of it, what's coming in, what resets, and a preview of what players will see.
  */
 import { useId, useState } from 'react'
@@ -21,7 +21,7 @@ const RESETS: { key: keyof SceneResets; name: string; note: string }[] = [
 
 const ISSUE_RESETS = RESETS.map((r) => (r.key === 'mods' ? { ...r, name: 'Bonuses and penalties on the opposition', note: 'Cleared from villains and minions brought along' } : r))
 
-/** What the dialog needs for starting the next issue, not just a scene (docs/design/issues/spec.md, section 5). */
+/** What the dialog needs for starting the next issue, not just a scene (scrpg-aid-designs/issues/spec.md, section 5). */
 export interface IssueStartProps {
   facts: IssueStartFacts
   /** Only while hosting: there's nobody to remind otherwise. */

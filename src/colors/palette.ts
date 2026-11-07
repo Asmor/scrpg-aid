@@ -1,5 +1,5 @@
 /**
- * Character colors (docs/design/character-colors/spec.md): the 13-color palette from
+ * Character colors (scrpg-aid-designs/character-colors/spec.md): the 13-color palette from
  * data/colors.json, what each thing's colors are, and which ink reads on them. Pure.
  *
  * These never stand for a game zone: `--game-*` still means only that.

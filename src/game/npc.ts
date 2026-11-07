@@ -1,5 +1,5 @@
 /**
- * Running groups of minions and lieutenants (docs/design/npcs/spec.md, sections 4 and 5). Pure,
+ * Running groups of minions and lieutenants (scrpg-aid-designs/npcs/spec.md, sections 4 and 5). Pure,
  * given the dice (`random`).
  *
  * - A group roll: each chosen member rolls its own die with its own mods, then the GM picks a

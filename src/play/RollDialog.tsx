@@ -1,5 +1,5 @@
 /**
- * Using an ability or a basic action (docs/design/hero-sheet/spec.md, "Roll flow"), in three
+ * Using an ability or a basic action (scrpg-aid-designs/hero-sheet/spec.md, "Roll flow"), in three
  * steps: Dice and mods, Results, Resolve. The ability's text stays at the top. Cancel changes
  * nothing at any step: the roll is recorded, its mods used up and any follow-up mods added
  * only when the player chooses Done. The rules are in ./roll.ts; this is the dialog around them.

@@ -1,15 +1,15 @@
 /**
- * The game document (docs/design/game-table/spec.md, sections 1–3): one table's state, owned by
+ * The game document (scrpg-aid-designs/game-table/spec.md, sections 1–3): one table's state, owned by
  * the GM and the single source of truth for everything in play. It holds its scenes and their
  * trackers, the turn order, everything on the table, sheet update requests, the GM's private
  * notes, and the table log.
  *
- * A game is a list of scenes (docs/design/scenes/spec.md), one of them current. `villains`,
+ * A game is a list of scenes (scrpg-aid-designs/scenes/spec.md), one of them current. `villains`,
  * `groups`, `challenges` and `environment` are what's on the table now. Copies waiting for a
  * planned scene or set aside for later are in `offTable`, GM-only, so nothing that reads the
  * table can show them and a projection (./project.ts) can't send them.
  *
- * Scenes belong to numbered issues (docs/design/issues/spec.md). One issue is current, or the game
+ * Scenes belong to numbered issues (scrpg-aid-designs/issues/spec.md). One issue is current, or the game
  * is between issues: `currentIssueId` is unset, no scene is current (`currentSceneId` still names
  * the last one played, so the table can show its tracker faded), and the table is paused.
  *
@@ -119,19 +119,19 @@ export interface NpcMember {
 /** Who runs a group: the GM (its own turn-order entry), or the environment (it acts on the environment's turn). */
 export type GroupOwner = { kind: 'gm' } | { kind: 'environment' }
 
-/** A group of minions or of lieutenants (docs/design/npcs/spec.md, section 3). A hero's minions stay in that hero's play state. */
+/** A group of minions or of lieutenants (scrpg-aid-designs/npcs/spec.md, section 3). A hero's minions stay in that hero's play state. */
 export interface NpcGroup extends Visible {
   id: string
   /** The library template it came from, if any. */
   templateId?: string
   kind: 'minions' | 'lieutenants'
   name: string
-  /** Unset: by side (docs/design/character-colors/spec.md). */
+  /** Unset: by side (scrpg-aid-designs/character-colors/spec.md). */
   color?: CharColor
   owner: GroupOwner
   /** The basic actions its members can take; quick add allows any. */
   actions: 'any' | BasicAction[]
-  /** A lieutenant template's abilities, copied in (docs/design/npcs/spec.md, the template table); the GM's only. */
+  /** A lieutenant template's abilities, copied in (scrpg-aid-designs/npcs/spec.md, the template table); the GM's only. */
   abilities?: TemplateAbility[]
   members: NpcMember[]
 }
@@ -154,7 +154,7 @@ export interface ChallengeRequest {
 
 export interface Challenge extends Visible {
   id: string
-  /** Unset: by side (docs/design/character-colors/spec.md). */
+  /** Unset: by side (scrpg-aid-designs/character-colors/spec.md). */
   color?: CharColor
   /** The library template it came from, if any. */
   templateId?: string
@@ -201,13 +201,13 @@ export interface AttachedChallengeOnTable {
 export type AttachedOnTable = AttachedGroupOnTable | AttachedChallengeOnTable
 
 /**
- * The game's environment (docs/design/npcs/spec.md, section 6). Players see its name and
+ * The game's environment (scrpg-aid-designs/npcs/spec.md, section 6). Players see its name and
  * description; its aspects (the environment dice), twists and twist use are the GM's only.
  * A quick-added one has a name only, and can have aspects set on its turn.
  */
 export interface EnvironmentOnTable extends Visible {
   id: string
-  /** Unset: by side (docs/design/character-colors/spec.md). */
+  /** Unset: by side (scrpg-aid-designs/character-colors/spec.md). */
   color?: CharColor
   /** The template it came from, if any. */
   templateId?: string
@@ -316,7 +316,7 @@ export interface Game {
   id: string
   createdAt: string
   updatedAt: string
-  /** The GM's own labels (docs/design/library/spec.md), e.g. a campaign. */
+  /** The GM's own labels (scrpg-aid-designs/library/spec.md), e.g. a campaign. */
   tags: string[]
   name: string
   /** Set for a character's solo game (standalone Play). */

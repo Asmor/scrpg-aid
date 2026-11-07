@@ -176,7 +176,7 @@ export function modularHero(): Hero {
 }
 
 /**
- * The hero sheet design's Modular test hero (docs/design/hero-sheet/forms-and-modes.dc.html),
+ * The hero sheet design's Modular test hero (scrpg-aid-designs/hero-sheet/forms-and-modes.dc.html),
  * a "Modular Blaster". Default-mode powers: Cold d12, Fire d10, Agility d8, Speed d8, Cosmic d6.
  * Its modes copy the mockup's dice, which don't all follow the mode rules (Bombardment raises
  * three powers to d12), so the checks flag them; the sheet shows them as they are.

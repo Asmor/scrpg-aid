@@ -1,4 +1,4 @@
-/** The compact color choice (docs/design/character-colors/spec.md, section 3): the default first, then the 13, with a swatch for what's chosen. */
+/** The compact color choice (scrpg-aid-designs/character-colors/spec.md, section 3): the default first, then the 13, with a swatch for what's chosen. */
 import { useId } from 'react'
 import { CharSwatch } from '../components/CharBand'
 import { CHAR_COLORS, PALETTE, type CharColor } from './palette'

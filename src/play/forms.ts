@@ -195,7 +195,7 @@ export interface AvailabilityInput {
 }
 
 /**
- * Whether an ability can be used now (docs/design/hero-sheet/spec.md, "Ability availability"):
+ * Whether an ability can be used now (scrpg-aid-designs/hero-sheet/spec.md, "Ability availability"):
  * the first rule that applies wins. Used by the Use buttons, the roll and the basic actions.
  */
 export function availability(a: AvailabilityInput, { zone, form, divided, dice }: AvailabilityContext): { always: true } | { blocked: string } | Record<string, never> {

@@ -1,6 +1,6 @@
 /**
  * The parts of a standalone Play page that come from its solo game
- * (docs/design/game-table/spec.md, section 12): the "Solo play" chip and the ⋯ menu with Start
+ * (scrpg-aid-designs/game-table/spec.md, section 12): the "Solo play" chip and the ⋯ menu with Start
  * over…, and the line naming the other games the character is in.
  */
 import { useState } from 'react'
