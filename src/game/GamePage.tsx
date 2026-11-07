@@ -386,8 +386,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       ...(() => {
         const challenge = ref.kind === 'challenge' ? game.challenges.find((c) => c.id === ref.id) : undefined
         if (!challenge || challenge.linkedVillainId) return []
-        if (challenge.owner.kind === 'environment') return [{ label: 'Give to the GM', onSelect: () => apply((g) => T.setChallengeOwner(g, ref.id, 'gm')) }]
-        return game.environment ? [{ label: 'Give to the environment', onSelect: () => apply((g) => T.setChallengeOwner(g, ref.id, 'environment')) }] : []
+        if (challenge.owner.kind === 'environment') return [{ label: 'Give to the GM', onSelect: () => apply((g) => T.setChallengeOwner(g, ref.id, 'gm', clock())) }]
+        return game.environment ? [{ label: 'Give to the environment', onSelect: () => apply((g) => T.setChallengeOwner(g, ref.id, 'environment', clock())) }] : []
       })(),
       // A Titan's challenge is hidden or shown with its villain.
       ...(ref.kind === 'challenge' && game.challenges.find((c) => c.id === ref.id)?.linkedVillainId ? [] : hidden ? [{ label: 'Reveal', onSelect: () => reveal(ref) }] : [{ label: 'Hide from players', onSelect: () => hide(ref) }]),

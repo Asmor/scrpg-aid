@@ -322,7 +322,19 @@ describe("a challenge's owner", () => {
 
   it("can't go to an environment that isn't there", () => {
     const g = addChallenge(createGame({ id: 'g' }), { name: 'Furnace', steps: 1, hidden: false }, clock)
-    expect(setChallengeOwner(g, g.challenges[0]!.id, 'environment')).toBe(g)
+    expect(setChallengeOwner(g, g.challenges[0]!.id, 'environment', clock)).toBe(g)
+  })
+
+  it('is logged when given away, for the GM only while the challenge or environment is hidden', () => {
+    const g = owned()
+    const id = g.challenges[0]!.id
+    const toGm = setChallengeOwner(g, id, 'gm', clock)
+    expect(toGm.feed.at(-1)).toMatchObject({ by: 'GM', text: 'Vault now belongs to the GM.' })
+    expect(toGm.feed.at(-1)?.gmOnly).toBeUndefined()
+    expect(setChallengeOwner(toGm, id, 'environment', clock).feed.at(-1)?.text).toBe('Vault now belongs to Rooftop.')
+    expect(setChallengeOwner(setHidden(g, { kind: 'challenge', id }, true, clock), id, 'gm', clock).feed.at(-1)?.gmOnly).toBe(true)
+    const hiddenEnv = setHidden(g, { kind: 'environment', id: g.environment!.id }, true, clock)
+    expect(setChallengeOwner(hiddenEnv, id, 'gm', clock).feed.at(-1)?.gmOnly).toBe(true)
   })
 
   it('reaches players, and through the protocol', () => {

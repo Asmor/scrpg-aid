@@ -56,7 +56,7 @@ describe('hero rows', () => {
   it('shows archetype · power source and Play, and nothing from play', () => {
     const hero = exampleHero({ id: 'h' })
     const row = heroType.row(hero)
-    expect(row).toEqual({ colors: expect.anything(), name: 'Maya Reyes', named: true, draft: false, details: 'Speedster · Accident', openHref: '#/hero/h', primary: { label: 'Play', href: '#/hero/h/play' }, editHref: '#/hero/h/edit' })
+    expect(row).toEqual({ colors: expect.anything(), name: 'Afterimage', named: true, draft: false, details: 'Speedster · Accident', openHref: '#/hero/h', primary: { label: 'Play', href: '#/hero/h/play' }, editHref: '#/hero/h/edit' })
   })
 
   it('counts rule issues, linking to the edit summary', () => {
@@ -118,10 +118,10 @@ describe('duplicate', () => {
     const hero = { ...exampleHero({ id: 'h' }), tags: ['prep'] }
     const copy = duplicateHero(hero, { id: 'h2', now })
     expect(copy).toMatchObject({ id: 'h2', createdAt: now.toISOString(), updatedAt: now.toISOString(), tags: ['prep'] })
-    expect(copy.details.name).toBe('Maya Reyes (copy)')
+    expect(copy.details.name).toBe('Afterimage (copy)')
     expect(copy.background).toEqual(hero.background)
     // The original is untouched.
-    expect(hero.details.name).toBe('Maya Reyes')
+    expect(hero.details.name).toBe('Afterimage')
   })
 
   it('uses the alias when there is no name, and leaves an unnamed one unnamed', () => {
@@ -143,7 +143,7 @@ describe('duplicate', () => {
   it('goes through the registry, with the single-item export', () => {
     expect(heroType.duplicate(exampleHero({ id: 'h' })).id).not.toBe('h')
     expect(villainType.duplicate(adaptiveBruiser()).details.name).toBe('Ironclad (copy)')
-    expect(heroType.exportFile(exampleHero({ id: 'h' })).name).toBe('maya-reyes.json')
+    expect(heroType.exportFile(exampleHero({ id: 'h' })).name).toBe('afterimage.json')
     expect(JSON.parse(villainType.exportFile(adaptiveBruiser()).text)).toMatchObject({ format: 'scrpg-villain' })
   })
 })

@@ -40,12 +40,12 @@ describe('tags on a hero’s sheet', () => {
     wrap(s, <HeroPage id="maya" />)
     const row = within(await screen.findByRole('group', { name: 'Tags' }))
     expect(row.getByRole('button', { name: 'Filter by thursday-game' })).toBeInTheDocument()
-    await userEvent.click(row.getByRole('button', { name: 'Add a tag to Maya Reyes' }))
+    await userEvent.click(row.getByRole('button', { name: 'Add a tag to Afterimage' }))
     // The villain's tag is suggested, and typing it in another case uses its spelling.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Scene-3' })).toBeInTheDocument())
     await userEvent.keyboard('scene-3{Enter}')
     await waitFor(async () => expect(((await s.heroes.get('maya')) as { hero: { tags: string[] } }).hero.tags).toEqual(['thursday-game', 'Scene-3']))
-    await userEvent.click(row.getByRole('button', { name: 'Remove thursday-game from Maya Reyes' }))
+    await userEvent.click(row.getByRole('button', { name: 'Remove thursday-game from Afterimage' }))
     await waitFor(async () => expect(((await s.heroes.get('maya')) as { hero: { tags: string[] } }).hero.tags).toEqual(['Scene-3']))
   })
 

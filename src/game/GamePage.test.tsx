@@ -748,17 +748,24 @@ describe('finishing the issue', () => {
     return { ...page, dialog: within(screen.getByRole('dialog', { name: 'Finish issue 1?' })) }
   }
 
+  it('uses the placeholder as the title when the field is left empty', async () => {
+    const { dialog } = await finishing()
+    expect(dialog.getByText('Each hero\'s back issue gets this name, or "Thursday game" if it\'s left empty.')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Finish issue 1' }))
+    expect(screen.getByText('END OF ISSUE 1').nextElementSibling).toHaveTextContent('Thursday game')
+  })
+
   it("shows the end card, leaves the GM's own hero out, and offers Undo", async () => {
     const { dialog, saved, libraryHero } = await finishing()
-    expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue('Thursday game')
+    const title = dialog.getByRole('textbox', { name: 'Title (optional)' })
+    expect(title).toHaveValue('')
+    expect(title).toHaveAttribute('placeholder', 'Thursday game')
     expect(dialog.getByText('Thursday game · Scene 1, The Foundry, ends after round 4.')).toBeInTheDocument()
     expect(dialog.getByText('Maya Reyes +2')).toBeInTheDocument()
     expect(dialog.getByText('Alex gets the prompt next time they join.')).toBeInTheDocument()
     expect(dialog.getByRole('img', { name: '0 of 6 back issues, 1 after this' })).toBeInTheDocument()
     expect(dialog.queryByRole('checkbox', { name: 'Redline' })).not.toBeInTheDocument()
-    await userEvent.clear(dialog.getByRole('textbox', { name: 'Title' }))
-    expect(dialog.getByRole('button', { name: 'Finish issue 1' })).toBeDisabled()
-    await userEvent.type(dialog.getByRole('textbox', { name: 'Title' }), 'The Gravelord Saga')
+    await userEvent.type(title, 'The Gravelord Saga')
     await userEvent.click(dialog.getByRole('button', { name: 'Finish issue 1' }))
 
     expect(screen.getByRole('heading', { name: 'The Gravelord Saga' })).toBeInTheDocument()
@@ -1001,7 +1008,7 @@ describe('an issue named early', () => {
       g.issues[0]!.title = 'Named early'
     })
     await menuItem('Scene menu', 'Finish the issue…')
-    expect(within(screen.getByRole('dialog', { name: 'Finish issue 1?' })).getByRole('textbox', { name: 'Title' })).toHaveValue('Named early')
+    expect(within(screen.getByRole('dialog', { name: 'Finish issue 1?' })).getByRole('textbox', { name: 'Title (optional)' })).toHaveValue('Named early')
   })
 })
 

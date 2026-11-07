@@ -22,7 +22,8 @@ interface Props {
 export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props) {
   const id = useId()
   const issue = currentIssue(game)
-  const [title, setTitle] = useState(() => (issue ? issue.title?.trim() || defaultIssueTitle(game, issue) : ''))
+  // Empty unless named early (Scenes tab ⋯ Rename…): the default is the placeholder, and what's used if it stays empty.
+  const [title, setTitle] = useState(() => issue?.title?.trim() ?? '')
   const [summary, setSummary] = useState('')
   // Every player's hero starts checked.
   const [unchecked, setUnchecked] = useState<ReadonlySet<string>>(new Set())
@@ -30,7 +31,8 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
   const checked = new Set(game.heroes.filter((h) => !unchecked.has(h.id)).map((h) => h.id))
   const rows = finishRows(game, checked, connected)
   const heroIds = rows.filter((r) => checked.has(r.heroId)).map((r) => r.heroId)
-  const named = title.trim()
+  const fallback = defaultIssueTitle(game, issue)
+  const named = title.trim() || fallback
   const scene = currentScene(game)
   const played = scenesPlayed(game)
   const planned = game.scenes.filter((s) => s.state === 'planned')
@@ -47,11 +49,11 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
         <section className="gt-start__section" aria-labelledby={`${id}-issue`}>
           <h3 id={`${id}-issue`}>The issue</h3>
           <label className="field" htmlFor={`${id}-title`}>
-            <span>Title</span>
-            <input id={`${id}-title`} type="text" maxLength={MAX_NAME} required value={title} onChange={(e) => setTitle(e.target.value)} aria-describedby={`${id}-title-hint`} />
+            <span>Title (optional)</span>
+            <input id={`${id}-title`} type="text" maxLength={MAX_NAME} placeholder={fallback} value={title} onChange={(e) => setTitle(e.target.value)} aria-describedby={`${id}-title-hint`} />
           </label>
           <span id={`${id}-title-hint`} className="gt-sub">
-            Each hero's back issue gets this name.
+            Each hero's back issue gets this name, or "{fallback}" if it's left empty.
           </span>
           <label className="field" htmlFor={`${id}-summary`}>
             <span>What happened (optional)</span>
@@ -97,7 +99,7 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
         <section className="gt-start__section" aria-labelledby={`${id}-back`}>
           <h3 id={`${id}-back`}>Back issues</h3>
           <p className="gt-sub">
-            Each checked hero gets "{named || title}" as a back issue. Players confirm it on their own device.
+            Each checked hero gets "{named}" as a back issue. Players confirm it on their own device.
           </p>
           <ul className="gt-finish__facts">
             {rows.map((r) => {
@@ -134,7 +136,7 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
         <section className="gt-start__section gt-finish__see" aria-labelledby={`${id}-see`}>
           <h3 id={`${id}-see`}>What players will see</h3>
           <div className="gt-start__preview gt-end gt-finish__preview">
-            <EndOfIssue number={issue.number} title={named || `Issue ${issue.number}`} summary={summary.trim()} />
+            <EndOfIssue number={issue.number} title={named} summary={summary.trim()} />
             <div className="gt-row">
               <span className="gt-end__tracker">
                 <TrackerBoxes tracker={scene.tracker} at={scene.position} />
@@ -143,7 +145,7 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
             </div>
           </div>
           <p className="gt-sub">
-            Each player whose hero is checked gets "Add {named || title} to your back issues?" on their device ({offeredPlayers.length} of {players.length} {players.length === 1 ? 'player' : 'players'}). Players who aren't connected get it the next time they join. The display view shows the end card.
+            Each player whose hero is checked gets "Add {named} to your back issues?" on their device ({offeredPlayers.length} of {players.length} {players.length === 1 ? 'player' : 'players'}). Players who aren't connected get it the next time they join. The display view shows the end card.
           </p>
         </section>
       </div>
@@ -152,7 +154,7 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
         <button type="button" className="button" onClick={onClose}>
           Cancel
         </button>
-        <button type="button" className="button button--primary" disabled={!named} onClick={() => onFinish({ title: named, summary, heroIds })}>
+        <button type="button" className="button button--primary" onClick={() => onFinish({ title: named, summary, heroIds })}>
           Finish issue {issue.number}
         </button>
       </div>

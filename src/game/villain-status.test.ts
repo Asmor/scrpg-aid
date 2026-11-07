@@ -103,10 +103,10 @@ describe('villainStatus: counted from the table', () => {
     const titan = g.challenges.find((x) => x.linkedVillainId)!
     const vault = g.challenges.find((x) => x.name === 'Vault')!
     expect(titan.owner).toEqual({ kind: 'gm' })
-    expect(setChallengeOwner(g, titan.id, 'environment')).toBe(g)
-    g = setChallengeOwner(g, vault.id, 'environment')
+    expect(setChallengeOwner(g, titan.id, 'environment', c)).toBe(g)
+    g = setChallengeOwner(g, vault.id, 'environment', c)
     expect(status(g)).toMatchObject({ die: 'd8', count: 1 })
-    g = setChallengeOwner(g, vault.id, 'gm')
+    g = setChallengeOwner(g, vault.id, 'gm', c)
     expect(status(g)).toMatchObject({ die: 'd6', count: 0 })
   })
 

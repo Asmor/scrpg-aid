@@ -171,7 +171,7 @@ describe('HeroPage', () => {
         </GameStoreContext.Provider>
       </StoreContext.Provider>,
     )
-    expect(await screen.findByRole('button', { name: "More for Maya Reyes's Play page" })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: "More for Afterimage's Play page" })).toBeInTheDocument()
     expect(screen.getByText('Solo play')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Roleplaying' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument()
@@ -191,17 +191,17 @@ describe('HeroPage', () => {
     )
     expect(await screen.findByRole('alert')).toHaveTextContent("This hero's play state couldn't be read: saved by an older version of the app (format 2)")
     // Not the ⋯ menu's Start over: that one changes a loaded game, and there isn't one.
-    expect(screen.queryByRole('button', { name: "More for Maya Reyes's Play page" })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: "More for Afterimage's Play page" })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Start over…' }))
     await userEvent.click(screen.getByRole('button', { name: 'Yes, start over' }))
-    expect(await screen.findByRole('button', { name: "More for Maya Reyes's Play page" })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: "More for Afterimage's Play page" })).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it.each([
-    ['JSON', 'maya-reyes.json', 'application/json'],
-    ['Markdown', 'maya-reyes.md', 'text/markdown'],
-    ['HTML', 'maya-reyes.html', 'text/html'],
+    ['JSON', 'afterimage.json', 'application/json'],
+    ['Markdown', 'afterimage.md', 'text/markdown'],
+    ['HTML', 'afterimage.html', 'text/html'],
   ])('exports the hero as %s that imports back', async (format, fileName, mediaType) => {
     vi.mocked(downloadFile).mockClear()
     const hero = exampleHero({ id: 'x' })
@@ -233,7 +233,7 @@ describe('HeroPage', () => {
       // Each paper size is its own item.
       await exportAs('PDF, A4')
       expect(print).toHaveBeenCalledOnce()
-      expect(rules).toBe('@page { size: A4; @bottom-left { content: "Maya Reyes"; } }')
+      expect(rules).toBe('@page { size: A4; @bottom-left { content: "Afterimage"; } }')
     } finally {
       print.mockRestore()
     }

@@ -26,12 +26,12 @@ describe('heroHtml', () => {
     const html = heroHtml(exampleHero({ id: 'x' }))
     expect(html.startsWith('<!doctype html>\n<html lang="en" data-theme="light">')).toBe(true)
     const doc = parse(html)
-    expect(doc.title).toBe('Maya Reyes')
+    expect(doc.title).toBe('Afterimage')
     expect(doc.querySelector('meta[name="viewport"]')).not.toBeNull()
     expect(doc.querySelector('head style')).not.toBeNull()
     const sheet = doc.querySelector('main .hero-sheet')!
     // The name, alias and identity line come first, as on the page.
-    expect(doc.querySelector('main h2')!.textContent).toBe('Maya Reyes')
+    expect(doc.querySelector('main h2')!.textContent).toBe('Afterimage')
     expect(doc.querySelector('main .character-head')!.textContent).toContain('Upper Class · Accident · Speedster · Lone Wolf')
     expect(sheet.textContent).toContain('Paragon Feat')
     // The icons are embedded, nothing loads from elsewhere, and nothing runs.

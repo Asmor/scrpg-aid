@@ -41,10 +41,10 @@ describe('App', () => {
     const store = new MemoryHeroStore()
     await store.save(exampleHero({ id: 'maya' }))
     render(<App store={store} villainStore={new MemoryVillainStore()} searchStore={new MemorySavedSearchStore()} />)
-    expect(await screen.findByRole('link', { name: 'Maya Reyes' })).toHaveAttribute('href', '#/hero/maya')
+    expect(await screen.findByRole('link', { name: 'Afterimage' })).toHaveAttribute('href', '#/hero/maya')
 
     go('#/hero/maya')
-    expect(await screen.findByRole('heading', { level: 2, name: 'Maya Reyes' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: 'Afterimage' })).toBeInTheDocument()
 
     // Sheet and Play are one page: switching doesn't load the hero again.
     const get = vi.spyOn(store, 'get')

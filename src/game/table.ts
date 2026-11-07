@@ -769,12 +769,15 @@ export function renameChallengeSteps(game: Game, challengeId: string, labels: re
 
 /**
  * ⋯ "Give to the environment" or "Give to the GM", for a challenge added the wrong way. A Titan's
- * challenge stays the GM's, and with no environment there's no one else to give it to.
+ * challenge stays the GM's, and with no environment there's no one else to give it to. Logged like
+ * every other GM change, for the GM only while the challenge or the environment is hidden.
  */
-export function setChallengeOwner(game: Game, challengeId: string, kind: Challenge['owner']['kind']): Game {
+export function setChallengeOwner(game: Game, challengeId: string, kind: Challenge['owner']['kind'], clock: Clock): Game {
   const challenge = game.challenges.find((c) => c.id === challengeId)
   if (!challenge || challenge.linkedVillainId || challenge.owner.kind === kind || (kind === 'environment' && !game.environment)) return game
-  return changeChallenge(game, challengeId, (c) => ({ ...c, owner: { kind } }))
+  const next = changeChallenge(game, challengeId, (c) => ({ ...c, owner: { kind } }))
+  const owner = kind === 'environment' ? (game.environment?.name ?? 'the environment') : 'the GM'
+  return log(next, clock, `${challenge.name} now belongs to ${owner}.`, { gmOnly: challenge.hidden || !!game.environment?.hidden })
 }
 
 /** ⋯ Edit steps…: the step names, and the optional description and "when it's done" text. */

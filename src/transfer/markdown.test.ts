@@ -17,7 +17,7 @@ describe('heroMarkdown', () => {
   const md = heroMarkdown(exampleHero({ id: 'x' }))
 
   it('lays out the sheet with headings, lists and padded tables', () => {
-    expect(md.startsWith('# Maya Reyes\n\n**Alias:** Afterimage\n\n## Characteristics\n\n- **Background:** Upper Class\n')).toBe(true)
+    expect(md.startsWith('# Afterimage\n\n**Alias:** Maya Reyes\n\n## Characteristics\n\n- **Background:** Upper Class\n')).toBe(true)
     expect(md).toContain('- **Costume / equipment:** A heat-resistant running suit in orange and white')
     // Powers, qualities, and status dice in one table, padded so it lines up as plain text.
     expect(md).toContain(

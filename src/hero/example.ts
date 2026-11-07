@@ -15,8 +15,8 @@ export function exampleHero(options: { id?: string; now?: Date } = {}): Hero {
   const hero = createHero('constructed', options)
   hero.details = {
     ...hero.details,
-    name: 'Maya Reyes',
-    alias: 'Afterimage',
+    name: 'Afterimage',
+    alias: 'Maya Reyes',
     age: '24',
     build: 'Lean',
     costume: 'A heat-resistant running suit in orange and white',
