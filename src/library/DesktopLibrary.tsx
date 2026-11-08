@@ -6,6 +6,8 @@
 import { CharSwatch } from '../components/CharBand'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { GameLink, LibraryModel } from './LibraryPage'
+import { helpPath } from '../app/route'
+import { usePageKey } from '../help/help-context'
 import { PopoverDialog, PopoverMenu } from './Popover'
 import { usePopover, type Popover } from './popover-state'
 import { nextSort, noMatchText, withFilterTag, type LibraryQuery, type SortKey } from './query'
@@ -211,10 +213,16 @@ export function SearchField({ model, className }: { model: LibraryModel; classNa
     const timer = setTimeout(() => setQuery({ ...query, text }), 150)
     return () => clearTimeout(timer)
   }, [text, query, setQuery])
+  // "/" puts focus here (scrpg-aid-designs/help/spec.md, section 5).
+  const input = useRef<HTMLInputElement>(null)
+  usePageKey('/', (e) => {
+    e.preventDefault()
+    input.current?.focus()
+  })
   return (
     <label className={`library-search ${className ?? ''}`}>
       <SearchIcon />
-      <input type="search" aria-label="Search by name" placeholder="Search by name" value={text} onChange={(e) => setText(e.target.value)} />
+      <input ref={input} type="search" aria-label="Search by name" placeholder="Search by name" value={text} onChange={(e) => setText(e.target.value)} />
     </label>
   )
 }
@@ -607,27 +615,89 @@ export function NewMenu({ model, className }: { model: LibraryModel; className?:
   )
 }
 
-/** The empty library's panel. */
-export function EmptyLibrary({ model }: { model: LibraryModel }) {
+/**
+ * The empty library's "New to SCRPG Aid?" card (scrpg-aid-designs/help/spec.md, section 4): build a
+ * hero, or run a game. Dismissing it hides it on this device for good.
+ */
+function FirstRun({ model }: { model: LibraryModel }) {
+  const hero = LIBRARY_TYPES.find((t) => t.key === 'hero')!
   return (
-    <section className="library-empty" aria-labelledby="library-empty-title">
-      <h2 id="library-empty-title">Your library is empty</h2>
-      <p className="muted">Everything you make lands here: heroes, villains and more. Tag things however suits you, by game, by scene, by group, and filter by those tags to find them fast.</p>
-      <div className="button-row">
-        {LIBRARY_TYPES.filter((t) => t.create).map((t, i) => (
-          <button key={t.key} type="button" className={i === 0 ? 'button button--primary' : 'button'} disabled={model.busy} onClick={() => model.create(t)}>
-            New {t.label.toLowerCase()}
-          </button>
-        ))}
-        <button type="button" className="button" disabled={model.busy} onClick={model.addExample}>
-          Add an example hero
+    <section className="first-run" aria-labelledby="first-run-title">
+      <button
+        type="button"
+        className="icon-button first-run__x"
+        aria-label="Dismiss, don't show again"
+        onClick={() => {
+          // The card goes; focus goes to what's left.
+          document.getElementById('library-empty-title')?.focus()
+          model.dismissFirstRun()
+        }}
+      >
+        ✕
+      </button>
+      <div>
+        <h2 id="first-run-title">New to SCRPG Aid?</h2>
+        <p className="muted">Pick where you'd like to start. You can do the other any time.</p>
+      </div>
+      <div className="first-run__paths">
+        <button type="button" className="first-run__path" disabled={model.busy} aria-labelledby="first-run-hero-name" aria-describedby="first-run-hero" onClick={() => model.create(hero)}>
+          <span className="first-run__icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c1-4 4-6 8-6s7 2 8 6" />
+            </svg>
+          </span>
+          <strong id="first-run-hero-name">Build a hero</strong>
+          <span className="muted" id="first-run-hero">
+            Step by step, with the rules checked as you go.
+          </span>
         </button>
-        <button type="button" className="button" disabled={model.busy} onClick={model.start.importFile}>
-          Import from a file…
+        <button type="button" className="first-run__path" disabled={model.busy} aria-labelledby="first-run-game-name" aria-describedby="first-run-game" onClick={model.startGame}>
+          <span className="first-run__icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="14" rx="2" />
+              <path d="M8 21h8M12 18v3" />
+            </svg>
+          </span>
+          <strong id="first-run-game-name">Run a game</strong>
+          <span className="muted" id="first-run-game">
+            Make villains and scenes, then invite players with a code.
+          </span>
         </button>
       </div>
-      <p className="muted">Everything is saved in this browser. Have a code from your GM? Use Play together, at the top of the page, to join.</p>
+      <p className="muted">
+        Everything is saved in this browser. <a href={helpPath()}>Help</a> explains the rest.
+      </p>
     </section>
+  )
+}
+
+/** The empty library's panel, under the first-run card until that's dismissed. */
+export function EmptyLibrary({ model }: { model: LibraryModel }) {
+  return (
+    <>
+      {model.firstRun && <FirstRun model={model} />}
+      <section className="library-empty" aria-labelledby="library-empty-title">
+        <h2 id="library-empty-title" tabIndex={-1}>
+          Your library is empty
+        </h2>
+        <p className="muted">Everything you make lands here: heroes, villains and more. Tag things however suits you, by game, by scene, by group, and filter by those tags to find them fast.</p>
+        <div className="button-row">
+          {LIBRARY_TYPES.filter((t) => t.create).map((t, i) => (
+            <button key={t.key} type="button" className={i === 0 ? 'button button--primary' : 'button'} disabled={model.busy} onClick={() => model.create(t)}>
+              New {t.label.toLowerCase()}
+            </button>
+          ))}
+          <button type="button" className="button" disabled={model.busy} onClick={model.addExample}>
+            Add an example hero
+          </button>
+          <button type="button" className="button" disabled={model.busy} onClick={model.start.importFile}>
+            Import from a file…
+          </button>
+        </div>
+        <p className="muted">Everything is saved in this browser. Have a code from your GM? Use Play together, at the top of the page, to join.</p>
+      </section>
+    </>
   )
 }
 

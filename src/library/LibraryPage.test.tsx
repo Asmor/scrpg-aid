@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { completeHero } from '../test/heroes'
@@ -18,6 +18,9 @@ import { adaptiveBruiser } from '../test/villains'
 import { downloadFile } from '../transfer/download'
 import { readImport } from '../transfer/files'
 import { MemoryVillainStore } from '../villain/store'
+import { DEFAULT_SETTINGS } from '../settings/model'
+import { presetCounts } from '../rules/trackers'
+import { MemorySettingsStore } from '../settings/store'
 import { localBackupTime } from './backup-time'
 import { createSavedSearch, MemorySavedSearchStore, type SavedSearch } from './saved-searches'
 
@@ -43,9 +46,10 @@ interface Setup {
   searches?: SavedSearch[]
   games?: Game[]
   joined?: JoinedGame[]
+  settingsStore?: MemorySettingsStore
 }
 
-async function setup({ heroes = [], villains = [], hash = '#/', backupAt, storage = memoryStorage(), searches = [], games = [], joined = [] }: Setup = {}) {
+async function setup({ heroes = [], villains = [], hash = '#/', backupAt, storage = memoryStorage(), searches = [], games = [], joined = [], settingsStore = new MemorySettingsStore() }: Setup = {}) {
   const joinedStore = new MemoryJoinedStore()
   for (const j of joined) await joinedStore.save(j)
   const heroStore = new MemoryHeroStore()
@@ -60,8 +64,8 @@ async function setup({ heroes = [], villains = [], hash = '#/', backupAt, storag
   const backupTime = localBackupTime(backupStorage)
   if (backupAt) backupTime.save(backupAt)
   window.location.hash = hash
-  render(<App store={heroStore} villainStore={villainStore} gameStore={gameStore} joinedStore={joinedStore} searchStore={searchStore} backupTime={backupTime} connect={fakeNetwork().connect} sessionStore={localSessionStore(storage)} />)
-  return { heroStore, villainStore, gameStore, searchStore, backupStorage }
+  render(<App store={heroStore} villainStore={villainStore} gameStore={gameStore} joinedStore={joinedStore} searchStore={searchStore} backupTime={backupTime} connect={fakeNetwork().connect} sessionStore={localSessionStore(storage)} settingsStore={settingsStore} />)
+  return { heroStore, villainStore, gameStore, searchStore, backupStorage, settingsStore }
 }
 
 /** The standard library: two heroes, a draft, and two villains, with tags; Maya and Gravelord are in Thursday game (and Maya has a solo game). */
@@ -518,6 +522,48 @@ describe('the empty library', () => {
     await userEvent.click(screen.getByRole('button', { name: 'New villain' }))
     // "#/villain/new" starts a draft in memory and opens its first step.
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/villain\/[^/]+\/edit\/concept$/))
+  })
+
+  it('shows "New to SCRPG Aid?" above it: Build a hero opens the wizard', async () => {
+    await setup()
+    const card = within(await screen.findByRole('region', { name: 'New to SCRPG Aid?' }))
+    expect(card.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '#/help')
+    const build = card.getByRole('button', { name: 'Build a hero' })
+    expect(build).toHaveAccessibleDescription('Step by step, with the rules checked as you go.')
+    await userEvent.click(build)
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/hero\/[^/]+\/edit\/start$/))
+  })
+
+  it('Run a game starts a game with the default tracker and opens it', async () => {
+    const settingsStore = new MemorySettingsStore()
+    await settingsStore.save({ ...DEFAULT_SETTINGS, newGame: { ...DEFAULT_SETTINGS.newGame, trackerPreset: 'epic' } })
+    const { gameStore } = await setup({ settingsStore })
+    const card = within(await screen.findByRole('region', { name: 'New to SCRPG Aid?' }))
+    await userEvent.click(card.getByRole('button', { name: 'Run a game' }))
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/game\/[^/]+$/))
+    const [game] = (await gameStore.list()).games
+    expect(window.location.hash).toBe(`#/game/${game!.id}`)
+    expect(game!.scenes[0]!.tracker).toEqual(presetCounts('epic'))
+  })
+
+  it('dismissing the card hides it for good on this device', async () => {
+    const { settingsStore } = await setup()
+    await userEvent.click(await screen.findByRole('button', { name: "Dismiss, don't show again" }))
+    expect(screen.queryByRole('region', { name: 'New to SCRPG Aid?' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Your library is empty' })).toHaveFocus()
+    await waitFor(async () => expect((await settingsStore.load()).firstRunDismissed).toBe(true))
+  })
+
+  it("doesn't show the card once dismissed, or once the library has something in it", async () => {
+    const settingsStore = new MemorySettingsStore()
+    await settingsStore.save({ ...DEFAULT_SETTINGS, firstRunDismissed: true })
+    await setup({ settingsStore })
+    expect(await screen.findByRole('heading', { name: 'Your library is empty' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'New to SCRPG Aid?' })).not.toBeInTheDocument()
+    cleanup()
+    await standard()
+    await loaded()
+    expect(screen.queryByRole('region', { name: 'New to SCRPG Aid?' })).not.toBeInTheDocument()
   })
 
   it('starts a new hero from the New menu', async () => {

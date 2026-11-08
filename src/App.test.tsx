@@ -26,15 +26,44 @@ describe('App', () => {
     expect(title.querySelector('a')).toHaveAttribute('href', '#/')
   })
 
-  it('opens About from the header on the library and on other pages', async () => {
+  it('opens About and Keyboard shortcuts from the Help menu, and the Help page, on the library and on other pages', async () => {
     render(<App store={new MemoryHeroStore()} villainStore={new MemoryVillainStore()} searchStore={new MemorySavedSearchStore()} />)
-    await userEvent.click(await screen.findByRole('button', { name: 'About' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Help' }))
+    await userEvent.click(within(screen.getByRole('menu', { name: 'Help' })).getByRole('menuitem', { name: 'About SCRPG Aid' }))
     expect(within(screen.getByRole('dialog', { name: 'About SCRPG Aid' })).getByText(/^Version /)).toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
     go('#/join')
     await screen.findByRole('heading', { level: 1, name: 'SCRPG Aid' })
-    await userEvent.click(screen.getByRole('button', { name: 'About' }))
-    expect(screen.getByRole('dialog', { name: 'About SCRPG Aid' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Help' }))
+    await userEvent.click(within(screen.getByRole('menu', { name: 'Help' })).getByRole('menuitem', { name: 'Keyboard shortcuts' }))
+    expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(screen.getByRole('button', { name: 'Help' }))
+    expect(within(screen.getByRole('menu', { name: 'Help' })).getByRole('menuitem', { name: 'Help topics' })).toHaveAttribute('href', '#/help')
+    go('#/help/glossary')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Glossary' })).toBeInTheDocument()
+  })
+
+  it('opens Keyboard shortcuts with ? anywhere outside a text field', async () => {
+    const store = new MemoryHeroStore()
+    await store.save(exampleHero({ id: 'maya' }))
+    render(<App store={store} villainStore={new MemoryVillainStore()} searchStore={new MemorySavedSearchStore()} />)
+    const search = await screen.findByRole('searchbox', { name: 'Search by name' })
+    await userEvent.click(search)
+    await userEvent.keyboard('?')
+    expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).not.toBeInTheDocument()
+    expect(search).toHaveValue('?')
+    await userEvent.clear(search)
+    search.blur()
+    await userEvent.keyboard('?')
+    const dialog = within(screen.getByRole('dialog', { name: 'Keyboard shortcuts' }))
+    expect(dialog.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Anywhere', 'Dice pad'])
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // "/" goes to the library's search.
+    await userEvent.keyboard('/')
+    expect(search).toHaveFocus()
+    expect(search).toHaveValue('')
   })
 
   it('shows the hero list, a hero’s sheet, a missing hero, and unknown pages', async () => {

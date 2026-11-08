@@ -13,7 +13,9 @@ import { useOptionalTemplateStores } from '../app/template-store-context'
 import { gamesHolding, useListedGames } from '../game/useGameEditor'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
 import type { JoinedGame } from '../game/joined-store'
-import { gameDisplayName } from '../game/model'
+import { createGame, gameDisplayName } from '../game/model'
+import { presetCounts } from '../rules/trackers'
+import { useSettings } from '../settings/context'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { useTick } from '../play/useTick'
@@ -92,6 +94,7 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
   // The items in the open Send dialog.
   const [sending, setSending] = useState<LibraryItem[] | null>(null)
   const canSend = useSession().send !== undefined
+  const settings = useSettings()
 
   const items = useMemo(() => [...(ready?.items.values() ?? [])], [ready])
   const tags = useMemo(() => allTags(items.map((i) => i.doc)), [items])
@@ -169,6 +172,13 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     void run(`start a new ${type.label.toLowerCase()}`, async () => {
       const path = await type.create!({ stores, newHeroes })
       navigate(path)
+    })
+  // The first-run card's Run a game: Games › New game, with this device's defaults.
+  const startGame = () =>
+    void run('start a new game', async () => {
+      const game = createGame({ tracker: presetCounts(settings.settings.newGame.trackerPreset) })
+      await games.save(game)
+      navigate(gamePath(game.id))
     })
   const saveSearch = async (name: string): Promise<string | undefined> => {
     const checked = checkSearchName(name, searches)
@@ -272,6 +282,10 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     duplicate,
     askDelete: (keys: string[]) => setPendingDelete({ keys }),
     create,
+    startGame,
+    /** The empty library's "New to SCRPG Aid?" card (scrpg-aid-designs/help/spec.md, section 4), until dismissed. */
+    firstRun: settings.loaded !== false && !settings.settings.firstRunDismissed,
+    dismissFirstRun: () => settings.update((s) => ({ ...s, firstRunDismissed: true })),
     addExample: start.addExample,
     saveSearch,
     renameSearch,

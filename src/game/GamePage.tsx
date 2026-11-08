@@ -19,6 +19,7 @@ import { useMediaQuery } from '../components/useMediaQuery'
 import { buildSheet } from '../creation/sheet'
 import type { Lookup } from '../editor/useDocumentEditor'
 import { heroDisplayName, isDraft, newId, type Hero } from '../hero/model'
+import { HelpMenu } from '../help/HelpMenu'
 import { PopoverGroup, type MenuItem } from '../library/Popover'
 import type { LibraryItem } from '../library/registry'
 import { formatAgoInline } from '../library/when'
@@ -614,6 +615,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
               </button>
             </>
           )}
+          <HelpMenu newTab compact={phone} />
         </header>
         {hostError && !host && (
           <p role="alert" className="error gt-save-error">

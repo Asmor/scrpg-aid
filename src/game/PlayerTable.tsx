@@ -26,6 +26,7 @@ import { Toasts, type ToastData } from '../components/Toasts'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { buildSheet } from '../creation/sheet'
 import { heroDisplayName, isDraft, newId, type Hero } from '../hero/model'
+import { HelpMenu } from '../help/HelpMenu'
 import { PopoverGroup, type MenuItem } from '../library/Popover'
 import { useTick } from '../play/useTick'
 import type { Notice } from '../session/client'
@@ -542,6 +543,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
               {table && <p className="gt-sub gt-header__line">{paused ? finishedPill(table.issues) : [table.round > 0 ? `Round ${table.round}` : 'Not started', sceneDisplayName(table)].join(' · ')}</p>}
             </div>
             {table && <ZoneChip zone={sceneZone(table)} label={`SCENE ${sceneZone(table).toUpperCase()}`} />}
+            <HelpMenu newTab compact />
           </header>
         ) : (
           <header className="app-header gt-header">
@@ -552,6 +554,8 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
             <span className="gt-pill">Playing as {heroName}</span>
             {table && <span className="gt-sub">{table.heroes.filter((h) => h.player).length === 1 ? '1 player' : `${table.heroes.filter((h) => h.player).length} players`}</span>}
             {received && <span className="gt-sub">GM: {received.gm}</span>}
+            <span className="gt-grow" />
+            <HelpMenu newTab />
           </header>
         )}
         <p className="visually-hidden" role="status" aria-live="polite">

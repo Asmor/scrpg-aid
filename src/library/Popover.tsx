@@ -98,6 +98,10 @@ export interface MenuItem {
   danger?: boolean
   /** A link instead of an action. */
   href?: string
+  /** The link opens in a new tab. */
+  newTab?: true
+  /** A key that does the same, shown as a key cap after the label. */
+  shortcut?: string
   /** One of a set of radio choices (role menuitemradio), checked or not. */
   checked?: boolean
   /** A line of information above the menu's items, not an action ("Library sheet changed 2 days ago"). */
@@ -139,8 +143,22 @@ export function PopoverMenu({ popover, label, items, className, header }: { popo
       <div role="menu" aria-label={label} onKeyDown={moveFocus}>
         {items.filter((item) => !item.note).map((item) =>
           item.href ? (
-            <a key={item.label} role="menuitem" tabIndex={-1} className={item.danger ? 'menu-item menu-item--danger' : 'menu-item'} href={item.href} onClick={() => popover.setOpen(false)}>
+            <a
+              key={item.label}
+              role="menuitem"
+              tabIndex={-1}
+              className={item.danger ? 'menu-item menu-item--danger' : 'menu-item'}
+              href={item.href}
+              {...(item.newTab ? { target: '_blank', rel: 'noopener' } : {})}
+              onClick={() => popover.setOpen(false)}
+            >
               {item.label}
+              {item.newTab && (
+                <>
+                  {' '}
+                  <span className="visually-hidden">(opens in a new tab)</span>
+                </>
+              )}
             </a>
           ) : (
             <button
@@ -157,6 +175,11 @@ export function PopoverMenu({ popover, label, items, className, header }: { popo
             >
               {item.checked !== undefined && <span className={item.checked ? 'menu-radio menu-radio--on' : 'menu-radio'} aria-hidden="true" />}
               {item.label}
+              {item.shortcut && (
+                <kbd className="menu-item__key" aria-hidden="true">
+                  {item.shortcut}
+                </kbd>
+              )}
             </button>
           ),
         )}

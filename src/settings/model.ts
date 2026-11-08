@@ -12,6 +12,8 @@ export interface Settings {
   textSize: 'normal' | 'large' | 'larger'
   motion: 'system' | 'reduce' | 'allow'
   newGame: { trackerPreset: 'standard' | 'prolonged' | 'epic'; startHidden: boolean; playersSee: PlayersSee }
+  /** The empty library's "New to SCRPG Aid?" card was dismissed (scrpg-aid-designs/help/spec.md, section 4). */
+  firstRunDismissed: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -21,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   textSize: 'normal',
   motion: 'system',
   newGame: { trackerPreset: 'standard', startHidden: true, playersSee: 'status' },
+  firstRunDismissed: false,
 }
 
 export const SETTINGS_FORMAT = 'scrpg-settings'
@@ -64,5 +67,6 @@ export function parseSettings(value: unknown): Settings {
       startHidden: flag(newGame.startHidden, d.newGame.startHidden),
       playersSee: choice(newGame.playersSee, ['name', 'status', 'health'], d.newGame.playersSee),
     },
+    firstRunDismissed: flag(saved.firstRunDismissed, d.firstRunDismissed),
   }
 }

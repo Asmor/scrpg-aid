@@ -3,7 +3,6 @@
  * credits, the Greater Than Games disclaimer, and plain links to the issues page and the repo.
  * Nothing here sends data anywhere, and the links carry nothing from the user's library.
  */
-import { useState } from 'react'
 import { appVersion, buildTime, versionLine } from '../app/build-info'
 import { Modal } from './Modal'
 
@@ -39,26 +38,5 @@ export function AboutDialog({ onClose, version = appVersion, built = buildTime }
         </div>
       </div>
     </Modal>
-  )
-}
-
-/** The header's quiet About button, with its dialog. */
-export function AboutButton() {
-  const [open, setOpen] = useState(false)
-  return (
-    <>
-      <button
-        type="button"
-        className="button button--quiet"
-        onClick={(e) => {
-          // Safari and Firefox on a Mac don't focus a clicked button, and the dialog gives focus back to whatever had it.
-          e.currentTarget.focus()
-          setOpen(true)
-        }}
-      >
-        About
-      </button>
-      {open && <AboutDialog onClose={() => setOpen(false)} />}
-    </>
   )
 }

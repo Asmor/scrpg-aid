@@ -30,7 +30,9 @@ import { TemplateEditor } from './template/TemplateEditor'
 import { SessionProvider } from './session/SessionProvider'
 import type { Connect } from './session/transport'
 import type { SessionStore } from './session/storage'
-import { AboutButton } from './components/About'
+import { HelpMenu } from './help/HelpMenu'
+import { HelpPage } from './help/HelpPage'
+import { HelpProvider } from './help/HelpProvider'
 import { ThemeToggle } from './components/ThemeToggle'
 import { createDefaultStore, type HeroStore } from './hero/store'
 import { useTheme } from './theme/useTheme'
@@ -73,6 +75,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
       <SavedSearchStoreContext.Provider value={searchStore}>
       <TemplateStoresContext.Provider value={templateStores}>
       <SessionProvider {...(connect ? { connect } : {})} {...(sessionStore ? { store: sessionStore } : {})}>
+      <HelpProvider>
       {/* The library (the home screen), the Games page and the game table have their own header bars and layouts. */}
       {route.name === 'list' ? (
         <div className="app">
@@ -107,10 +110,10 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
           <span className="app-header__actions">
             <ThemeToggle value={theme} onChange={setTheme} />
             <SettingsLink />
-            <AboutButton />
+            <HelpMenu />
           </span>
         </header>
-        <main className={route.name === 'edit' || route.name === 'villainEdit' ? 'app-main app-main--wide' : 'app-main'}>
+        <main className={route.name === 'edit' || route.name === 'villainEdit' || route.name === 'help' ? 'app-main app-main--wide' : 'app-main'}>
           {route.name === 'villain' && <VillainPage key={route.id} id={route.id} />}
           {route.name === 'villainPlay' && <VillainPlayPage key={route.id} id={route.id} />}
           {route.name === 'villainEdit' && <VillainWizard key={route.id} id={route.id} step={route.step} />}
@@ -123,6 +126,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
           {route.name === 'receive' && <ReceivePage key={route.code ?? ''} code={route.code} />}
           {route.name === 'template' && <TemplateEditor key={`${route.kind}:${route.id}`} kind={route.kind} id={route.id} />}
           {route.name === 'settings' && <SettingsPage {...(backupTime ? { backupTime } : {})} />}
+          {route.name === 'help' && <HelpPage {...(route.topic ? { topic: route.topic } : {})} {...(route.section ? { section: route.section } : {})} />}
           {route.name === 'notFound' && (
             <p role="alert">
               That page doesn't exist. <a href={listPath}>Go to your library</a>.
@@ -131,6 +135,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
         </main>
       </div>
       )}
+      </HelpProvider>
       </SessionProvider>
       </TemplateStoresContext.Provider>
       </SavedSearchStoreContext.Provider>

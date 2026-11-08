@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { advancementPath, editPath, gamePath, gamesPath, partPath, heroPath, joinPath, joinUrl, parseRoute, receivePath, watchPath, watchUrl, gameDisplayPath, playPath, tablePath, villainEditPath, villainPath, villainPlayPath, newVillainPath } from './route'
+import { advancementPath, helpPath, editPath, gamePath, gamesPath, partPath, heroPath, joinPath, joinUrl, parseRoute, receivePath, watchPath, watchUrl, gameDisplayPath, playPath, tablePath, villainEditPath, villainPath, villainPlayPath, newVillainPath } from './route'
 
 describe('the settings route', () => {
   it('reads it', () => {
     expect(parseRoute('#/settings')).toEqual({ name: 'settings' })
+  })
+})
+
+describe('the help routes', () => {
+  it('reads the page, a topic and a section, and makes their paths', () => {
+    expect(parseRoute('#/help')).toEqual({ name: 'help' })
+    expect(parseRoute('#/help/running-a-game')).toEqual({ name: 'help', topic: 'running-a-game' })
+    expect(parseRoute('#/help/running-a-game/status-die')).toEqual({ name: 'help', topic: 'running-a-game', section: 'status-die' })
+    expect(parseRoute('#/help/a/b/c')).toEqual({ name: 'notFound' })
+    expect(parseRoute('#/help/%E0%A4%A')).toEqual({ name: 'notFound' })
+    expect(helpPath()).toBe('#/help')
+    expect(helpPath('glossary')).toBe('#/help/glossary')
+    expect(helpPath('running-a-game', 'status-die')).toBe('#/help/running-a-game/status-die')
+    expect(parseRoute(helpPath('running-a-game', 'status-die'))).toEqual({ name: 'help', topic: 'running-a-game', section: 'status-die' })
   })
 })
 

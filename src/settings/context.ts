@@ -10,6 +10,8 @@ export interface SettingsValue {
   update: (change: (settings: Settings) => Settings) => void
   /** Why the last change couldn't be saved. */
   saveError?: string
+  /** False until the saved settings have been read (unset without a provider: the defaults are all there is). */
+  loaded?: boolean
 }
 
 export const SettingsContext = createContext<SettingsValue>({ settings: DEFAULT_SETTINGS, update: () => {} })

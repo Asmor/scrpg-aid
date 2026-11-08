@@ -71,19 +71,24 @@ describe('the library on a phone', () => {
     expect(screen.getByRole('button', { name: /^Menu: color scheme/ })).toBeInTheDocument()
   })
 
-  it('opens About from the header menu, with Settings, and focus back on the menu afterwards', async () => {
+  it('opens About from the header menu, with Settings and Help, and focus back on the menu afterwards', async () => {
     await setup()
-    const menu = screen.getByRole('button', { name: /^Menu: color scheme, settings, about/ })
+    const menu = screen.getByRole('button', { name: /^Menu: color scheme, settings, help/ })
     await userEvent.click(menu)
     const sheet = within(screen.getByRole('dialog', { name: 'Menu' }))
     expect(sheet.queryByRole('menuitem', { name: 'Back up everything' })).not.toBeInTheDocument()
+    expect(sheet.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Settings', 'Help topics', 'Keyboard shortcuts', 'About SCRPG Aid'])
     expect(sheet.getByRole('menuitem', { name: 'Settings' })).toHaveAttribute('href', '#/settings')
-    await userEvent.click(sheet.getByRole('menuitem', { name: 'About' }))
+    expect(sheet.getByRole('menuitem', { name: 'Help topics' })).toHaveAttribute('href', '#/help')
+    await userEvent.click(sheet.getByRole('menuitem', { name: 'About SCRPG Aid' }))
     expect(screen.queryByRole('dialog', { name: 'Menu' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'About SCRPG Aid' })).toHaveFocus()
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(menu).toHaveFocus()
+    await userEvent.click(menu)
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Menu' })).getByRole('menuitem', { name: 'Keyboard shortcuts' }))
+    expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument()
   })
 
   it('picks a view from the view sheet', async () => {

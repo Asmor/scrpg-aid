@@ -1,13 +1,15 @@
 /**
  * The library's header bar (scrpg-aid-designs/library/spec.md, "Page layout"): the app's name, the
  * Library | Games section tabs, Play together (host, join, or the game you're in), the color scheme
- * switch, Settings (which holds backups and importing, and carries the backup reminder) and About.
- * On phones, those last three share one menu, and the section tabs sit under the bar. The Games
+ * switch, Settings (which holds backups and importing, and carries the backup reminder) and Help
+ * (scrpg-aid-designs/help/spec.md, section 1). On phones, those last three share one menu, and the section tabs sit under the bar. The Games
  * page shares the header.
  */
 import { gamePath, gamesPath, joinPath, listPath, receivePath, settingsPath, tablePath, watchPath } from '../app/route'
 import { useState } from 'react'
-import { AboutButton, AboutDialog } from '../components/About'
+import { AboutDialog } from '../components/About'
+import { helpItems, useHelp } from '../help/help-context'
+import { HelpMenu } from '../help/HelpMenu'
 import { SettingsLink } from '../settings/SettingsLink'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { useHostSnapshot, useSession } from '../session/context'
@@ -167,11 +169,12 @@ function ReceiveOption() {
   )
 }
 
-/** The phone's header menu: the color scheme, then Settings and About. */
+/** The phone's header menu: the color scheme, then Settings and Help's three items. */
 export function PhoneMenu({ remind = false, theme, setTheme }: { remind?: boolean; theme: ThemePreference; setTheme: (t: ThemePreference) => void }) {
   const [popover, bindPopover] = usePopover()
   const [about, setAbout] = useState(false)
-  const label = `Menu: color scheme, settings, about${remind ? '. Backup reminder' : ''}`
+  const { openShortcuts } = useHelp()
+  const label = `Menu: color scheme, settings, help${remind ? '. Backup reminder' : ''}`
   return (
     <span className="popover-anchor">
       <button ref={bindPopover} type="button" className="icon-button" aria-label={label} aria-haspopup="dialog" aria-expanded={popover.open} onClick={popover.toggle}>
@@ -182,22 +185,31 @@ export function PhoneMenu({ remind = false, theme, setTheme }: { remind?: boolea
         <PopoverDialog popover={popover} label="Menu" className="popover--sheet">
           <ThemeToggle value={theme} onChange={setTheme} />
           <hr className="popover__divider" />
-          <div role="menu" aria-label="About" className="popover__menu">
+          <div role="menu" aria-label="Settings and help" className="popover__menu">
             <a role="menuitem" className="menu-item" href={settingsPath} onClick={popover.close}>
               Settings
             </a>
-            <button
-              type="button"
-              role="menuitem"
-              className="menu-item"
-              onClick={() => {
-                // Focus goes back to the menu button first, so it returns there when About closes.
-                popover.close()
-                setAbout(true)
-              }}
-            >
-              About
-            </button>
+            {helpItems({ newTab: false, openShortcuts, openAbout: () => setAbout(true) }).map((item) =>
+              item.href ? (
+                <a key={item.label} role="menuitem" className="menu-item" href={item.href} onClick={popover.close}>
+                  {item.label}
+                </a>
+              ) : (
+                <button
+                  key={item.label}
+                  type="button"
+                  role="menuitem"
+                  className="menu-item"
+                  onClick={() => {
+                    // Focus goes back to the menu button first, so it returns there when the dialog closes.
+                    popover.close()
+                    item.onSelect()
+                  }}
+                >
+                  {item.label}
+                </button>
+              ),
+            )}
           </div>
         </PopoverDialog>
       )}
@@ -254,7 +266,7 @@ export function LibraryHeader({ phone, theme, setTheme, remind = false, heroName
             <>
               <ThemeToggle value={theme} onChange={setTheme} />
               <SettingsLink remind={remind} />
-              <AboutButton />
+              <HelpMenu />
             </>
           )}
         </span>

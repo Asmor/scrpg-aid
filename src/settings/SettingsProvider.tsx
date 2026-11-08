@@ -7,16 +7,18 @@ import type { SettingsStore } from './store'
 export function SettingsProvider({ store, roomScale = false, children }: { store: SettingsStore; /** The display view keeps its own size. */ roomScale?: boolean; children: ReactNode }) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [saveError, setSaveError] = useState<string | undefined>()
+  const [loaded, setLoaded] = useState(false)
   const latest = useRef(settings)
   useEffect(() => {
     let live = true
     store.load().then(
-      (loaded) => {
+      (saved) => {
         if (!live) return
-        latest.current = loaded
-        setSettings(loaded)
+        latest.current = saved
+        setSettings(saved)
+        setLoaded(true)
       },
-      () => {},
+      () => live && setLoaded(true),
     )
     return () => {
       live = false
@@ -37,6 +39,6 @@ export function SettingsProvider({ store, roomScale = false, children }: { store
     },
     [store],
   )
-  const value = useMemo<SettingsValue>(() => ({ settings, update, ...(saveError ? { saveError } : {}) }), [settings, update, saveError])
+  const value = useMemo<SettingsValue>(() => ({ settings, update, loaded, ...(saveError ? { saveError } : {}) }), [settings, update, loaded, saveError])
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>
 }

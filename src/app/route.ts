@@ -11,7 +11,9 @@
  * template's editor, and
  * "#/villain/<id>" a villain's sheet ("#/villain/<id>/edit" its edit summary, "#/villain/<id>/edit/<step>"
  * a step of its wizard, "#/villain/new" a new villain's wizard), "#/games" the Games
- * page, "#/settings" the Settings page, "#/game/<id>" a game's table, and "#/game/<id>/display" its display view.
+ * page, "#/settings" the Settings page, "#/help" the Help page ("#/help/<topic>" one topic,
+ * "#/help/<topic>/<section>" scrolled to one section), "#/game/<id>" a game's table, and
+ * "#/game/<id>/display" its display view.
  */
 import { useEffect, useState } from 'react'
 import type { TemplateKindName } from '../template/model'
@@ -29,6 +31,8 @@ export type Route =
   | { name: 'gameDisplay'; id: string }
   | { name: 'games' }
   | { name: 'settings' }
+  /** The Help page (scrpg-aid-designs/help/spec.md, section 1): a topic, and a section of it. */
+  | { name: 'help'; topic?: string; section?: string }
   | { name: 'table'; room: string }
   /** Watching a hosted game on a TV or second screen; no code yet asks for one. */
   | { name: 'watch'; room?: string }
@@ -46,6 +50,16 @@ export function parseRoute(hash: string): Route {
   if (path === '/gm') return { name: 'games' }
   if (path === '/games') return { name: 'games' }
   if (path === '/settings') return { name: 'settings' }
+  const help = /^\/help(?:\/([^/]+)(?:\/([^/]+))?)?$/.exec(path)
+  if (help) {
+    try {
+      const topic = help[1] && decodeURIComponent(help[1])
+      const section = help[2] && decodeURIComponent(help[2])
+      return { name: 'help', ...(topic ? { topic } : {}), ...(section ? { section } : {}) }
+    } catch {
+      return { name: 'notFound' }
+    }
+  }
   const game = /^\/game\/([^/]+)(\/display)?$/.exec(path)
   if (game) {
     try {
@@ -173,6 +187,17 @@ export function villainEditPath(id: string, step?: string): string {
 /** The Games page (scrpg-aid-designs/game-table/spec.md, section 3). */
 export const gamesPath = '#/games'
 export const settingsPath = '#/settings'
+
+/** The Help page, a topic on it, or one of the topic's sections. */
+export function helpPath(topic?: string, section?: string): string {
+  if (!topic) return '#/help'
+  return `#/help/${encodeURIComponent(topic)}${section ? `/${encodeURIComponent(section)}` : ''}`
+}
+
+/** The full link to a help page, for opening it in a new tab from the game table. */
+export function helpUrl(topic?: string, section?: string): string {
+  return `${window.location.origin}${window.location.pathname}${helpPath(topic, section)}`
+}
 
 export function gamePath(id: string): string {
   return `#/game/${encodeURIComponent(id)}`
