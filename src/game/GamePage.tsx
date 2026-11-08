@@ -12,6 +12,7 @@ import { useVillainStore } from '../app/villain-store-context'
 import { RenameHeading } from '../components/RenameHeading'
 import { gmAlerts, gmWatch } from '../settings/alerts'
 import { useAlerts } from '../settings/useAlerts'
+import { ReferenceSheetDialog } from '../reference/ReferenceSheetDialog'
 import { Modal } from '../components/Modal'
 import { useSettings } from '../settings/context'
 import { Toasts, type ToastData } from '../components/Toasts'
@@ -43,7 +44,7 @@ import { finishedPill } from './summary'
 import { healthLine, reconcile, reconcileVillain } from './reconcile'
 import { SceneEditor, type EditorTarget } from './SceneEditor'
 import type { SceneDraft } from './scenes'
-import { addAsideTo, deleteScene, duplicateScene, moveScene, moveToTable, removeAside, saveCurrentScene, savePlannedScene, setAside, setSceneRecord, startScene, waitingNote } from './scenes'
+import { addAsideTo, deleteScene, duplicateScene, moveScene, moveToTable, removeAside, saveCurrentScene, savePlannedScene, setAside, setSceneRecord, setSheetLayout, startScene, waitingNote } from './scenes'
 import { StartSceneDialog } from './StartSceneDialog'
 import { sheetDiff, type DiffSection } from './sheet-diff'
 import { ColorPicker, SingleColorPicker } from '../colors/ColorPicker'
@@ -79,6 +80,7 @@ type Dialog =
   | { kind: 'finishIssue' }
   | { kind: 'issueText'; issueId: string; field: 'title' | 'summary' }
   | { kind: 'sceneRecord'; sceneId: string }
+  | { kind: 'referenceSheet'; sceneId: string }
   | { kind: 'sceneDelete'; sceneId: string; number: number }
   | { kind: 'asideRemove'; ref: OppositionRef; name: string }
   | { kind: 'heroHealth' | 'heroMod' | 'heroTwist' | 'heroRemove'; hero: HeroView }
@@ -336,6 +338,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     sceneMenu: [
       ...(env ? [{ label: 'Environment color…', onSelect: () => setDialog({ kind: 'color', ref: { kind: 'environment', id: env.id } }) }] : []),
       { label: 'Edit this scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'current' } }) },
+      ...(between ? [] : [{ label: 'Reference sheet…', onSelect: () => setDialog({ kind: 'referenceSheet', sceneId: game.currentSceneId }) }]),
       nextScene ? { label: `Start the next scene: ${sceneName(nextScene)}…`, onSelect: () => setDialog({ kind: 'sceneStart', sceneId: nextScene.id }) } : { label: 'Plan the next scene…', onSelect: () => setDialog({ kind: 'scene', target: { kind: 'new' } }) },
       { label: 'Finish the issue…', onSelect: () => setDialog({ kind: 'finishIssue' }) },
       {
@@ -548,6 +551,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         duplicate: (sceneId) => apply((g) => duplicateScene(g, sceneId, clock())),
         remove: (sceneId) => setDialog({ kind: 'sceneDelete', sceneId, number: sceneNumber(game, sceneId) }),
         record: (sceneId) => setDialog({ kind: 'sceneRecord', sceneId }),
+        referenceSheet: (sceneId) => setDialog({ kind: 'referenceSheet', sceneId }),
         addAside: (ref, sceneId) => apply((g) => addAsideTo(g, ref, sceneId, clock())),
         removeAside: (chip) => setDialog({ kind: 'asideRemove', ref: chip.ref, name: chip.name }),
         finish: () => setDialog({ kind: 'finishIssue' }),
@@ -797,6 +801,14 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           )
         })()}
       {startReview && reviewDialog(startReview, () => setStartReview(null))}
+      {dialog?.kind === 'referenceSheet' && game.scenes.some((s) => s.id === dialog.sceneId) && (
+        <ReferenceSheetDialog
+          source={{ kind: 'scene', game, sceneId: dialog.sceneId }}
+          savedLayout={game.scenes.find((s) => s.id === dialog.sceneId)?.sheetLayout}
+          onSaveLayout={(layout) => apply((g) => setSheetLayout(g, dialog.sceneId, layout))}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog?.kind === 'sceneRecord' &&
         (() => {
           const scene = game.scenes.find((s) => s.id === dialog.sceneId)

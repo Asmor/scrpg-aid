@@ -5,7 +5,7 @@ import type { Game } from './model'
 import { gameProblem } from './validate'
 
 export const GAME_FORMAT = 'scrpg-game'
-export const GAME_VERSION = 7
+export const GAME_VERSION = 8
 
 export interface SavedGame {
   format: typeof GAME_FORMAT

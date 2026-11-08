@@ -20,6 +20,7 @@ import type { Villain } from '../villain/model'
 import { emptyPlay } from '../play/state'
 import { createGame, createScene, currentScene, heroCopy, villainCopy, type Game } from './model'
 import { MemoryGameStore } from './store'
+import { addGroup } from './table'
 
 let n = 0
 const clock = () => ({ now: new Date(), newId: () => `id${++n}` })
@@ -1111,5 +1112,43 @@ describe('the issue dialogs on a phone', () => {
     const confirm = screen.getByRole('dialog', { name: '3 hero points will be lost' })
     expect(confirm).toHaveClass('modal--sheet')
     expect(within(confirm).getAllByRole('button').filter((b) => b.textContent !== 'Close').map((b) => b.textContent)).toEqual(['Start anyway', 'Wait for them'])
+  })
+})
+
+describe('the reference sheet from a scene', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('exports the current scene from the scene menu, and keeps its arrangement for next time', async () => {
+    const { saved } = await setup((g) => {
+      const withGroups = addGroup(addGroup(g, { kind: 'minions', name: 'Burglars', die: 'd6', count: 2, hidden: false }, clock()), { kind: 'minions', name: 'Arsonists', die: 'd8', count: 3, hidden: true }, clock())
+      Object.assign(g, withGroups)
+      g.scenes[0]!.name = 'The Foundry'
+      g.scenes[0]!.notes = 'Keep the lights low.'
+    })
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    await menuItem('Scene menu', 'Reference sheet…')
+    const dialog = within(screen.getByRole('dialog', { name: 'Reference sheet' }))
+    expect(within(dialog.getByRole('list', { name: 'Cards' })).getAllByRole('listitem').map((li) => li.querySelector('strong')!.textContent)).toEqual(['Arsonists', 'Burglars'])
+    expect(within(dialog.getByRole('list', { name: 'Cards' })).getByText('Hidden')).toBeInTheDocument()
+    expect(dialog.getByRole('checkbox', { name: /Add the heroes/ })).not.toBeChecked()
+    expect(dialog.getByRole('checkbox', { name: /Include scene notes/ })).toBeChecked()
+    expect(dialog.queryByRole('group', { name: 'Where cards go' })).not.toBeInTheDocument()
+    expect(dialog.getByText('Saved as Thursday game - Scene 1 - The Foundry.pdf')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Next: Arrange' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'More actions for Burglars' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Move to top' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Export' }))
+    // The scene page comes first in the print.
+    await waitFor(() => expect(document.querySelector('.ref-print .ref-scene h1')).toHaveTextContent('The Foundry'))
+    expect(document.querySelector('.ref-print .ref-scene')).toHaveTextContent('Keep the lights low.')
+    window.dispatchEvent(new Event('afterprint'))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Reference sheet' })).not.toBeInTheDocument())
+    await waitFor(async () => expect(currentScene(await saved()).sheetLayout?.cards).toHaveLength(2))
+    const [first] = currentScene(await saved()).sheetLayout!.cards
+    expect((await saved()).groups.find((g) => g.id === first!.ref.id)?.name).toBe('Burglars')
+
+    await menuItem('Scene menu', 'Reference sheet…')
+    await userEvent.click(screen.getByRole('button', { name: 'Next: Arrange' }))
+    expect([...document.querySelectorAll('.ref-arrange__board .ref-card')].map((c) => c.getAttribute('aria-label'))).toEqual(['Burglars', 'Arsonists'])
   })
 })

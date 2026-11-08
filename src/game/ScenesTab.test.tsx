@@ -49,6 +49,24 @@ describe('the Scenes tab on a phone', () => {
   })
 })
 
+describe('Reference sheet… in the Scenes tab', () => {
+  it('is in the current and planned scenes\' menus, not a done one\'s', async () => {
+    const referenceSheet = vi.fn()
+    const actions: SceneActions = { start: vi.fn(), edit: vi.fn(), plan: vi.fn(), move: vi.fn(), duplicate: vi.fn(), remove: vi.fn(), record: vi.fn(), addAside: vi.fn(), removeAside: vi.fn(), referenceSheet }
+    render(
+      <PopoverGroup>
+        <ScenesTab game={game()} actions={actions} sheets={false} />
+      </PopoverGroup>,
+    )
+    expect(await items('Foundry')).toEqual(['Reference sheet…', 'Duplicate', 'Delete…'])
+    expect(await items('Unnamed scene')).toEqual(['Reference sheet…'])
+    expect(screen.queryByRole('button', { name: 'More for Bank job' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'More for Throne' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Reference sheet…' }))
+    expect(referenceSheet).toHaveBeenCalledWith('b')
+  })
+})
+
 describe('the Scenes tab', () => {
   it('marks rows and offers the handle on planned scenes only, on a desktop', async () => {
     const actions = setup(false)

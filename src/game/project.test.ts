@@ -42,6 +42,8 @@ const hiddenIds = (g: Game) => [...g.villains.filter((v) => v.hidden), ...g.grou
 describe('project', () => {
   it('leaves out every hidden item, notes, sync requests, GM-only lines and client ids for players and observers', () => {
     const game = secretive()
+    // A scene's reference sheet arrangement is the GM's alone.
+    game.scenes = game.scenes.map((s) => ({ ...s, sheetLayout: { pages: [], cards: [{ ref: { kind: 'group', id: 'layout-secret' } }], omitted: [] } }))
     expect(hiddenIds(game)).toHaveLength(4)
     for (const audience of ['player', 'observer'] as const) {
       const view = project(game, audience)
@@ -50,6 +52,7 @@ describe('project', () => {
       expect(json).not.toContain('Shadow')
       expect(json).not.toContain('Rust Hound')
       expect(json).not.toContain('secret-client')
+      expect(json).not.toContain('layout-secret')
       expect(view).not.toHaveProperty('notes')
       expect(view).not.toHaveProperty('pendingSyncs')
       expect(view.feed.some((e) => e.gmOnly)).toBe(false)

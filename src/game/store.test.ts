@@ -41,6 +41,11 @@ describe('the saved game format', () => {
     expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, scenes: [{ ...scene, tracker: { green: 0, yellow: 0, red: 0 } }] } })).toEqual({ ok: false, error: `scene ${scene.id} has box counts out of range` })
     expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, scenes: [{ ...scene, position: 8 }] } })).toEqual({ ok: false, error: `scene ${scene.id}'s position is past the last box` })
     expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, scenes: [{ ...scene, state: 'done' }] } }).ok).toBe(false)
+    // A scene's reference sheet arrangement is checked too.
+    const layout = { pages: [{ kind: 'villain', id: 'v' }], cards: [{ ref: { kind: 'group', id: 'g1' }, breakBefore: 'page' }], omitted: [] }
+    expect(parseSavedGame(JSON.parse(JSON.stringify({ ...gameToSaved(g), game: { ...g, scenes: [{ ...scene, sheetLayout: layout }] } }))).ok).toBe(true)
+    expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, scenes: [{ ...scene, sheetLayout: { ...layout, cards: [{ ref: { kind: 'group', id: 'g1' }, breakBefore: 'row' }] } }] } }).ok).toBe(false)
+    expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, scenes: [{ ...scene, sheetLayout: { ...layout, pages: [{ kind: 'scene', id: 'x' }] } }] } }).ok).toBe(false)
     expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, currentSceneId: 'other' } }).ok).toBe(false)
     expect(parseSavedGame({ ...gameToSaved(g), game: { ...g, scenes: [scene, { ...scene, state: 'planned' }] } })).toEqual({ ok: false, error: 'game.scenes has two scenes with one id' })
     // A copy must hold a whole sheet and well-formed play state.

@@ -8,6 +8,7 @@
  */
 import { countsText, DEFAULT_TRACKER, trackerName, type TrackerCounts } from '../rules/trackers'
 import { MAX_NAME } from '../session/protocol'
+import type { SheetArrangement } from '../reference/model'
 import type { Clock } from '../play/state'
 import { villainDisplayName, type Villain } from '../villain/model'
 import { villainSummary } from '../villain/play'
@@ -392,7 +393,9 @@ export function duplicateScene(game: Game, sceneId: string, clock: Clock): Game 
     }
     return [row]
   })
-  const copy: Scene = { ...scene, id: clock.newId(), name: `${sceneName(scene)} (copy)`.slice(0, MAX_NAME), opposition }
+  // The copy's groups and challenges have new ids, so the reference sheet's arrangement starts afresh.
+  const { sheetLayout: _layout, ...rest } = scene
+  const copy: Scene = { ...rest, id: clock.newId(), name: `${sceneName(scene)} (copy)`.slice(0, MAX_NAME), opposition }
   return { ...withCopies(game, copies), scenes: [...game.scenes.slice(0, index + 1), copy, ...game.scenes.slice(index + 1)] }
 }
 
@@ -401,6 +404,12 @@ export function deleteScene(game: Game, sceneId: string): Game {
   const scene = game.scenes.find((s) => s.id === sceneId)
   if (!scene || scene.state !== 'planned') return game
   return gcOffTable({ ...game, scenes: game.scenes.filter((s) => s.id !== sceneId) })
+}
+
+/** Keeps a scene's reference sheet arrangement for its next export (scrpg-aid-designs/reference-sheets/spec.md, section 5). */
+export function setSheetLayout(game: Game, sceneId: string, layout: SheetArrangement): Game {
+  if (!game.scenes.some((s) => s.id === sceneId)) return game
+  return { ...game, scenes: game.scenes.map((s) => (s.id === sceneId ? { ...s, sheetLayout: structuredClone(layout) } : s)) }
 }
 
 /** A done scene's summary and notes, the only things about it that still change. */

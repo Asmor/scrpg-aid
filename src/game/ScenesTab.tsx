@@ -24,6 +24,8 @@ export interface SceneActions {
   remove: (sceneId: string) => void
   /** A done scene's summary and notes. */
   record: (sceneId: string) => void
+  /** Reference sheet… for the current or a planned scene (scrpg-aid-designs/reference-sheets/spec.md, section 2). */
+  referenceSheet?: (sceneId: string) => void
   addAside: (ref: OppositionRef, sceneId: string) => void
   removeAside: (chip: AsideChip) => void
   /** The Finish dialog, for the current issue. */
@@ -66,7 +68,9 @@ function SceneRow({ game, scene, next, actions, sheets, lifted, onHandleKey, onD
   const chips = sceneChips(game, scene)
   const planned = scene.state === 'planned'
   const first = game.scenes.findIndex((s) => s.state === 'planned')
+  const sheet: MenuItem[] = actions.referenceSheet && scene.state !== 'done' ? [{ label: 'Reference sheet…', onSelect: () => actions.referenceSheet?.(scene.id) }] : []
   const more: MenuItem[] = [
+    ...sheet,
     ...(sheets && index > first ? [{ label: 'Move up', onSelect: () => actions.move(scene.id, index - 1) }] : []),
     ...(sheets && index < game.scenes.length - 1 ? [{ label: 'Move down', onSelect: () => actions.move(scene.id, index + 1) }] : []),
     { label: 'Duplicate', onSelect: () => actions.duplicate(scene.id) },
@@ -118,11 +122,18 @@ function SceneRow({ game, scene, next, actions, sheets, lifted, onHandleKey, onD
             Start this scene…
           </button>
         )}
-        {planned && (
+        {planned ? (
           <>
             <span className="gt-grow" />
             <MenuButton label={`More for ${name}`} items={more} sheets={sheets} />
           </>
+        ) : (
+          sheet.length > 0 && (
+            <>
+              <span className="gt-grow" />
+              <MenuButton label={`More for ${name}`} items={sheet} sheets={sheets} />
+            </>
+          )
         )}
       </div>
     </article>

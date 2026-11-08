@@ -37,6 +37,7 @@ import type { BasicAction, Die, Zone } from '../rules/types'
 import type { Villain, VillainPlayState } from '../villain/model'
 import type { EnvironmentAspect, EnvironmentTwist, TemplateAbility } from '../template/model'
 import { emptyVillainPlay } from '../villain/play'
+import type { SheetArrangement } from '../reference/model'
 
 /** Anything with a turn-order entry. Ids are ids within the game: a hero's or villain's copy, a group, or the environment. */
 export interface ActorRef {
@@ -266,6 +267,8 @@ export interface Scene {
   summary?: string
   /** The issue it was played in. A planned scene has none: it belongs to whichever issue is played next. */
   issueId?: string
+  /** Its reference sheet's arrangement, from the last export (scrpg-aid-designs/reference-sheets/spec.md, section 5). The GM's only: never projected. */
+  sheetLayout?: SheetArrangement
 }
 
 /** A hero offered a back issue when an issue finished. `sourceId` is how a player finds their own. */

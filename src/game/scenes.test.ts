@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { tableViewProblem } from '../session/protocol'
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
-import { createGame, currentScene, emptyOffTable, sceneOnTable, type Game } from './model'
+import { createGame, createScene, currentScene, emptyOffTable, sceneOnTable, type Game } from './model'
 import { project } from './project'
-import { addAsideTo, ALL_RESETS, asideChips, defaultChoices, deleteScene, draftAddChallenge, draftAddGroup, draftAddVillain, draftOfCurrent, draftOfNew, draftOfPlanned, draftSetEnvironment, duplicateGame, duplicateScene, gcOffTable, hasChanged, itemTitle, moveScene, moveToTable, plannedForText, playersWillSee, refKey, removeAside, saveCurrentScene, savePlannedScene, sceneChips, sceneDetail, setAside, setSceneRecord, sourceText, startPlan, startScene, trackerLine, waitingNote, type SceneDraft, type SceneResets, type StartChoices } from './scenes'
+import { addAsideTo, ALL_RESETS, asideChips, defaultChoices, deleteScene, draftAddChallenge, draftAddGroup, draftAddVillain, draftOfCurrent, draftOfNew, draftOfPlanned, draftSetEnvironment, duplicateGame, duplicateScene, gcOffTable, hasChanged, itemTitle, moveScene, moveToTable, plannedForText, playersWillSee, refKey, removeAside, saveCurrentScene, savePlannedScene, sceneChips, sceneDetail, setAside, setSceneRecord, setSheetLayout, sourceText, startPlan, startScene, trackerLine, waitingNote, type SceneDraft, type SceneResets, type StartChoices } from './scenes'
 import { addChallenge, addGroup, addHero, addVillain, newEnvironment, setEnvironment, setRound, setTrackerPosition, startRound } from './table'
 
 let n = 0
@@ -385,6 +385,19 @@ describe('planning scenes', () => {
     expect(setSceneRecord(g, id, { summary: 'x', notes: 'y' }).scenes[0]!.summary).toBeUndefined()
     const done = { ...g, scenes: g.scenes.map((s) => ({ ...s, state: 'done' as const, summary: 'Ended after round 4.' })) }
     expect(setSceneRecord(done, id, { summary: 'Ironclad escaped', notes: 'Note' }).scenes[0]).toMatchObject({ summary: 'Ironclad escaped', notes: 'Note' })
+  })
+
+  it("keeps a scene's reference sheet arrangement, as a copy", () => {
+    const g = table()
+    const layout = { pages: [], cards: [{ ref: { kind: 'group' as const, id: 'x' }, breakBefore: 'column' as const }], omitted: [] }
+    const next = setSheetLayout(g, g.currentSceneId, layout)
+    expect(next.scenes[0]!.sheetLayout).toEqual(layout)
+    layout.cards.pop()
+    expect(next.scenes[0]!.sheetLayout!.cards).toHaveLength(1)
+    expect(setSheetLayout(g, 'gone', layout)).toBe(g)
+    // A duplicate's groups are new copies, so it starts without one.
+    const planned = { ...g, scenes: [...next.scenes, { ...createScene({ id: 'p', name: 'Later', state: 'planned' }), sheetLayout: layout }] }
+    expect(duplicateScene(planned, 'p', clock).scenes.at(-1)!.sheetLayout).toBeUndefined()
   })
 
   describe('set aside', () => {

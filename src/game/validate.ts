@@ -49,6 +49,8 @@ const sceneItem = object({
   startHidden: boolean,
   source: object({ kind: oneOf('library', 'quick', 'tag', 'aside'), 'tag?': string, 'afterScene?': integer }),
 })
+const sheetRef = object({ kind: oneOf('hero', 'villain', 'minion', 'lieutenant', 'challenge', 'environment', 'group'), id: nonEmptyString })
+const sheetLayout = object({ pages: arrayOf(sheetRef), cards: arrayOf(object({ ref: sheetRef, 'breakBefore?': oneOf('column', 'page') })), omitted: arrayOf(sheetRef) })
 const sceneShape = object({
   id: nonEmptyString,
   name: string,
@@ -60,6 +62,7 @@ const sceneShape = object({
   notes: string,
   state: oneOf('planned', 'now', 'done'),
   'summary?': string,
+  'sheetLayout?': sheetLayout,
   'issueId?': nonEmptyString,
 })
 const issueShape = object({

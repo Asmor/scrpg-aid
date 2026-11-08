@@ -25,6 +25,10 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 export interface ReferenceSheetDialogProps {
   source: SheetSource
   onClose: () => void
+  /** A scene's arrangement from its last export, kept and reconciled with what's in the scene now. */
+  savedLayout?: SheetArrangement
+  /** Saves the arrangement a scene export printed with (a library export's isn't kept). */
+  onSaveLayout?: (layout: SheetArrangement) => void
   /** For tests: the date in the file name. */
   now?: () => Date
 }
@@ -119,7 +123,7 @@ interface History {
   future: SheetArrangement[]
 }
 
-export function ReferenceSheetDialog({ source, onClose, now = () => new Date() }: ReferenceSheetDialogProps) {
+export function ReferenceSheetDialog({ source, onClose, savedLayout, onSaveLayout, now = () => new Date() }: ReferenceSheetDialogProps) {
   const [options, setOptions] = useState<SheetOptions>(() => ({
     ...DEFAULT_SHEET_OPTIONS,
     paper: defaultPageSize(typeof navigator === 'undefined' ? undefined : navigator.language),
@@ -133,7 +137,7 @@ export function ReferenceSheetDialog({ source, onClose, now = () => new Date() }
     }
   }, [source, options])
   const contents = 'contents' in built ? built.contents : undefined
-  const [saved, setSaved] = useState<SheetArrangement | null>(null)
+  const [saved, setSaved] = useState<SheetArrangement | null>(savedLayout ?? null)
   // The arrangement for what's in it now: new items (an attached template brought) join in their place.
   const arrangement = useMemo(() => (contents ? (saved ? reconcileArrangement(saved, contents) : defaultArrangement(contents)) : undefined), [contents, saved])
   const [history, setHistory] = useState<History>({ past: [], future: [] })
@@ -205,7 +209,16 @@ export function ReferenceSheetDialog({ source, onClose, now = () => new Date() }
   const stepText = `Step ${step} of ${steps}, ${step === 1 ? 'Contents' : 'Arrange'}`
   const fullPages = kept.pages.length * FULL_PAGE_COUNT
   const exportButton = (label: string, which: () => SheetArrangement, primary: boolean) => (
-    <button type="button" className={primary ? 'button button--primary' : 'button'} disabled={nothing || Boolean(printing)} onClick={() => setPrinting(which())}>
+    <button
+      type="button"
+      className={primary ? 'button button--primary' : 'button'}
+      disabled={nothing || Boolean(printing)}
+      onClick={() => {
+        const layout = which()
+        onSaveLayout?.(layout)
+        setPrinting(layout)
+      }}
+    >
       {label}
     </button>
   )
@@ -371,6 +384,26 @@ export function ReferenceSheetDialog({ source, onClose, now = () => new Date() }
               ]}
               onChange={(v) => set('cardsFirst', v === 'before')}
             />
+          )}
+          {contents.scene && (
+            <>
+              <label className="ref-check">
+                <input type="checkbox" checked={options.includeHeroes} onChange={(e) => set('includeHeroes', e.target.checked)} />
+                <span>
+                  <strong>Add the heroes</strong>
+                  <br />
+                  <span className="muted">Each hero in the game, as a full page.</span>
+                </span>
+              </label>
+              <label className="ref-check">
+                <input type="checkbox" checked={options.includeNotes} onChange={(e) => set('includeNotes', e.target.checked)} />
+                <span>
+                  <strong>Include scene notes</strong>
+                  <br />
+                  <span className="muted">{contents.scene.notes.trim() ? 'Your notes for the scene, on its first page.' : 'This scene has no notes yet.'}</span>
+                </span>
+              </label>
+            </>
           )}
           <label className="ref-check">
             <input type="checkbox" checked={options.writeIns} onChange={(e) => set('writeIns', e.target.checked)} />
