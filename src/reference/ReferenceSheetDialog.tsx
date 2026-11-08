@@ -10,13 +10,15 @@ import { PopoverMenu } from '../library/Popover'
 import { usePopover } from '../library/popover-state'
 import { defaultPageSize } from '../transfer/print'
 import { defaultArrangement, isRearranged, leaveOut, movePage, putBack, reconcileArrangement, sortByType } from './arrange'
-import { ArrangeStep } from './ArrangeStep'
+import { ArrangeStep, PagesPreview } from './ArrangeStep'
 import { sheetContents, type SheetSource } from './contents'
 import { estimatePages, FULL_PAGE_COUNT } from './layout'
 import { CARD_TYPE_NAME, CARD_TYPES, DEFAULT_SHEET_OPTIONS, joinAnd, sameSheetRef, sheetRefKey, type PageItem, type SheetArrangement, type SheetCard, type SheetContents, type SheetItemRef, type SheetOptions } from './model'
 import { sheetFileBase, printReference } from './print'
+import { sheetMarkdown } from './markdown'
+import { downloadFile } from '../transfer/download'
 import { ReferencePrint } from './ReferencePrint'
-import { arranged, cardCountsText, firstTop, hiddenText, printRules } from './sheet'
+import { arranged, cardCountsText, firstTop, hiddenText, layoutCards, printRules } from './sheet'
 import { FirstPagePreview } from './SheetPreviewPage'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -143,6 +145,7 @@ export function ReferenceSheetDialog({ source, onClose, savedLayout, onSaveLayou
   const [history, setHistory] = useState<History>({ past: [], future: [] })
   const [step, setStep] = useState<1 | 2>(1)
   const [confirmSort, setConfirmSort] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
   /** What's being printed: the arrangement as it stands, or Export now's default order. */
   const [printing, setPrinting] = useState<SheetArrangement | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -216,7 +219,16 @@ export function ReferenceSheetDialog({ source, onClose, savedLayout, onSaveLayou
       onClick={() => {
         const layout = which()
         onSaveLayout?.(layout)
-        setPrinting(layout)
+        if (options.format === 'pdf') {
+          setPrinting(layout)
+          return
+        }
+        try {
+          downloadFile(`${sheetFileBase(contents, now())}.md`, sheetMarkdown(contents, layout, options), 'text/markdown')
+          onClose()
+        } catch (e) {
+          setError(`Couldn't save the Markdown file: ${errorText(e)}`)
+        }
       }}
     >
       {label}
@@ -231,7 +243,7 @@ export function ReferenceSheetDialog({ source, onClose, savedLayout, onSaveLayou
 
   if (step === 2 && hasCards) {
     return (
-      <Modal title="Reference sheet" onClose={onClose} className="modal--reference modal--arrange">
+      <Modal title="Reference sheet" onClose={onClose} wide className="modal--reference modal--arrange">
         <p className="ref-dialog__steps" aria-live="polite">
           {stepText}
         </p>
@@ -278,7 +290,7 @@ export function ReferenceSheetDialog({ source, onClose, savedLayout, onSaveLayou
             Back
           </button>
           <span className="muted ref-dialog__file">
-            PDF · {options.paper === 'a4' ? 'A4' : 'Letter'} · {options.columns} columns · write-in spaces {options.writeIns ? 'on' : 'off'}
+            {options.format === 'pdf' ? `PDF · ${options.paper === 'a4' ? 'A4' : 'Letter'} · ${options.columns} columns` : 'Markdown'} · write-in spaces {options.writeIns ? 'on' : 'off'}
           </span>
           {exportButton('Export', () => arrangement, true)}
         </div>
@@ -308,7 +320,7 @@ export function ReferenceSheetDialog({ source, onClose, savedLayout, onSaveLayou
   }
 
   return (
-    <Modal title="Reference sheet" onClose={onClose} className="modal--reference">
+    <Modal title="Reference sheet" onClose={onClose} wide className="modal--reference">
       <p className="ref-dialog__sub">
         {plural(items, 'item')} · about {plural(pages, 'page')}
       </p>
@@ -356,6 +368,15 @@ export function ReferenceSheetDialog({ source, onClose, savedLayout, onSaveLayou
           )}
         </div>
         <div className="ref-dialog__options">
+          <Choice
+            label="Format"
+            value={options.format}
+            options={[
+              ['pdf', 'PDF'],
+              ['markdown', 'Markdown'],
+            ]}
+            onChange={(v) => set('format', v)}
+          />
           <Choice
             label="Paper"
             value={options.paper}
@@ -413,12 +434,14 @@ export function ReferenceSheetDialog({ source, onClose, savedLayout, onSaveLayou
               <span className="muted">Health lines, die boxes, step and twist boxes, for tracking on paper.</span>
             </span>
           </label>
-          {(keptCards.length > 0 || contents.scene) && <FirstPagePreview contents={contents} cards={kept.cards} options={options} />}
+          {(keptCards.length > 0 || contents.scene) && <FirstPagePreview contents={contents} cards={kept.cards} options={options} onOpen={() => setPreviewing(true)} />}
         </div>
       </div>
       {errorLine}
       <div className="ref-dialog__footer">
-        <span className="muted ref-dialog__file">Saved as {sheetFileBase(contents, now())}.pdf</span>
+        <span className="muted ref-dialog__file">
+          Saved as {sheetFileBase(contents, now())}.{options.format === 'pdf' ? 'pdf' : 'md'}
+        </span>
         <button type="button" className="button" onClick={onClose}>
           Cancel
         </button>
@@ -433,6 +456,16 @@ export function ReferenceSheetDialog({ source, onClose, savedLayout, onSaveLayou
           exportButton('Export', () => arrangement, true)
         )}
       </div>
+      {previewing && (
+        <PagesPreview
+          layout={layoutCards(kept.cards, contents, options)}
+          cards={kept.cards}
+          contents={contents}
+          options={options}
+          label={(p) => `Page ${(contents.scene || options.cardsFirst ? 0 : fullPages) + p + 1}`}
+          onClose={() => setPreviewing(false)}
+        />
+      )}
       {printed}
     </Modal>
   )

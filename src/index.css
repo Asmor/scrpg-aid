@@ -10898,8 +10898,118 @@ kbd {
   }
 }
 
+button.ref-thumb {
+  display: block;
+  padding: 0;
+  border: 1px solid var(--ui-border);
+  background: #fff;
+  cursor: zoom-in;
+}
+
+/* Arrange on a phone: a list in print order, under Page and Column headings. */
+.ref-arrange-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: auto;
+}
+
+.ref-arrange-list section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.ref-arrange-row {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.5rem;
+  background: var(--ui-surface);
+}
+
+.ref-arrange-row--selected,
+.ref-arrange-row--picked {
+  outline: 2px solid var(--ui-accent);
+}
+
+.ref-arrange-row--drop-before {
+  box-shadow: 0 -4px 0 0 var(--ui-accent);
+}
+
+.ref-arrange-row--drop-after {
+  box-shadow: 0 4px 0 0 var(--ui-accent);
+}
+
+.ref-arrange-row .ref-arrange-card__tools {
+  position: static;
+}
+
+.ref-arrange-row .ref-handle {
+  min-width: 44px;
+  height: 44px;
+}
+
+.ref-arrange-row__name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding-left: 0.625rem;
+  position: relative;
+}
+
+.ref-arrange-row__band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  border-radius: 2px;
+}
+
+/* The pages full screen, swiping from one to the next. */
+.ref-preview-pages {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+
+.ref-preview-pages__page {
+  flex: none;
+  margin: 0;
+  scroll-snap-align: center;
+  text-align: center;
+}
+
 @media (max-width: 759px) {
   .ref-dialog__body {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ref-arrange-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ref-arrange__side {
+    display: none;
+  }
+
+  .modal-backdrop:has(> .modal--arrange) {
+    padding: 0;
+  }
+
+  /* Back and Export stay in reach as the list scrolls. */
+  .modal--reference .ref-dialog__footer {
+    position: sticky;
+    bottom: -1.25rem;
+    margin-bottom: -1.25rem;
+    padding-bottom: 0.75rem;
+    background: var(--ui-surface);
   }
 }

@@ -49,17 +49,23 @@ export function CardPage({
   )
 }
 
-/** Step 1's small live preview: the first card page, scaled down. */
-export function FirstPagePreview({ contents, cards, options }: { contents: SheetContents; cards: readonly ArrangedCard[]; options: SheetOptions }) {
+/** Step 1's small live preview: the first card page, scaled down. Tapping it opens every page full size. */
+export function FirstPagePreview({ contents, cards, options, onOpen }: { contents: SheetContents; cards: readonly ArrangedCard[]; options: SheetOptions; onOpen: () => void }) {
   const layout = layoutCards(cards, contents, options)
   const box = pageBox(options.paper, options.columns)
   const scale = 200 / box.width
   const count = layout.pages[0]?.columns.reduce((n, c) => n + c.length, 0) ?? 0
   return (
-    <div className="ref-thumb" role="img" aria-label={`Preview of the first card page: ${options.columns} columns, ${count} ${count === 1 ? 'card' : 'cards'}`} style={{ width: box.width * scale, height: box.height * scale }}>
-      <div className="ref-thumb__inner" style={{ transform: `scale(${scale})` }} aria-hidden="true">
+    <button
+      type="button"
+      className="ref-thumb"
+      aria-label={`Preview the pages. The first card page: ${options.columns} columns, ${count} ${count === 1 ? 'card' : 'cards'}`}
+      style={{ width: box.width * scale, height: box.height * scale }}
+      onClick={onOpen}
+    >
+      <span className="ref-thumb__inner" style={{ transform: `scale(${scale})` }} aria-hidden="true">
         <CardPage layout={layout} page={0} cards={cards} contents={contents} options={options} />
-      </div>
-    </div>
+      </span>
+    </button>
   )
 }

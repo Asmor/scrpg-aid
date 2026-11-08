@@ -19,12 +19,12 @@ import { embeddableJson, embeddableVillainJson, markdownPayload } from './embed'
 const ZONES = ['green', 'yellow', 'red'] as const
 
 /** Escapes characters that Markdown would read as formatting, keeping the text readable. */
-function escapeInline(text: string): string {
+export function escapeInline(text: string): string {
   return text.replace(/[\\`*_~[\]<>|&]/g, '\\$&')
 }
 
 /** Heading text: escaped, with a trailing run of "#" kept (CommonMark would drop it as a closing sequence). */
-const heading = (level: number, value: string) => `${'#'.repeat(level)} ${escapeInline(value).replace(/(^|\s)(#+)\s*$/, '$1\\$2')}`
+export const heading = (level: number, value: string) => `${'#'.repeat(level)} ${escapeInline(value).replace(/(^|\s)(#+)\s*$/, '$1\\$2')}`
 
 /** Block markers that would change a line's meaning at its start: headings, quotes, lists, rules. */
 const LINE_START = /^(#|>|[-+=~])|^(\d+)([.)])/
@@ -37,7 +37,7 @@ const escapeLineStart = (line: string) => line.replace(LINE_START, (_, mark: str
  * and later lines are indented to stay inside a list item. Lines after the first start a
  * line of their own, so a list or heading marker there is escaped too.
  */
-function text(value: string, indent = ''): string {
+export function text(value: string, indent = ''): string {
   const paragraphs = value
     .trim()
     .split(/\r?\n\s*\r?\n/)
@@ -144,8 +144,20 @@ function advancement(sheet: HeroSheet): string[] {
   return out
 }
 
+/**
+ * How a sheet's Markdown is written: `payload` (on by default) ends it with the JSON for importing
+ * it back; a reference sheet leaves that out and can add a blank Current Health line
+ * (scrpg-aid-designs/reference-sheets/spec.md, section 8).
+ */
+export interface SheetMarkdownOptions {
+  payload?: boolean
+  healthLine?: boolean
+}
+
+const HEALTH_LINE = '**Current Health:** ____'
+
 /** The hero as a Markdown document. */
-export function heroMarkdown(hero: Hero): string {
+export function heroMarkdown(hero: Hero, options: SheetMarkdownOptions = {}): string {
   const sheet = buildSheet(hero)
   const c = sheet.characteristics
   const blocks: string[] = [heading(1, heroDisplayName(hero))]
@@ -167,6 +179,7 @@ export function heroMarkdown(hero: Hero): string {
   } else {
     blocks.push('Not worked out yet.')
   }
+  if (options.healthLine) blocks.push(HEALTH_LINE)
 
   blocks.push('## Principles')
   if (sheet.principles.length) {
@@ -177,14 +190,15 @@ export function heroMarkdown(hero: Hero): string {
     blocks.push('No principles yet.')
   }
 
-  blocks.push(...abilities(sheet), ...auxiliary(sheet), ...advancement(sheet), markdownPayload(embeddableJson(hero)))
+  blocks.push(...abilities(sheet), ...auxiliary(sheet), ...advancement(sheet))
+  if (options.payload !== false) blocks.push(markdownPayload(embeddableJson(hero)))
   return `${blocks.join('\n\n')}\n`
 }
 
 const statusLines = (rule: VillainStatusRule): string => [escapeInline(statusSummary(rule)), ...statusDetailLines(rule).map((i) => `- ${escapeInline(i)}`)].join('\n')
 
 /** A villain as a Markdown document (Phase 5), carrying its JSON so it can be imported back. */
-export function villainMarkdown(villain: Villain): string {
+export function villainMarkdown(villain: Villain, options: SheetMarkdownOptions = {}): string {
   const sheet = buildVillainSheet(villain)
   const { details } = villain
   const blocks: string[] = [heading(1, villainDisplayName(villain))]
@@ -215,6 +229,7 @@ export function villainMarkdown(villain: Villain): string {
   } else {
     blocks.push('Not worked out yet.')
   }
+  if (options.healthLine) blocks.push(HEALTH_LINE)
   if (sheet.status) blocks.push('## Status die', statusLines(sheet.status))
   blocks.push('## Abilities', sheet.abilities.length ? sheet.abilities.map((a) => abilityItem(a.upgrade ? { ...a, name: `${a.name} (${a.upgrade})` } : a)).join('\n') : 'None yet.')
   if (sheet.upgrades.length || sheet.mastery) {
@@ -223,6 +238,6 @@ export function villainMarkdown(villain: Villain): string {
     if (sheet.vehicle) blocks.push(`### Vehicle${sheet.vehicle.die ? ` (${sheet.vehicle.die})` : ''}`, sheet.vehicle.abilities.length ? sheet.vehicle.abilities.map(abilityItem).join('\n') : 'None yet.')
     if (sheet.mastery) blocks.push('### Mastery', abilityItem(sheet.mastery))
   }
-  blocks.push(markdownPayload(embeddableVillainJson(villain)))
+  if (options.payload !== false) blocks.push(markdownPayload(embeddableVillainJson(villain)))
   return `${blocks.join('\n\n')}\n`
 }

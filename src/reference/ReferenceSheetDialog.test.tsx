@@ -6,6 +6,9 @@ import { adaptiveBruiser } from '../test/villains'
 import { createChallengeTemplate, createEnvironmentTemplate, createMinionTemplate, type ChallengeTemplate, type MinionTemplate } from '../template/model'
 import type { LibrarySheetItem, SheetSource } from './contents'
 import { ReferenceSheetDialog } from './ReferenceSheetDialog'
+import { downloadFile } from '../transfer/download'
+
+vi.mock('../transfer/download', () => ({ downloadFile: vi.fn() }))
 
 const now = new Date('2026-11-08T12:00:00Z')
 
@@ -38,6 +41,7 @@ function source(): SheetSource {
 afterEach(() => {
   document.documentElement.classList.remove('printing-reference')
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('ReferenceSheetDialog', () => {
@@ -81,7 +85,11 @@ describe('ReferenceSheetDialog', () => {
     const columns = within(dialog.getByRole('group', { name: 'Card columns' }))
     expect(columns.getByRole('button', { name: '2' })).toHaveAttribute('aria-pressed', 'true')
     await userEvent.click(columns.getByRole('button', { name: '3' }))
-    expect(dialog.getByRole('img', { name: /^Preview of the first card page: 3 columns, 4 cards$/ })).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Preview the pages. The first card page: 3 columns, 4 cards' }))
+    // Every card page full size, numbered in the whole file: the two sheets' four pages come first.
+    const preview = within(screen.getByRole('dialog', { name: 'Preview' }))
+    expect(preview.getByRole('img', { name: 'Page 5, 3 columns' })).toBeInTheDocument()
+    await userEvent.click(preview.getByRole('button', { name: 'Close' }))
     await userEvent.click(within(dialog.getByRole('group', { name: 'Paper' })).getByRole('button', { name: 'A4' }))
     expect(within(dialog.getByRole('group', { name: 'Paper' })).getByRole('button', { name: 'A4' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(dialog.getByRole('group', { name: 'Where cards go' })).getByRole('button', { name: 'After the full pages' })).toHaveAttribute('aria-pressed', 'true')
@@ -136,6 +144,26 @@ describe('ReferenceSheetDialog', () => {
     // Drones 4, thugs 3.
     await waitFor(() => expect(boxes).toBe(7))
     window.dispatchEvent(new Event('afterprint'))
+  })
+
+  it('saves Markdown instead of printing', async () => {
+    const onClose = vi.fn()
+    const print = vi.spyOn(window, 'print')
+    render(<ReferenceSheetDialog source={source()} onClose={onClose} now={() => now} />)
+    const dialog = within(screen.getByRole('dialog', { name: 'Reference sheet' }))
+    await userEvent.click(within(dialog.getByRole('group', { name: 'Format' })).getByRole('button', { name: 'Markdown' }))
+    expect(dialog.getByText('Saved as SCRPG Aid reference sheet - 2026-11-08.md')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Next: Arrange' }))
+    expect(dialog.getByText('Markdown · write-in spaces on')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Export' }))
+    const [name, text, type] = vi.mocked(downloadFile).mock.calls.at(-1)!
+    expect(name).toBe('SCRPG Aid reference sheet - 2026-11-08.md')
+    expect(type).toBe('text/markdown')
+    expect(text).toContain('# Reference sheet')
+    expect(text).toContain('## Ember Drones')
+    expect(text).not.toContain('<!--')
+    expect(print).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalled()
   })
 
   it('offers Export alone when there are no cards to arrange', () => {
@@ -271,5 +299,32 @@ describe('Arrange', () => {
     await userEvent.click(dialog.getByRole('button', { name: 'Export' }))
     await waitFor(() => expect(columns).toBe(2))
     window.dispatchEvent(new Event('afterprint'))
+  })
+})
+
+describe('Arrange on a phone', () => {
+  it('is a list under Page and Column headings, with moves and breaks in each row\'s menu, and a full-screen preview', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('max-width'), media: query, addEventListener: () => {}, removeEventListener: () => {} }))
+    render(<ReferenceSheetDialog source={source()} onClose={() => {}} now={() => now} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Next: Arrange' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Reference sheet' }))
+    const column = within(dialog.getByRole('region', { name: 'Page 5, column 1' }))
+    expect(column.getByRole('heading', { name: 'Page 5 · Column 1' })).toBeInTheDocument()
+    const rowNames = () => [...document.querySelectorAll('.ref-arrange-row strong')].map((n) => n.textContent)
+    expect(rowNames()).toEqual(['Molten Foundry', 'Gate Lock', 'Ember Drones', 'Foundry Thugs'])
+    // No printed cards on the board, and no toolbar break buttons: breaks are in the menus.
+    expect(document.querySelector('.ref-arrange__board')).toBeNull()
+    expect(dialog.queryByRole('button', { name: '+ Page break' })).not.toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'More actions for Gate Lock' }))
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Move up', 'Move down', 'Move to top', 'Move to bottom', 'Start a new column here', 'Start a new page here', 'Leave out'])
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Move down' }))
+    expect(rowNames()).toEqual(['Molten Foundry', 'Ember Drones', 'Gate Lock', 'Foundry Thugs'])
+    await userEvent.click(dialog.getByRole('button', { name: 'More actions for Foundry Thugs' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Start a new page here' }))
+    expect(dialog.getByRole('heading', { name: 'Page 6 · Column 1' })).toBeInTheDocument()
+    expect(dialog.getByText('Page break')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Preview' }))
+    const preview = within(screen.getByRole('dialog', { name: 'Preview' }))
+    expect(preview.getAllByRole('img').map((i) => i.getAttribute('aria-label'))).toEqual(['Page 5 of 6, 2 columns', 'Page 6 of 6, 2 columns'])
   })
 })

@@ -8,8 +8,11 @@ import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type Focu
 import { PopoverMenu } from '../library/Popover'
 import { usePopover } from '../library/popover-state'
 import { leaveOut, moveCard, setBreak } from './arrange'
-import { columnMoveTarget, pageBox } from './layout'
-import { sheetRefKey, type SheetArrangement, type SheetContents, type SheetOptions } from './model'
+import { columnMoveTarget, pageBox, type Layout } from './layout'
+import { CARD_TYPE_NAME, sheetRefKey, type SheetArrangement, type SheetContents, type SheetOptions } from './model'
+import { fillCss } from '../colors/palette'
+import { Modal } from '../components/Modal'
+import { useMediaQuery } from '../components/useMediaQuery'
 import { layoutCards, placeText, type ArrangedCard } from './sheet'
 import { SheetCardView } from './SheetCards'
 import { CardPage } from './SheetPreviewPage'
@@ -79,6 +82,8 @@ interface CardProps {
   selected: boolean
   picked: boolean
   drop: 'before' | 'after' | null
+  /** A phone's list row instead of the card as it prints. */
+  compact: boolean
   onSelect: () => void
   onHandleKey: (e: KeyboardEvent<HTMLButtonElement>) => void
   onHandleBlur: (e: FocusEvent<HTMLButtonElement>) => void
@@ -91,13 +96,13 @@ interface CardProps {
   onDragEnd: () => void
 }
 
-function ArrangeCard({ item, index, count, continued, tooTall, writeIns, selected, picked, drop, onSelect, onHandleKey, onHandleBlur, onMove, onBreak, onOut, onDragStart, onDragOver, onDrop, onDragEnd }: CardProps) {
+function ArrangeCard({ item, index, count, continued, tooTall, writeIns, selected, picked, drop, compact, onSelect, onHandleKey, onHandleBlur, onMove, onBreak, onOut, onDragStart, onDragOver, onDrop, onDragEnd }: CardProps) {
   const [popover, bind] = usePopover()
   const name = item.card.name
   const label = `More actions for ${name}`
   const key = sheetRefKey(item.card.ref)
   if (continued) return <SheetCardView card={item.card} writeIns={writeIns} continued />
-  const classes = ['ref-arrange-card', selected && 'ref-arrange-card--selected', picked && 'ref-arrange-card--picked', drop && `ref-arrange-card--drop-${drop}`].filter(Boolean).join(' ')
+  const classes = [compact ? 'ref-arrange-row' : 'ref-arrange-card', selected && 'ref-arrange-card--selected', picked && 'ref-arrange-card--picked', drop && `ref-arrange-card--drop-${drop}`].filter(Boolean).join(' ')
   return (
     <>
       {item.breakBefore && (
@@ -144,6 +149,8 @@ function ArrangeCard({ item, index, count, continued, tooTall, writeIns, selecte
                 label={label}
                 className="popover--end"
                 items={[
+                  ...(compact && index > 0 ? [{ label: 'Move up', onSelect: () => onMove(index - 1) }] : []),
+                  ...(compact && index < count - 1 ? [{ label: 'Move down', onSelect: () => onMove(index + 1) }] : []),
                   ...(index > 0 ? [{ label: 'Move to top', onSelect: () => onMove(0) }] : []),
                   ...(index < count - 1 ? [{ label: 'Move to bottom', onSelect: () => onMove(count - 1) }] : []),
                   ...(index > 0 && item.breakBefore !== 'column' ? [{ label: 'Start a new column here', onSelect: () => onBreak('column') }] : []),
@@ -154,7 +161,18 @@ function ArrangeCard({ item, index, count, continued, tooTall, writeIns, selecte
             )}
           </span>
         </div>
-        <SheetCardView card={item.card} writeIns={writeIns} />
+        {compact ? (
+          <span className="ref-arrange-row__name">
+            <span className="ref-arrange-row__band" style={{ background: fillCss(item.card.appearance) }} aria-hidden="true" />
+            <strong>{name}</strong>
+            <span className="muted">
+              {CARD_TYPE_NAME[item.card.type]}
+              {item.card.from ? ` · from ${item.card.from}` : ''}
+            </span>
+          </span>
+        ) : (
+          <SheetCardView card={item.card} writeIns={writeIns} />
+        )}
       </div>
     </>
   )
@@ -271,6 +289,49 @@ export function ArrangeStep({ contents, arrangement, cards, options, onChange, o
   }
 
   const pageCount = layout.pages.length
+  const phone = useMediaQuery('(max-width: 759.98px)', false)
+  const [previewing, setPreviewing] = useState(false)
+  const renderCard = (c: ArrangedCard, index: number, continued: boolean, compact: boolean) => {
+    const key = sheetRefKey(c.card.ref)
+    return (
+      <ArrangeCard
+        item={c}
+        index={index}
+        count={cards.length}
+        continued={continued}
+        tooTall={layout.tooTall.has(index)}
+        writeIns={options.writeIns}
+        selected={selected === key}
+        picked={picked?.key === key}
+        drop={drop?.index === index ? drop.side : null}
+        compact={compact}
+        onSelect={() => setSelected(selected === key ? null : key)}
+        onHandleKey={onHandleKey(index, key)}
+        onHandleBlur={(e) => {
+          // Focus going elsewhere (Undo, Sort, a click away) drops a picked-up card where it is.
+          // The handle itself is drawn anew as the card moves, which isn't leaving.
+          const next = e.relatedTarget as HTMLElement | null
+          if (!picked || picked.key !== key || !next || next.dataset.handle === key) return
+          onPickEnd(picked.from, true)
+          setPicked(null)
+        }}
+        onMove={(to) => move(index, to, key)}
+        onBreak={(kind) => onChange((a) => setBreak(a, index, kind))}
+        onOut={() => {
+          onChange((a) => leaveOut(a, c.card.ref))
+          setAnnounce(`${c.card.name} left out.`)
+        }}
+        onDragStart={() => setDragging(index)}
+        onDragOver={onDragOver(index)}
+        onDrop={onDrop}
+        onDragEnd={() => {
+          setDragging(null)
+          setDrop(null)
+        }}
+      />
+    )
+  }
+  const pageLabel = (p: number) => `Page ${pagesBefore + p + 1} of ${otherPages + pageCount}`
   return (
     <div className="ref-arrange">
       <div className="ref-arrange__toolbar" role="toolbar" aria-label="Arrange">
@@ -279,7 +340,11 @@ export function ArrangeStep({ contents, arrangement, cards, options, onChange, o
           {cards.length} {cards.length === 1 ? 'card' : 'cards'} on {pageCount} {pageCount === 1 ? 'page' : 'pages'}
         </span>
         <span className="ref-arrange__grow" />
-        {selectedIndex > 0 ? (
+        {phone ? (
+          <button type="button" className="button button--small" onClick={() => setPreviewing(true)}>
+            Preview
+          </button>
+        ) : selectedIndex > 0 ? (
           <>
             <button type="button" className="button button--small" onClick={() => onChange((a) => setBreak(a, selectedIndex, 'column'))}>
               + Column break
@@ -295,71 +360,70 @@ export function ArrangeStep({ contents, arrangement, cards, options, onChange, o
       <p className="visually-hidden" role="status" aria-live="polite">
         {announce}
       </p>
-      <div className="ref-arrange__board" ref={board}>
+      {phone ? (
+        <div className="ref-arrange-list">
+          {layout.pages.flatMap((page, p) =>
+            page.columns.map((column, c) => {
+              const firsts = column.filter((x) => !x.continued)
+              if (!firsts.length) return null
+              return (
+                <section key={`${p}:${c}`} aria-label={`Page ${pagesBefore + p + 1}, column ${c + 1}`}>
+                  <h3 className="ref-label">
+                    Page {pagesBefore + p + 1} · Column {c + 1}
+                  </h3>
+                  {firsts.map((x) => (
+                    <div key={x.index}>{renderCard(cards[x.index]!, x.index, false, true)}</div>
+                  ))}
+                </section>
+              )
+            }),
+          )}
+        </div>
+      ) : (
+        <div className="ref-arrange__board" ref={board}>
+          {layout.pages.map((_, p) => (
+            <figure key={p} className="ref-arrange__page" style={{ width: box.width * scale }}>
+              <div
+                className="ref-arrange__paper"
+                role="group"
+                aria-label={`Page ${pagesBefore + p + 1} of ${otherPages + pageCount}, ${options.columns} columns, ${layout.pages[p]!.columns.reduce((n, c) => n + c.filter((x) => !x.continued).length, 0)} cards`}
+                style={{ width: box.width * scale, height: box.height * scale }}
+              >
+                <div style={{ transform: `scale(${scale})`, transformOrigin: '0 0' }}>
+                  <CardPage layout={layout} page={p} cards={cards} contents={contents} options={options} renderCard={(c, index, continued) => renderCard(c, index, continued, false)} />
+                </div>
+              </div>
+              <figcaption className="muted">{pageLabel(p)}</figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+      {previewing && <PagesPreview layout={layout} cards={cards} contents={contents} options={options} label={pageLabel} onClose={() => setPreviewing(false)} />}
+      {measure}
+    </div>
+  )
+}
+
+/** The card pages full screen, one after another, swiping between them (a phone's Preview). */
+export function PagesPreview({ layout, cards, contents, options, label, onClose }: { layout: Layout; cards: readonly ArrangedCard[]; contents: SheetContents; options: SheetOptions; label: (page: number) => string; onClose: () => void }) {
+  const box = pageBox(options.paper, options.columns)
+  // Fits the screen's width, less the dialog's padding.
+  const width = Math.min(box.width, (typeof window === 'undefined' ? box.width : window.innerWidth) - 48)
+  const scale = width / box.width
+  return (
+    <Modal title="Preview" onClose={onClose} wide className="modal--reference-preview">
+      <div className="ref-preview-pages">
         {layout.pages.map((_, p) => (
-          <figure key={p} className="ref-arrange__page" style={{ width: box.width * scale }}>
-            <div
-              className="ref-arrange__paper"
-              role="group"
-              aria-label={`Page ${pagesBefore + p + 1} of ${otherPages + pageCount}, ${options.columns} columns, ${layout.pages[p]!.columns.reduce((n, c) => n + c.filter((x) => !x.continued).length, 0)} cards`}
-              style={{ width: box.width * scale, height: box.height * scale }}
-            >
-              <div style={{ transform: `scale(${scale})`, transformOrigin: '0 0' }}>
-                <CardPage
-                  layout={layout}
-                  page={p}
-                  cards={cards}
-                  contents={contents}
-                  options={options}
-                  renderCard={(c, index, continued) => {
-                    const key = sheetRefKey(c.card.ref)
-                    return (
-                      <ArrangeCard
-                        item={c}
-                        index={index}
-                        count={cards.length}
-                        continued={continued}
-                        tooTall={layout.tooTall.has(index)}
-                        writeIns={options.writeIns}
-                        selected={selected === key}
-                        picked={picked?.key === key}
-                        drop={drop?.index === index ? drop.side : null}
-                        onSelect={() => setSelected(selected === key ? null : key)}
-                        onHandleKey={onHandleKey(index, key)}
-                        onHandleBlur={(e) => {
-                          // Focus going elsewhere (Undo, Sort, a click away) drops a picked-up card where it is.
-                          // The handle itself is drawn anew as the card moves, which isn't leaving.
-                          const next = e.relatedTarget as HTMLElement | null
-                          if (!picked || picked.key !== key || !next || next.dataset.handle === key) return
-                          onPickEnd(picked.from, true)
-                          setPicked(null)
-                        }}
-                        onMove={(to) => move(index, to, key)}
-                        onBreak={(kind) => onChange((a) => setBreak(a, index, kind))}
-                        onOut={() => {
-                          onChange((a) => leaveOut(a, c.card.ref))
-                          setAnnounce(`${c.card.name} left out.`)
-                        }}
-                        onDragStart={() => setDragging(index)}
-                        onDragOver={onDragOver(index)}
-                        onDrop={onDrop}
-                        onDragEnd={() => {
-                          setDragging(null)
-                          setDrop(null)
-                        }}
-                      />
-                    )
-                  }}
-                />
+          <figure key={p} className="ref-preview-pages__page">
+            <div className="ref-arrange__paper" role="img" aria-label={`${label(p)}, ${options.columns} columns`} style={{ width: box.width * scale, height: box.height * scale }}>
+              <div style={{ transform: `scale(${scale})`, transformOrigin: '0 0' }} aria-hidden="true">
+                <CardPage layout={layout} page={p} cards={cards} contents={contents} options={options} />
               </div>
             </div>
-            <figcaption className="muted">
-              Page {pagesBefore + p + 1} of {otherPages + pageCount}
-            </figcaption>
+            <figcaption className="muted">{label(p)}</figcaption>
           </figure>
         ))}
       </div>
-      {measure}
-    </div>
+    </Modal>
   )
 }
