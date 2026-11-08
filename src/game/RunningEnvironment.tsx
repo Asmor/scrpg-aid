@@ -221,7 +221,7 @@ export function RunningEnvironment({ game, env, actions, sheets, random }: { gam
       <section className="gt-env-dice" aria-label="Environment dice">
         <div className="gt-row">
           <span className="gt-label gt-grow">Environment dice</span>
-          <button type="button" className="button button--small" disabled={aspects.length !== ASPECT_COUNT} onClick={() => (physical ? setEntering(true) : setRolled(actions.roll() ?? null))}>
+          <button type="button" className="button button--small" data-shortcut="roll" disabled={aspects.length !== ASPECT_COUNT} onClick={() => (physical ? setEntering(true) : setRolled(actions.roll() ?? null))}>
             Roll environment dice
           </button>
         </div>
@@ -333,7 +333,7 @@ export function RunningEnvironment({ game, env, actions, sheets, random }: { gam
       {itsTurn && (
         <div className="gt-row">
           <span className="gt-grow" />
-          {roundOver(game) ? <p className="gt-sub">Everyone has acted: start the next round from the turn order.</p> : <MenuButton label="Hand off to" text={`Hand off for ${env.name}`} items={handItems} sheets={sheets} />}
+          {roundOver(game) ? <p className="gt-sub">Everyone has acted: start the next round from the turn order.</p> : <MenuButton label="Hand off to" text={`Hand off for ${env.name}`} items={handItems} sheets={sheets} shortcut="hand-off" />}
         </div>
       )}
       {acting && (

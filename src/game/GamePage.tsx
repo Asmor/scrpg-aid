@@ -20,6 +20,7 @@ import { buildSheet } from '../creation/sheet'
 import type { Lookup } from '../editor/useDocumentEditor'
 import { heroDisplayName, isDraft, newId, type Hero } from '../hero/model'
 import { HelpMenu } from '../help/HelpMenu'
+import { useTableShortcuts } from './useTableShortcuts'
 import { PopoverGroup, type MenuItem } from '../library/Popover'
 import type { LibraryItem } from '../library/registry'
 import { formatAgoInline } from '../library/when'
@@ -119,6 +120,7 @@ function updatePreview(copy: HeroInGame | VillainInGame, sheet: Hero | Villain) 
 }
 
 export function GamePage({ id, clock = defaultClock, random }: { id: string; clock?: () => Clock; random?: () => number }) {
+  useTableShortcuts()
   const heroStore = useStore()
   const villainStore = useVillainStore()
   // The library documents the copies came from, read only: to offer Update from library when they've changed.

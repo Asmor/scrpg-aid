@@ -414,3 +414,30 @@ describe('using abilities', () => {
     expect(within(rest[0] as HTMLElement).getByRole('img', { name: 'd8' })).toBeInTheDocument()
   })
 })
+
+describe('rolling by keyboard', () => {
+  it('Enter rolls and steps through, and Ctrl/Cmd + Z undoes the roll while its toast shows', async () => {
+    const store = await setup(play({}))
+    await userEvent.click(abilities().getByRole('button', { name: 'Use Always on the Move' }))
+    const dialog = within(screen.getByRole('dialog'))
+    // Focus starts on the heading: Enter rolls, then confirms, then is done.
+    await userEvent.keyboard('{Enter}')
+    expect(dialog.getByRole('button', { name: 'Confirm' })).toBeInTheDocument()
+    // Enter on a button does what that button says: Back goes back.
+    dialog.getByRole('button', { name: 'Back' }).focus()
+    await userEvent.keyboard('{Enter}')
+    expect(dialog.getByRole('button', { name: 'Roll' })).toBeInTheDocument()
+    await userEvent.keyboard('{Enter}')
+    await userEvent.keyboard('{Enter}')
+    expect(dialog.getByRole('button', { name: 'Done' })).toBeInTheDocument()
+    await userEvent.keyboard('{Enter}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(async () => expect((await saved(store)).play?.history).not.toEqual([]))
+    await userEvent.keyboard('{Control>}z{/Control}')
+    await waitFor(async () => expect((await saved(store)).play?.history).toEqual([]))
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+    // With no toast, nothing to undo.
+    await userEvent.keyboard('{Meta>}z{/Meta}')
+    expect((await saved(store)).play?.history).toEqual([])
+  })
+})

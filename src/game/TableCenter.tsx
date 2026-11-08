@@ -22,6 +22,7 @@ import { heroOnTableName, viewHidden, viewName, type TableView } from './project
 import { CardBand, CharSwatch } from '../components/CharBand'
 import { appearanceOf, type Appearance } from '../colors/palette'
 import { TurnStrip } from './TurnStrip'
+import type { TableShortcut } from './useTableShortcuts'
 import { Modal } from '../components/Modal'
 
 /** What a hero's card shows. */
@@ -152,12 +153,12 @@ function HiddenBadge() {
 }
 
 /** A ⋯ button opening a menu (a bottom sheet on phones). */
-export function MenuButton({ label, items, sheets, text }: { label: string; items: readonly MenuItem[]; sheets: boolean; text?: string }) {
+export function MenuButton({ label, items, sheets, text, shortcut }: { label: string; items: readonly MenuItem[]; sheets: boolean; text?: string; /** A table shortcut that opens it (./useTableShortcuts.ts). */ shortcut?: TableShortcut }) {
   const [popover, bind] = usePopover()
   if (!items.length) return null
   return (
     <span className="popover-anchor">
-      <button ref={bind} type="button" className={text ? 'button button--primary button--small' : 'icon-button'} aria-label={text ? undefined : label} title={text ? undefined : label} aria-haspopup="menu" aria-expanded={popover.open} onClick={popover.toggle}>
+      <button ref={bind} type="button" className={text ? 'button button--primary button--small' : 'icon-button'} aria-label={text ? undefined : label} title={text ? undefined : label} aria-haspopup="menu" aria-expanded={popover.open} data-shortcut={shortcut} onClick={popover.toggle}>
         {text ?? <MoreIcon />}
       </button>
       {popover.open && <PopoverMenu popover={popover} label={label} items={items} className={sheets ? 'popover--sheet' : 'popover--end'} />}
@@ -356,7 +357,7 @@ function TurnCard({ game, gm }: { game: TableView; gm?: GmControls }) {
         <h2 id="gt-turns">{game.round === 0 ? 'Not started' : `Round ${game.round}`}</h2>
         <span className="gt-sub">Whoever acts picks who goes next.</span>
         <span className="gt-grow" />
-        {gm && game.turn.order.length > 0 && (game.round === 0 ? <MenuButton label="Who goes first?" text="Start round 1" items={pickFirst} sheets={gm.sheets} /> : <MenuButton label="Hand off to" text={current ? `Hand off for ${name(current)}` : 'Hand off to…'} items={handItems} sheets={gm.sheets} />)}
+        {gm && game.turn.order.length > 0 && (game.round === 0 ? <MenuButton label="Who goes first?" text="Start round 1" items={pickFirst} sheets={gm.sheets} shortcut="hand-off" /> : <MenuButton label="Hand off to" text={current ? `Hand off for ${name(current)}` : 'Hand off to…'} items={handItems} sheets={gm.sheets} shortcut="hand-off" />)}
         {gm && <MenuButton label="Fix the turn order" items={gm.turnMenu} sheets={gm.sheets} />}
       </div>
       {strip.length === 0 ? (
@@ -819,7 +820,9 @@ export function TableCenter({ game, heroes, villains, now, gm, hideLog = false, 
       </section>
       {!hideLog && (
         <section className="card gt-card" aria-labelledby="gt-log">
-          <h2 id="gt-log">Table log</h2>
+          <h2 id="gt-log" tabIndex={-1}>
+            Table log
+          </h2>
           <TableLog entries={game.feed} now={now} gm={Boolean(gm)} undo={gm?.logUndo} />
         </section>
       )}

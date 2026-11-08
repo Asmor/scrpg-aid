@@ -21,6 +21,7 @@ import { availabilityContext, basicActionBlocked, changesForm, currentForm, divi
 import { MinionList } from '../play/MinionList'
 import { minionCreation } from '../play/minions'
 import { ModForm } from '../play/ModForm'
+import type { TableShortcut } from './useTableShortcuts'
 import { RollDialog, type FormPicker, type RollSubject } from '../play/RollDialog'
 import { appearanceOf } from '../colors/palette'
 import { currentHealth, describeMod, effectiveZone, heroPointCount, modName, statusDieFor } from '../play/state'
@@ -105,9 +106,10 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
     return { label: `Change ${noun} to`, current: form.key ?? '', options: forms.map((f) => ({ value: f.key ?? '', label: f.name, ...(formZoneNote(f, zone) ? { note: formZoneNote(f, zone) } : {}) })) }
   }
 
-  const button = (label: string, onClick: () => void, opts: { aria?: string; primary?: boolean; disabled?: boolean; small?: boolean } = {}): ReactNode => (
+  const button = (label: string, onClick: () => void, opts: { aria?: string; primary?: boolean; disabled?: boolean; small?: boolean; shortcut?: TableShortcut } = {}): ReactNode => (
     <button
       type="button"
+      data-shortcut={opts.shortcut}
       className={`button${opts.primary ? ' button--primary' : ''}${opts.small ? ' button--small' : ''}`}
       aria-label={opts.aria}
       aria-describedby={describedBy}
@@ -269,7 +271,7 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
           </>
         )}
         <div className="gt-row">
-          {button('Roll', () => setRolling({ kind: 'basic' }), { primary: true, disabled: Boolean(basicActionBlocked('attack', ctx)) && Boolean(basicActionBlocked('overcome', ctx)) })}
+          {button('Roll', () => setRolling({ kind: 'basic' }), { primary: true, shortcut: 'roll', disabled: Boolean(basicActionBlocked('attack', ctx)) && Boolean(basicActionBlocked('overcome', ctx)) })}
           <button type="button" className="button button--small" aria-expanded={adding === 'mod'} aria-describedby={describedBy} disabled={off} onClick={() => setAdding(adding === 'mod' ? null : 'mod')}>
             + Mod
           </button>

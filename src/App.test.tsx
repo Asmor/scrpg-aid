@@ -57,7 +57,7 @@ describe('App', () => {
     search.blur()
     await userEvent.keyboard('?')
     const dialog = within(screen.getByRole('dialog', { name: 'Keyboard shortcuts' }))
-    expect(dialog.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Anywhere', 'Dice pad'])
+    expect(dialog.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Anywhere', 'Game table', 'Dice pad', 'Rolling'])
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     // "/" goes to the library's search.

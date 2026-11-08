@@ -6,7 +6,8 @@
  * the hero, and logged to the history (./state.ts has the rules; ./forms.ts says which
  * abilities can be used).
  */
-import { useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { inTextField, modalOpen } from '../help/shortcuts'
 import { Toasts } from '../components/Toasts'
 import { heroPath } from '../app/route'
 import { useMediaQuery } from '../components/useMediaQuery'
@@ -262,6 +263,19 @@ export function PlayView({ hero, play, changePlay, heroPoints, clock, random }: 
   const [rolling, setRolling] = useState<RollSubject | null>(null)
   const [toast, setToast] = useState<{ id: number; text: string; undo: () => void } | null>(null)
   const toastCount = useRef(0)
+  // Ctrl/Cmd + Z undoes the roll while its toast shows (scrpg-aid-designs/help/spec.md, section 5); a text field keeps its own undo.
+  useEffect(() => {
+    if (!toast) return
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'z' || e.defaultPrevented) return
+      if (inTextField(e.target) || modalOpen()) return
+      e.preventDefault()
+      toast.undo()
+      setToast(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toast])
   // On a phone (scrpg-aid-designs/hero-sheet/spec.md, "Play on a phone"): a sticky top bar and three tabs.
   const phone = !useMediaQuery('(min-width: 760px)')
   const [tab, setTab] = useState<PhoneTab>('actions')

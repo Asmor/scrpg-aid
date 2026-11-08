@@ -116,7 +116,7 @@ export function RunningGroup({ game, group, actions, random }: { game: Game; gro
           Damage…
         </button>
         <span className="gt-grow" />
-        <button type="button" className="button button--primary button--small" disabled={ready.length === 0} onClick={() => roll(ready.map((m) => m.id))}>
+        <button type="button" className="button button--primary button--small" data-shortcut="roll" disabled={ready.length === 0} onClick={() => roll(ready.map((m) => m.id))}>
           {ready.length === 0 ? 'All have acted' : `Roll all ready (${ready.length})`}
         </button>
       </div>

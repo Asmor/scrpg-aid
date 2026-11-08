@@ -1012,3 +1012,34 @@ describe('an issue named early', () => {
   })
 })
 
+describe('the table’s keyboard shortcuts', () => {
+  it('R rolls for the villain being run, H opens Start round 1 or Hand off, and L jumps to the log', async () => {
+    await setup()
+    await bringInIronclad()
+    await userEvent.click(screen.getByRole('button', { name: 'Run Ironclad' }))
+    await userEvent.keyboard('r')
+    const roll = screen.getByRole('dialog', { name: 'Basic action' })
+    await userEvent.keyboard('{Escape}')
+    expect(roll).not.toBeInTheDocument()
+    // The Roll button it pressed has focus again.
+    expect(within(screen.getByRole('region', { name: 'Ironclad' })).getByRole('button', { name: 'Roll' })).toHaveFocus()
+    await userEvent.keyboard('h')
+    expect(screen.getByRole('menu', { name: 'Who goes first?' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Ironclad' }))
+    await userEvent.keyboard('H')
+    expect(screen.getByRole('menu', { name: 'Hand off to' })).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await userEvent.keyboard('l')
+    expect(screen.getByRole('heading', { name: 'Table log' })).toHaveFocus()
+  })
+
+  it('leaves letters alone while typing', async () => {
+    await setup()
+    await bringInIronclad()
+    const search = gmScreen().getByPlaceholderText('Search by name')
+    await userEvent.type(search, 'rhl')
+    expect(search).toHaveValue('rhl')
+    expect(screen.queryByRole('dialog', { name: 'Basic action' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+})

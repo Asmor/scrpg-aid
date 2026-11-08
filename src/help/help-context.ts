@@ -13,7 +13,7 @@ export const HelpContext = createContext<HelpValue>({ openShortcuts: () => {} })
 export const useHelp = () => useContext(HelpContext)
 
 /**
- * Calls `handler` when `key` is pressed, unless focus is in a field (./shortcuts.ts), in a dialog
+ * Calls `handler` when `key` (a lowercase letter, or any other key) is pressed, unless focus is in a field (./shortcuts.ts), in a dialog
  * or popover, or a modal is open: page shortcuts never reach into a dialog that isn't theirs.
  */
 export function usePageKey(key: string, handler: (e: KeyboardEvent) => void, enabled = true): void {
@@ -24,7 +24,9 @@ export function usePageKey(key: string, handler: (e: KeyboardEvent) => void, ena
   useEffect(() => {
     if (!enabled) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== key || typingOrModified(e) || modalOpen()) return
+      // Letters match either case (Shift doesn't matter); other keys match exactly.
+      const pressed = /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : e.key
+      if (pressed !== key || typingOrModified(e) || modalOpen()) return
       if (e.target instanceof Element && e.target.closest('[role="dialog"], [role="menu"]')) return
       latest.current(e)
     }

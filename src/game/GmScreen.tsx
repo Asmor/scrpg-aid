@@ -142,7 +142,7 @@ function RunningVillain({ game, copy, change, attack, danger, undoDanger, captur
         </ul>
       )}
       <div className="button-row">
-        <button type="button" className="button button--primary button--small" disabled={out} onClick={() => setRolling({ kind: 'basic' })}>
+        <button type="button" className="button button--primary button--small" data-shortcut="roll" disabled={out} onClick={() => setRolling({ kind: 'basic' })}>
           Roll
         </button>
         <button type="button" className="button button--small" aria-expanded={adding === 'mod'} onClick={() => setAdding(adding === 'mod' ? null : 'mod')}>

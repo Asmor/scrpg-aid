@@ -27,6 +27,7 @@ import { useMediaQuery } from '../components/useMediaQuery'
 import { buildSheet } from '../creation/sheet'
 import { heroDisplayName, isDraft, newId, type Hero } from '../hero/model'
 import { HelpMenu } from '../help/HelpMenu'
+import { useTableShortcuts } from './useTableShortcuts'
 import { PopoverGroup, type MenuItem } from '../library/Popover'
 import { useTick } from '../play/useTick'
 import type { Notice } from '../session/client'
@@ -148,6 +149,7 @@ function sheetChange(copy: HeroOnTable, library: Hero) {
 const heroNowColors = (hero: Hero | undefined) => (hero ? JSON.stringify(hero.appearance ?? null) : undefined)
 
 export function PlayerTable({ room, random }: { room: string; random?: () => number }) {
+  useTableShortcuts()
   const session = useSession()
   const heroStore = useStore()
   // The game on this code, or one the GM has since moved to a new code (the page follows it there).
@@ -566,7 +568,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
             <strong>Your turn</strong>
             {reactionBack && <span className="gt-sub">Your reaction is ready again</span>}
             <span className="gt-grow" />
-            <MenuButton label="Hand off to" text="Hand off to…" items={handOff()} sheets={phone} />
+            <MenuButton label="Hand off to" text="Hand off to…" items={handOff()} sheets={phone} shortcut="hand-off" />
           </div>
         )}
         {banner}

@@ -237,6 +237,16 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
     heading.current?.focus()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeRef.current()
+      // Enter rolls, or goes on to the next step (scrpg-aid-designs/help/spec.md, section 5): not from a
+      // control that has its own Enter (a button, a link, a field), and not when the dice pad took it.
+      if (e.key === 'Enter' && dialog.current && !e.defaultPrevented && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        if (e.target instanceof Element && e.target.closest('button, a[href], textarea, select, input:not([type="checkbox"]):not([type="radio"])')) return
+        const primary = dialog.current.querySelector<HTMLButtonElement>('[data-step-primary]:not(:disabled)')
+        if (!primary) return
+        e.preventDefault()
+        primary.click()
+        return
+      }
       if (e.key !== 'Tab' || !dialog.current) return
       const focusable = [...dialog.current.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex="0"]')]
       if (!focusable.length) return
@@ -393,6 +403,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
               <button
                 type="button"
                 className="button button--primary"
+                data-step-primary=""
                 onClick={() => {
                   onConfirm({ title: `Used ability ${subject.name}.`, rolled: [], results: [], manual: false }, [], formPicker && formChoice !== formPicker.current ? formChoice : undefined)
                   onClose()
@@ -560,6 +571,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
                     <button
                       type="button"
                       className="button button--primary"
+                      data-step-primary=""
                       disabled={!ready}
                       onClick={() =>
                         doRoll(
@@ -685,7 +697,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
                   </fieldset>
                 )}
                 <div className="button-row">
-                  <button type="button" className="button button--primary" disabled={missingValue} onClick={() => setStep(2)}>
+                  <button type="button" className="button button--primary" data-step-primary="" disabled={missingValue} onClick={() => setStep(2)}>
                     Confirm
                   </button>
                   <button type="button" className="button" onClick={back}>
@@ -814,7 +826,7 @@ export function RollDialog({ subject, dice, zone, mods, onConfirm, overcomeOptio
                   </div>
                 )}
                 <div className="button-row">
-                  <button type="button" className="button button--primary" onClick={done}>
+                  <button type="button" className="button button--primary" data-step-primary="" onClick={done}>
                     Done
                   </button>
                   <button
