@@ -2,6 +2,7 @@
  * The GM screen: the GM's side panel (scrpg-aid-designs/game-table/spec.md, section 7). Quick add,
  * Running (the villain or group the GM is working), and the Bring in, Scenes and Notes tabs.
  */
+import { HelpTip } from '../help/HelpTip'
 import { useId, useState } from 'react'
 import { villainPath } from '../app/route'
 import { useSettings } from '../settings/context'
@@ -151,6 +152,7 @@ function RunningVillain({ game, copy, change, attack, danger, undoDanger, captur
         <button type="button" className="button button--small" onClick={() => setAdding('twist')}>
           + Twist
         </button>
+        <HelpTip tip="villainTwists" />
       </div>
       {adding === 'mod' && <ModForm onSubmit={(mod) => (change((p, c) => addMod(p, mod, c)), setAdding(null))} />}
       {adding === 'twist' && (
@@ -170,7 +172,7 @@ function RunningVillain({ game, copy, change, attack, danger, undoDanger, captur
       )}
       <div className="gt-danger">
         <span className="gt-grow">
-          <strong>Make the scene more dangerous</strong>
+          <strong>Make the scene more dangerous</strong> <HelpTip tip="danger" />
           <br />
           <span className="gt-sub">{copy.dangerUsed ? dangerText(copy.dangerUsed, sceneOnTable(game).tracker) : 'Once per scene. Roll an Overcome; on a success the scene tracker advances one box.'}</span>
         </span>

@@ -4,6 +4,7 @@
  * with the keyboard (Space to pick up, arrows to move, Space to drop); phones use Move up and
  * Move down in each row's ⋯.
  */
+import { HelpTip } from '../help/HelpTip'
 import { Fragment, useState, type DragEvent, type KeyboardEvent } from 'react'
 import type { MenuItem } from '../library/Popover'
 import { currentIssue, sceneName, sceneNumber, trackerFromCounts, type Game, type OppositionRef, type Scene } from './model'
@@ -256,6 +257,7 @@ export function ScenesTab({ game, actions, sheets = false }: { game: Game; actio
               Set aside
             </span>
             <span className="gt-sub">· kept with their damage, for a later scene</span>
+            <HelpTip tip="setAside" />
           </div>
           <ul className="gt-scene-chips">
             {aside.map((c) => (

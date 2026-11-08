@@ -2,6 +2,7 @@
  * The game table's small dialogs: quick add, the environment, the GM's hero
  * changes, a member's mod, fixing the turn order, and Update from library. Each is a Modal (focus in, and back out).
  */
+import { HelpTip } from '../help/HelpTip'
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Modal } from '../components/Modal'
 import { ColorSelect } from '../colors/ColorSelect'
@@ -52,10 +53,13 @@ const submitWith = (fn: () => void) => (e: FormEvent) => {
 
 function HiddenBox({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className="checkbox">
-      <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
-      Hidden from players until revealed
-    </label>
+    <span className="gt-row">
+      <label className="checkbox">
+        <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
+        Hidden from players until revealed
+      </label>
+      <HelpTip tip="hidden" />
+    </span>
   )
 }
 

@@ -9785,3 +9785,77 @@ kbd {
     font-size: 1.75rem;
   }
 }
+
+/* "?" popovers (scrpg-aid-designs/help/spec.md, section 3) */
+
+.help-tip {
+  display: inline-flex;
+  vertical-align: middle;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.help-tip__button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 50%;
+  background: var(--ui-surface-2);
+  color: var(--ui-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* A 44 px target around the 24 px circle. */
+.help-tip__button::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+}
+
+.help-tip__button[aria-expanded='true'] {
+  border-color: var(--ui-accent);
+  color: var(--ui-accent);
+}
+
+.help-tip__pop {
+  width: 20rem;
+  max-width: calc(100vw - 1rem);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ui-text);
+}
+
+.help-tip__pop.popover--sheet {
+  width: auto;
+  max-width: none;
+}
+
+.help-tip__title {
+  margin: 0 0 0.375rem;
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.help-tip__text {
+  margin: 0 0 0.5rem;
+}
+
+.help-tip__more {
+  display: block;
+  text-align: right;
+}

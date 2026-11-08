@@ -3,6 +3,7 @@
  * in the roll dialog, and wherever else a roll is made with physical dice. `MemberPad` takes one
  * number per member of a group, in turn.
  */
+import { HelpTip } from '../help/HelpTip'
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { fitsDice, keyNumber, keyOffReason, PAD_NUMBERS, tapNumber, whyNotFits } from '../play/dice-pad'
 import type { Die } from '../rules/types'
@@ -161,9 +162,10 @@ export function DicePad({ dice, onAccept, onCancel, onRollForMe, autoFocus = fal
   return (
     <div className="dice-pad">
       <div>
-        <p className="dice-pad__dice">
-          <strong>Your dice</strong> <span className="muted">Order doesn't matter.</span>
-        </p>
+        {/* A div: the help popover inside can't sit in a paragraph. */}
+        <div className="dice-pad__dice">
+          <strong>Your dice</strong> <span className="muted">Order doesn't matter.</span> <HelpTip tip="dicePad" />
+        </div>
         <ul className="dice-pad__chips">
           {dice.map((d, i) => (
             <li key={i} className="dice-pad__chip">

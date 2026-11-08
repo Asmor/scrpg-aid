@@ -75,10 +75,12 @@ interface PanelProps {
   children: ReactNode
   /** What takes focus on open; the first focusable element by default. */
   initialFocus?: RefObject<HTMLElement | null>
+  /** For the trigger's aria-controls. */
+  id?: string
 }
 
 /** A popover dialog. Render it next to its trigger, inside a positioned wrapper. */
-export function PopoverDialog({ popover, label, className, children, initialFocus }: PanelProps) {
+export function PopoverDialog({ popover, label, className, children, initialFocus, id }: PanelProps) {
   const panel = useRef<HTMLDivElement>(null)
   useDismiss(panel, popover.close, () => popover.setOpen(false))
   useEffect(() => {
@@ -86,7 +88,7 @@ export function PopoverDialog({ popover, label, className, children, initialFocu
     target?.focus()
   }, [initialFocus])
   return (
-    <div ref={panel} role="dialog" aria-label={label} tabIndex={-1} className={`popover ${className ?? ''}`}>
+    <div ref={panel} id={id} role="dialog" aria-label={label} tabIndex={-1} className={`popover ${className ?? ''}`}>
       {children}
     </div>
   )

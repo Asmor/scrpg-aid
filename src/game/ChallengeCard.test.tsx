@@ -71,7 +71,8 @@ describe('the challenge card', () => {
   it("a player's: read-only, state in text, and their own waiting line", () => {
     draw(game(), 'player')
     expect(within(card()).queryByRole('checkbox')).not.toBeInTheDocument()
-    expect(within(card()).queryByRole('button')).not.toBeInTheDocument()
+    // Nothing to change: the only button is the "?" help.
+    expect(within(card()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['About challenges'])
     const items = within(card()).getAllByRole('listitem')
     expect(items[0]).toHaveTextContent('Seal the gas line, done')
     expect(items[1]).toHaveTextContent('Vent the pressure, not done')

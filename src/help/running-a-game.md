@@ -42,7 +42,7 @@ A villain's twists are listed on its Running panel. Add a minor twist there, and
 
 ## Challenges and Overcome
 
-A challenge's card lists its steps. Players can roll Overcome against it from their own table, and the result comes to you to mark a step done. Give a challenge to the environment, or back to the GM, from its ⋯ menu.
+A challenge's card lists its steps. Players can roll Overcome against it from their own table, and the result comes to you to mark a step done. A challenge belongs to the GM or to the environment; only the environment's count toward a Domain villain's status die. Change it from the card's ⋯ menu.
 
 ## Scenes
 

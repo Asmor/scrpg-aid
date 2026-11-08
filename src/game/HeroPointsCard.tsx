@@ -3,6 +3,7 @@
  * exclusive bonuses for the next issue, each costing its size (ruling 70), and take them back until
  * it starts. On a player's panel: the GM's own heroes are NPCs, with no hero points.
  */
+import { HelpTip } from '../help/HelpTip'
 import type { PlayState } from '../hero/model'
 import { heroPointsLeft } from '../play/state'
 
@@ -26,9 +27,12 @@ export function HeroPointsCard({ total, play, issue, gmName, disabled = false, o
   const buys = play.heroPointBuys ?? []
   const left = heroPointsLeft(total, play)
   const heading = (
-    <h3 id={HERO_POINTS_ID} tabIndex={-1} className="gt-grow gt-points__head">
-      Hero points
-    </h3>
+    <>
+      <h3 id={HERO_POINTS_ID} tabIndex={-1} className="gt-grow gt-points__head">
+        Hero points
+      </h3>
+      <HelpTip tip="heroPoints" />
+    </>
   )
   if (total === 0) {
     return (

@@ -3,6 +3,7 @@
  * the turn order, the heroes, the opposition and the log. It's the same for everyone; `gm`
  * adds the GM's controls and never moves anything around. Without it, everything is read-only.
  */
+import { HelpTip } from '../help/HelpTip'
 import { ChooseDefense } from './ChooseDefense'
 import { defenseText, type Defense } from '../play/defense'
 import { useState, type ReactNode } from 'react'
@@ -255,7 +256,9 @@ function SceneCard({ game, gm }: { game: Pick<TableView, 'scene' | 'environment'
         )}
       </div>
       <div>
-        <div className="gt-label">Scene tracker</div>
+        <div className="gt-label">
+          Scene tracker <HelpTip tip="sceneTracker" />
+        </div>
         <Tracker game={game} gm={gm} />
       </div>
       <div>
@@ -322,7 +325,10 @@ function EndCard({ game, gm, gmName }: { game: TableView; gm?: GmControls | unde
 function BackIssuesCard({ rows }: { rows: readonly BackIssueStatus[] }) {
   return (
     <section className="card gt-card" aria-labelledby="gt-back-issues">
-      <h2 id="gt-back-issues">Back issues</h2>
+      <div className="gt-row">
+        <h2 id="gt-back-issues">Back issues</h2>
+        <HelpTip tip="backIssues" />
+      </div>
       <p className="gt-sub">Players decide on their own device; this is for your information.</p>
       <ul className="gt-finish__facts">
         {rows.map((r) => (
@@ -620,7 +626,9 @@ function ChallengeCard({ challenge, game, gm }: { challenge: Challenge; game: Ta
     <article className={`${cardClass(challenge.hidden, false, false)}${done ? ' gt-challenge--done' : ''}`} aria-labelledby={id}>
       <CardBand appearance={appearanceOf({ kind: 'challenge', environment: challenge.owner.kind === 'environment', color: challenge.color })} />
       <div className="gt-row">
-        <div className="gt-sub gt-grow">Challenge{challenge.owner.kind === 'environment' ? ` · ${game.environment?.name ?? 'Environment'}` : ''}</div>
+        <div className="gt-sub gt-grow">
+          Challenge{challenge.owner.kind === 'environment' ? ` · ${game.environment?.name ?? 'Environment'}` : ''} <HelpTip tip="challenges" />
+        </div>
         <span className={done ? 'gt-progress gt-progress--done' : 'gt-progress'}>{stepsText(challenge)}</span>
         {gm && <MenuButton label={`More for ${challenge.name}`} items={gm.itemMenu(ref, challenge.hidden)} sheets={gm.sheets} />}
       </div>
@@ -770,6 +778,7 @@ export function TableCenter({ game, heroes, villains, now, gm, hideLog = false, 
       <section aria-labelledby="gt-heroes">
         <div className="gt-section-head">
           <h2 id="gt-heroes">Heroes · {heroPointCount(game.heroPoints)}</h2>
+          <HelpTip tip="heroPoints" />
           {gm && (
             <span className="gt-row">
               <button type="button" className="button button--small" aria-label="Take away a hero point" disabled={game.heroPoints <= 0} onClick={() => gm.changeHeroPoints(-1)}>

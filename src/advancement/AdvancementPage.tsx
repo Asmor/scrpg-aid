@@ -2,6 +2,7 @@
  * A hero's Advancement page (scrpg-aid-designs/advancement/spec.md): back issues up to six, naming a
  * collection, changes to the hero, the collections and the history. The player has full control.
  */
+import { HelpTip } from '../help/HelpTip'
 import { useEffect, useId, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { editPath, heroPath, listPath, navigate } from '../app/route'
 import { Modal } from '../components/Modal'
@@ -230,6 +231,7 @@ function BackIssues({ hero, games, issues, onDismiss, apply, clock }: { hero: He
         <h2 id={`${id}-head`} className="gt-grow">
           Back issues
         </h2>
+        <HelpTip tip="backIssues" />
         <span className="adv-pips" role="img" aria-label={`${count} of ${BACK_ISSUES_PER_COLLECTION} back issues`}>
           {Array.from({ length: BACK_ISSUES_PER_COLLECTION }, (_, i) => (
             <span key={i} className={i < count ? 'adv-pip adv-pip--on' : 'adv-pip'} />

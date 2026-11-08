@@ -2,6 +2,7 @@
  * The Status section at the top of the Running panel (scrpg-aid-designs/villains-and-challenges/spec.md,
  * section 1): the die and its rule, Set by hand, and below that what drives it, by the rule's basis.
  */
+import { HelpTip } from '../help/HelpTip'
 import { useId } from 'react'
 import { DieIcon } from '../components/icons'
 import { DICE } from '../rules/dice'
@@ -64,6 +65,7 @@ export function VillainStatusPanel({ game, copy, actions }: { game: Game; copy: 
         <h3 id={`${id}-head`} className="gt-grow gt-status-panel__head">
           Status die
         </h3>
+        <HelpTip tip="statusDie" />
         {overridden && (
           <button type="button" className="button button--small" onClick={() => actions.setOverride(undefined)}>
             Back to automatic
