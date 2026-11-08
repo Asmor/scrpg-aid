@@ -9022,9 +9022,102 @@ a.menu-item {
   flex: 1;
 }
 
+/* On phones the pad is a full-screen sheet with its keys low, where thumbs are (scrpg-aid-designs/settings/spec.md, section 7a). */
 @media (max-width: 759px) {
+  .modal-backdrop:has(.dice-pad) {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .modal:has(.dice-pad) {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .modal:has(.dice-pad) > .dice-pad {
+    flex: 1;
+  }
+
+  .dice-pad__keys {
+    margin-top: auto;
+  }
+
   .dice-pad__key {
-    min-height: 4rem;
+    min-height: 4.125rem;
+  }
+
+  /* Clear and Roll for me side by side, Accept full width under them. */
+  .dice-pad__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dice-pad__actions .button {
+    min-height: 2.75rem;
+  }
+
+  .dice-pad__gap {
+    display: none;
+  }
+
+  .dice-pad__clear {
+    order: 1;
+  }
+
+  .dice-pad__roll {
+    order: 2;
+  }
+
+  .dice-pad__accept {
+    order: 3;
+    grid-column: 1 / -1;
+  }
+
+  .dice-pad__cancel {
+    order: 4;
+    grid-column: 1 / -1;
+  }
+
+  /* In a sheet or the roll dialog, Close at the top cancels (and so does Escape). */
+  .modal .dice-pad__cancel,
+  .roll-dialog .dice-pad__cancel {
+    display: none;
+  }
+}
+
+.settings__short {
+  display: none;
+}
+
+@media (max-width: 759px) {
+  /* Shorter labels on phones; the full one is still what's read out. */
+  .settings__long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .settings__short {
+    display: inline;
+  }
+
+  .settings__field .theme-toggle {
+    display: flex;
+    width: 100%;
+  }
+
+  .settings__field .theme-toggle__option {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
   }
 }
 
@@ -10023,4 +10116,74 @@ kbd {
 .dv-endcard__meta {
   font-size: 26px;
   color: var(--ui-muted);
+}
+
+/* Restore from a backup (scrpg-aid-designs/settings/restore.dc.html) */
+
+.settings__cards--stack {
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0.75rem 0;
+}
+
+.settings__table {
+  width: 100%;
+  margin: 0.5rem 0;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.settings__table th,
+.settings__table td {
+  padding: 0.375rem 0.5rem;
+  border-bottom: 1px solid var(--ui-border);
+  text-align: left;
+}
+
+.settings__table thead th {
+  color: var(--ui-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.settings__table th[scope='row'] {
+  font-weight: 400;
+}
+
+.settings__table td,
+.settings__table thead th:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings__kinds {
+  display: flex;
+  flex-direction: column;
+  margin: 0.5rem 0;
+  padding: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.625rem;
+  list-style: none;
+}
+
+.settings__kinds li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.settings__kinds li + li {
+  border-top: 1px solid var(--ui-border);
+}
+
+.settings__warn {
+  padding: 0.75rem;
+  border: 1px solid var(--ui-danger);
+  border-radius: 0.625rem;
+  background: var(--ui-danger-soft);
+}
+
+/* Back up first sits apart, on the left. */
+.settings__first {
+  margin-right: auto;
 }

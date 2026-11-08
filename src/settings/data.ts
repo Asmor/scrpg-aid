@@ -5,6 +5,7 @@
 import { heroDisplayName, type Hero } from '../hero/model'
 import type { JoinedStore, JoinedGame } from '../game/joined-store'
 import { gameDisplayName, type Game } from '../game/model'
+import { nameList } from '../game/names'
 import { isSoloGameId } from '../game/solo'
 import type { GameStore } from '../game/store'
 import type { HeroStore } from '../hero/store'
@@ -174,7 +175,7 @@ export function storageLine(c: Contents, bytes: number): string {
 export const backupText = (c: Contents, now?: Date) => backupJson(c, now)
 export const byteLength = (text: string) => new TextEncoder().encode(text).length
 
-export type RestoreFile = { ok: true; contents: Contents; skipped: number } | { ok: false; error: string }
+export type RestoreFile = { ok: true; contents: Contents; skipped: number; /** When the backup was made, if it says. */ exportedAt?: string } | { ok: false; error: string }
 
 /** Reads a chosen file: only a backup restores. */
 export function readRestoreFile(text: string): RestoreFile {
@@ -188,7 +189,8 @@ export function readRestoreFile(text: string): RestoreFile {
   const result = readImport(text)
   if (!result.ok) return result
   const { heroes, villains, games, savedSearches, templates, joined = [], settings, skipped } = result
-  return { ok: true, skipped: skipped.length, contents: { heroes, villains, games, savedSearches, templates, joined, ...(settings ? { settings } : {}) } }
+  const exportedAt = (JSON.parse(text) as { exportedAt?: unknown }).exportedAt
+  return { ok: true, skipped: skipped.length, ...(typeof exportedAt === 'string' ? { exportedAt } : {}), contents: { heroes, villains, games, savedSearches, templates, joined, ...(settings ? { settings } : {}) } }
 }
 
 /** What adding would skip because its id is already here: each by kind and name. */
@@ -219,4 +221,54 @@ export async function restoreAdd(c: Contents, stores: DataStores): Promise<numbe
 export async function restoreReplace(c: Contents, stores: DataStores): Promise<void> {
   for (const kind of KINDS) for (const id of await kind.ids(stores)) await kind.remove(stores, id)
   for (const kind of KINDS) for (const doc of kind.docs(c)) await kind.save(stores, doc as never)
+}
+
+/** A row of the Restore dialog's table (scrpg-aid-designs/settings/spec.md, section 7): one kind, in the backup and already here. */
+export interface RestoreRow {
+  label: string
+  inBackup: number
+  /** In the backup with an id that's already on this device. */
+  here: number
+}
+
+const TEMPLATE_LABELS = ['minion templates', 'lieutenant templates', 'challenge templates', 'environment templates']
+const ROW_GROUPS: readonly { label: string; kinds: readonly string[] }[] = [
+  { label: 'Heroes', kinds: ['heroes'] },
+  { label: 'Villains', kinds: ['villains'] },
+  { label: 'Minion, lieutenant, challenge and environment templates', kinds: TEMPLATE_LABELS },
+  { label: 'Games', kinds: ['games'] },
+  { label: 'Joined games', kinds: ['joined games'] },
+  { label: 'Saved searches', kinds: ['saved searches'] },
+]
+
+/** The table's rows, from the backup and what `alreadyHere` found. Kinds the backup doesn't have are left out. */
+export function restoreRows(c: Contents, here: readonly { label: string }[]): RestoreRow[] {
+  return ROW_GROUPS.map((g) => ({
+    label: g.label,
+    inBackup: KINDS.filter((k) => g.kinds.includes(k.label)).reduce((n, k) => n + k.docs(c).length, 0),
+    here: here.filter((h) => g.kinds.includes(h.label)).length,
+  })).filter((r) => r.inBackup > 0)
+}
+
+/**
+ * What Replace everything deletes, said before it does: "This deletes 42 library items, 6 games and 3
+ * joined games on this device, including 2 heroes and 1 game that aren't in the backup: Redline, Moth,
+ * Saturday game. It can't be undone." `device` is what's readable here now.
+ */
+export function replaceWarning(backup: Contents, device: Contents): string {
+  const library = device.heroes.length + device.villains.length + TEMPLATE_LIST_KEYS.reduce((n, key) => n + device.templates[key].length, 0)
+  const parts = [
+    ...(library ? [plural(library, 'library item')] : []),
+    ...(device.games.length ? [plural(device.games.length, 'game')] : []),
+    ...(device.joined.length ? [plural(device.joined.length, 'joined game')] : []),
+    ...(device.savedSearches.length ? [plural(device.savedSearches.length, 'saved search', 'saved searches')] : []),
+  ]
+  if (!parts.length) return "There's nothing on this device to delete. The backup is restored as it is."
+  // What's here and not in the backup, kind by kind: those are lost for good.
+  const missing = KINDS.map((k) => {
+    const kept = new Set(k.docs(backup).map((d) => d.id))
+    return { label: k.label, names: k.docs(device).filter((d) => !kept.has(d.id)).map((d) => k.name(d as never)) }
+  }).filter((m) => m.names.length)
+  const lost = missing.length ? `, including ${nameList(missing.map((m) => countText({ label: m.label, count: m.names.length })))} that ${missing.reduce((n, m) => n + m.names.length, 0) === 1 ? "isn't" : "aren't"} in the backup: ${missing.flatMap((m) => m.names).join(', ')}` : ''
+  return `This deletes ${nameList(parts)} on this device${lost}. It can't be undone.`
 }

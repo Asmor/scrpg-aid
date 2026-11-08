@@ -21,7 +21,7 @@ import { adaptiveBruiser } from '../test/villains'
 import { downloadFile } from '../transfer/download'
 import { MemoryVillainStore } from '../villain/store'
 import type { BackupTimeStore } from '../library/backup-time'
-import { backupText, byteLength, contentCounts, readEverything, readRestoreFile, restoreAdd, restoreReplace, sizeText, storageLine, type DataStores } from './data'
+import { backupText, byteLength, contentCounts, readEverything, readRestoreFile, restoreAdd, restoreReplace, sizeText, storageLine, type DataStores, replaceWarning, restoreRows } from './data'
 import { DEFAULT_SETTINGS } from './model'
 import { SettingsProvider } from './SettingsProvider'
 import { SettingsPage } from './SettingsPage'
@@ -52,6 +52,29 @@ async function plantUnreadable(s: MemoryGameStore, id: string, game: object) {
   // Saved by an older version: it can't be read, but its name still can.
   await (s as unknown as { putRecord: (r: unknown) => Promise<void> }).putRecord({ id, saved: { format: 'scrpg-game', version: 1, game } })
 }
+
+describe('restoring, before it happens', () => {
+  it('counts each kind in the backup and already here, templates together', async () => {
+    const contents = await readEverything((await filled()) as DataStores, DEFAULT_SETTINGS)
+    expect(restoreRows(contents, [{ label: 'heroes' }, { label: 'minion templates' }])).toEqual([
+      { label: 'Heroes', inBackup: 1, here: 1 },
+      { label: 'Villains', inBackup: 1, here: 0 },
+      { label: 'Minion, lieutenant, challenge and environment templates', inBackup: 1, here: 1 },
+      { label: 'Games', inBackup: 2, here: 0 },
+      { label: 'Joined games', inBackup: 1, here: 0 },
+      { label: 'Saved searches', inBackup: 1, here: 0 },
+    ])
+  })
+
+  it('names what Replace deletes, and what of it the backup lacks', async () => {
+    const device = await readEverything((await filled()) as DataStores, DEFAULT_SETTINGS)
+    expect(replaceWarning(device, device)).toBe("This deletes 3 library items, 2 games, 1 joined game and 1 saved search on this device. It can't be undone.")
+    const backup = { ...device, heroes: [], games: device.games.filter((g) => g.id === 'g1') }
+    expect(replaceWarning(backup, device)).toMatch(/^This deletes 3 library items, 2 games, 1 joined game and 1 saved search on this device, including 1 hero and 1 game that aren't in the backup: .+, Solo play · .+\. It can't be undone\.$/)
+    const empty = await readEverything(stores() as DataStores, DEFAULT_SETTINGS)
+    expect(replaceWarning(device, empty)).toBe("There's nothing on this device to delete. The backup is restored as it is.")
+  })
+})
 
 describe('a backup of everything', () => {
   it('holds every kind, solo games and settings too, and reads back', async () => {
@@ -127,9 +150,9 @@ describe('the Data section', () => {
     )
     return settings
   }
-  const pick = async (content: string) => {
+  const pick = async (content: string, name = 'backup.json') => {
     const input = screen.getByLabelText('Backup file')
-    await userEvent.upload(input, new File([content], 'backup.json', { type: 'application/json' }))
+    await userEvent.upload(input, new File([content], name, { type: 'application/json' }))
   }
 
   it('shows what is here and backs it all up', async () => {
@@ -188,17 +211,23 @@ describe('the Data section', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("This file isn't a backup the app can read.")
   })
 
-  it('adds a backup, listing what it skips, with settings only if ticked', async () => {
+  it('shows each kind in the backup and already here, adds, and lists what it skipped; settings only if ticked', async () => {
     const contents = await readEverything((await filled()) as DataStores, { ...DEFAULT_SETTINGS, textSize: 'large' })
     const s = stores()
     await s.heroes.save({ ...completeHero(), id: 'h1', details: { ...completeHero().details, name: 'Kept' } })
     const settings = page(s)
-    await pick(backupText(contents))
+    await pick(backupText(contents), 'scrpg-aid-backup-2026-11-05.json')
     const dialog = within(await screen.findByRole('dialog', { name: 'Restore from a backup' }))
-    expect(dialog.getByText('2 games')).toBeInTheDocument()
-    expect(await dialog.findByText("Adding skips what's already here:")).toBeInTheDocument()
-    await userEvent.click(dialog.getByRole('button', { name: "Add to what's here" }))
-    expect(await screen.findByText('Added 6 items from the backup.')).toBeInTheDocument()
+    expect(dialog.getByText(/^scrpg-aid-backup-2026-11-05\.json · [\d.]+ (B|KB) · made [A-Z][a-z]{2} \d+$/)).toBeInTheDocument()
+    const table = within(await dialog.findByRole('table', { name: "What's in the backup" }))
+    const row = (name: string) => within(table.getByRole('rowheader', { name }).closest('tr')!).getAllByRole('cell').map((c) => c.textContent)
+    expect(row('Heroes')).toEqual(['1', '1'])
+    expect(row('Games')).toEqual(['2', '0'])
+    expect(row('Minion, lieutenant, challenge and environment templates')).toEqual(['1', '0'])
+    expect(dialog.getByRole('radio', { name: /^Add to what's here/ })).toBeChecked()
+    expect(dialog.getByText("Adds 6 items. 1 is already here (same id) and is skipped; they're listed after.")).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Add 6 items' }))
+    expect(await screen.findByText(/^Added 6 items from the backup\. Already here, so skipped: /)).toBeInTheDocument()
     expect((await s.heroes.list()).heroes.map((h) => h.details.name)).toEqual(['Kept'])
     expect((await settings.load()).textSize).toBe('normal')
   })
@@ -209,23 +238,43 @@ describe('the Data section', () => {
     await pick(backupText(contents))
     const dialog = within(await screen.findByRole('dialog', { name: 'Restore from a backup' }))
     await userEvent.click(dialog.getByRole('checkbox', { name: "Also use the backup's settings" }))
-    await userEvent.click(dialog.getByRole('button', { name: "Add to what's here" }))
+    await userEvent.click(await dialog.findByRole('button', { name: 'Add 0 items' }))
     await waitFor(async () => expect((await settings.load()).textSize).toBe('large'))
   })
 
-  it('replaces everything only after asking again, naming what goes', async () => {
+  it('replaces everything only after a second step naming what goes, with Back and Back up first', async () => {
     const contents = await readEverything((await filled()) as DataStores, DEFAULT_SETTINGS)
     const s = stores()
-    await s.heroes.save({ ...completeHero(), id: 'other' })
+    await s.heroes.save({ ...completeHero(), id: 'other', details: { ...completeHero().details, name: 'Redline' } })
     page(s)
     await pick(backupText(contents))
     const dialog = within(await screen.findByRole('dialog', { name: 'Restore from a backup' }))
-    await userEvent.click(dialog.getByRole('button', { name: 'Replace everything…' }))
+    await userEvent.click(dialog.getByRole('radio', { name: /^Replace everything/ }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Replace…' }))
     const sure = within(screen.getByRole('dialog', { name: 'Replace everything on this device?' }))
-    await waitFor(() => expect(sure.getByText(/1 hero\b/)).toBeInTheDocument())
+    expect(await sure.findByText("This deletes 1 library item on this device, including 1 hero that isn't in the backup: Redline. It can't be undone.")).toBeInTheDocument()
+    await userEvent.click(sure.getByRole('button', { name: 'Back up first' }))
+    await waitFor(() => expect(downloadFile).toHaveBeenCalled())
+    await userEvent.click(sure.getByRole('button', { name: 'Back' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Restore from a backup' })).getByRole('button', { name: 'Replace…' }))
     expect((await s.heroes.list()).heroes.map((h) => h.id)).toEqual(['other'])
-    await userEvent.click(sure.getByRole('button', { name: 'Yes, replace everything' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Replace everything on this device?' })).getByRole('button', { name: 'Replace everything' }))
     expect(await screen.findByText('Replaced everything on this device with the backup.')).toBeInTheDocument()
     expect((await s.heroes.list()).heroes.map((h) => h.id)).toEqual(['h1'])
+  })
+
+  it('on a phone: a full-screen sheet, with the kinds as a list', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('max-width'), media: query, addEventListener: () => {}, removeEventListener: () => {} }))
+    try {
+      const contents = await readEverything((await filled()) as DataStores, DEFAULT_SETTINGS)
+      page(stores())
+      await pick(backupText(contents))
+      const dialog = await screen.findByRole('dialog', { name: 'Restore from a backup' })
+      expect(dialog).toHaveClass('modal--wide')
+      const list = within(await within(dialog).findByRole('list', { name: "What's in the backup" }))
+      expect(list.getByText('Heroes').parentElement).toHaveTextContent('Heroes1 in the backup · 0 already here')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

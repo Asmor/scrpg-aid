@@ -200,17 +200,17 @@ export function DicePad({ dice, onAccept, onCancel, onRollForMe, autoFocus = fal
       </p>
       <PadKeys dice={sizes} autoFocus={autoFocus} onTap={tap} />
       <div className="dice-pad__actions">
-        <button type="button" className="button" onClick={onCancel}>
+        <button type="button" className="button dice-pad__cancel" onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" className="button" onClick={onRollForMe}>
+        <button type="button" className="button dice-pad__roll" onClick={onRollForMe}>
           Roll for me
         </button>
         <span className="dice-pad__gap" />
-        <button type="button" className="button" onClick={() => setValues([])}>
+        <button type="button" className="button dice-pad__clear" onClick={() => setValues([])}>
           Clear
         </button>
-        <button type="button" className="button button--primary" disabled={!ok} onClick={accept}>
+        <button type="button" className="button button--primary dice-pad__accept" disabled={!ok} onClick={accept}>
           Accept
         </button>
       </div>
@@ -261,17 +261,17 @@ export function MemberPad({ members, onAccept, onCancel, onRollForMe }: MemberPa
       </ol>
       <PadKeys dice={full ? [] : [member.die]} onTap={tap} />
       <div className="dice-pad__actions">
-        <button type="button" className="button" onClick={onCancel}>
+        <button type="button" className="button dice-pad__cancel" onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" className="button" onClick={onRollForMe}>
+        <button type="button" className="button dice-pad__roll" onClick={onRollForMe}>
           Roll for me
         </button>
         <span className="dice-pad__gap" />
-        <button type="button" className="button" disabled={values.length === 0} onClick={back}>
+        <button type="button" className="button dice-pad__clear" disabled={values.length === 0} onClick={back}>
           Back
         </button>
-        <button ref={acceptRef} type="button" className="button button--primary" disabled={!full} onClick={accept}>
+        <button ref={acceptRef} type="button" className="button button--primary dice-pad__accept" disabled={!full} onClick={accept}>
           Accept
         </button>
       </div>

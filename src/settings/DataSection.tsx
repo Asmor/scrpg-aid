@@ -1,5 +1,5 @@
 /** Settings' Data section (scrpg-aid-designs/settings/spec.md, section 7). */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useGameStore } from '../app/game-store-context'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
 import { useOptionalSavedSearchStore } from '../app/saved-search-context'
@@ -9,6 +9,7 @@ import { useVillainStore } from '../app/villain-store-context'
 import { heroPath, navigate } from '../app/route'
 import { ImportControl, type ImportHandle } from '../components/ImportControl'
 import { Modal } from '../components/Modal'
+import { useMediaQuery } from '../components/useMediaQuery'
 import { exampleHero } from '../hero/example'
 import { backupStatus, localBackupTime, type BackupTimeStore } from '../library/backup-time'
 import { TEMPLATE_LIST_KEYS } from '../template/lists'
@@ -21,33 +22,60 @@ import { backupFileName } from '../transfer/files'
 import { downloadFile } from '../transfer/download'
 import { useSettings } from './context'
 import { DEFAULT_SETTINGS } from './model'
-import { alreadyHere, backupText, byteLength, contentCounts, countText, readEverything, readRestoreFile, restoreAdd, restoreReplace, storageLine, type Contents, type DataStores } from './data'
+import { alreadyHere, backupText, byteLength, readEverything, readRestoreFile, replaceWarning, restoreAdd, restoreReplace, restoreRows, sizeText, storageLine, type Contents, type DataStores } from './data'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-function RestoreDialog({ contents, stores, skipped, onDone, onClose }: { contents: Contents; stores: DataStores; skipped: number; onDone: (text: string) => void; onClose: () => void }) {
+interface RestoreProps {
+  contents: Contents
+  stores: DataStores
+  /** Items in the file that couldn't be read. */
+  skipped: number
+  /** The file's name and size, and when the backup was made. */
+  file: { name: string; size: number; exportedAt?: string }
+  onBackUp: () => Promise<void>
+  onDone: (text: string) => void
+  onClose: () => void
+}
+
+/**
+ * Restore from a backup (scrpg-aid-designs/settings/spec.md, section 7; restore.dc.html): what's in the
+ * backup and what's already here, kind by kind, then Add to what's here or Replace everything. Replace
+ * goes to a second step naming what will be deleted, with Back up first. On phones it's a full-screen
+ * sheet and the table is a list (section 7a).
+ */
+function RestoreDialog({ contents, stores, skipped, file, onBackUp, onDone, onClose }: RestoreProps) {
   const { update } = useSettings()
+  const phone = useMediaQuery('(max-width: 759.98px)', false)
   const [here, setHere] = useState<{ label: string; name: string }[] | null>(null)
+  const [device, setDevice] = useState<Contents | null>(null)
+  const [mode, setMode] = useState<'add' | 'replace'>('add')
+  const [step, setStep] = useState<'choose' | 'confirm'>('choose')
   const [useSettingsToo, setUseSettingsToo] = useState(false)
-  const [confirming, setConfirming] = useState(false)
-  const [what, setWhat] = useState<{ label: string; count: number }[]>([])
   const [error, setError] = useState<string | null>(null)
+  const id = useId()
   useEffect(() => {
     let live = true
     void alreadyHere(contents, stores).then((list) => live && setHere(list))
-    void readEverything(stores, DEFAULT_SETTINGS).then((c) => live && setWhat(contentCounts(c)))
+    void readEverything(stores, DEFAULT_SETTINGS).then((c) => live && setDevice(c))
     return () => {
       live = false
     }
   }, [contents, stores])
+  const applyBackupSettings = () => {
+    if (!useSettingsToo || !contents.settings) return
+    const chosen = contents.settings
+    update(() => chosen)
+  }
+  const rows = here ? restoreRows(contents, here) : []
+  const total = rows.reduce((n, r) => n + r.inBackup, 0)
+  const adds = total - (here?.length ?? 0)
   const add = async () => {
     try {
       const added = await restoreAdd(contents, stores)
-      if (useSettingsToo && contents.settings) {
-        const chosen = contents.settings
-        update(() => chosen)
-      }
-      onDone(`Added ${added} ${added === 1 ? 'item' : 'items'} from the backup.`)
+      applyBackupSettings()
+      const passed = here?.length ? ` Already here, so skipped: ${here.map((h) => h.name).join(', ')}.` : ''
+      onDone(`Added ${added} ${added === 1 ? 'item' : 'items'} from the backup.${passed}`)
     } catch (e) {
       setError(errorText(e))
     }
@@ -55,75 +83,124 @@ function RestoreDialog({ contents, stores, skipped, onDone, onClose }: { content
   const replace = async () => {
     try {
       await restoreReplace(contents, stores)
-      if (contents.settings) {
-        const chosen = contents.settings
-        update(() => chosen)
-      }
+      applyBackupSettings()
       onDone('Replaced everything on this device with the backup.')
     } catch (e) {
       setError(errorText(e))
     }
   }
-  const counts = contentCounts(contents)
+  // "made Nov 5", with the year when it isn't this one.
+  const madeAt = file.exportedAt ? new Date(file.exportedAt) : undefined
+  const made = madeAt ? `made ${madeAt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(madeAt.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' as const } : {}) })}` : ''
+  const about = [file.name, sizeText(file.size), made].filter(Boolean).join(' · ')
+  const failed = error && (
+    <p role="alert" className="error">
+      Couldn't restore: {error}
+    </p>
+  )
+  if (step === 'confirm') {
+    return (
+      <Modal title="Replace everything on this device?" onClose={onClose} wide={phone}>
+        <p className="muted">{about}</p>
+        <p role="alert" className="settings__warn">
+          {device ? replaceWarning(contents, device) : 'Reading what\'s on this device…'}
+        </p>
+        <p>Back up first if you might want them.</p>
+        {failed}
+        <div className="button-row gt-dialog-actions">
+          <button type="button" className="button settings__first" onClick={() => void onBackUp()}>
+            Back up first
+          </button>
+          <button type="button" className="button" onClick={() => setStep('choose')}>
+            Back
+          </button>
+          <button type="button" className="button button--danger" disabled={!device} onClick={() => void replace()}>
+            Replace everything
+          </button>
+        </div>
+      </Modal>
+    )
+  }
   return (
-    <Modal title="Restore from a backup" onClose={onClose}>
-      <p>This backup holds:</p>
-      {counts.length ? (
-        <ul>
-          {counts.map((c) => (
-            <li key={c.label}>
-              {countText(c)}
+    <Modal title="Restore from a backup" onClose={onClose} wide={phone}>
+      <p className="muted">{about}</p>
+      {!here ? (
+        <p className="muted">Reading what's already here…</p>
+      ) : rows.length === 0 ? (
+        <p className="muted">Nothing but settings.</p>
+      ) : phone ? (
+        <ul className="settings__kinds" aria-label="What's in the backup">
+          {rows.map((r) => (
+            <li key={r.label}>
+              <strong>{r.label}</strong>
+              <span className="muted">
+                {r.inBackup} in the backup · {r.here} already here
+              </span>
             </li>
           ))}
-          {contents.settings && <li>This device's settings</li>}
         </ul>
       ) : (
-        <p className="muted">Nothing but settings.</p>
+        <table className="settings__table" aria-label="What's in the backup">
+          <thead>
+            <tr>
+              <th scope="col">Kind</th>
+              <th scope="col">In the backup</th>
+              <th scope="col">Already here</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.label}>
+                <th scope="row">{r.label}</th>
+                <td>{r.inBackup}</td>
+                <td>{r.here}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
       {skipped > 0 && <p className="hint">{skipped === 1 ? 'One item in it' : `${skipped} items in it`} couldn't be read and will be left out.</p>}
-      {here && here.length > 0 && (
-        <>
-          <p>Adding skips what's already here:</p>
-          <ul>
-            {here.map((h, i) => (
-              <li key={i}>
-                {h.name} <span className="muted">({h.label})</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+      <div role="radiogroup" aria-label="How to restore" className="settings__cards settings__cards--stack">
+        <label className={mode === 'add' ? 'settings__card settings__card--on' : 'settings__card'}>
+          <input type="radio" name={`${id}-mode`} checked={mode === 'add'} onChange={() => setMode('add')} />
+          <span>
+            <strong>Add to what's here</strong>
+            <br />
+            <span className="muted">
+              {here && here.length > 0 ? `Adds ${adds} ${adds === 1 ? 'item' : 'items'}. ${here.length} ${here.length === 1 ? 'is' : 'are'} already here (same id) and ${here.length === 1 ? 'is' : 'are'} skipped; they're listed after.` : `Adds ${adds} ${adds === 1 ? 'item' : 'items'}.`}
+            </span>
+          </span>
+        </label>
+        <label className={mode === 'replace' ? 'settings__card settings__card--on' : 'settings__card'}>
+          <input type="radio" name={`${id}-mode`} checked={mode === 'replace'} onChange={() => setMode('replace')} />
+          <span>
+            <strong>Replace everything</strong>
+            <br />
+            <span className="muted">Deletes what's on this device first, then restores the backup.</span>
+          </span>
+        </label>
+      </div>
       {contents.settings && (
         <label className="checkbox">
           <input type="checkbox" checked={useSettingsToo} onChange={(e) => setUseSettingsToo(e.target.checked)} />
           Also use the backup's settings
         </label>
       )}
-      {error && (
-        <p role="alert" className="error">
-          Couldn't restore: {error}
-        </p>
-      )}
+      {failed}
       <div className="button-row gt-dialog-actions">
         <button type="button" className="button" onClick={onClose}>
           Cancel
         </button>
-        <button type="button" className="button button--danger" onClick={() => setConfirming(true)}>
-          Replace everything…
-        </button>
-        <button type="button" className="button button--primary" disabled={!here} onClick={() => void add()}>
-          Add to what's here
-        </button>
+        {mode === 'add' ? (
+          <button type="button" className="button button--primary" disabled={!here} onClick={() => void add()}>
+            {here ? `Add ${adds} ${adds === 1 ? 'item' : 'items'}` : 'Add'}
+          </button>
+        ) : (
+          <button type="button" className="button button--primary" onClick={() => setStep('confirm')}>
+            Replace…
+          </button>
+        )}
       </div>
-      {confirming && (
-        <ConfirmDialog
-          title="Replace everything on this device?"
-          text={`This deletes everything here first${what.length ? `: ${what.map(countText).join(', ')}` : ''}. It can't be undone.`}
-          confirm="Yes, replace everything"
-          onConfirm={() => void replace()}
-          onClose={() => setConfirming(false)}
-        />
-      )}
     </Modal>
   )
 }
@@ -145,7 +222,7 @@ export function DataSection({ backupTime }: { backupTime?: BackupTimeStore }) {
   const importer = useRef<ImportHandle>(null)
   const [unreadable, setUnreadable] = useState<GameList['unreadable']>([])
   const [deleting, setDeleting] = useState<GameList['unreadable'][number] | null>(null)
-  const [restoring, setRestoring] = useState<{ contents: Contents; skipped: number } | null>(null)
+  const [restoring, setRestoring] = useState<{ contents: Contents; skipped: number; file: RestoreProps['file'] } | null>(null)
   const [status, setStatus] = useState('')
   const [error, setError] = useState<string | null>(null)
   const file = useRef<HTMLInputElement>(null)
@@ -193,7 +270,7 @@ export function DataSection({ backupTime }: { backupTime?: BackupTimeStore }) {
   const chosen = async (picked: File) => {
     setError(null)
     const read = readRestoreFile(await picked.text())
-    if (read.ok) setRestoring(read)
+    if (read.ok) setRestoring({ ...read, file: { name: picked.name, size: picked.size, ...(read.exportedAt ? { exportedAt: read.exportedAt } : {}) } })
     else setError(read.error)
   }
   return (
@@ -287,6 +364,8 @@ export function DataSection({ backupTime }: { backupTime?: BackupTimeStore }) {
         <RestoreDialog
           contents={restoring.contents}
           skipped={restoring.skipped}
+          file={restoring.file}
+          onBackUp={backUp}
           stores={stores}
           onClose={() => setRestoring(null)}
           onDone={(text) => {

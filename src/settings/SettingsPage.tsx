@@ -34,7 +34,7 @@ function Saved({ on }: { on: boolean }) {
   )
 }
 
-function Radios<T extends string>({ legend, value, options, onChange, saved, hint }: { legend: string; value: T; options: readonly { value: T; label: string }[]; onChange: (value: T) => void; saved: boolean; hint?: ReactNode }) {
+function Radios<T extends string>({ legend, value, options, onChange, saved, hint }: { legend: string; value: T; options: readonly { value: T; label: string; /** What a phone shows; the full label is still read out. */ short?: string }[]; onChange: (value: T) => void; saved: boolean; hint?: ReactNode }) {
   const name = useId()
   return (
     <fieldset className="settings__field">
@@ -44,7 +44,16 @@ function Radios<T extends string>({ legend, value, options, onChange, saved, hin
           {options.map((o) => (
             <label key={o.value} className="theme-toggle__option">
               <input type="radio" name={name} value={o.value} checked={value === o.value} onChange={() => onChange(o.value)} />
-              <span>{o.label}</span>
+              {o.short ? (
+                <span>
+                  <span className="settings__long">{o.label}</span>
+                  <span className="settings__short" aria-hidden="true">
+                    {o.short}
+                  </span>
+                </span>
+              ) : (
+                <span>{o.label}</span>
+              )}
             </label>
           ))}
         </span>
@@ -213,9 +222,9 @@ export function SettingsPage({ backupTime }: { backupTime?: BackupTimeStore }) {
           legend="Motion"
           value={settings.motion}
           options={[
-            { value: 'system', label: 'Follow my system' },
-            { value: 'reduce', label: 'Reduce motion' },
-            { value: 'allow', label: 'Allow motion' },
+            { value: 'system', label: 'Follow my system', short: 'System' },
+            { value: 'reduce', label: 'Reduce motion', short: 'Reduce' },
+            { value: 'allow', label: 'Allow motion', short: 'Allow' },
           ]}
           onChange={(motion) => set('motion', (s) => ({ ...s, motion }))}
           saved={mark === 'motion'}
