@@ -9427,9 +9427,11 @@ a.menu-item {
 }
 
 @media (max-width: 759px) {
+  /* Sideways under the Your turn bar, with 22 px above the chips for the chevron (scrpg-aid-designs/character-colors/spec.md, section 5a). */
   .turn-strip:not(.turn-strip--room) {
     flex-wrap: nowrap;
     overflow-x: auto;
+    padding-top: 22px;
   }
 
   .turn-strip__item,
@@ -10186,4 +10188,57 @@ kbd {
 /* Back up first sits apart, on the left. */
 .settings__first {
   margin-right: auto;
+}
+
+/* The color picker on phones (scrpg-aid-designs/character-colors/spec.md, section 5a): in a full-screen
+   sheet the preview is pinned at the top; swatches are a 7-column grid of 44 px squares or more, and the
+   gradient styles a row of 5. */
+@media (max-width: 759px) {
+  .modal .color-picker .color-previews {
+    order: -1;
+    position: sticky;
+    /* Up into the modal's 1rem top padding, so it sticks at the sheet's top edge. */
+    top: -1rem;
+    z-index: 1;
+    margin: -0.25rem 0 0;
+    padding: 0.25rem 0 0.5rem;
+    background: var(--ui-surface);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .modal .color-picker .color-preview {
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .modal .color-picker .color-preview .char-band {
+    min-height: 2.5rem;
+    font-size: 1.25rem;
+  }
+
+  .color-picker .color-row__swatches {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(2.75rem, 1fr));
+    gap: 0.25rem;
+  }
+
+  .color-picker .color-swatch {
+    width: auto;
+    height: auto;
+    aspect-ratio: 1;
+    min-height: 2.75rem;
+  }
+
+  .color-picker fieldset:has(.color-gradient) .color-row__swatches {
+    grid-template-columns: repeat(5, minmax(2.75rem, 1fr));
+  }
+
+  .color-picker fieldset:has(.color-gradient) .checkbox {
+    grid-column: 1 / -1;
+  }
+
+  .color-picker .color-gradient {
+    justify-content: center;
+  }
 }

@@ -26,6 +26,12 @@ import { alreadyHere, backupText, byteLength, readEverything, readRestoreFile, r
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
+/** "made Nov 5", with the year when it isn't this one. */
+function madeText(iso: string, now = new Date()): string {
+  const at = new Date(iso)
+  return `made ${at.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(at.getFullYear() !== now.getFullYear() ? { year: 'numeric' as const } : {}) })}`
+}
+
 interface RestoreProps {
   contents: Contents
   stores: DataStores
@@ -89,9 +95,7 @@ function RestoreDialog({ contents, stores, skipped, file, onBackUp, onDone, onCl
       setError(errorText(e))
     }
   }
-  // "made Nov 5", with the year when it isn't this one.
-  const madeAt = file.exportedAt ? new Date(file.exportedAt) : undefined
-  const made = madeAt ? `made ${madeAt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(madeAt.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' as const } : {}) })}` : ''
+  const made = file.exportedAt ? madeText(file.exportedAt) : ''
   const about = [file.name, sizeText(file.size), made].filter(Boolean).join(' · ')
   const failed = error && (
     <p role="alert" className="error">

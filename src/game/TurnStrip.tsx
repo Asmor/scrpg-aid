@@ -9,6 +9,7 @@ import { actorColors, SIDE_WORD, sideToken } from './colors'
 import type { ActorRef } from './model'
 import type { TableView } from './project'
 import { actorKey, turnStrip } from './table'
+import { stripScrollLeft } from './turn-scroll'
 
 /** The check on a fill: the ink over a wider copy in the outline, since `text-shadow` doesn't reach SVG. */
 function ActedCheck() {
@@ -34,11 +35,18 @@ export function TurnStrip({ game, name, room = false }: { game: TableView; name:
   const [chevronAt, setChevronAt] = useState<{ x: number; y: number } | null>(null)
   // The chevron slides to whoever is acting: one element, moved over the chip, on whichever row it wrapped to.
   useLayoutEffect(() => {
+    const acting = () => (currentKey ? list.current?.querySelector<HTMLElement>(`[data-actor="${CSS.escape(currentKey)}"]`) : undefined)
     const place = () => {
-      const chip = currentKey ? list.current?.querySelector<HTMLElement>(`[data-actor="${CSS.escape(currentKey)}"]`) : undefined
+      const chip = acting()
       setChevronAt(chip ? { x: chip.offsetLeft + chip.offsetWidth / 2, y: chip.offsetTop - CHEVRON_ROOM } : null)
     }
     place()
+    // A strip that scrolls sideways (phones) brings whoever is acting into view, just right of the divider.
+    const el = list.current
+    const chip = acting()
+    if (el && chip && el.scrollWidth > el.clientWidth) {
+      el.scrollLeft = stripScrollLeft({ dividerLeft: el.querySelector<HTMLElement>('.turn-strip__divider')?.offsetLeft, chipLeft: chip.offsetLeft, scrollWidth: el.scrollWidth, clientWidth: el.clientWidth })
+    }
     if (!list.current || typeof ResizeObserver === 'undefined') return
     const watching = new ResizeObserver(place)
     watching.observe(list.current)
