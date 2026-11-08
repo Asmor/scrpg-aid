@@ -55,7 +55,7 @@ export function HeroPointsCard({ total, play, issue, gmName, disabled = false, o
       </p>
       <div className="gt-row" role="group" aria-label="Buy a bonus">
         {Array.from({ length: total }, (_, i) => i + 1).map((size) => (
-          <button key={size} type="button" className="button button--small" disabled={disabled || size > left} aria-label={`Buy a +${size} bonus for ${size} ${size === 1 ? 'point' : 'points'}`} onClick={() => onBuy(size)}>
+          <button key={size} type="button" className="button button--small gt-points__buy" disabled={disabled || size > left} aria-label={`Buy a +${size} bonus for ${size} ${size === 1 ? 'point' : 'points'}`} onClick={() => onBuy(size)}>
             +{size}
           </button>
         ))}

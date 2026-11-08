@@ -3,7 +3,9 @@
  * of it, what's coming in, what resets, and a preview of what players will see.
  */
 import { useId, useState } from 'react'
+import { Fold } from '../components/Fold'
 import { Modal } from '../components/Modal'
+import { useMediaQuery } from '../components/useMediaQuery'
 import { nameList } from './names'
 import { betweenIssues, currentScene, issueTitle, nextIssueNumber, sceneName, sceneNumber, trackerFromCounts, type Game } from './model'
 import type { IssueStartFacts } from './issues'
@@ -94,6 +96,7 @@ export function StartSceneDialog({ game, sceneId, issue, onStart, onEdit, onClos
   const id = useId()
   const [plan] = useState(() => startPlan(game, sceneId))
   const [choices, setChoices] = useState<StartChoices>(() => defaultChoices(plan))
+  const phone = useMediaQuery('(max-width: 759.98px)', false)
   const scene = game.scenes.find((s) => s.id === sceneId)
   if (!scene) return null
   const number = sceneNumber(game, sceneId)
@@ -108,6 +111,11 @@ export function StartSceneDialog({ game, sceneId, issue, onStart, onEdit, onClos
   const finished = game.issues.at(-1)
   const resets = between ? ISSUE_RESETS : RESETS
   const lost = issue?.facts.unspent.reduce((n, u) => n + u.points, 0) ?? 0
+  // On phones (scrpg-aid-designs/issues/spec.md, section 8a): a full-screen sheet, what to check first at
+  // the top, the rest folded with counts (Reset open), and a sticky footer.
+  const leavingCount = plan.leaving.length + (plan.replaced ? 1 : 0)
+  const resetsOn = (between && recover ? 1 : 0) + resets.filter((r) => choices.resets[r.key]).length
+  const before = between && issue && <BeforeYouStart {...issue} number={issueNumber} finishedNumber={finished?.number ?? 1} name={name} />
   return (
     <Modal title={between ? `Start issue ${issueNumber} with scene ${number}: ${name}?` : `Start scene ${number}: ${name}?`} onClose={onClose} wide>
       <p className="gt-sub">
@@ -122,8 +130,8 @@ export function StartSceneDialog({ game, sceneId, issue, onStart, onEdit, onClos
         )}
       </p>
       <div className="gt-start">
-        <section className="gt-start__section gt-start__section--leaving" aria-labelledby={`${id}-leaving`}>
-          <h3 id={`${id}-leaving`}>Leaving the table</h3>
+        {phone && before && <div className="gt-start__first">{before}</div>}
+        <Fold fold={phone} id={`${id}-leaving`} title="Leaving the table" count={String(leavingCount)} className="gt-start__section gt-start__section--leaving">
           {plan.leaving.length === 0 && !plan.replaced && <p className="gt-sub">Nothing is leaving.</p>}
           <ul className="gt-start__list">
             {plan.leaving.map((item) => (
@@ -148,10 +156,9 @@ export function StartSceneDialog({ game, sceneId, issue, onStart, onEdit, onClos
             )}
           </ul>
           <p className="gt-sub">Set aside keeps it in this game with its damage, for a later scene. Remove takes it out of the game.</p>
-        </section>
+        </Fold>
 
-        <section className="gt-start__section gt-start__section--coming" aria-labelledby={`${id}-coming`}>
-          <h3 id={`${id}-coming`}>Coming in</h3>
+        <Fold fold={phone} id={`${id}-coming`} title="Coming in" count={String(plan.coming.length)} className="gt-start__section gt-start__section--coming">
           {plan.coming.length === 0 && <p className="gt-sub">Nothing is planned for this scene.</p>}
           <ul className="gt-start__list">
             {plan.coming.map((item) => {
@@ -171,10 +178,9 @@ export function StartSceneDialog({ game, sceneId, issue, onStart, onEdit, onClos
             })}
           </ul>
           <p className="gt-sub">As planned. Hidden ones wait for Reveal, as on the table.</p>
-        </section>
+        </Fold>
 
-        <section className="gt-start__section gt-start__section--resets" aria-labelledby={`${id}-resets`}>
-          <h3 id={`${id}-resets`}>Reset for the new {between ? 'issue' : 'scene'}</h3>
+        <Fold fold={phone} id={`${id}-resets`} title={`Reset for the new ${between ? 'issue' : 'scene'}`} count={`${resetsOn} on`} open className="gt-start__section gt-start__section--resets">
           {between && (
             <label className="checkbox">
               <input type="checkbox" checked={recover} onChange={(e) => setRecover(e.target.checked)} />
@@ -196,53 +202,67 @@ export function StartSceneDialog({ game, sceneId, issue, onStart, onEdit, onClos
             </label>
           ))}
           {!between && heroes.length > 0 && <p className="gt-sub">The heroes stay: {nameList(heroes)} keep their Health and twists.</p>}
-        </section>
+        </Fold>
 
-        <section className="gt-start__section gt-start__section--see" aria-labelledby={`${id}-see`}>
-          <h3 id={`${id}-see`}>{between ? 'Before you start' : 'What players will see'}</h3>
-          {between && issue ? <BeforeYouStart {...issue} number={issueNumber} finishedNumber={finished?.number ?? 1} name={name} /> : <div className="gt-start__preview">
-            <div className="gt-row">
-              <strong>{name}</strong>
-              <span className="gt-sub">{choices.resets.round ? 'Round not started' : `Round ${game.round}`}</span>
-            </div>
-            <div className="gt-row">
-              <span role="img" aria-label={`Tracker at ${boxLabel(boxes, 0)} of ${boxes.length}`}>
-                <TrackerBoxes tracker={scene.tracker} at={0} />
-              </span>
-              <span className="gt-sub">{trackerLine(first)}</span>
-            </div>
-            <div>
-              <span className="gt-sub">Opposition:</span> {seen.length ? seen.join(', ') : 'nothing yet'}
-            </div>
-            <div className="gt-sub">{hidden ? `${hidden} more hidden until you reveal them.` : 'Nothing hidden.'}</div>
-            <div className="gt-sub">They get a toast: "New scene: {name}".</div>
-          </div>}
-        </section>
+        {!(phone && before) && (
+          <section className="gt-start__section gt-start__section--see" aria-labelledby={`${id}-see`}>
+            <h3 id={`${id}-see`}>{between ? 'Before you start' : 'What players will see'}</h3>
+            {before || <div className="gt-start__preview">
+              <div className="gt-row">
+                <strong>{name}</strong>
+                <span className="gt-sub">{choices.resets.round ? 'Round not started' : `Round ${game.round}`}</span>
+              </div>
+              <div className="gt-row">
+                <span role="img" aria-label={`Tracker at ${boxLabel(boxes, 0)} of ${boxes.length}`}>
+                  <TrackerBoxes tracker={scene.tracker} at={0} />
+                </span>
+                <span className="gt-sub">{trackerLine(first)}</span>
+              </div>
+              <div>
+                <span className="gt-sub">Opposition:</span> {seen.length ? seen.join(', ') : 'nothing yet'}
+              </div>
+              <div className="gt-sub">{hidden ? `${hidden} more hidden until you reveal them.` : 'Nothing hidden.'}</div>
+              <div className="gt-sub">They get a toast: "New scene: {name}".</div>
+            </div>}
+          </section>
+        )}
       </div>
+      {phone && choices.resets.round && <p className="gt-sub">After this, Start round 1 asks who goes first.</p>}
       <div className="button-row gt-dialog-actions">
-        <span className="gt-sub gt-start__foot">{choices.resets.round ? 'After this, Start round 1 asks who goes first.' : ''}</span>
-        <button type="button" className="button" onClick={onClose}>
-          Cancel
-        </button>
+        {!phone && <span className="gt-sub gt-start__foot">{choices.resets.round ? 'After this, Start round 1 asks who goes first.' : ''}</span>}
+        {/* A phone's sheet has ✕ (Close) at the top instead. */}
+        {!phone && (
+          <button type="button" className="button" onClick={onClose}>
+            Cancel
+          </button>
+        )}
         <button type="button" className="button" onClick={onEdit}>
-          Edit scene {number} first
+          {phone ? `Edit scene ${number}` : `Edit scene ${number} first`}
         </button>
         <button type="button" className="button button--primary" onClick={() => (between && lost > 0 ? setConfirming(true) : onStart(choices, recover))}>
           {between ? `Start issue ${issueNumber}` : `Start scene ${number}`}
         </button>
       </div>
       {confirming && issue && (
-        <Modal title={`${pointsWord(lost)} will be lost`} onClose={() => setConfirming(false)}>
+        <Modal title={`${pointsWord(lost)} will be lost`} onClose={() => setConfirming(false)} variant={phone ? 'sheet' : 'dialog'}>
           <p>
             {nameList(issue.facts.unspent.map((u) => `${u.name} has ${u.points}`))} unspent. Once issue {issueNumber} starts, unspent hero points are gone.
           </p>
-          <div className="button-row gt-dialog-actions">
+          {/* On a phone's sheet the buttons stack, Start anyway on top. */}
+          <div className={phone ? 'gt-dialog-actions gt-dialog-actions--stack' : 'button-row gt-dialog-actions'}>
+            {phone && (
+              <button type="button" className="button button--primary" onClick={() => onStart(choices, recover)}>
+                Start anyway
+              </button>
+            )}
             <button type="button" className="button" onClick={() => setConfirming(false)}>
               Wait for them
             </button>
-            <button type="button" className="button button--primary" onClick={() => onStart(choices, recover)}>
-              Start anyway
-            </button>
+            {!phone && (
+              <button type="button" className="button button--primary" onClick={() => onStart(choices, recover)}>
+                Start anyway
+              </button>
+            )}
           </div>
         </Modal>
       )}

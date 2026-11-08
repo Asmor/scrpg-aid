@@ -46,7 +46,7 @@ import { PlayerPanel } from './PlayerPanel'
 import { healthLine, reconcile } from './reconcile'
 import { sheetDiff, type DiffSection } from './sheet-diff'
 import { roundOver, sameActor, sceneZone, waiting } from './table'
-import { MenuButton, TableCenter, ZoneChip, type HeroView } from './TableCenter'
+import { EndCard, MenuButton, TableCenter, ZoneChip, type HeroView } from './TableCenter'
 import { heroView, villainView } from './views'
 
 /** Log lines about the turn order: handoffs and rounds starting. */
@@ -574,6 +574,12 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
         {banner}
         {!table ? (
           <p className="app-main">{status === 'refused' ? null : `Connecting to game ${room}…`}</p>
+        ) : phone && paused ? (
+          // Between issues a phone shows one page: the end card, then the player panel (scrpg-aid-designs/issues/spec.md, section 8a).
+          <div className="gt-phone-panel gt-phone-paused">
+            <EndCard game={table} {...(received ? { gmName: received.gm } : {})} />
+            {panel}
+          </div>
         ) : phone ? (
           <>
             <div className="gt-tabs gt-tabs--page" role="tablist" aria-label="Game table">

@@ -396,6 +396,26 @@ describe('the back issue prompt', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it('on a phone: a bottom sheet with the buttons stacked, then one page of end card and panel', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('max-width'), media: query, addEventListener: () => {}, removeEventListener: () => {} }))
+    try {
+      const { host, settle } = await setup()
+      await join(settle)
+      finish(host)
+      await settle()
+      const dialog = await screen.findByRole('dialog', { name: `Add "The Gravelord Saga" to Maya Reyes's back issues?` })
+      expect(dialog).toHaveClass('modal--sheet')
+      // The primary last, next to the thumb.
+      expect(within(dialog).getAllByRole('button').filter((b) => b.textContent !== 'Close').map((b) => b.textContent)).toEqual(['Later', 'Add back issue'])
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Later' }))
+      expect(screen.queryByRole('tablist', { name: 'Game table' })).not.toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'The Gravelord Saga' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Add back issue: The Gravelord Saga' })).toBeInTheDocument()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('Later closes it for good, and the panel can reopen it', async () => {
     const { host, settle, heroes } = await setup()
     await join(settle)

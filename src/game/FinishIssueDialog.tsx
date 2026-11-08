@@ -5,6 +5,7 @@
 import { useId, useState } from 'react'
 import { BackIssuePips } from '../components/BackIssuePips'
 import { Modal } from '../components/Modal'
+import { useMediaQuery } from '../components/useMediaQuery'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
 import { defaultIssueTitle, finishRows, modsToClear, oppositionStaying, scenesPlayed, type FinishChoices } from './issues'
 import { currentIssue, currentScene, gameDisplayName, sceneName, sceneNumber, type Game } from './model'
@@ -27,6 +28,7 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
   const [summary, setSummary] = useState('')
   // Every player's hero starts checked.
   const [unchecked, setUnchecked] = useState<ReadonlySet<string>>(new Set())
+  const phone = useMediaQuery('(max-width: 759.98px)', false)
   if (!issue) return null
   const checked = new Set(game.heroes.filter((h) => !unchecked.has(h.id)).map((h) => h.id))
   const rows = finishRows(game, checked, connected)
@@ -40,6 +42,43 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
   const opposition = oppositionStaying(game)
   const players = game.heroes.filter((h) => h.player)
   const offeredPlayers = players.filter((h) => heroIds.includes(h.id))
+  // On phones (scrpg-aid-designs/issues/spec.md, section 8a): the facts fold into "What else happens",
+  // there's no preview, and the footer sticks.
+  const factCount = 1 + (planned.length > 0 ? 1 : 0) + (cleared.length > 0 ? 1 : 0) + (opposition ? 1 : 0)
+  const facts = () => (
+    <ul className="gt-finish__facts">
+      <li>
+        <strong>
+          {played.length} {played.length === 1 ? 'scene' : 'scenes'} played
+        </strong>
+        <br />
+        <span className="gt-sub">{played.map(sceneName).join(' · ')}</span>
+      </li>
+      {planned.length > 0 && (
+        <li>
+          <strong>
+            {planned.length} planned {planned.length === 1 ? "scene wasn't" : "scenes weren't"} played
+          </strong>
+          <br />
+          <span className="gt-sub">{planned.length === 1 ? 'It stays planned' : 'They stay planned'}, ready for the next issue.</span>
+        </li>
+      )}
+      {cleared.length > 0 && (
+        <li>
+          <strong>Bonuses and penalties are removed</strong>
+          <br />
+          <span className="gt-sub">{cleared.map((c) => `${c.name} ${c.sizes}`).join(' · ')}</span>
+        </li>
+      )}
+      {opposition && (
+        <li>
+          <strong>The opposition stays put</strong>
+          <br />
+          <span className="gt-sub">{opposition}. You'll decide what leaves when the next issue starts.</span>
+        </li>
+      )}
+    </ul>
+  )
   return (
     <Modal title={`Finish issue ${issue.number}?`} onClose={onClose} wide>
       <p className="gt-sub">
@@ -62,38 +101,14 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
           <span id={`${id}-summary-hint`} className="gt-sub">
             Players see it, and it's kept with the issue.
           </span>
-          <ul className="gt-finish__facts">
-            <li>
-              <strong>
-                {played.length} {played.length === 1 ? 'scene' : 'scenes'} played
-              </strong>
-              <br />
-              <span className="gt-sub">{played.map(sceneName).join(' · ')}</span>
-            </li>
-            {planned.length > 0 && (
-              <li>
-                <strong>
-                  {planned.length} planned {planned.length === 1 ? "scene wasn't" : "scenes weren't"} played
-                </strong>
-                <br />
-                <span className="gt-sub">{planned.length === 1 ? 'It stays planned' : 'They stay planned'}, ready for the next issue.</span>
-              </li>
-            )}
-            {cleared.length > 0 && (
-              <li>
-                <strong>Bonuses and penalties are removed</strong>
-                <br />
-                <span className="gt-sub">{cleared.map((c) => `${c.name} ${c.sizes}`).join(' · ')}</span>
-              </li>
-            )}
-            {opposition && (
-              <li>
-                <strong>The opposition stays put</strong>
-                <br />
-                <span className="gt-sub">{opposition}. You'll decide what leaves when the next issue starts.</span>
-              </li>
-            )}
-          </ul>
+          {phone ? (
+            <details className="fold">
+              <summary>What else happens ({factCount})</summary>
+              <div className="fold__body">{facts()}</div>
+            </details>
+          ) : (
+            facts()
+          )}
         </section>
 
         <section className="gt-start__section" aria-labelledby={`${id}-back`}>
@@ -133,24 +148,27 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
           {rows.length > 0 && <p className="gt-sub">Uncheck a hero who sat this one out.</p>}
         </section>
 
-        <section className="gt-start__section gt-finish__see" aria-labelledby={`${id}-see`}>
-          <h3 id={`${id}-see`}>What players will see</h3>
-          <div className="gt-start__preview gt-end gt-finish__preview">
-            <EndOfIssue number={issue.number} title={named} summary={summary.trim()} />
-            <div className="gt-row">
-              <span className="gt-end__tracker">
-                <TrackerBoxes tracker={scene.tracker} at={scene.position} />
-              </span>
-              <span className="gt-sub">The table is paused until the next issue starts.</span>
+        {!phone && (
+          <section className="gt-start__section gt-finish__see" aria-labelledby={`${id}-see`}>
+            <h3 id={`${id}-see`}>What players will see</h3>
+            <div className="gt-start__preview gt-end gt-finish__preview">
+              <EndOfIssue number={issue.number} title={named} summary={summary.trim()} />
+              <div className="gt-row">
+                <span className="gt-end__tracker">
+                  <TrackerBoxes tracker={scene.tracker} at={scene.position} />
+                </span>
+                <span className="gt-sub">The table is paused until the next issue starts.</span>
+              </div>
             </div>
-          </div>
-          <p className="gt-sub">
-            Each player whose hero is checked gets "Add {named} to your back issues?" on their device ({offeredPlayers.length} of {players.length} {players.length === 1 ? 'player' : 'players'}). Players who aren't connected get it the next time they join. The display view shows the end card.
-          </p>
-        </section>
+            <p className="gt-sub">
+              Each player whose hero is checked gets "Add {named} to your back issues?" on their device ({offeredPlayers.length} of {players.length} {players.length === 1 ? 'player' : 'players'}). Players who aren't connected get it the next time they join. The display view shows the end card.
+            </p>
+          </section>
+        )}
+        {phone && <p className="gt-sub">Players see the end card and get the prompt. You can undo this for 30 seconds.</p>}
       </div>
       <div className="button-row gt-dialog-actions">
-        <span className="gt-sub gt-start__foot">You can undo this for 30 seconds.</span>
+        {!phone && <span className="gt-sub gt-start__foot">You can undo this for 30 seconds.</span>}
         <button type="button" className="button" onClick={onClose}>
           Cancel
         </button>

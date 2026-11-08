@@ -4,7 +4,7 @@ import { MemorySettingsStore } from '../settings/store'
 import { presetCounts } from '../rules/trackers'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GameStoreContext } from '../app/game-store-context'
 import { SavedSearchStoreContext } from '../app/saved-search-context'
 import { StoreContext } from '../app/store-context'
@@ -1041,5 +1041,55 @@ describe('the table’s keyboard shortcuts', () => {
     expect(search).toHaveValue('rhl')
     expect(screen.queryByRole('dialog', { name: 'Basic action' })).not.toBeInTheDocument()
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+})
+
+describe('the issue dialogs on a phone', () => {
+  const phone = () => vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('max-width'), media: query, addEventListener: () => {}, removeEventListener: () => {} }))
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('Finish: the facts fold into What else happens, no preview, Cancel and Finish at the bottom', async () => {
+    phone()
+    await setup((g, { hero }) => {
+      g.heroes.push(heroCopy(hero, 'h1', { clientId: 'c1', name: 'Alex' }))
+      g.scenes.push(createScene({ id: 's2', name: 'Into the Tunnels' }))
+    })
+    await menuItem('Scene menu', 'Finish the issue…')
+    const dialog = within(screen.getByRole('dialog', { name: 'Finish issue 1?' }))
+    expect(dialog.getByText('What else happens (2)').closest('details')).not.toHaveAttribute('open')
+    expect(dialog.queryByRole('heading', { name: 'What players will see' })).not.toBeInTheDocument()
+    expect(dialog.getByText('Players see the end card and get the prompt. You can undo this for 30 seconds.')).toBeInTheDocument()
+    const actions = dialog.getByRole('button', { name: 'Finish issue 1' }).parentElement!
+    expect(within(actions).getAllByRole('button').map((b) => b.textContent)).toEqual(['Cancel', 'Finish issue 1'])
+  })
+
+  it('Start issue N: what to check first, the rest folded with counts, Reset open, and the confirm as a sheet', async () => {
+    phone()
+    await setup((g, { hero }) => {
+      const own = heroCopy(hero, 'h1')
+      own.player = { clientId: 'c1', name: 'Alex' }
+      g.heroPoints = 3
+      g.heroes.push(own)
+      g.scenes[0]!.state = 'done'
+      g.issues[0] = { ...g.issues[0]!, state: 'finished', title: 'The Saga', finishedAt: '2026-11-05T12:00:00Z', offeredTo: [] }
+      delete g.currentIssueId
+      g.scenes.push(createScene({ id: 's2', name: 'Tunnels' }))
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Start issue 2…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Start issue 2 with scene 2: Tunnels?' }))
+    expect(dialog.getByText('Unspent hero points')).toBeInTheDocument()
+    expect(dialog.queryByRole('heading', { name: 'Before you start' })).not.toBeInTheDocument()
+    const fold = (name: string) => dialog.getByRole('heading', { name }).closest('details')!
+    expect(fold('Leaving the table')).not.toHaveAttribute('open')
+    expect(fold('Leaving the table').querySelector('summary')).toHaveTextContent('Leaving the table0')
+    expect(fold('Coming in')).not.toHaveAttribute('open')
+    expect(fold('Reset for the new issue')).toHaveAttribute('open')
+    expect(fold('Reset for the new issue').querySelector('summary')).toHaveTextContent(/\d+ on$/)
+    expect(dialog.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: 'Edit scene 2' })).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Start issue 2' }))
+    const confirm = screen.getByRole('dialog', { name: '3 hero points will be lost' })
+    expect(confirm).toHaveClass('modal--sheet')
+    expect(within(confirm).getAllByRole('button').filter((b) => b.textContent !== 'Close').map((b) => b.textContent)).toEqual(['Start anyway', 'Wait for them'])
   })
 })

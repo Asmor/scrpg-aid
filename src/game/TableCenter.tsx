@@ -293,7 +293,7 @@ export function EndOfIssue({ number, title, summary, headingId }: { number: numb
 }
 
 /** Replaces the scene card and the turn order while the game is between issues (scrpg-aid-designs/issues/spec.md, section 4). */
-function EndCard({ game, gm, gmName }: { game: TableView; gm?: GmControls | undefined; gmName?: string | undefined }) {
+export function EndCard({ game, gm, gmName }: { game: TableView; gm?: GmControls | undefined; gmName?: string | undefined }) {
   const issue = game.issues.at(-1)
   if (!issue) return null
   const scenes = `${issue.sceneCount} ${issue.sceneCount === 1 ? 'scene' : 'scenes'} · finished ${finishedOn(issue.finishedAt)}.`

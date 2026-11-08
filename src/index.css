@@ -9859,3 +9859,104 @@ kbd {
   display: block;
   text-align: right;
 }
+
+/* Issue dialogs on phones (scrpg-aid-designs/issues/spec.md, section 8a) */
+
+.fold {
+  border: 1px solid var(--ui-border);
+  border-radius: 0.625rem;
+}
+
+.fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.fold > summary h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.fold__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.gt-start__first {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gt-start__first .gt-issue-box {
+  margin: 0;
+}
+
+/* Stacked full width, as on a phone's sheet. */
+.gt-dialog-actions--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.gt-dialog-actions--stack .button {
+  width: 100%;
+  min-height: 2.75rem;
+}
+
+.gt-phone-paused {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (max-width: 759px) {
+  /* A full-screen sheet's actions stay at the bottom, where thumbs are. */
+  .modal--wide > .gt-dialog-actions {
+    position: sticky;
+    bottom: -1.25rem;
+    margin: 1rem -1.25rem -1.25rem;
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid var(--ui-border);
+    background: var(--ui-surface);
+    flex-wrap: nowrap;
+  }
+
+  .modal--wide > .gt-dialog-actions .button--primary {
+    flex: 1;
+  }
+
+  .modal--wide > .gt-dialog-actions .button {
+    min-height: 2.75rem;
+  }
+
+  .gt-points__buy {
+    min-width: 3rem;
+    min-height: 2.75rem;
+  }
+
+  /* Folded, the sections go in the sheet's order: what to check first, then leaving, coming, reset. */
+  .gt-start__first {
+    order: 0;
+  }
+
+  .fold.gt-start__section--leaving {
+    order: 1;
+  }
+
+  .fold.gt-start__section--coming {
+    order: 2;
+  }
+
+  .fold.gt-start__section--resets {
+    order: 3;
+  }
+}
