@@ -113,10 +113,13 @@ function IssueSelect({ id, issues, value, onChange }: { id: string; issues: read
 
 /** "Not recorded yet": finished issues offered to the hero, with Add and Dismiss. */
 function NotRecorded({ issues, onAdd, onDismiss }: { issues: readonly HeroIssue[]; onAdd: (issue: HeroIssue) => void; onDismiss: (issue: HeroIssue) => void }) {
+  const id = useId()
   if (!issues.length) return null
   return (
-    <div className="adv-unrecorded">
-      <span className="gt-label">Not recorded yet</span>
+    <div className="adv-unrecorded" role="region" aria-labelledby={`${id}-head`}>
+      <span id={`${id}-head`} className="gt-label">
+        Not recorded yet
+      </span>
       <ul className="adv-issues">
         {issues.map((i) => (
           <li key={issueOption(i)} className="gt-row">
@@ -127,15 +130,16 @@ function NotRecorded({ issues, onAdd, onDismiss }: { issues: readonly HeroIssue[
                 · {i.game.name} · Issue {i.number}
               </span>
             </span>
-            <button type="button" className="button button--small button--primary" aria-label={`Add ${i.title}`} onClick={() => onAdd(i)}>
-              Add
-            </button>
             <button type="button" className="button button--small button--quiet" aria-label={`Dismiss ${i.title}`} onClick={() => onDismiss(i)}>
               Dismiss
+            </button>
+            <button type="button" className="button button--small button--primary" aria-label={`Add ${i.title}`} onClick={() => onAdd(i)}>
+              Add
             </button>
           </li>
         ))}
       </ul>
+      <span className="gt-sub">Issues you played that finished, from games on this device.</span>
     </div>
   )
 }

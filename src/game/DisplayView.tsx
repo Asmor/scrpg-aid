@@ -11,10 +11,10 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { DiceText, DieIcon } from '../components/icons'
 import { CardBand } from '../components/CharBand'
 import { appearanceOf, type Appearance } from '../colors/palette'
-import { TurnStrip } from './TurnStrip'
+import { ActorChip, TurnStrip } from './TurnStrip'
 import { heroPointCount, modName } from '../play/state'
 import type { PlayMod } from '../hero/model'
-import { betweenIssues, issueTitle, sceneDisplayName } from './model'
+import { betweenIssues, gameDisplayName, issueTitle, sceneDisplayName } from './model'
 import { heroOnTableName, viewName, type TableView } from './project'
 import { boxLabel, groupSummary, sameActor, sceneZone, stepsText, turnStrip } from './table'
 import { STAGE_HEIGHT, STAGE_WIDTH, stageScale } from './display'
@@ -102,33 +102,58 @@ export function DisplayView({ table, watching, status }: Props) {
   const acting = (kind: 'hero' | 'villain' | 'group', id: string) => Boolean(table.turn.current && sameActor(table.turn.current, { kind, id }))
   const heroes = table.heroes.map((h) => heroView(h, table))
   const latest = table.feed.at(-1)
+  const footer = (
+    <footer className="dv-footer">
+      <span className="dv-grow dv-latest">{latest ? <DiceText text={latest.text} /> : ''}</span>
+      {status && <span className="dv-status">{status}</span>}
+      <span>{watching}</span>
+    </footer>
+  )
+  // Between issues the screen is the end card (scrpg-aid-designs/issues/display-end.dc.html): the title,
+  // the summary, the heroes' chips, and the issue's scenes, game and date.
+  if (paused && finished) {
+    const scenes = `${finished.sceneCount} ${finished.sceneCount === 1 ? 'scene' : 'scenes'}`
+    const on = finished.finishedAt ? new Date(finished.finishedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''
+    return (
+      <div className="dv-window">
+        <div ref={ref} className="dv-stage" style={{ transform: `scale(${fit.scale})`, left: fit.left, top: fit.top }}>
+          <section className="dv-endcard" aria-labelledby="dv-endcard-title">
+            <div className="dv-label dv-end dv-endcard__over">END OF ISSUE {finished.number}</div>
+            <h1 id="dv-endcard-title" key={`issue-${finished.id}`} className="dv-scene dv-scene--enter dv-endcard__title">
+              {issueTitle(finished)}
+            </h1>
+            {finished.summary && <div className="dv-endcard__summary">{finished.summary}</div>}
+            {heroes.length > 0 && (
+              <ul className="dv-endcard__heroes" aria-label="Heroes">
+                {heroes.map((h) => (
+                  <li key={h.ref.id}>
+                    <ActorChip game={table} actor={h.ref} name={h.name} />
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="dv-endcard__meta">{[scenes, gameDisplayName(table), on].filter(Boolean).join(' · ')}</div>
+          </section>
+          {footer}
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="dv-window">
       <div ref={ref} className="dv-stage" style={{ transform: `scale(${fit.scale})`, left: fit.left, top: fit.top }}>
         <header className="dv-top">
           <div className="dv-grow">
-            {paused && finished ? (
-              <>
-                <div className="dv-label dv-end">END OF ISSUE {finished.number}</div>
-                <h1 key={`issue-${finished.id}`} className="dv-scene dv-scene--enter">
-                  {issueTitle(finished)}
-                </h1>
-                {finished.summary && <div className="dv-sub">{finished.summary}</div>}
-              </>
-            ) : (
-              <>
-                <div className="dv-label">Scene {scene.number}</div>
-                {/* Keyed by number, so a new scene's name animates in. */}
-                <h1 key={scene.number} className="dv-scene dv-scene--enter">
-                  {sceneDisplayName(table)}
-                </h1>
-                {table.environment && <div className="dv-sub">Environment: {table.environment.name}</div>}
-              </>
-            )}
+            <div className="dv-label">Scene {scene.number}</div>
+            {/* Keyed by number, so a new scene's name animates in. */}
+            <h1 key={scene.number} className="dv-scene dv-scene--enter">
+              {sceneDisplayName(table)}
+            </h1>
+            {table.environment && <div className="dv-sub">Environment: {table.environment.name}</div>}
           </div>
           <div>
             <div className="dv-label">Scene tracker</div>
-            <div className={paused ? 'dv-tracker dv-tracker--faded' : 'dv-tracker'} role="img" aria-label={`Scene tracker at ${boxLabel(scene.tracker, scene.position)} of ${scene.tracker.length}`}>
+            <div className="dv-tracker" role="img" aria-label={`Scene tracker at ${boxLabel(scene.tracker, scene.position)} of ${scene.tracker.length}`}>
               {scene.tracker.map((z, i) => (
                 <span key={i} className={`dv-box zone-${z}${i < scene.position ? ' dv-box--past' : ''}${i === scene.position ? ' dv-box--now' : ''}`} aria-hidden="true" />
               ))}
@@ -138,10 +163,10 @@ export function DisplayView({ table, watching, status }: Props) {
             <div className="dv-label">Scene zone</div>
             <ZoneChip zone={sceneZone(table)} />
           </div>
-          {!paused && <div className="dv-round">{table.round === 0 ? 'Not started' : `Round ${table.round}`}</div>}
+          <div className="dv-round">{table.round === 0 ? 'Not started' : `Round ${table.round}`}</div>
         </header>
 
-        {!paused && strip.length > 0 && (
+        {strip.length > 0 && (
           <TurnStrip game={table} name={name} room />
         )}
 
@@ -241,11 +266,7 @@ export function DisplayView({ table, watching, status }: Props) {
         )}
 
         <span className="dv-grow" />
-        <footer className="dv-footer">
-          <span className="dv-grow dv-latest">{latest ? <DiceText text={latest.text} /> : ''}</span>
-          {status && <span className="dv-status">{status}</span>}
-          <span>{watching}</span>
-        </footer>
+        {footer}
       </div>
     </div>
   )

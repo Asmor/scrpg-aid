@@ -373,5 +373,23 @@ describe('a game between issues on the Games page', () => {
     expect(card.getByText('Issue 1 finished')).toBeInTheDocument()
     expect(card.getByText('Next: Into the Tunnels')).toBeInTheDocument()
   })
+
+  it("tells the GM who has recorded the back issue and what's unspent", async () => {
+    let game = named(createGame({ id: 'g1', name: 'Thursday game' }), 'The Foundry')
+    game = addHero(game, completeHero(), clock, { clientId: 'c1', name: 'Alex' })
+    game = { ...finishIssue(game, { title: 'Saga', summary: '', heroIds: [game.heroes[0]!.id] }, clock), heroPoints: 3 }
+    await setup([game])
+    const card = within(await screen.findByRole('article', { name: 'Thursday game' }))
+    expect(card.getByText('Back issues: 0 of 1 recorded · 3 hero points unspent')).toBeInTheDocument()
+  })
+
+  it("shows a player what's waiting for them as chips", async () => {
+    const joined = friday()
+    const g = { ...joined.table, heroPoints: 3, issues: joined.table.issues.map((i) => ({ ...i, state: 'finished' as const })) }
+    delete (g as { currentIssueId?: string }).currentIssueId
+    await setup([], memoryStorage(), [{ ...joined, table: g }])
+    const card = within(screen.getByRole('region', { name: 'Joined' }).querySelector('article')!)
+    expect(within(card.getByRole('list', { name: 'To do' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['3 hero points to spend'])
+  })
 })
 

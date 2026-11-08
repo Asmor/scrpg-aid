@@ -59,16 +59,17 @@ export function JoinedCard({ joined, live, onOpen, onRemove }: { joined: JoinedG
           <span className="gt-pill">GM offline</span>
         )}
         {betweenIssues(view) && <span className="gt-pill">{finishedPill(view.issues)}</span>}
-        {toAdd && <span className="gt-pill gt-pill--live">Back issue to add</span>}
-        {pointsLeft > 0 && (
-          <span className="gt-pill gt-pill--live">
-            {heroPointCount(pointsLeft)} to spend
-          </span>
-        )}
       </div>
       <p className="gt-sub">
         GM: {joined.gm} · you play {mine ? heroDisplayName(mine.sheet) : 'a hero who has left'}
       </p>
+      {(toAdd || pointsLeft > 0) && (
+        // What's waiting for this player (scrpg-aid-designs/issues/games-cards.dc.html).
+        <ul className="games-todos" aria-label="To do">
+          {toAdd && <li className="games-todo">Back issue to add</li>}
+          {pointsLeft > 0 && <li className="games-todo">{heroPointCount(pointsLeft)} to spend</li>}
+        </ul>
+      )}
       {mine && (
         <div className="gt-row">
           {zone && <ZoneChip zone={zone} />}

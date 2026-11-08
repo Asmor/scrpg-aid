@@ -3,7 +3,7 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { emptyPlay, type Clock } from '../play/state'
 import { applyHeroAction } from './actions'
-import { changeHeroPoints, backIssueStatuses, defaultIssueTitle, finishIssue, finishRows, issueStartFacts, issueToPrompt, oppositionStaying, recordIssueAck, scenesByIssue, scenesPlayed, setIssueRecord, startIssue } from './issues'
+import { betweenIssuesNote, changeHeroPoints, backIssueStatuses, defaultIssueTitle, finishIssue, finishRows, issueStartFacts, issueToPrompt, oppositionStaying, recordIssueAck, scenesByIssue, scenesPlayed, setIssueRecord, startIssue } from './issues'
 import { betweenIssues, createGame, createScene, currentIssue, heroCopy, villainCopy, type Game } from './model'
 import { project } from './project'
 import { duplicateGame, startScene, defaultChoices, draftOfNew, savePlannedScene, startPlan } from './scenes'
@@ -218,6 +218,20 @@ describe('who has recorded the issue', () => {
     const added = recordIssueAck(later, id, 'h1', { status: 'added', count: 3 }, clock)
     expect(backIssueStatuses(added, new Set())[0]).toMatchObject({ text: 'Added · 3 of 6', added: true })
     expect(backIssueStatuses(table(), new Set())).toEqual([])
+  })
+})
+
+describe("the GM's Games card between issues", () => {
+  it('says how many recorded the back issue and how many hero points are unspent, only when there is something to say', () => {
+    expect(betweenIssuesNote(table())).toBeUndefined()
+    const finished = finishIssue(table(), choices, clock)
+    const id = finished.issues[0]!.id
+    expect(betweenIssuesNote(finished)).toBe('Back issues: 0 of 1 recorded')
+    const added = recordIssueAck(finished, id, 'h1', { status: 'added', count: 1 }, clock)
+    // Three points for the table: the player's hero has them all; the GM's own hero (an NPC) has none.
+    const points = { ...added, heroPoints: 3 }
+    expect(betweenIssuesNote(points)).toBe('Back issues: 1 of 1 recorded · 3 hero points unspent')
+    expect(betweenIssuesNote({ ...finishIssue(table(), { ...choices, heroIds: [] }, clock), heroPoints: 1 })).toBe('1 hero point unspent')
   })
 })
 

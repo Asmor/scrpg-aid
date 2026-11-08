@@ -78,3 +78,15 @@ export function TurnStrip({ game, name, room = false }: { game: TableView; name:
     </ol>
   )
 }
+
+/** One character's chip in its colors, with its side's ring: for the display view's end card. */
+export function ActorChip({ game, actor, name }: { game: TableView; actor: ActorRef; name: string }) {
+  const colors = actorColors(game, actor)
+  return (
+    <span className={`char-chip ${SIDE_CLASS[colors.side]}`} style={{ '--char-side': sideToken(colors.side) } as CSSProperties}>
+      <span className="char-chip__fill char-fill" style={fillStyle(colors.appearance)}>
+        {name}
+      </span>
+    </span>
+  )
+}

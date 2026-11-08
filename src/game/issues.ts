@@ -180,6 +180,9 @@ export interface IssueStartChoices extends StartChoices {
  * issue, the scene start steps, the hero resets, then bought bonuses become exclusive ones and any
  * points left are lost, whatever was chosen. The scene's "Bonuses and penalties" is the opposition's.
  */
+/** A hero's hero points left. The GM's own heroes are NPCs: only players' heroes have points. */
+const playerPointsLeft = (game: Pick<Game, 'heroPoints'>, h: HeroInGame) => (h.player ? heroPointsLeft(game.heroPoints, h.play) : 0)
+
 export function startIssue(game: Game, sceneId: string, choices: IssueStartChoices, clock: Clock): Game {
   if (!betweenIssues(game) || game.solo) return game
   const number = nextIssueNumber(game)
@@ -188,8 +191,7 @@ export function startIssue(game: Game, sceneId: string, choices: IssueStartChoic
   const entered = enterScene(opened, sceneId, choices, clock, false)
   if (entered === opened) return game
   const bought = game.heroes.flatMap((h) => (h.play.heroPointBuys?.length ? [`${heroLabel(game.heroes, h)} ${h.play.heroPointBuys.map((b) => `+${b.size}`).join(', ')}`] : []))
-  // The GM's own heroes are NPCs: only players' heroes have points to lose.
-  const left = (h: HeroInGame) => (h.player ? heroPointsLeft(game.heroPoints, h.play) : 0)
+  const left = (h: HeroInGame) => playerPointsLeft(game, h)
   const lost = game.heroes.flatMap((h) => (left(h) > 0 ? [`${heroLabel(game.heroes, h)} ${left(h)}`] : []))
   const heroes = entered.heroes.map((h) => ({ ...h, play: spendHeroPoints(choices.recover ? heroRecovers(h.play, clock) : h.play, left(h), clock) }))
   const points = [...(bought.length ? [`Hero point bonuses: ${bought.join('; ')}.`] : []), ...(lost.length ? [`Unspent hero points lost: ${lost.join(', ')}.`] : [])].join(' ')
@@ -261,3 +263,16 @@ export function setIssueRecord(game: Game, issueId: string, record: { title?: st
 /** The table's toast for a new issue. */
 export const issueBeganText = (number: number, scene: Pick<Scene, 'name'>) => `Issue ${number} began: ${sceneName(scene)}.`
 
+/**
+ * The GM's Games card between issues (scrpg-aid-designs/issues/games-cards.dc.html): "Back issues: 2 of 3
+ * recorded · 3 hero points unspent", each part only when there's something to say.
+ */
+export function betweenIssuesNote(game: Pick<Game, 'issues' | 'heroes' | 'heroPoints' | 'currentIssueId'>): string | undefined {
+  if (!betweenIssues(game)) return undefined
+  const last = game.issues.at(-1)
+  const offered = last?.offeredTo ?? []
+  const added = offered.filter((o) => last?.acks?.[o.heroId]?.status === 'added').length
+  const unspent = game.heroes.reduce((n, h) => n + playerPointsLeft(game, h), 0)
+  const parts = [...(offered.length ? [`Back issues: ${added} of ${offered.length} recorded`] : []), ...(unspent ? [`${unspent} hero ${unspent === 1 ? 'point' : 'points'} unspent`] : [])]
+  return parts.length ? parts.join(' · ') : undefined
+}

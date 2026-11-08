@@ -79,5 +79,17 @@ describe('the display view between issues', () => {
     expect(screen.queryByRole('list', { name: 'Turn order this round' })).not.toBeInTheDocument()
     expect(screen.queryByText('Round 1')).not.toBeInTheDocument()
   })
-})
 
+  it('between issues: the end card fills the screen, with the heroes and the issue\'s scenes, game and date', () => {
+    const g = finishIssue(game(), { title: 'The Gravelord Saga', summary: 'He got away.', heroIds: [] }, clock())
+    render(<DisplayView table={project(g, 'observer')} watching="Watching" />)
+    const card = within(screen.getByRole('region', { name: 'The Gravelord Saga' }))
+    expect(card.getByText('END OF ISSUE 1')).toBeInTheDocument()
+    expect(card.getByText('He got away.')).toBeInTheDocument()
+    expect(within(card.getByRole('list', { name: 'Heroes' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Maya Reyes'])
+    // The date is the viewer's local day.
+    expect(card.getByText(/^1 scene · Thursday game · Nov \d+$/)).toBeInTheDocument()
+    // Nothing else on the table shows while it's paused.
+    expect(screen.queryByText('Scene 1')).not.toBeInTheDocument()
+  })
+})

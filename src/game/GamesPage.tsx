@@ -42,6 +42,7 @@ import { duplicateGame } from './scenes'
 import { isSoloGameId } from './solo'
 import { betweenIssues, createGame, currentScene, gameDisplayName, isListedGame, sceneName, sceneOnTable, type Game } from './model'
 import { oppositionText, sceneLine, finishedPill } from './summary'
+import { betweenIssuesNote } from './issues'
 import { MenuButton, Tracker } from './TableCenter'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -52,6 +53,7 @@ function GameCard({ game, now, actions, hosting }: { game: Game; now: Date; acti
   const opposition = oppositionText(game)
   const between = betweenIssues(game)
   const next = game.scenes.find((s) => s.state === 'planned')
+  const note = betweenIssuesNote(game)
   const when = `${game.round > 0 ? 'Played' : 'Edited'} ${formatAgo(game.updatedAt, now).replace(/^./, (c) => c.toLowerCase())}`
   return (
     <article className="card games-card" aria-labelledby={`${id}-name`}>
@@ -81,6 +83,7 @@ function GameCard({ game, now, actions, hosting }: { game: Game; now: Date; acti
           )}
         </div>
         <Tracker game={{ scene: sceneOnTable(game) }} />
+        {note && <p className="gt-sub">{note}</p>}
       </div>
       <div>
         <div className="gt-label">Heroes</div>
