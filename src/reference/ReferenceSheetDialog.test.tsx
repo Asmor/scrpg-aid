@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { completeHero } from '../test/heroes'
@@ -12,7 +12,14 @@ const now = new Date('2026-11-08T12:00:00Z')
 function source(): SheetSource {
   const thugs: MinionTemplate = { ...createMinionTemplate({ id: 'thugs', now }), name: 'Foundry Thugs', groupSize: 3 }
   const gate: ChallengeTemplate = { ...createChallengeTemplate({ id: 'gate', now }), name: 'Gate Lock', steps: [{ label: 'Find the panel' }, { label: '' }] }
-  const env = { ...createEnvironmentTemplate({ id: 'env', now }), name: 'Molten Foundry', attached: [{ kind: 'minion' as const, templateId: 'thugs' }, { kind: 'challenge' as const, templateId: 'gate' }] }
+  const env = {
+    ...createEnvironmentTemplate({ id: 'env', now }),
+    name: 'Molten Foundry',
+    attached: [
+      { kind: 'minion' as const, templateId: 'thugs' },
+      { kind: 'challenge' as const, templateId: 'gate' },
+    ],
+  }
   env.twists = [{ id: 't1', zone: 'yellow', kind: 'major', text: 'A catwalk gives way.' }]
   const drones: MinionTemplate = { ...createMinionTemplate({ id: 'drones', now }), name: 'Ember Drones', actions: ['attack', 'hinder'], notes: 'They swarm.' }
   const villain = adaptiveBruiser()
@@ -38,7 +45,7 @@ describe('ReferenceSheetDialog', () => {
     render(<ReferenceSheetDialog source={source()} onClose={() => {}} now={() => now} />)
     const dialog = within(screen.getByRole('dialog', { name: 'Reference sheet' }))
     expect(dialog.getByText(/^6 items · about \d+ pages$/)).toBeInTheDocument()
-    expect(dialog.getByText('Step 1 of 1, Contents')).toBeInTheDocument()
+    expect(dialog.getByText('Step 1 of 2, Contents')).toBeInTheDocument()
     const pages = within(dialog.getByRole('list', { name: 'Full pages' }))
     expect(pages.getAllByRole('listitem').map((li) => li.querySelector('strong')!.textContent)).toEqual(['Paradigm', 'Ironclad'])
     expect(pages.getAllByText('2 pages')).toHaveLength(2)
@@ -93,7 +100,8 @@ describe('ReferenceSheetDialog', () => {
     const dialog = within(screen.getByRole('dialog', { name: 'Reference sheet' }))
     await userEvent.click(within(dialog.getByRole('group', { name: 'Where cards go' })).getByRole('button', { name: 'Before the full pages' }))
     await userEvent.click(dialog.getByRole('checkbox', { name: /Write-in spaces/ }))
-    await userEvent.click(dialog.getByRole('button', { name: 'Export' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Next: Arrange' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
     await waitFor(() => expect(print).toHaveBeenCalled())
     const sheet = printed!
     // Not inside the app: straight under <body>, so the print can hide everything else.
@@ -124,14 +132,144 @@ describe('ReferenceSheetDialog', () => {
       boxes = document.querySelectorAll('.ref-print .ref-diebox').length
     })
     render(<ReferenceSheetDialog source={source()} onClose={() => {}} now={() => now} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Export now' }))
     // Drones 4, thugs 3.
     await waitFor(() => expect(boxes).toBe(7))
     window.dispatchEvent(new Event('afterprint'))
   })
 
-  it('says so when a scene has gone', () => {
+  it('offers Export alone when there are no cards to arrange', () => {
     render(<ReferenceSheetDialog source={{ kind: 'library', items: [], lookup: () => undefined }} onClose={() => {}} />)
     expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled()
+  })
+})
+
+describe('Arrange', () => {
+  const cardNames = () => [...document.querySelectorAll('.ref-arrange__board .ref-card')].map((c) => c.getAttribute('aria-label'))
+
+  async function arrange() {
+    render(<ReferenceSheetDialog source={source()} onClose={() => {}} now={() => now} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Next: Arrange' }))
+    return within(screen.getByRole('dialog', { name: 'Reference sheet' }))
+  }
+
+  it('shows the card pages with file page numbers, and goes Back', async () => {
+    const dialog = await arrange()
+    expect(dialog.getByText('Step 2 of 2, Arrange')).toBeInTheDocument()
+    expect(cardNames()).toEqual(['Molten Foundry', 'Gate Lock', 'Ember Drones', 'Foundry Thugs'])
+    // Two sheets of two pages each come first.
+    expect(dialog.getByRole('group', { name: 'Page 5 of 5, 2 columns, 4 cards' })).toBeInTheDocument()
+    expect(dialog.getByText('4 cards on 1 page')).toBeInTheDocument()
+    expect(within(dialog.getByRole('complementary', { name: 'Print order' })).getByRole('list', { name: 'Full pages' })).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Back' }))
+    expect(dialog.getByText('Step 1 of 2, Contents')).toBeInTheDocument()
+  })
+
+  it('moves cards from their menus, with Undo and Redo', async () => {
+    const dialog = await arrange()
+    expect(dialog.getByRole('button', { name: 'Undo' })).toBeDisabled()
+    await userEvent.click(dialog.getByRole('button', { name: 'More actions for Foundry Thugs' }))
+    expect(screen.queryByRole('menuitem', { name: 'Move to bottom' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Move to top' }))
+    expect(cardNames()).toEqual(['Foundry Thugs', 'Molten Foundry', 'Gate Lock', 'Ember Drones'])
+    await waitFor(() => expect(dialog.getByRole('status')).toHaveTextContent('Foundry Thugs, page 1, column 1, position 1 of'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Undo' }))
+    expect(cardNames()).toEqual(['Molten Foundry', 'Gate Lock', 'Ember Drones', 'Foundry Thugs'])
+    await userEvent.click(dialog.getByRole('button', { name: 'Redo' }))
+    expect(cardNames()[0]).toBe('Foundry Thugs')
+    expect(dialog.getByRole('button', { name: 'Redo' })).toBeDisabled()
+
+    await userEvent.click(dialog.getByRole('button', { name: 'More actions for Gate Lock' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Leave out' }))
+    expect(cardNames()).not.toContain('Gate Lock')
+    await userEvent.click(dialog.getByRole('button', { name: 'Undo' }))
+    expect(cardNames()).toContain('Gate Lock')
+  })
+
+  it('adds and removes column and page breaks', async () => {
+    const dialog = await arrange()
+    expect(dialog.getByText(/Select a card \(after the first\)/)).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Move Gate Lock' }))
+    expect(dialog.getByRole('button', { name: 'Move Gate Lock' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(dialog.getByRole('button', { name: '+ Page break' }))
+    expect(dialog.getByText('Page break')).toBeInTheDocument()
+    expect(dialog.getByText('4 cards on 2 pages')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Remove the page break before Gate Lock' }))
+    expect(dialog.getByText('4 cards on 1 page')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'More actions for Ember Drones' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Start a new column here' }))
+    expect(dialog.getByText('Column break')).toBeInTheDocument()
+
+    // Sort by type asks first, since something changed.
+    await userEvent.click(dialog.getByRole('button', { name: 'Sort by type' }))
+    const ask = within(screen.getByRole('dialog', { name: 'Sort by type?' }))
+    await userEvent.click(ask.getByRole('button', { name: 'Keep my order' }))
+    expect(dialog.getByText('Column break')).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Sort by type' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Sort by type?' })).getByRole('button', { name: 'Sort by type' }))
+    expect(dialog.queryByText('Column break')).not.toBeInTheDocument()
+  })
+
+  it('moves a card by keyboard: Space picks it up, arrows move it, Space drops and Escape cancels', async () => {
+    const dialog = await arrange()
+    const handle = () => dialog.getByRole('button', { name: 'Move Ember Drones' })
+    handle().focus()
+    await userEvent.keyboard(' ')
+    expect(dialog.getByRole('status')).toHaveTextContent('Ember Drones picked up.')
+    await userEvent.keyboard('{ArrowUp}')
+    expect(cardNames()).toEqual(['Molten Foundry', 'Ember Drones', 'Gate Lock', 'Foundry Thugs'])
+    await waitFor(() => expect(handle()).toHaveFocus())
+    await userEvent.keyboard('{ArrowUp}')
+    expect(cardNames()[0]).toBe('Ember Drones')
+    await userEvent.keyboard('{Escape}')
+    expect(cardNames()).toEqual(['Molten Foundry', 'Gate Lock', 'Ember Drones', 'Foundry Thugs'])
+    expect(screen.getByRole('dialog', { name: 'Reference sheet' })).toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: 'Undo' })).toBeDisabled()
+    // Picked up and dropped without moving: nothing to undo.
+    handle().focus()
+    await userEvent.keyboard('  ')
+    expect(dialog.getByRole('button', { name: 'Undo' })).toBeDisabled()
+
+    handle().focus()
+    await userEvent.keyboard(' {ArrowDown} ')
+    expect(cardNames()).toEqual(['Molten Foundry', 'Gate Lock', 'Foundry Thugs', 'Ember Drones'])
+    expect(dialog.getByRole('status')).toHaveTextContent(/Ember Drones, page 1, column \d, position \d of \d\. Dropped\./)
+    // One drop is one step to undo.
+    await userEvent.click(dialog.getByRole('button', { name: 'Undo' }))
+    expect(cardNames()).toEqual(['Molten Foundry', 'Gate Lock', 'Ember Drones', 'Foundry Thugs'])
+
+    // Leaving the handle while a card is picked up drops it there.
+    handle().focus()
+    await userEvent.keyboard(' {ArrowUp}')
+    await userEvent.click(dialog.getByRole('button', { name: 'Sort by type' }))
+    // The move was kept, as one step Undo can take back.
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Sort by type?' })).getByRole('button', { name: 'Keep my order' }))
+    expect(cardNames()[1]).toBe('Ember Drones')
+    expect(dialog.getByRole('button', { name: 'Undo' })).toBeEnabled()
+  })
+
+  it('moves a card by dragging it onto another', async () => {
+    const dialog = await arrange()
+    const card = (name: string) => dialog.getByRole('button', { name: `Move ${name}` }).closest('.ref-arrange-card')!
+    const data = { effectAllowed: '', dropEffect: '', setData: () => {} }
+    fireEvent.dragStart(card('Foundry Thugs'), { dataTransfer: data })
+    // jsdom has no pointer position here, so this is the lower half of the card: it drops after it.
+    fireEvent.dragOver(card('Gate Lock'), { dataTransfer: data })
+    expect(card('Gate Lock')).toHaveClass('ref-arrange-card--drop-after')
+    fireEvent.drop(card('Gate Lock'), { dataTransfer: data })
+    expect(cardNames()).toEqual(['Molten Foundry', 'Gate Lock', 'Foundry Thugs', 'Ember Drones'])
+  })
+
+  it('prints the arrangement, breaks and all', async () => {
+    let columns = 0
+    vi.spyOn(window, 'print').mockImplementation(() => {
+      columns = document.querySelectorAll('.ref-print .ref-columns').length
+    })
+    const dialog = await arrange()
+    await userEvent.click(dialog.getByRole('button', { name: 'More actions for Ember Drones' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Start a new page here' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Export' }))
+    await waitFor(() => expect(columns).toBe(2))
+    window.dispatchEvent(new Event('afterprint'))
   })
 })

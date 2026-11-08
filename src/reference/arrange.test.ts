@@ -54,7 +54,7 @@ describe('moveCard and the break helpers', () => {
     expect(moveCard(a, 40, 0)).toBe(a)
   })
 
-  it("sets and clears breaks, but not before the first card", () => {
+  it('sets and clears breaks, but not before the first card', () => {
     const a = defaultArrangement(sample())
     expect(setBreak(a, 0, 'page')).toBe(a)
     const paged = setBreak(a, 3, 'page')
@@ -104,10 +104,7 @@ describe('reconcileArrangement', () => {
     const c = sample()
     const saved = setBreak(moveCard(defaultArrangement(c), 6, 0), 3, 'page')
     expect(names(c, saved)[0]).toBe('Foundry Thugs')
-    const next = contents(
-      [...c.cards.filter((x) => x.name !== 'Slag Brute' && x.name !== 'Rolling Blackout'), card('minion', 'Ash Rats Two'), card('lieutenant', 'Crane Op'), card('challenge', 'Vent')],
-      ['Afterimage', 'Newcomer'],
-    )
+    const next = contents([...c.cards.filter((x) => x.name !== 'Slag Brute' && x.name !== 'Rolling Blackout'), card('minion', 'Ash Rats Two'), card('lieutenant', 'Crane Op'), card('challenge', 'Vent')], ['Afterimage', 'Newcomer'])
     const r = reconcileArrangement(saved, next)
     expect(names(next, r)).toEqual(['Foundry Thugs', 'Molten Foundry', 'Gate Lock', 'Vent', 'Crane Op', 'Ash Rats', 'Ember Drones', 'Ash Rats Two'])
     expect(r.pages.map((p) => p.id)).toEqual(['Afterimage', 'Newcomer'])

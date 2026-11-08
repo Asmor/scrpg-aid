@@ -4,7 +4,7 @@
  * preview's layout.
  */
 import { cssString } from '../transfer/print'
-import { estimateCardHeight, pageBox, paginate, TITLE_HEIGHT, type Layout } from './layout'
+import { cardPlace, estimateCardHeight, pageBox, paginate, TITLE_HEIGHT, type Layout } from './layout'
 import { CARD_TYPE_PLURAL, CARD_TYPES, joinAnd, sheetRefKey, type HiddenMark, type PageItem, type SheetArrangement, type SheetCard, type SheetContents, type SheetOptions } from './model'
 
 export const hiddenText = (mark: HiddenMark) => (mark === 'starts' ? 'Starts hidden' : 'Hidden')
@@ -79,4 +79,10 @@ export function cardCountsText(cards: readonly SheetCard[]): string {
     const n = cards.filter((c) => c.type === t).length
     return n ? [`${CARD_TYPE_PLURAL[t]} ${n}`] : []
   }).join(' · ')
+}
+
+/** "Foundry Thugs, page 2, column 1, position 3 of 4." */
+export function placeText(name: string, layout: Layout, index: number): string {
+  const at = cardPlace(layout, index)
+  return at ? `${name}, page ${at.page}, column ${at.column}, position ${at.position} of ${at.of}.` : name
 }

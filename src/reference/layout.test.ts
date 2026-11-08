@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { estimateCardHeight, estimatePages, pageBox, paginate, TITLE_HEIGHT } from './layout'
+import { cardPlace, columnMoveTarget, estimateCardHeight, estimatePages, pageBox, paginate, TITLE_HEIGHT } from './layout'
 import type { SheetCard } from './model'
 
 const ids = (layout: ReturnType<typeof paginate>) => layout.pages.map((p) => p.columns.map((c) => c.map((x) => (x.continued ? `${x.index}+` : String(x.index)))))
@@ -7,7 +7,13 @@ const ids = (layout: ReturnType<typeof paginate>) => layout.pages.map((p) => p.c
 describe('paginate', () => {
   it('fills columns then pages, starting a column when a card does not fit', () => {
     const cards = [300, 300, 300, 300, 300, 300].map((height) => ({ height }))
-    expect(ids(paginate(cards, 2, 650))).toEqual([[['0', '1'], ['2', '3']], [['4', '5']]])
+    expect(ids(paginate(cards, 2, 650))).toEqual([
+      [
+        ['0', '1'],
+        ['2', '3'],
+      ],
+      [['4', '5']],
+    ])
   })
 
   it('leaves room for the first page top in every column of page 1 only', () => {
@@ -40,7 +46,17 @@ describe('page sizes and estimates', () => {
     expect(pageBox('a4', 3).columnHeight).toBe(1003)
   })
 
-  const minion: SheetCard = { ref: { kind: 'minion', id: 'm' }, type: 'minion', name: 'Drones', appearance: { primary: 'red' }, die: 'd6', actions: 'any', notes: 'Small flying welders, reprogrammed. They swarm the nearest hero.', abilities: [], members: Array.from({ length: 4 }, () => ({ die: 'd6' as const, out: false })) }
+  const minion: SheetCard = {
+    ref: { kind: 'minion', id: 'm' },
+    type: 'minion',
+    name: 'Drones',
+    appearance: { primary: 'red' },
+    die: 'd6',
+    actions: 'any',
+    notes: 'Small flying welders, reprogrammed. They swarm the nearest hero.',
+    abilities: [],
+    members: Array.from({ length: 4 }, () => ({ die: 'd6' as const, out: false })),
+  }
   const env: SheetCard = {
     ref: { kind: 'environment', id: 'e' },
     type: 'environment',
@@ -65,5 +81,37 @@ describe('page sizes and estimates', () => {
     expect(estimatePages({ pages: [], cards: [env, env, env] }, { paper: 'letter', columns: 2, writeIns: true }, TITLE_HEIGHT)).toBeGreaterThan(1)
     // A scene's page prints even with no cards.
     expect(estimatePages({ pages: [], cards: [] }, { paper: 'letter', columns: 2, writeIns: true }, 150)).toBe(1)
+  })
+})
+
+describe('cardPlace and columnMoveTarget', () => {
+  // Page 1: [0, 1] [2, 3]; page 2: [4, 5].
+  const layout = paginate(
+    [300, 300, 300, 300, 300, 300].map((height) => ({ height })),
+    2,
+    650,
+  )
+
+  it('finds a card by page, column and position', () => {
+    expect(cardPlace(layout, 3)).toEqual({ page: 1, column: 2, position: 2, of: 2 })
+    expect(cardPlace(layout, 4)).toEqual({ page: 2, column: 1, position: 1, of: 2 })
+    expect(cardPlace(layout, 9)).toBeUndefined()
+  })
+
+  it('moves to the same place in the next or previous column, across pages', () => {
+    // Card 1 (column 1, position 2) to before card 3 (column 2, position 2): index 2 once 1 is out.
+    expect(columnMoveTarget(layout, 1, 1, 6)).toBe(2)
+    expect(columnMoveTarget(layout, 2, -1, 6)).toBe(0)
+    // Card 3 to page 2's first column, position 2: before card 5.
+    expect(columnMoveTarget(layout, 3, 1, 6)).toBe(4)
+    // Nowhere left of the first column, nor right of the last.
+    expect(columnMoveTarget(layout, 0, -1, 6)).toBe(0)
+    expect(columnMoveTarget(layout, 5, 1, 6)).toBe(5)
+  })
+
+  it('goes to the end of a shorter column', () => {
+    const short = paginate([{ height: 150 }, { height: 150 }, { height: 150 }, { height: 150, breakBefore: 'column' as const }], 3, 650)
+    // [0, 1, 2] [3]: card 2 (position 3) goes after card 3.
+    expect(columnMoveTarget(short, 2, 1, 4)).toBe(3)
   })
 })

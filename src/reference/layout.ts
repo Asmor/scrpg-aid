@@ -150,3 +150,41 @@ export function estimatePages(contents: { pages: readonly unknown[]; cards: read
       : 0
   return contents.pages.length * FULL_PAGE_COUNT + cardPages
 }
+
+/** Where a card is: page, column and position (each from 1), and how many cards share its column. */
+export interface CardPlace {
+  page: number
+  column: number
+  position: number
+  of: number
+}
+
+/** Where a card starts in a layout; undefined when it isn't in it. */
+export function cardPlace(layout: Layout, index: number): CardPlace | undefined {
+  for (const [p, page] of layout.pages.entries()) {
+    for (const [c, column] of page.columns.entries()) {
+      const firsts = column.filter((x) => !x.continued)
+      const at = firsts.findIndex((x) => x.index === index)
+      if (at >= 0) return { page: p + 1, column: c + 1, position: at + 1, of: firsts.length }
+    }
+  }
+  return undefined
+}
+
+/**
+ * Where a keyboard move left or right takes a card, as `moveCard`'s target: the same place in
+ * the previous or next column (or the end of it), across pages. Its own index when there's no
+ * column that way.
+ */
+export function columnMoveTarget(layout: Layout, index: number, dir: 1 | -1, count: number): number {
+  const columns = layout.pages.flatMap((p) => p.columns)
+  const at = columns.findIndex((c) => c.some((x) => x.index === index && !x.continued))
+  if (at < 0) return index
+  const pos = columns[at]!.filter((x) => !x.continued).findIndex((x) => x.index === index)
+  // An empty column after the last card counts as the end.
+  const target = columns[at + dir]
+  if (!target) return dir > 0 && at < columns.length - 1 ? count - 1 : index
+  const others = target.filter((x) => !x.continued && x.index !== index).map((x) => x.index)
+  const flat = pos < others.length ? others[pos]! : others.length ? others.at(-1)! + 1 : dir > 0 ? count : 0
+  return flat > index ? flat - 1 : flat
+}

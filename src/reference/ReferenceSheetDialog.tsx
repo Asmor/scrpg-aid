@@ -1,20 +1,22 @@
 /**
  * The reference sheet export dialog (scrpg-aid-designs/reference-sheets/spec.md, section 3): step 1,
  * Contents, with the full pages in print order, the cards by type, what's left out, and the
- * options. Export prints with the arrangement as it stands.
+ * options; then step 2, Arrange (./ArrangeStep.tsx). Export now skips Arrange and prints the
+ * cards in their default order.
  */
 import { useEffect, useId, useMemo, useState } from 'react'
 import { Modal } from '../components/Modal'
 import { PopoverMenu } from '../library/Popover'
 import { usePopover } from '../library/popover-state'
 import { defaultPageSize } from '../transfer/print'
-import { defaultArrangement, leaveOut, movePage, putBack, reconcileArrangement } from './arrange'
+import { defaultArrangement, isRearranged, leaveOut, movePage, putBack, reconcileArrangement, sortByType } from './arrange'
+import { ArrangeStep } from './ArrangeStep'
 import { sheetContents, type SheetSource } from './contents'
 import { estimatePages, FULL_PAGE_COUNT } from './layout'
 import { CARD_TYPE_NAME, CARD_TYPES, DEFAULT_SHEET_OPTIONS, joinAnd, sameSheetRef, sheetRefKey, type PageItem, type SheetArrangement, type SheetCard, type SheetContents, type SheetItemRef, type SheetOptions } from './model'
 import { sheetFileBase, printReference } from './print'
 import { ReferencePrint } from './ReferencePrint'
-import { arranged, cardCountsText, hiddenText, printRules } from './sheet'
+import { arranged, cardCountsText, firstTop, hiddenText, printRules } from './sheet'
 import { FirstPagePreview } from './SheetPreviewPage'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -57,7 +59,7 @@ function PageRow({ item, index, count, onMove, onOut }: { item: PageItem; index:
         {item.draft && <span className="draft-badge">Draft</span>}
         {item.hidden && <span className="tag">{hiddenText(item.hidden)}</span>}
       </span>
-      <span className="muted">{plural(FULL_PAGE_COUNT, 'page')}</span>
+      <span className="muted ref-row__pages">{plural(FULL_PAGE_COUNT, 'page')}</span>
       <span className="popover-anchor">
         <button ref={bind} type="button" className="button button--small" aria-label={label} title={label} aria-haspopup="menu" aria-expanded={popover.open} onClick={popover.toggle}>
           ⋯
@@ -99,6 +101,24 @@ function omittedNames(contents: SheetContents, omitted: readonly SheetItemRef[])
   })
 }
 
+/** Full pages in print order: a row each, with ⋯ Move up, Move down and Leave out. */
+function PageList({ pages, change }: { pages: readonly PageItem[]; change: (fn: (a: SheetArrangement) => SheetArrangement) => void }) {
+  if (!pages.length) return <p className="muted">No heroes or villains.</p>
+  return (
+    <ol className="ref-list" aria-label="Full pages">
+      {pages.map((p, i) => (
+        <PageRow key={sheetRefKey(p.ref)} item={p} index={i} count={pages.length} onMove={(to) => change((a) => movePage(a, i, to))} onOut={() => change((a) => leaveOut(a, p.ref))} />
+      ))}
+    </ol>
+  )
+}
+
+/** Undo and Redo for arrangement moves: what came before, and what was undone. */
+interface History {
+  past: SheetArrangement[]
+  future: SheetArrangement[]
+}
+
 export function ReferenceSheetDialog({ source, onClose, now = () => new Date() }: ReferenceSheetDialogProps) {
   const [options, setOptions] = useState<SheetOptions>(() => ({
     ...DEFAULT_SHEET_OPTIONS,
@@ -116,22 +136,26 @@ export function ReferenceSheetDialog({ source, onClose, now = () => new Date() }
   const [saved, setSaved] = useState<SheetArrangement | null>(null)
   // The arrangement for what's in it now: new items (an attached template brought) join in their place.
   const arrangement = useMemo(() => (contents ? (saved ? reconcileArrangement(saved, contents) : defaultArrangement(contents)) : undefined), [contents, saved])
-  const [printing, setPrinting] = useState(false)
+  const [history, setHistory] = useState<History>({ past: [], future: [] })
+  const [step, setStep] = useState<1 | 2>(1)
+  const [confirmSort, setConfirmSort] = useState(false)
+  /** What's being printed: the arrangement as it stands, or Export now's default order. */
+  const [printing, setPrinting] = useState<SheetArrangement | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const kept = contents && arrangement ? arranged(contents, arrangement) : undefined
   useEffect(() => {
-    if (!printing || !contents || !kept) return
+    if (!printing || !contents) return
     let live = true
+    const kept = arranged(contents, printing)
     printReference(printRules(kept.pages, contents, options.paper), sheetFileBase(contents, now())).then(
       () => {
         if (!live) return
-        setPrinting(false)
+        setPrinting(null)
         onClose()
       },
       (e: unknown) => {
         if (!live) return
-        setPrinting(false)
+        setPrinting(null)
         setError(`Couldn't print: ${errorText(e)}`)
       },
     )
@@ -139,43 +163,149 @@ export function ReferenceSheetDialog({ source, onClose, now = () => new Date() }
       live = false
     }
     // Starts once per Export; the sheet being printed doesn't change while it's open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [printing])
 
-  if (!contents || !arrangement || !kept) {
+  if (!contents || !arrangement) {
     return (
       <Modal title="Reference sheet" onClose={onClose}>
         <p role="alert">Couldn't make the reference sheet: {'error' in built ? built.error : ''}</p>
       </Modal>
     )
   }
-  const change = (fn: (a: SheetArrangement) => SheetArrangement) => setSaved(fn(arrangement))
+  const kept = arranged(contents, arrangement)
+  /** A change that Undo can take back. */
+  const change = (fn: (a: SheetArrangement) => SheetArrangement) => {
+    const next = fn(arrangement)
+    if (next === arrangement) return
+    setHistory((h) => ({ past: [...h.past, arrangement], future: [] }))
+    setSaved(next)
+  }
+  const undo = () => {
+    const prev = history.past.at(-1)
+    if (!prev) return
+    setHistory({ past: history.past.slice(0, -1), future: [arrangement, ...history.future] })
+    setSaved(prev)
+  }
+  const redo = () => {
+    const next = history.future[0]
+    if (!next) return
+    setHistory({ past: [...history.past, arrangement], future: history.future.slice(1) })
+    setSaved(next)
+  }
   const items = kept.pages.length + kept.cards.length
-  const pages = estimatePages({ pages: kept.pages, cards: kept.cards.map((c) => c.card) }, options)
+  const pages = estimatePages({ pages: kept.pages, cards: kept.cards.map((c) => c.card) }, options, firstTop(contents, options))
   const outs = omittedNames(contents, arrangement.omitted)
   const keptCards = kept.cards.map((c) => c.card)
   const shownCards = CARD_TYPES.flatMap((t) => keptCards.filter((c) => c.type === t))
   const library = source.kind === 'library'
   const nothing = items === 0 && !contents.scene
+  const hasCards = kept.cards.length > 0
+  const steps = hasCards ? 2 : 1
+  const stepText = `Step ${step} of ${steps}, ${step === 1 ? 'Contents' : 'Arrange'}`
+  const fullPages = kept.pages.length * FULL_PAGE_COUNT
+  const exportButton = (label: string, which: () => SheetArrangement, primary: boolean) => (
+    <button type="button" className={primary ? 'button button--primary' : 'button'} disabled={nothing || Boolean(printing)} onClick={() => setPrinting(which())}>
+      {label}
+    </button>
+  )
+  const errorLine = error && (
+    <p role="alert" className="error">
+      {error}
+    </p>
+  )
+  const printed = printing && <ReferencePrint contents={contents} arrangement={printing} options={options} />
+
+  if (step === 2 && hasCards) {
+    return (
+      <Modal title="Reference sheet" onClose={onClose} className="modal--reference modal--arrange">
+        <p className="ref-dialog__steps" aria-live="polite">
+          {stepText}
+        </p>
+        <div className="ref-arrange-layout">
+          <aside className="ref-arrange__side" aria-label="Print order">
+            <h3 className="ref-label">Full pages, in order</h3>
+            <PageList pages={kept.pages} change={change} />
+            <h3 className="ref-label">{contents.scene || options.cardsFirst ? 'Before them, the card pages' : 'Then the card pages'}</h3>
+            <p className="muted">{cardCountsText(keptCards)}</p>
+          </aside>
+          <ArrangeStep
+            contents={contents}
+            arrangement={arrangement}
+            cards={kept.cards}
+            options={options}
+            onChange={change}
+            onPreview={setSaved}
+            onPickEnd={(from, keep) => {
+              // A pick-up that moved nothing leaves Undo and Redo as they were.
+              if (keep) {
+                if (from !== arrangement) setHistory((h) => ({ past: [...h.past, from], future: [] }))
+              } else setSaved(from)
+            }}
+            pagesBefore={contents.scene || options.cardsFirst ? 0 : fullPages}
+            otherPages={fullPages}
+            toolbar={
+              <>
+                <button type="button" className="button button--small" onClick={() => (isRearranged(arrangement, contents) ? setConfirmSort(true) : change((a) => sortByType(a, contents)))}>
+                  Sort by type
+                </button>
+                <button type="button" className="button button--small" disabled={!history.past.length} onClick={undo}>
+                  Undo
+                </button>
+                <button type="button" className="button button--small" disabled={!history.future.length} onClick={redo}>
+                  Redo
+                </button>
+              </>
+            }
+          />
+        </div>
+        {errorLine}
+        <div className="ref-dialog__footer">
+          <button type="button" className="button" onClick={() => setStep(1)}>
+            Back
+          </button>
+          <span className="muted ref-dialog__file">
+            PDF · {options.paper === 'a4' ? 'A4' : 'Letter'} · {options.columns} columns · write-in spaces {options.writeIns ? 'on' : 'off'}
+          </span>
+          {exportButton('Export', () => arrangement, true)}
+        </div>
+        {confirmSort && (
+          <Modal title="Sort by type?" onClose={() => setConfirmSort(false)}>
+            <p>This puts the cards back in order by type and removes every column and page break.</p>
+            <div className="button-row">
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => {
+                  change((a) => sortByType(a, contents))
+                  setConfirmSort(false)
+                }}
+              >
+                Sort by type
+              </button>
+              <button type="button" className="button" onClick={() => setConfirmSort(false)}>
+                Keep my order
+              </button>
+            </div>
+          </Modal>
+        )}
+        {printed}
+      </Modal>
+    )
+  }
+
   return (
     <Modal title="Reference sheet" onClose={onClose} className="modal--reference">
       <p className="ref-dialog__sub">
         {plural(items, 'item')} · about {plural(pages, 'page')}
       </p>
       <p className="ref-dialog__steps" aria-live="polite">
-        Step 1 of 1, Contents
+        {stepText}
       </p>
       <div className="ref-dialog__body">
         <div className="ref-dialog__contents">
           <h3 className="ref-label">Full pages · one each, in this order</h3>
-          {kept.pages.length ? (
-            <ol className="ref-list" aria-label="Full pages">
-              {kept.pages.map((p, i) => (
-                <PageRow key={sheetRefKey(p.ref)} item={p} index={i} count={kept.pages.length} onMove={(to) => change((a) => movePage(a, i, to))} onOut={() => change((a) => leaveOut(a, p.ref))} />
-              ))}
-            </ol>
-          ) : (
-            <p className="muted">No heroes or villains.</p>
-          )}
+          <PageList pages={kept.pages} change={change} />
           <h3 className="ref-label">Cards{shownCards.length ? ` · ${cardCountsText(shownCards)}` : ''}</h3>
           {shownCards.length ? (
             <ul className="ref-list" aria-label="Cards">
@@ -186,6 +316,7 @@ export function ReferenceSheetDialog({ source, onClose, now = () => new Date() }
           ) : (
             <p className="muted">No minions, lieutenants, challenges or environments.</p>
           )}
+          {hasCards && <p className="muted">Arrange them in the next step.</p>}
           {contents.bringable.length > 0 && (
             <label className="ref-check">
               <input type="checkbox" checked={options.bringAttached} onChange={(e) => set('bringAttached', e.target.checked)} />
@@ -252,21 +383,24 @@ export function ReferenceSheetDialog({ source, onClose, now = () => new Date() }
           {(keptCards.length > 0 || contents.scene) && <FirstPagePreview contents={contents} cards={kept.cards} options={options} />}
         </div>
       </div>
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
+      {errorLine}
       <div className="ref-dialog__footer">
         <span className="muted ref-dialog__file">Saved as {sheetFileBase(contents, now())}.pdf</span>
         <button type="button" className="button" onClick={onClose}>
           Cancel
         </button>
-        <button type="button" className="button button--primary" disabled={nothing || printing} onClick={() => setPrinting(true)}>
-          Export
-        </button>
+        {hasCards ? (
+          <>
+            {exportButton('Export now', () => sortByType(arrangement, contents), false)}
+            <button type="button" className="button button--primary" onClick={() => setStep(2)}>
+              Next: Arrange
+            </button>
+          </>
+        ) : (
+          exportButton('Export', () => arrangement, true)
+        )}
       </div>
-      {printing && <ReferencePrint contents={contents} arrangement={arrangement} options={options} />}
+      {printed}
     </Modal>
   )
 }

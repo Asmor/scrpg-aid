@@ -41,7 +41,14 @@ describe('sheetContents from the library', () => {
   it('puts heroes then villains as full pages, by name, and the rest as cards', () => {
     const hero = completeHero()
     const villain = adaptiveBruiser()
-    const contents = sheetContents(library([{ kind: 'villain', doc: villain }, { kind: 'minion', doc: minion('m1', 'Ember Drones') }, { kind: 'hero', doc: hero }]), { bringAttached: true, includeHeroes: false })
+    const contents = sheetContents(
+      library([
+        { kind: 'villain', doc: villain },
+        { kind: 'minion', doc: minion('m1', 'Ember Drones') },
+        { kind: 'hero', doc: hero },
+      ]),
+      { bringAttached: true, includeHeroes: false },
+    )
     expect(contents.pages.map((p) => p.kind)).toEqual(['hero', 'villain'])
     expect(contents.pages[1]).toMatchObject({ name: 'Ironclad', draft: false })
     expect(contents.cards).toHaveLength(1)
@@ -58,9 +65,29 @@ describe('sheetContents from the library', () => {
 
   it('gives a lieutenant its abilities, and a challenge its steps', () => {
     const lt = { ...createLieutenantTemplate({ id: 'lt', now }), name: 'Slag Brute', abilities: [{ name: 'Molten Fists', type: 'A' as const, text: 'Attack.' }] }
-    const contents = sheetContents(library([{ kind: 'lieutenant', doc: lt }, { kind: 'challenge', doc: challenge('c1', 'Rolling Blackout') }]), { bringAttached: true, includeHeroes: false })
-    expect(contents.cards[0]).toMatchObject({ type: 'lieutenant', abilities: lt.abilities, members: [{ die: 'd8', out: false }, { die: 'd8', out: false }] })
-    expect(contents.cards[1]).toMatchObject({ type: 'challenge', steps: [{ label: 'Cut the power', done: false }, { label: '', done: false }], whenDone: 'The lights hold.' })
+    const contents = sheetContents(
+      library([
+        { kind: 'lieutenant', doc: lt },
+        { kind: 'challenge', doc: challenge('c1', 'Rolling Blackout') },
+      ]),
+      { bringAttached: true, includeHeroes: false },
+    )
+    expect(contents.cards[0]).toMatchObject({
+      type: 'lieutenant',
+      abilities: lt.abilities,
+      members: [
+        { die: 'd8', out: false },
+        { die: 'd8', out: false },
+      ],
+    })
+    expect(contents.cards[1]).toMatchObject({
+      type: 'challenge',
+      steps: [
+        { label: 'Cut the power', done: false },
+        { label: '', done: false },
+      ],
+      whenDone: 'The lights hold.',
+    })
   })
 
   it("orders an environment's twists by zone, minor before major, and names what it brings", () => {
@@ -81,7 +108,13 @@ describe('sheetContents from the library', () => {
       { kind: 'minion', templateId: 'gone' },
     ])
     const other = { ...foundry([{ kind: 'minion', templateId: 'thugs' }]), id: 'env2', name: 'Night Shift' }
-    const source = library([{ kind: 'environment', doc: env }, { kind: 'environment', doc: other }], [thugs, challenge('gate', 'Gate Lock')])
+    const source = library(
+      [
+        { kind: 'environment', doc: env },
+        { kind: 'environment', doc: other },
+      ],
+      [thugs, challenge('gate', 'Gate Lock')],
+    )
     const on = sheetContents(source, { bringAttached: true, includeHeroes: false })
     expect(on.cards.map((c) => c.name)).toEqual(['Molten Foundry', 'Night Shift', 'Foundry Thugs', 'Gate Lock'])
     expect(on.cards[2]).toMatchObject({ brought: true, from: 'Molten Foundry', appearance: { primary: 'green' } })
@@ -90,7 +123,16 @@ describe('sheetContents from the library', () => {
     expect(off.cards.map((c) => c.name)).toEqual(['Molten Foundry', 'Night Shift'])
     expect(off.bringable).toEqual(['Foundry Thugs', 'Gate Lock'])
 
-    const selected = sheetContents(library([{ kind: 'environment', doc: env }, { kind: 'minion', doc: thugs }], [challenge('gate', 'Gate Lock')]), { bringAttached: true, includeHeroes: false })
+    const selected = sheetContents(
+      library(
+        [
+          { kind: 'environment', doc: env },
+          { kind: 'minion', doc: thugs },
+        ],
+        [challenge('gate', 'Gate Lock')],
+      ),
+      { bringAttached: true, includeHeroes: false },
+    )
     expect(selected.cards.map((c) => c.name)).toEqual(['Molten Foundry', 'Foundry Thugs', 'Gate Lock'])
     expect(selected.cards[1]!.brought).toBeUndefined()
     expect(selected.bringable).toEqual(['Gate Lock'])
@@ -107,7 +149,18 @@ function group(name: string, n: number, extra: Partial<NpcGroup> = {}): NpcGroup
 }
 
 function tableChallenge(name: string, extra: Partial<Challenge> = {}): Challenge {
-  return { id: id(), name, hidden: false, owner: { kind: 'gm' }, requests: [], steps: [{ label: 'Find the panel', done: true }, { label: 'Bypass', done: false }], ...extra }
+  return {
+    id: id(),
+    name,
+    hidden: false,
+    owner: { kind: 'gm' },
+    requests: [],
+    steps: [
+      { label: 'Find the panel', done: true },
+      { label: 'Bypass', done: false },
+    ],
+    ...extra,
+  }
 }
 
 function tableEnvironment(extra: Partial<EnvironmentOnTable> = {}): EnvironmentOnTable {
@@ -148,7 +201,7 @@ function sceneGame(): Game {
 }
 
 describe('sheetContents from a scene', () => {
-  it("reads the current scene from the table: groups as they are, done steps, used twists", () => {
+  it('reads the current scene from the table: groups as they are, done steps, used twists', () => {
     const game = sceneGame()
     const contents = sheetContents({ kind: 'scene', game, sceneId: 's2' }, { bringAttached: true, includeHeroes: false })
     expect(contents.pages.map((p) => p.name)).toEqual(['Ironclad'])

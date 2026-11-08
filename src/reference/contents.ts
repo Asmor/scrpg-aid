@@ -30,7 +30,6 @@ export type LibrarySheetLookup = (kind: AttachableKind, id: string) => MinionTem
 
 /** Where a reference sheet's items come from. */
 export type SheetSource = { kind: 'library'; items: readonly LibrarySheetItem[]; lookup: LibrarySheetLookup } | { kind: 'scene'; game: Game; sceneId: string }
-  | { kind: 'scene'; game: Game; sceneId: string }
 
 const byName = <T extends { name: string }>(list: T[]) => list.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 
