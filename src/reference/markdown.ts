@@ -8,7 +8,7 @@ import { aspectName } from '../game/environment'
 import { actionsText } from '../game/npc'
 import { escapeInline, heading, heroMarkdown, text, villainMarkdown } from '../transfer/markdown'
 import { CARD_TYPE_NAME, type CardTwist, type PageItem, type ScenePage, type SheetArrangement, type SheetCard, type SheetContents, type SheetOptions } from './model'
-import { arranged, hiddenText } from './sheet'
+import { arranged, hiddenText, membersText } from './sheet'
 
 const ZONE_LETTER = { green: 'G', yellow: 'Y', red: 'R' } as const
 const ABILITY_TYPE = { A: 'Action', R: 'Reaction', I: 'Inherent' } as const
@@ -37,7 +37,7 @@ function cardMarkdown(card: SheetCard, writeIns: boolean): string {
       blocks.push([card.die ? `**Die:** ${card.die}` : '', `**Actions:** ${actionsText(card)}`].filter(Boolean).join('\\\n'))
       if (card.abilities.length) blocks.push(card.abilities.map((a, i) => `- **${escapeInline(a.name.trim() || `Ability ${i + 1}`)}** (${ABILITY_TYPE[a.type]}): ${text(a.text, '  ')}`).join('\n'))
       if (card.notes.trim()) blocks.push(text(card.notes))
-      if (writeIns && card.members.length) blocks.push(`Group of ${card.members.length}: ${card.members.map((m) => (m.out ? `[x] ${m.die} (out)` : `[ ] ${m.die}`)).join(' ')}`)
+      if (writeIns && card.members.length) blocks.push(`${membersText(card)}: ${card.members.map((m) => (m.out ? `[x] ${m.die} (out)` : `[ ] ${m.die}`)).join(' ')}`)
       break
     }
     case 'challenge':

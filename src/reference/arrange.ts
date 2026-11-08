@@ -68,6 +68,27 @@ export function moveCard(arrangement: SheetArrangement, from: number, to: number
   return at === from ? arrangement : { ...arrangement, cards }
 }
 
+/**
+ * Moves the card at `from` to index `to` and starts a new column with it (a column break before
+ * it): a move into an empty column. The break it had stays where it was, on the card that followed
+ * it (unless that card has one of its own), so the cards around it keep their places. The first
+ * card can't have a break, so a move to index 0 is a plain move. Unchanged when the card stays
+ * put and already has a break.
+ */
+export function moveToNewColumn(arrangement: SheetArrangement, from: number, to: number): SheetArrangement {
+  const card = arrangement.cards[from]
+  // Staying put, a card that already starts a column or page can't start a later one (it would leave its own empty).
+  if (!card || (to === from && card.breakBefore)) return arrangement
+  const cards = [...arrangement.cards]
+  const next = cards[from + 1]
+  if (card.breakBefore && next && !next.breakBefore) cards[from + 1] = { ref: next.ref, breakBefore: card.breakBefore }
+  cards.splice(from, 1)
+  const at = Math.max(0, Math.min(to, cards.length))
+  cards.splice(at, 0, at === 0 ? { ref: card.ref } : { ref: card.ref, breakBefore: 'column' })
+  const same = cards.every((c, i) => sameSheetRef(c.ref, arrangement.cards[i]!.ref) && c.breakBefore === arrangement.cards[i]!.breakBefore)
+  return same ? arrangement : { ...arrangement, cards }
+}
+
 /** Moves the full page at `from` to index `to` (clamped). */
 export function movePage(arrangement: SheetArrangement, from: number, to: number): SheetArrangement {
   const pages = [...arrangement.pages]

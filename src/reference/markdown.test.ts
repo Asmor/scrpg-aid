@@ -84,6 +84,9 @@ describe('sheetMarkdown', () => {
     expect(md).toContain('Brings: Foundry Thugs')
     expect(md).toContain("## Gate Lock\n\n*Challenge*\n\nStarts hidden\n\n- [x] Find the panel\n- [ ] Step 2\n\n**When it's done:** It opens.")
     expect(md).toContain('## Foundry Thugs\n\n*Minion · from Molten Foundry*\n\n**Die:** d6\\\n**Actions:** Attack or Defend\n\n- **Shove** (Action): Attack.\n\nBig.\n\nGroup of 2: [ ] d6 [x] d6 (out)')
+    // A group in play counts its members instead.
+    const inPlay: SheetContents = { ...contents, cards: contents.cards.map((c) => (c.type === 'minion' ? { ...c, ref: { kind: 'group', id: 'g' } } : c)) }
+    expect(sheetMarkdown(inPlay, defaultArrangement(inPlay), options)).toContain('2 members: [ ] d6 [x] d6 (out)')
   })
 
   it('drops the write-in spaces when they are off, keeping what is already done', () => {

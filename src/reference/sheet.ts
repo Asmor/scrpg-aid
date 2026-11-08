@@ -9,6 +9,12 @@ import { CARD_TYPE_PLURAL, CARD_TYPES, joinAnd, sheetRefKey, type HiddenMark, ty
 
 export const hiddenText = (mark: HiddenMark) => (mark === 'starts' ? 'Starts hidden' : 'Hidden')
 
+/** The die boxes' label: "4 members" for a group in play, "Group of 4" for a template (the spec's mockups). */
+export const membersText = (card: Pick<SheetCard, 'ref'> & { members: readonly unknown[] }) => {
+  const n = card.members.length
+  return card.ref.kind === 'group' ? `${n} ${n === 1 ? 'member' : 'members'}` : `Group of ${n}`
+}
+
 /** The print's own pieces, in order: what the arrangement keeps, looked up in the contents. */
 export function arranged(contents: SheetContents, arrangement: SheetArrangement) {
   const pageByKey = new Map(contents.pages.map((p) => [sheetRefKey(p.ref), p]))

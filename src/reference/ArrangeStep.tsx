@@ -7,8 +7,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type FocusEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { PopoverMenu } from '../library/Popover'
 import { usePopover } from '../library/popover-state'
-import { leaveOut, moveCard, setBreak } from './arrange'
-import { columnMoveTarget, pageBox, type Layout } from './layout'
+import { leaveOut, moveCard, moveToNewColumn, setBreak } from './arrange'
+import { columnMove, emptyColumnTarget, pageBox, type ColumnMove, type Layout } from './layout'
 import { CARD_TYPE_NAME, sheetRefKey, type SheetArrangement, type SheetContents, type SheetOptions } from './model'
 import { fillCss } from '../colors/palette'
 import { Modal } from '../components/Modal'
@@ -151,8 +151,9 @@ function ArrangeCard({ item, index, count, continued, tooTall, writeIns, selecte
                 items={[
                   ...(compact && index > 0 ? [{ label: 'Move up', onSelect: () => onMove(index - 1) }] : []),
                   ...(compact && index < count - 1 ? [{ label: 'Move down', onSelect: () => onMove(index + 1) }] : []),
-                  ...(index > 0 ? [{ label: 'Move to top', onSelect: () => onMove(0) }] : []),
-                  ...(index < count - 1 ? [{ label: 'Move to bottom', onSelect: () => onMove(count - 1) }] : []),
+                  // Always listed (the spec's menu), unavailable where the card already is.
+                  { label: 'Move to top', onSelect: () => onMove(0), disabled: index === 0 },
+                  { label: 'Move to bottom', onSelect: () => onMove(count - 1), disabled: index === count - 1 },
                   ...(index > 0 && item.breakBefore !== 'column' ? [{ label: 'Start a new column here', onSelect: () => onBreak('column') }] : []),
                   ...(index > 0 && item.breakBefore !== 'page' ? [{ label: 'Start a new page here', onSelect: () => onBreak('page') }] : []),
                   { label: 'Leave out', onSelect: onOut },
@@ -205,6 +206,8 @@ export function ArrangeStep({ contents, arrangement, cards, options, onChange, o
   const [picked, setPicked] = useState<{ key: string; from: SheetArrangement } | null>(null)
   const [dragging, setDragging] = useState<number | null>(null)
   const [drop, setDrop] = useState<{ index: number; side: 'before' | 'after' } | null>(null)
+  /** The empty column a drag is over: page and column. */
+  const [dropEmpty, setDropEmpty] = useState<string | null>(null)
   const [announce, setAnnounce] = useState('')
   const indexOf = (key: string) => cards.findIndex((c) => sheetRefKey(c.card.ref) === key)
   const selectedIndex = selected ? indexOf(selected) : -1
@@ -260,14 +263,49 @@ export function ArrangeStep({ contents, arrangement, cards, options, onChange, o
       setAnnounce(`${name}: move cancelled.`)
       return
     }
-    const to =
-      e.key === 'ArrowUp' ? index - 1 : e.key === 'ArrowDown' ? index + 1 : e.key === 'ArrowRight' ? columnMoveTarget(layout, index, 1, cards.length) : e.key === 'ArrowLeft' ? columnMoveTarget(layout, index, -1, cards.length) : null
-    if (to === null) return
+    const target: ColumnMove | null =
+      e.key === 'ArrowUp'
+        ? { to: index - 1 }
+        : e.key === 'ArrowDown'
+          ? { to: index + 1 }
+          : e.key === 'ArrowRight'
+            ? columnMove(layout, index, 1, cards.length, options.columns)
+            : e.key === 'ArrowLeft'
+              ? columnMove(layout, index, -1, cards.length, options.columns)
+              : null
+    if (target === null) return
     e.preventDefault()
-    if (to < 0 || to >= cards.length || to === index) return
-    onPreview(moveCard(arrangement, index, to))
+    const { to, newColumn } = target
+    const next = to < 0 || to >= cards.length ? arrangement : newColumn ? moveToNewColumn(arrangement, index, to) : moveCard(arrangement, index, to)
+    if (next === arrangement) {
+      setAnnounce(`${name} can't move further that way.`)
+      return
+    }
+    onPreview(next)
     setFollow(key)
     setSaid(key)
+  }
+
+  /** A card dragged into one of a page's empty columns: it starts that column. */
+  const onDropEmpty = (page: number) => {
+    if (dragging !== null) {
+      const key = sheetRefKey(cards[dragging]!.card.ref)
+      const from = dragging
+      onChange((a) => moveToNewColumn(a, from, emptyColumnTarget(layout, page, from)))
+      setFollow(key)
+      setSaid(key)
+    }
+    setDragging(null)
+    setDrop(null)
+    setDropEmpty(null)
+  }
+
+  // Escape with a card selected (not picked up) clears the selection; the next Escape closes the dialog.
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Escape' || e.defaultPrevented || !selected || picked) return
+    e.preventDefault()
+    setSelected(null)
+    setAnnounce('Selection cleared.')
   }
 
   const onDragOver = (index: number) => (e: DragEvent<HTMLDivElement>) => {
@@ -277,6 +315,14 @@ export function ArrangeStep({ contents, arrangement, cards, options, onChange, o
     const r = e.currentTarget.getBoundingClientRect()
     const side = e.clientY < r.top + r.height / 2 ? 'before' : 'after'
     if (drop?.index !== index || drop.side !== side) setDrop({ index, side })
+    if (dropEmpty) setDropEmpty(null)
+  }
+  const onDragOverEmpty = (place: string) => (e: DragEvent<HTMLDivElement>) => {
+    if (dragging === null) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dropEmpty !== place) setDropEmpty(place)
+    if (drop) setDrop(null)
   }
   const onDrop = () => {
     if (dragging !== null && drop) {
@@ -327,13 +373,14 @@ export function ArrangeStep({ contents, arrangement, cards, options, onChange, o
         onDragEnd={() => {
           setDragging(null)
           setDrop(null)
+          setDropEmpty(null)
         }}
       />
     )
   }
   const pageLabel = (p: number) => `Page ${pagesBefore + p + 1} of ${otherPages + pageCount}`
   return (
-    <div className="ref-arrange">
+    <div className="ref-arrange" onKeyDown={onKeyDown}>
       <div className="ref-arrange__toolbar" role="toolbar" aria-label="Arrange">
         {toolbar}
         <span className="muted">
@@ -390,7 +437,29 @@ export function ArrangeStep({ contents, arrangement, cards, options, onChange, o
                 style={{ width: box.width * scale, height: box.height * scale }}
               >
                 <div style={{ transform: `scale(${scale})`, transformOrigin: '0 0' }}>
-                  <CardPage layout={layout} page={p} cards={cards} contents={contents} options={options} renderCard={(c, index, continued) => renderCard(c, index, continued, false)} />
+                  <CardPage
+                    layout={layout}
+                    page={p}
+                    cards={cards}
+                    contents={contents}
+                    options={options}
+                    renderCard={(c, index, continued) => renderCard(c, index, continued, false)}
+                    renderEmptyColumn={(col) => {
+                      // A drop here starts this column (spec section 4: like a column break before the card).
+                      const place = `${p}:${col}`
+                      return (
+                        <div
+                          className={dragging !== null ? (dropEmpty === place ? 'ref-drop-column ref-drop-column--over' : 'ref-drop-column ref-drop-column--active') : 'ref-drop-column'}
+                          onDragOver={onDragOverEmpty(place)}
+                          onDragLeave={() => dropEmpty === place && setDropEmpty(null)}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            onDropEmpty(p)
+                          }}
+                        />
+                      )
+                    }}
+                  />
                 </div>
               </div>
               <figcaption className="muted">{pageLabel(p)}</figcaption>

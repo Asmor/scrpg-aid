@@ -9,7 +9,7 @@ import { aspectName } from '../game/environment'
 import { ACTION_NAME, actionsText, groupActionList } from '../game/npc'
 import type { Zone } from '../rules/types'
 import { countsText } from '../rules/trackers'
-import { hiddenText } from './sheet'
+import { hiddenText, membersText } from './sheet'
 import { CARD_TYPE_NAME, type CardTwist, type ChallengeCard, type EnvironmentCard, type NpcCard, type ScenePage, type SheetCard } from './model'
 
 const ZONE_LETTER: Record<Zone, string> = { green: 'G', yellow: 'Y', red: 'R' }
@@ -73,7 +73,7 @@ function NpcBody({ card, writeIns }: { card: NpcCard; writeIns: boolean }) {
       {card.notes.trim() && <p className="ref-muted ref-card__text">{card.notes}</p>}
       {writeIns && count > 0 && (
         <div className="ref-card__members">
-          <span className="ref-label">Group of {count}</span>
+          <span className="ref-label">{membersText(card)}</span>
           {card.members.map((m, i) => (
             <span key={i} className={m.out ? 'ref-diebox ref-diebox--out' : 'ref-diebox'} role="img" aria-label={m.out ? `Member ${i + 1}, out` : `Member ${i + 1}, ${m.die}`}>
               {m.out ? <span className="ref-diebox__x">×</span> : null}
@@ -170,7 +170,8 @@ export function SheetCardView({ card, writeIns, continued = false }: { card: She
       </p>
       <div className="ref-card__head">
         <h2 className="ref-card__name">{continued ? `${card.name}, continued` : card.name}</h2>
-        {npc && card.die && <DieIcon die={card.die} />}
+        {/* The starting die, large enough to read across the table. */}
+        {npc && card.die && <DieIcon die={card.die} size="large" />}
       </div>
       {card.hidden && <p className="ref-muted">{hiddenText(card.hidden)}</p>}
       {card.type === 'environment' ? <EnvironmentBody card={card} writeIns={writeIns} /> : card.type === 'challenge' ? <ChallengeBody card={card} writeIns={writeIns} /> : <NpcBody card={card} writeIns={writeIns} />}

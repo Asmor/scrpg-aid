@@ -208,10 +208,11 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
           ) : (
             <p>Loading…</p>
           ))}
+        {/* While hosting, the hosting session loads the game and the editor loads nothing: only the host's message applies. */}
         {!host && editor.state.status === 'loading' && <p>Loading…</p>}
-        {editor.state.status === 'missing' && <p role="alert">There's no saved game with that link. It may have been deleted.</p>}
-        {editor.state.status === 'unreadable' && <p role="alert">This game couldn't be read: {editor.state.error}</p>}
-        {editor.state.status === 'error' && <p role="alert">Something went wrong loading this game: {editor.state.message}</p>}
+        {!host && editor.state.status === 'missing' && <p role="alert">There's no saved game with that link. It may have been deleted.</p>}
+        {!host && editor.state.status === 'unreadable' && <p role="alert">This game couldn't be read: {editor.state.error}</p>}
+        {!host && editor.state.status === 'error' && <p role="alert">Something went wrong loading this game: {editor.state.message}</p>}
       </div>
     )
   }

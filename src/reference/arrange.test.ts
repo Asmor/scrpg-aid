@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultArrangement, isRearranged, leaveOut, moveCard, movePage, putBack, reconcileArrangement, setBreak, sortByType } from './arrange'
+import { defaultArrangement, isRearranged, leaveOut, moveCard, moveToNewColumn, movePage, putBack, reconcileArrangement, setBreak, sortByType } from './arrange'
 import type { CardType, SheetCard, SheetContents } from './model'
 
 function card(type: CardType, name: string, extra: Partial<SheetCard> = {}): SheetCard {
@@ -123,3 +123,37 @@ describe('reconcileArrangement', () => {
     expect(names(next, reconcileArrangement({ pages: [], cards: [{ ref: { kind: 'challenge', id: 'defuse' } }], omitted: [] }, next))).toEqual(['Rooftops', 'Defuse', 'Snipers'])
   })
 })
+
+describe('moveToNewColumn', () => {
+  const c = contents([card('minion', 'A'), card('minion', 'B'), card('minion', 'C'), card('minion', 'D')])
+  const start = defaultArrangement(c)
+  const breaks = (a: typeof start) => a.cards.map((x) => x.breakBefore ?? '-')
+
+  it('moves the card and starts a column with it', () => {
+    const next = moveToNewColumn(start, 0, 3)
+    expect(names(c, next)).toEqual(['B', 'C', 'D', 'A'])
+    expect(breaks(next)).toEqual(['-', '-', '-', 'column'])
+    // Staying put, it just gains the break.
+    expect(breaks(moveToNewColumn(start, 3, 3))).toEqual(['-', '-', '-', 'column'])
+  })
+
+  it('leaves the break it had for the card after it, so the others keep their places', () => {
+    const paged = setBreak(start, 1, 'page')
+    const next = moveToNewColumn(paged, 1, 3)
+    expect(names(c, next)).toEqual(['A', 'C', 'D', 'B'])
+    expect(breaks(next)).toEqual(['-', 'page', '-', 'column'])
+    // Unless that card has a break of its own.
+    const both = setBreak(paged, 2, 'column')
+    expect(breaks(moveToNewColumn(both, 1, 3))).toEqual(['-', 'column', '-', 'column'])
+  })
+
+  it('changes nothing for a card that stays put with a break, and never breaks before the first card', () => {
+    const paged = setBreak(start, 3, 'page')
+    expect(moveToNewColumn(paged, 3, 3)).toBe(paged)
+    expect(moveToNewColumn(start, 9, 0)).toBe(start)
+    const first = moveToNewColumn(start, 2, 0)
+    expect(names(c, first)).toEqual(['C', 'A', 'B', 'D'])
+    expect(breaks(first)).toEqual(['-', '-', '-', '-'])
+  })
+})
+

@@ -4667,7 +4667,8 @@ span.status-chips > span {
   background: var(--ui-surface-2);
 }
 
-.menu-item:disabled {
+.menu-item:disabled,
+.menu-item[aria-disabled='true'] {
   opacity: 0.6;
   cursor: default;
 }
@@ -10251,6 +10252,19 @@ kbd {
   width: min(100%, 60rem);
 }
 
+/* Step 1: the title and the footer stay put, and only the body scrolls (as in step 2). */
+.modal--reference-contents {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal--reference-contents .ref-dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
 .ref-dialog__sub,
 .ref-dialog__steps {
   margin: -0.5rem 0 0.25rem;
@@ -10389,7 +10403,13 @@ kbd {
   box-shadow: 0 1px 4px var(--ui-shadow);
 }
 
+/* A block, so the scale applies (a transform does nothing to an inline box), and placed at the
+   top left so the button doesn't center the full-size page before it's scaled. */
 .ref-thumb__inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
   transform-origin: 0 0;
 }
 
@@ -10417,6 +10437,23 @@ kbd {
   flex-direction: column;
   gap: 14px;
   min-width: 0;
+}
+
+/* Arrange: an empty column fills with a drop target, outlined while a card is dragged and marked when one is over it. */
+.ref-drop-column {
+  flex: 1;
+  border-radius: 6px;
+}
+
+.ref-drop-column--active {
+  outline: 2px dashed #b9bdcb;
+  outline-offset: -2px;
+}
+
+.ref-drop-column--over {
+  outline: 3px solid #4347c9;
+  outline-offset: -3px;
+  background: rgb(67 71 201 / 0.06);
 }
 
 .ref-page__column + .ref-page__column {
@@ -10476,6 +10513,12 @@ kbd {
   margin: 0;
   font-size: 20px;
   line-height: 1.15;
+}
+
+/* A minion's or lieutenant's starting die: large, to read across the table (the spec's card table). */
+.ref-card__head .die-icon--large {
+  flex: none;
+  height: 36px;
 }
 
 .ref-card__text {
@@ -11005,7 +11048,7 @@ button.ref-thumb {
   }
 
   /* Back and Export stay in reach as the list scrolls. */
-  .modal--reference .ref-dialog__footer {
+  .modal--arrange .ref-dialog__footer {
     position: sticky;
     bottom: -1.25rem;
     margin-bottom: -1.25rem;

@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS } from '../settings/model'
 import { SettingsProvider } from '../settings/SettingsProvider'
 import { MemorySettingsStore } from '../settings/store'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { GameStoreContext } from '../app/game-store-context'
@@ -31,7 +31,14 @@ async function setup(change: (g: Game) => Game = (g) => g, settings = new Memory
   const games = new MemoryGameStore()
   await games.save(change(createGame({ id: 'g1', name: 'Thursday game' })))
   const storage = memoryStorage()
-  render(
+  render(page(net, games, storage, settings))
+  await screen.findByRole('button', { name: /Rename game/ })
+  return { net, games, storage }
+}
+
+/** The game page as the app has it, with a session over `storage` (which resumes hosting saved there). */
+function page(net: ReturnType<typeof fakeNetwork>, games: MemoryGameStore, storage: ReturnType<typeof memoryStorage>, settings = new MemorySettingsStore()) {
+  return (
     <SettingsProvider store={settings}>
       <StoreContext.Provider value={new MemoryHeroStore()}>
         <VillainStoreContext.Provider value={new MemoryVillainStore()}>
@@ -44,10 +51,8 @@ async function setup(change: (g: Game) => Game = (g) => g, settings = new Memory
           </GameStoreContext.Provider>
         </VillainStoreContext.Provider>
       </StoreContext.Provider>
-    </SettingsProvider>,
+    </SettingsProvider>
   )
-  await screen.findByRole('button', { name: /Rename game/ })
-  return { net, games, storage }
 }
 
 async function startHosting(name = 'Sam') {
@@ -77,6 +82,18 @@ function player(net: ReturnType<typeof fakeNetwork>, room: string) {
 }
 
 describe('hosting from the game table', () => {
+  it('shows only why a hosted game couldn’t be read after a reload', async () => {
+    const { net, games, storage } = await setup()
+    await startHosting()
+    cleanup()
+    vi.spyOn(games, 'get').mockResolvedValue({ status: 'unreadable', error: 'saved by an older version of the app (format 7)' })
+    render(page(net, games, storage))
+    expect(await screen.findByText("The game couldn't be read: saved by an older version of the app (format 7)")).toBeInTheDocument()
+    // The page's own loader isn't used while hosting, so it has nothing to say.
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.queryByText(/no saved game with that link/)).not.toBeInTheDocument()
+  })
+
   it('starts hosting under the GM’s name, and invites with the code, a QR code and the player link', async () => {
     const { storage } = await setup()
     expect(screen.getByText('Not hosting')).toBeInTheDocument()

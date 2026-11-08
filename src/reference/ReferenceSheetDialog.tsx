@@ -211,6 +211,7 @@ export function ReferenceSheetDialog({ source, onClose, savedLayout, onSaveLayou
   const steps = hasCards ? 2 : 1
   const stepText = `Step ${step} of ${steps}, ${step === 1 ? 'Contents' : 'Arrange'}`
   const fullPages = kept.pages.length * FULL_PAGE_COUNT
+  const hasNotes = Boolean(contents.scene?.notes.trim())
   const exportButton = (label: string, which: () => SheetArrangement, primary: boolean) => (
     <button
       type="button"
@@ -320,7 +321,7 @@ export function ReferenceSheetDialog({ source, onClose, savedLayout, onSaveLayou
   }
 
   return (
-    <Modal title="Reference sheet" onClose={onClose} wide className="modal--reference">
+    <Modal title="Reference sheet" onClose={onClose} wide className="modal--reference modal--reference-contents">
       <p className="ref-dialog__sub">
         {plural(items, 'item')} · about {plural(pages, 'page')}
       </p>
@@ -417,11 +418,12 @@ export function ReferenceSheetDialog({ source, onClose, savedLayout, onSaveLayou
                 </span>
               </label>
               <label className="ref-check">
-                <input type="checkbox" checked={options.includeNotes} onChange={(e) => set('includeNotes', e.target.checked)} />
+                {/* With no notes there's nothing to include: shown unchecked and off. */}
+                <input type="checkbox" checked={hasNotes && options.includeNotes} disabled={!hasNotes} onChange={(e) => set('includeNotes', e.target.checked)} />
                 <span>
                   <strong>Include scene notes</strong>
                   <br />
-                  <span className="muted">{contents.scene.notes.trim() ? 'Your notes for the scene, on its first page.' : 'This scene has no notes yet.'}</span>
+                  <span className="muted">{hasNotes ? 'Your notes for the scene, on its first page.' : 'This scene has no notes yet.'}</span>
                 </span>
               </label>
             </>

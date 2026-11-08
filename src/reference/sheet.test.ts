@@ -3,7 +3,7 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import type { PageItem, ScenePage, SheetCard, SheetContents } from './model'
 import { sheetFileBase, printReference } from './print'
-import { arranged, cardCountsText, cardFooter, followingLine, hiddenText, layoutCards, pageRuns, printRules } from './sheet'
+import { arranged, cardCountsText, cardFooter, followingLine, hiddenText, layoutCards, membersText, pageRuns, printRules } from './sheet'
 import { DEFAULT_SHEET_OPTIONS } from './model'
 
 const minion = (name: string): SheetCard => ({ ref: { kind: 'minion', id: name }, type: 'minion', name, appearance: { primary: 'red' }, die: 'd6', actions: 'any', notes: '', abilities: [], members: [] })
@@ -46,6 +46,13 @@ describe('the sheet helpers', () => {
     expect(cardCountsText([minion('A'), challenge('B'), minion('C')])).toBe('Challenges 1 · Minions 2')
     expect(hiddenText('starts')).toBe('Starts hidden')
     expect(hiddenText('now')).toBe('Hidden')
+  })
+
+  it('labels the die boxes by member count for a group in play, and as a group size for a template', () => {
+    const box = { die: 'd6' as const, out: false }
+    expect(membersText({ ref: { kind: 'group', id: 'g' }, members: [box] })).toBe('1 member')
+    expect(membersText({ ref: { kind: 'group', id: 'g' }, members: [box, box, box, { ...box, out: true }] })).toBe('4 members')
+    expect(membersText({ ref: { kind: 'minion', id: 'm' }, members: [box, box, box, box] })).toBe('Group of 4')
   })
 
   it('lays cards out with measured heights where there are some', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cardPlace, columnMoveTarget, estimateCardHeight, estimatePages, pageBox, paginate, TITLE_HEIGHT } from './layout'
+import { cardPlace, columnMove, columnMoveTarget, emptyColumnTarget, estimateCardHeight, estimatePages, pageBox, paginate, TITLE_HEIGHT } from './layout'
 import type { SheetCard } from './model'
 
 const ids = (layout: ReturnType<typeof paginate>) => layout.pages.map((p) => p.columns.map((c) => c.map((x) => (x.continued ? `${x.index}+` : String(x.index)))))
@@ -113,5 +113,26 @@ describe('cardPlace and columnMoveTarget', () => {
     const short = paginate([{ height: 150 }, { height: 150 }, { height: 150 }, { height: 150, breakBefore: 'column' as const }], 3, 650)
     // [0, 1, 2] [3]: card 2 (position 3) goes after card 3.
     expect(columnMoveTarget(short, 2, 1, 4)).toBe(3)
+  })
+
+  it('moves right into a page\'s empty column as a new column after the page\'s last card', () => {
+    // Page 1: [0, 1] [2, 3]; page 2: [4, 5] and an empty column.
+    expect(columnMove(layout, 4, 1, 6, 2)).toEqual({ to: 5, newColumn: true })
+    expect(columnMove(layout, 5, 1, 6, 2)).toEqual({ to: 5, newColumn: true })
+    // Between filled columns, and leftward, as before.
+    expect(columnMove(layout, 1, 1, 6, 2)).toEqual({ to: 2 })
+    expect(columnMove(layout, 4, -1, 6, 2)).toEqual({ to: columnMoveTarget(layout, 4, -1, 6) })
+    // With three columns, page 1's third is empty too.
+    expect(columnMove(layout, 3, 1, 6, 3)).toEqual({ to: 3, newColumn: true })
+  })
+
+  it('drops into an empty column after the last card on that page', () => {
+    expect(emptyColumnTarget(layout, 1, 4)).toBe(5)
+    expect(emptyColumnTarget(layout, 1, 5)).toBe(5)
+    // From a later page: after card 3, once it's out of its place.
+    const paged = paginate([{ height: 100 }, { height: 100 }, { height: 100, breakBefore: 'page' as const }], 2, 650)
+    expect(emptyColumnTarget(paged, 0, 2)).toBe(2)
+    expect(emptyColumnTarget(paged, 0, 0)).toBe(1)
+    expect(emptyColumnTarget(paginate([], 2, 650), 0, 0)).toBe(0)
   })
 })

@@ -1141,6 +1141,9 @@ describe('the reference sheet from a scene', () => {
     // The scene page comes first in the print.
     await waitFor(() => expect(document.querySelector('.ref-print .ref-scene h1')).toHaveTextContent('The Foundry'))
     expect(document.querySelector('.ref-print .ref-scene')).toHaveTextContent('Keep the lights low.')
+    // Groups in play count their members; each card's starting die is the large one.
+    expect([...document.querySelectorAll('.ref-print .ref-card__members .ref-label')].map((l) => l.textContent)).toEqual(['2 members', '3 members'])
+    expect(document.querySelectorAll('.ref-print .ref-card__head .die-icon--large')).toHaveLength(2)
     window.dispatchEvent(new Event('afterprint'))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Reference sheet' })).not.toBeInTheDocument())
     await waitFor(async () => expect(currentScene(await saved()).sheetLayout?.cards).toHaveLength(2))
@@ -1150,5 +1153,16 @@ describe('the reference sheet from a scene', () => {
     await menuItem('Scene menu', 'Reference sheet…')
     await userEvent.click(screen.getByRole('button', { name: 'Next: Arrange' }))
     expect([...document.querySelectorAll('.ref-arrange__board .ref-card')].map((c) => c.getAttribute('aria-label'))).toEqual(['Burglars', 'Arsonists'])
+  })
+
+  it('turns Include scene notes off when the scene has none', async () => {
+    await setup((g) => {
+      g.scenes[0]!.notes = '  '
+    })
+    await menuItem('Scene menu', 'Reference sheet…')
+    const notes = within(screen.getByRole('dialog', { name: 'Reference sheet' })).getByRole('checkbox', { name: /Include scene notes/ })
+    expect(notes).toBeDisabled()
+    expect(notes).not.toBeChecked()
+    expect(notes).toHaveAccessibleName(/This scene has no notes yet\./)
   })
 })

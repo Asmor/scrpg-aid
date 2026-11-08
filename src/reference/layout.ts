@@ -113,6 +113,8 @@ export function estimateCardHeight(card: SheetCard, columnWidth: number, writeIn
   switch (card.type) {
     case 'minion':
     case 'lieutenant':
+      // The large starting die makes the name line taller.
+      if (card.die) h += 6
       h += LINE + lines(card.notes) * LINE
       for (const a of card.abilities) h += 8 + LINE + lines(a.text) * LINE
       if (writeIns) h += 36 * Math.ceil(card.members.length / Math.max(1, Math.floor((columnWidth - 90) / 42)))
@@ -172,9 +174,42 @@ export function cardPlace(layout: Layout, index: number): CardPlace | undefined 
 }
 
 /**
- * Where a keyboard move left or right takes a card, as `moveCard`'s target: the same place in
- * the previous or next column (or the end of it), across pages. Its own index when there's no
- * column that way.
+ * Where a card dropped into one of a page's empty columns goes, as `moveCard`'s target: after the
+ * last card that starts on that page (with a column break before it, which `moveToNewColumn`
+ * adds). Only a sheet with no cards has a page without any, so then it goes first.
+ */
+export function emptyColumnTarget(layout: Layout, page: number, from: number): number {
+  const firsts = (layout.pages[page]?.columns ?? []).flat().filter((x) => !x.continued)
+  if (!firsts.length) return 0
+  const last = Math.max(...firsts.map((x) => x.index))
+  return from <= last ? last : last + 1
+}
+
+/** A keyboard move left or right: `moveCard`'s target, and whether it starts a new column (into an empty one). */
+export interface ColumnMove {
+  to: number
+  newColumn?: true
+}
+
+/**
+ * Where a keyboard move left or right takes a card: the same place in the previous or next column
+ * (or the end of it), across pages. Moving right from a page's last filled column, when the page
+ * has an empty column, starts that column (as a column break would). Its own index when there's
+ * no column that way.
+ */
+export function columnMove(layout: Layout, index: number, dir: 1 | -1, count: number, columnsPerPage: number): ColumnMove {
+  if (dir > 0) {
+    const p = layout.pages.findIndex((page) => page.columns.some((c) => c.some((x) => x.index === index && !x.continued)))
+    const page = layout.pages[p]
+    if (page && page.columns.length < columnsPerPage && page.columns.at(-1)!.some((x) => x.index === index && !x.continued)) return { to: emptyColumnTarget(layout, p, index), newColumn: true }
+  }
+  return { to: columnMoveTarget(layout, index, dir, count) }
+}
+
+/**
+ * Where a move left or right takes a card between filled columns, as `moveCard`'s target: the
+ * same place in the previous or next column (or the end of it), across pages. Its own index when
+ * there's no column that way.
  */
 export function columnMoveTarget(layout: Layout, index: number, dir: 1 | -1, count: number): number {
   const columns = layout.pages.flatMap((p) => p.columns)

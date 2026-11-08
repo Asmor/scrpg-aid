@@ -108,6 +108,8 @@ export interface MenuItem {
   checked?: boolean
   /** A line of information above the menu's items, not an action ("Library sheet changed 2 days ago"). */
   note?: true
+  /** Shown but unavailable (aria-disabled, so it can still be reached with the arrow keys): choosing it does nothing. */
+  disabled?: boolean
 }
 
 /** Arrow keys move between a menu's items; Home and End jump. */
@@ -168,9 +170,11 @@ export function PopoverMenu({ popover, label, items, className, header }: { popo
               type="button"
               role={item.checked === undefined ? 'menuitem' : 'menuitemradio'}
               aria-checked={item.checked}
+              aria-disabled={item.disabled || undefined}
               tabIndex={-1}
               className={item.danger ? 'menu-item menu-item--danger' : 'menu-item'}
               onClick={() => {
+                if (item.disabled) return
                 popover.close()
                 item.onSelect()
               }}

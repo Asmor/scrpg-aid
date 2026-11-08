@@ -17,6 +17,7 @@ export function CardPage({
   contents,
   options,
   renderCard,
+  renderEmptyColumn,
 }: {
   layout: Layout
   page: number
@@ -24,6 +25,8 @@ export function CardPage({
   contents: SheetContents
   options: SheetOptions
   renderCard?: (c: ArrangedCard, index: number, continued: boolean) => ReactNode
+  /** What fills a column no card reaches (Arrange's drop target). */
+  renderEmptyColumn?: (column: number) => ReactNode
 }) {
   const box = pageBox(options.paper, options.columns)
   const laid = layout.pages[page]
@@ -36,14 +39,19 @@ export function CardPage({
           gridTemplateColumns: `repeat(${options.columns}, minmax(0, 1fr))`,
         }}
       >
-        {Array.from({ length: options.columns }, (_, col) => (
-          <div key={col} className="ref-page__column">
-            {(laid?.columns[col] ?? []).map((p) => {
-              const c = cards[p.index]!
-              return <div key={`${p.index}:${p.continued ? 'c' : ''}`}>{renderCard ? renderCard(c, p.index, Boolean(p.continued)) : <SheetCardView card={c.card} writeIns={options.writeIns} continued={Boolean(p.continued)} />}</div>
-            })}
-          </div>
-        ))}
+        {Array.from({ length: options.columns }, (_, col) => {
+          const placed = laid?.columns[col] ?? []
+          return (
+            <div key={col} className="ref-page__column">
+              {placed.length === 0 && renderEmptyColumn
+                ? renderEmptyColumn(col)
+                : placed.map((p) => {
+                    const c = cards[p.index]!
+                    return <div key={`${p.index}:${p.continued ? 'c' : ''}`}>{renderCard ? renderCard(c, p.index, Boolean(p.continued)) : <SheetCardView card={c.card} writeIns={options.writeIns} continued={Boolean(p.continued)} />}</div>
+                  })}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

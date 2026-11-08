@@ -197,7 +197,11 @@ describe('Arrange', () => {
     const dialog = await arrange()
     expect(dialog.getByRole('button', { name: 'Undo' })).toBeDisabled()
     await userEvent.click(dialog.getByRole('button', { name: 'More actions for Foundry Thugs' }))
-    expect(screen.queryByRole('menuitem', { name: 'Move to bottom' })).not.toBeInTheDocument()
+    // The last card's Move to bottom is listed, but unavailable.
+    const bottom = screen.getByRole('menuitem', { name: 'Move to bottom' })
+    expect(bottom).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.click(bottom)
+    expect(cardNames()).toEqual(['Molten Foundry', 'Gate Lock', 'Ember Drones', 'Foundry Thugs'])
     await userEvent.click(screen.getByRole('menuitem', { name: 'Move to top' }))
     expect(cardNames()).toEqual(['Foundry Thugs', 'Molten Foundry', 'Gate Lock', 'Ember Drones'])
     await waitFor(() => expect(dialog.getByRole('status')).toHaveTextContent('Foundry Thugs, page 1, column 1, position 1 of'))
@@ -286,6 +290,64 @@ describe('Arrange', () => {
     expect(card('Gate Lock')).toHaveClass('ref-arrange-card--drop-after')
     fireEvent.drop(card('Gate Lock'), { dataTransfer: data })
     expect(cardNames()).toEqual(['Molten Foundry', 'Gate Lock', 'Foundry Thugs', 'Ember Drones'])
+  })
+
+  /** Page 6 holds Ember Drones and Foundry Thugs in its first column; its second is empty. */
+  async function withEmptyColumn() {
+    const dialog = await arrange()
+    await userEvent.click(dialog.getByRole('button', { name: 'More actions for Ember Drones' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Start a new page here' }))
+    const page = dialog.getByRole('group', { name: /^Page 6 of 6, 2 columns, 2 cards$/ })
+    expect(page.querySelectorAll('.ref-drop-column')).toHaveLength(1)
+    return { dialog, page }
+  }
+
+  it('drops a card into an empty column, as a column break before it', async () => {
+    const { dialog, page } = await withEmptyColumn()
+    const card = dialog.getByRole('button', { name: 'Move Ember Drones' }).closest('.ref-arrange-card')!
+    const data = { effectAllowed: '', dropEffect: '', setData: () => {} }
+    fireEvent.dragStart(card, { dataTransfer: data })
+    const empty = page.querySelector('.ref-drop-column')!
+    expect(empty).toHaveClass('ref-drop-column--active')
+    fireEvent.dragOver(empty, { dataTransfer: data })
+    expect(empty).toHaveClass('ref-drop-column--over')
+    fireEvent.drop(empty, { dataTransfer: data })
+    // Ember Drones goes after Foundry Thugs and starts column 2; Foundry Thugs keeps the page break.
+    expect(cardNames()).toEqual(['Molten Foundry', 'Gate Lock', 'Foundry Thugs', 'Ember Drones'])
+    expect(dialog.getByText('Page break')).toBeInTheDocument()
+    expect(dialog.getByText('Column break')).toBeInTheDocument()
+    expect(page.querySelectorAll('.ref-drop-column')).toHaveLength(0)
+    await waitFor(() => expect(dialog.getByRole('status')).toHaveTextContent('Ember Drones, page 2, column 2, position 1 of 1'))
+  })
+
+  it('moves a card right into an empty column by keyboard, and says when it can go no further', async () => {
+    const { dialog } = await withEmptyColumn()
+    const handle = () => dialog.getByRole('button', { name: 'Move Foundry Thugs' })
+    handle().focus()
+    await userEvent.keyboard(' {ArrowRight}')
+    expect(dialog.getByText('Column break')).toBeInTheDocument()
+    await waitFor(() => expect(dialog.getByRole('status')).toHaveTextContent('Foundry Thugs, page 2, column 2, position 1 of 1'))
+    await waitFor(() => expect(handle()).toHaveFocus())
+    // No column further right.
+    await userEvent.keyboard('{ArrowRight}')
+    expect(dialog.getByRole('status')).toHaveTextContent("Foundry Thugs can't move further that way.")
+    await userEvent.keyboard(' ')
+    expect(cardNames()).toEqual(['Molten Foundry', 'Gate Lock', 'Ember Drones', 'Foundry Thugs'])
+  })
+
+  it('clears a clicked selection on Escape, and closes on the next', async () => {
+    const onClose = vi.fn()
+    render(<ReferenceSheetDialog source={source()} onClose={onClose} now={() => now} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Next: Arrange' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Reference sheet' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Move Gate Lock' }))
+    expect(dialog.getByRole('button', { name: '+ Column break' })).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(dialog.getByRole('button', { name: 'Move Gate Lock' })).toHaveAttribute('aria-pressed', 'false')
+    expect(dialog.queryByRole('button', { name: '+ Column break' })).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalled()
   })
 
   it('prints the arrangement, breaks and all', async () => {
