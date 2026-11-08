@@ -38,6 +38,9 @@ import { createDefaultStore, type HeroStore } from './hero/store'
 import { useTheme } from './theme/useTheme'
 import { SettingsLink } from './settings/SettingsLink'
 import { SettingsPage } from './settings/SettingsPage'
+import { PhoneMenu } from './library/LibraryHeader'
+import { useMediaQuery } from './components/useMediaQuery'
+import type { ThemePreference } from './theme/theme'
 import { SettingsProvider } from './settings/SettingsProvider'
 import { createDefaultSettingsStore, type SettingsStore } from './settings/store'
 
@@ -107,11 +110,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
           <h1>
             <a href={listPath}>SCRPG Aid</a>
           </h1>
-          <span className="app-header__actions">
-            <ThemeToggle value={theme} onChange={setTheme} />
-            <SettingsLink />
-            <HelpMenu />
-          </span>
+          <HeaderActions theme={theme} setTheme={setTheme} />
         </header>
         <main className={route.name === 'edit' || route.name === 'villainEdit' || route.name === 'help' ? 'app-main app-main--wide' : 'app-main'}>
           {route.name === 'villain' && <VillainPage key={route.id} id={route.id} />}
@@ -144,5 +143,23 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
       </VillainStoreContext.Provider>
     </StoreContext.Provider>
     </SettingsProvider>
+  )
+}
+
+/** The other pages' header buttons: on phones, the library's one menu, so the header stays one row. */
+function HeaderActions({ theme, setTheme }: { theme: ThemePreference; setTheme: (t: ThemePreference) => void }) {
+  const phone = useMediaQuery('(max-width: 759.98px)', false)
+  return (
+    <span className="app-header__actions">
+      {phone ? (
+        <PhoneMenu theme={theme} setTheme={setTheme} />
+      ) : (
+        <>
+          <ThemeToggle value={theme} onChange={setTheme} />
+          <SettingsLink />
+          <HelpMenu />
+        </>
+      )}
+    </span>
   )
 }

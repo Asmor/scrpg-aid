@@ -7,8 +7,8 @@ import { BackIssuePips } from '../components/BackIssuePips'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
-import { defaultIssueTitle, finishRows, modsToClear, oppositionStaying, scenesPlayed, type FinishChoices } from './issues'
-import { currentIssue, currentScene, gameDisplayName, sceneName, sceneNumber, type Game } from './model'
+import { finishRows, modsToClear, oppositionStaying, scenesPlayed, type FinishChoices } from './issues'
+import { currentIssue, currentScene, gameDisplayName, issueName, sceneName, sceneNumber, type Game } from './model'
 import { TrackerBoxes } from './ScenesTab'
 import { EndOfIssue } from './TableCenter'
 
@@ -33,8 +33,8 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
   const checked = new Set(game.heroes.filter((h) => !unchecked.has(h.id)).map((h) => h.id))
   const rows = finishRows(game, checked, connected)
   const heroIds = rows.filter((r) => checked.has(r.heroId)).map((r) => r.heroId)
-  const fallback = defaultIssueTitle(game, issue)
-  const named = title.trim() || fallback
+  const fallback = `Issue ${issue.number}`
+  const named = issueName({ number: issue.number, title })
   const scene = currentScene(game)
   const played = scenesPlayed(game)
   const planned = game.scenes.filter((s) => s.state === 'planned')
@@ -92,7 +92,7 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
             <input id={`${id}-title`} type="text" maxLength={MAX_NAME} placeholder={fallback} value={title} onChange={(e) => setTitle(e.target.value)} aria-describedby={`${id}-title-hint`} />
           </label>
           <span id={`${id}-title-hint`} className="gt-sub">
-            Each hero's back issue gets this name, or "{fallback}" if it's left empty.
+            Each hero's back issue gets this name. Leave it empty to call it {fallback}.
           </span>
           <label className="field" htmlFor={`${id}-summary`}>
             <span>What happened (optional)</span>
@@ -152,7 +152,7 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
           <section className="gt-start__section gt-finish__see" aria-labelledby={`${id}-see`}>
             <h3 id={`${id}-see`}>What players will see</h3>
             <div className="gt-start__preview gt-end gt-finish__preview">
-              <EndOfIssue number={issue.number} title={named} summary={summary.trim()} />
+              <EndOfIssue number={issue.number} title={title} summary={summary.trim()} />
               <div className="gt-row">
                 <span className="gt-end__tracker">
                   <TrackerBoxes tracker={scene.tracker} at={scene.position} />
@@ -172,7 +172,7 @@ export function FinishIssueDialog({ game, connected, onFinish, onClose }: Props)
         <button type="button" className="button" onClick={onClose}>
           Cancel
         </button>
-        <button type="button" className="button button--primary" onClick={() => onFinish({ title: named, summary, heroIds })}>
+        <button type="button" className="button button--primary" onClick={() => onFinish({ title, summary, heroIds })}>
           Finish issue {issue.number}
         </button>
       </div>

@@ -8659,6 +8659,7 @@ ol.vw-conditions li {
 /* The end of an issue (scrpg-aid-designs/issues/spec.md) */
 
 .gt-end__over {
+  margin: 0;
   font-family: var(--font-heading);
   font-size: 0.875rem;
   font-weight: 700;
@@ -10084,6 +10085,7 @@ kbd {
 }
 
 .dv-endcard__over {
+  margin: 0;
   font-size: 40px;
   letter-spacing: 0.2em;
 }

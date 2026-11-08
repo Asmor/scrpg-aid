@@ -36,8 +36,8 @@ import { applySaves } from './npc'
 import { applyAttack, applyGroupRoll, giveMod, protect } from './resolve'
 import { parseTarget } from './roll-targets'
 import { applyHeroChange, type HeroChange } from './hero-changes'
-import { betweenIssues, currentIssue, currentScene, gameDisplayName, issueTitle, nextIssueNumber, sceneName, sceneNumber, sceneOnTable, type ActorRef, type Issue, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
-import { backIssueStatuses, changeHeroPoints, finishIssue, issueStartFacts, setIssueRecord, startIssue, type FinishChoices } from './issues'
+import { betweenIssues, currentIssue, currentScene, gameDisplayName, nextIssueNumber, sceneName, sceneNumber, sceneOnTable, type ActorRef, type Issue, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
+import { backIssueStatuses, changeHeroPoints, finishIssue, issueFinishedText, issueStartFacts, setIssueRecord, startIssue, type FinishChoices } from './issues'
 import { FinishIssueDialog } from './FinishIssueDialog'
 import { finishedPill } from './summary'
 import { healthLine, reconcile, reconcileVillain } from './reconcile'
@@ -251,7 +251,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     setSceneUndo(undo)
     const done = finished as Issue | undefined
     if (!done) return
-    setAnnounce(`Issue ${done.number} finished: ${issueTitle(done)}.`)
+    setAnnounce(issueFinishedText(done))
   }
 
   const startHosting = (name: string) => {
@@ -790,7 +790,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
               label={isTitle ? 'Title' : 'What happened'}
               value={(isTitle ? target.title : target.summary) ?? ''}
               multiline={!isTitle}
-              required={isTitle && target.state === 'finished'}
+              {...(isTitle ? { placeholder: `Issue ${target.number}` } : {})}
               onSave={(value) => apply((g) => setIssueRecord(g, target.id, { [dialog.field]: value }))}
               onClose={() => setDialog(null)}
             />

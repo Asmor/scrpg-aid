@@ -10,7 +10,7 @@ Show dice as icons or as text (d8). Rolling picks whether the app rolls for you 
 
 ## Alerts
 
-Choose what to be told about (your turn, or the GM answering a request) and how: a sound, a vibration, or a notification when the app is in the background.
+Choose what to be told about (your turn, or something that needs your answer, such as the GM answering a request or a new request for the GM) and how: a sound, a vibration, or a notification when the app is in the background.
 
 ## Display
 

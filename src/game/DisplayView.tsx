@@ -14,7 +14,7 @@ import { appearanceOf, type Appearance } from '../colors/palette'
 import { ActorChip, TurnStrip } from './TurnStrip'
 import { heroPointCount, modName } from '../play/state'
 import type { PlayMod } from '../hero/model'
-import { betweenIssues, gameDisplayName, issueTitle, sceneDisplayName } from './model'
+import { betweenIssues, gameDisplayName, sceneDisplayName } from './model'
 import { heroOnTableName, viewName, type TableView } from './project'
 import { boxLabel, groupSummary, sameActor, sceneZone, stepsText, turnStrip } from './table'
 import { STAGE_HEIGHT, STAGE_WIDTH, stageScale } from './display'
@@ -118,10 +118,19 @@ export function DisplayView({ table, watching, status }: Props) {
       <div className="dv-window">
         <div ref={ref} className="dv-stage" style={{ transform: `scale(${fit.scale})`, left: fit.left, top: fit.top }}>
           <section className="dv-endcard" aria-labelledby="dv-endcard-title">
-            <div className="dv-label dv-end dv-endcard__over">END OF ISSUE {finished.number}</div>
-            <h1 id="dv-endcard-title" key={`issue-${finished.id}`} className="dv-scene dv-scene--enter dv-endcard__title">
-              {issueTitle(finished)}
-            </h1>
+            {finished.title?.trim() ? (
+              <>
+                <div className="dv-label dv-end dv-endcard__over">END OF ISSUE {finished.number}</div>
+                <h1 id="dv-endcard-title" key={`issue-${finished.id}`} className="dv-scene dv-scene--enter dv-endcard__title">
+                  {finished.title.trim()}
+                </h1>
+              </>
+            ) : (
+              // No title: the small line is the heading, so the card doesn't read "Issue 1" twice.
+              <h1 id="dv-endcard-title" key={`issue-${finished.id}`} className="dv-label dv-end dv-endcard__over dv-scene--enter" aria-label={`End of issue ${finished.number}`}>
+                END OF ISSUE {finished.number}
+              </h1>
+            )}
             {finished.summary && <div className="dv-endcard__summary">{finished.summary}</div>}
             {heroes.length > 0 && (
               <ul className="dv-endcard__heroes" aria-label="Heroes">

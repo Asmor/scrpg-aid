@@ -530,6 +530,8 @@ describe('the empty library', () => {
     expect(card.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '#/help')
     const build = card.getByRole('button', { name: 'Build a hero' })
     expect(build).toHaveAccessibleDescription('Step by step, with the rules checked as you go.')
+    // The card says where things are saved, so the empty panel under it doesn't repeat it.
+    expect(screen.getAllByText(/Everything is saved in this browser/)).toHaveLength(1)
     await userEvent.click(build)
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/hero\/[^/]+\/edit\/start$/))
   })
@@ -560,6 +562,7 @@ describe('the empty library', () => {
     await setup({ settingsStore })
     expect(await screen.findByRole('heading', { name: 'Your library is empty' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'New to SCRPG Aid?' })).not.toBeInTheDocument()
+    expect(screen.getByText(/^Everything is saved in this browser\. Have a code from your GM\?/)).toBeInTheDocument()
     cleanup()
     await standard()
     await loaded()

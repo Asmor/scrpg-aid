@@ -16,7 +16,7 @@ import { heroPointCount, MAX_HERO_POINTS, modName, type PlayZone } from '../play
 import { formatFull, formatWhen } from '../play/time'
 import type { Die } from '../rules/types'
 import { overcomeOutcome } from '../play/roll'
-import { betweenIssues, challengeDone, issueTitle, logByline, sceneDisplayName, type ActorRef, type Challenge, type GameFeedEntry, type HasTracker, type NpcGroup, type PlayersSee } from './model'
+import { betweenIssues, challengeDone, logByline, sceneDisplayName, type ActorRef, type Challenge, type GameFeedEntry, type HasTracker, type NpcGroup, type PlayersSee } from './model'
 import { actedText, actorKey, boxLabel, groupSummary, memberLabel, memberName, nextStep, roundOver, sameActor, sceneZone, stepsText, turnStrip, waiting, type ItemRef } from './table'
 import type { BackIssueStatus } from './issues'
 import { heroOnTableName, viewHidden, viewName, type TableView } from './project'
@@ -279,14 +279,26 @@ function SceneCard({ game, gm }: { game: Pick<TableView, 'scene' | 'environment'
 /** "Nov 5". */
 const finishedOn = (at: string | undefined) => (at ? new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '')
 
-/** The title and summary of the issue just finished, for the table and the Finish dialog's preview. */
-export function EndOfIssue({ number, title, summary, headingId }: { number: number; title: string; summary?: string | undefined; headingId?: string }) {
+/**
+ * The title and summary of the issue just finished, for the table and the Finish dialog's preview:
+ * "END OF ISSUE 1", then the title. With no title the small line is the heading, so it doesn't say "Issue 1" twice.
+ */
+export function EndOfIssue({ number, title, summary, headingId }: { number: number; title?: string | undefined; summary?: string | undefined; headingId?: string }) {
+  const named = title?.trim()
   return (
     <>
-      <div className="gt-end__over">END OF ISSUE {number}</div>
-      <h2 id={headingId} className="gt-end__title">
-        {title}
-      </h2>
+      {named ? (
+        <>
+          <div className="gt-end__over">END OF ISSUE {number}</div>
+          <h2 id={headingId} className="gt-end__title">
+            {named}
+          </h2>
+        </>
+      ) : (
+        <h2 id={headingId} className="gt-end__over" aria-label={`End of issue ${number}`}>
+          END OF ISSUE {number}
+        </h2>
+      )}
       {summary && <p className="gt-end__summary">{summary}</p>}
     </>
   )
@@ -301,7 +313,7 @@ export function EndCard({ game, gm, gmName }: { game: TableView; gm?: GmControls
     <section className="card gt-card gt-end" aria-labelledby="gt-end">
       <div className="gt-row gt-end__head">
         <div className="gt-grow">
-          <EndOfIssue number={issue.number} title={issueTitle(issue)} summary={issue.summary} headingId="gt-end" />
+          <EndOfIssue number={issue.number} title={issue.title} summary={issue.summary} headingId="gt-end" />
         </div>
         {gm?.startIssue && (
           <button type="button" className="button button--primary" onClick={gm.startIssue}>

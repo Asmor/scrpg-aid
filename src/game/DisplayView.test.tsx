@@ -92,4 +92,13 @@ describe('the display view between issues', () => {
     // Nothing else on the table shows while it's paused.
     expect(screen.queryByText('Scene 1')).not.toBeInTheDocument()
   })
+
+  it('with no title, the small line is the heading and the card never reads "Issue 1"', () => {
+    const g = finishIssue(game(), { title: '', summary: '', heroIds: [] }, clock())
+    render(<DisplayView table={project(g, 'observer')} watching="Watching" />)
+    const region = screen.getByRole('region', { name: 'End of issue 1' })
+    expect(within(region).getByRole('heading', { name: 'End of issue 1' })).toHaveClass('dv-scene--enter')
+    expect(within(region).getAllByRole('heading')).toHaveLength(1)
+    expect(within(region).queryByText('Issue 1')).not.toBeInTheDocument()
+  })
 })

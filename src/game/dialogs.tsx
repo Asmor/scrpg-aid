@@ -205,13 +205,13 @@ export function SceneRecordDialog({ title, summary, notes, onSave, onClose }: { 
 }
 
 /** An issue's title or summary (the Scenes tab's ⋯). A finished issue always keeps a title. */
-export function IssueTextDialog({ title, label, value, multiline, required, onSave, onClose }: { title: string; label: string; value: string; multiline: boolean; required: boolean; onSave: (value: string) => void; onClose: () => void }) {
+export function IssueTextDialog({ title, label, value, multiline, placeholder, onSave, onClose }: { title: string; label: string; value: string; multiline: boolean; placeholder?: string; onSave: (value: string) => void; onClose: () => void }) {
   const [text, setText] = useState(value)
   return (
     <Modal title={title} onClose={onClose}>
-      <form className="gt-form" onSubmit={submitWith(() => (!required || text.trim()) && (onSave(text), onClose()))}>
-        <Field label={label}>{(id) => (multiline ? <textarea id={id} rows={3} value={text} onChange={(e) => setText(e.target.value)} /> : <input id={id} type="text" value={text} onChange={(e) => setText(e.target.value)} />)}</Field>
-        <Actions submit="Save" onCancel={onClose} disabled={required && !text.trim()} />
+      <form className="gt-form" onSubmit={submitWith(() => (onSave(text), onClose()))}>
+        <Field label={label}>{(id) => (multiline ? <textarea id={id} rows={3} value={text} onChange={(e) => setText(e.target.value)} /> : <input id={id} type="text" placeholder={placeholder} value={text} onChange={(e) => setText(e.target.value)} />)}</Field>
+        <Actions submit="Save" onCancel={onClose} />
       </form>
     </Modal>
   )

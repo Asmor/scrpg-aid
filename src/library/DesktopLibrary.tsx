@@ -695,7 +695,8 @@ export function EmptyLibrary({ model }: { model: LibraryModel }) {
             Import from a file…
           </button>
         </div>
-        <p className="muted">Everything is saved in this browser. Have a code from your GM? Use Play together, at the top of the page, to join.</p>
+        {/* The first-run card already says where things are saved. */}
+        <p className="muted">{model.firstRun ? '' : 'Everything is saved in this browser. '}Have a code from your GM? Use Play together, at the top of the page, to join.</p>
       </section>
     </>
   )

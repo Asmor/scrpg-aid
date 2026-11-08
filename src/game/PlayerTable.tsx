@@ -35,7 +35,7 @@ import { normalizeRoomCode } from '../session/code'
 import { usePlayingSnapshot, useSession } from '../session/context'
 import { refusedText } from '../session/refused'
 import type { HeroAction } from './actions'
-import { betweenIssues, gameDisplayName, issueTitle, nextIssueNumber, sceneDisplayName } from './model'
+import { betweenIssues, gameDisplayName, issueName, nextIssueNumber, sceneDisplayName } from './model'
 import { heroPointsLeft } from '../play/state'
 import { playerAlerts, type PlayerWatch } from '../settings/alerts'
 import { useAlerts } from '../settings/useAlerts'
@@ -441,7 +441,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     heroStore.get(client.info.heroSourceId).then((r) => {
       if (r.status !== 'found') return setLoaded({})
       const c = { now: new Date(), newId: () => newId() }
-      const result = addOfferedIssue(r.hero, { id: i.id, number: i.number, title: issueTitle(i), game: { id: gameId!, name: gameName } }, collection, c)
+      const result = addOfferedIssue(r.hero, { id: i.id, number: i.number, title: issueName(i), game: { id: gameId!, name: gameName } }, collection, c)
       if (result.hero === r.hero) return setBackToast({ id: `back-${i.id}`, text: result.text })
       const after = { ...result.hero, updatedAt: c.now.toISOString() }
       return heroStore.save(after).then(() => {
@@ -480,7 +480,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
             backIssues: {
               count: heroNow.backIssues.length,
               advancementHref: advancementPath(heroNow.id),
-              notRecorded: notRecordedHere.map((i) => ({ id: i.id, title: issueTitle(i), onAdd: () => setReopened(i.id) })),
+              notRecorded: notRecordedHere.map((i) => ({ id: i.id, title: issueName(i), onAdd: () => setReopened(i.id) })),
             },
           }
         : {})}
@@ -609,7 +609,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
         (loaded?.hero ? (
           <BackIssuePrompt
             number={issue.number}
-            title={issueTitle(issue)}
+            title={issueName(issue)}
             hero={loaded.hero}
             issueId={issue.id}
             who={received?.gm || 'The GM'}

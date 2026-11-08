@@ -3,8 +3,8 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import { emptyPlay, type Clock } from '../play/state'
 import { applyHeroAction } from './actions'
-import { betweenIssuesNote, changeHeroPoints, backIssueStatuses, defaultIssueTitle, finishIssue, finishRows, issueStartFacts, issueToPrompt, oppositionStaying, recordIssueAck, scenesByIssue, scenesPlayed, setIssueRecord, startIssue } from './issues'
-import { betweenIssues, createGame, createScene, currentIssue, heroCopy, villainCopy, type Game } from './model'
+import { betweenIssuesNote, changeHeroPoints, backIssueStatuses, finishIssue, issueFinishedText, finishRows, issueStartFacts, issueToPrompt, oppositionStaying, recordIssueAck, scenesByIssue, scenesPlayed, setIssueRecord, startIssue } from './issues'
+import { betweenIssues, createGame, createScene, currentIssue, heroCopy, issueName, villainCopy, type Game } from './model'
 import { project } from './project'
 import { duplicateGame, startScene, defaultChoices, draftOfNew, savePlannedScene, startPlan } from './scenes'
 import { gameToSaved, parseSavedGame } from './serialize'
@@ -33,13 +33,16 @@ function table(): Game {
 
 const choices = { title: 'The Gravelord Saga', summary: ' He got away. ', heroIds: ['h1'] }
 
-describe('the default title', () => {
-  it("is the game's name for a first issue, and Issue N otherwise", () => {
-    const g = table()
-    expect(defaultIssueTitle(g, { number: 1 })).toBe('Thursday game')
-    expect(defaultIssueTitle(g, { number: 2 })).toBe('Issue 2')
-    expect(defaultIssueTitle({ ...g, name: ' ' }, { number: 1 })).toBe('Issue 1')
-    expect(defaultIssueTitle({ ...g, issues: [{ id: 'i', number: 1, state: 'finished', title: 'x' }] }, { number: 1 })).toBe('Issue 1')
+describe("an issue's name", () => {
+  it('is its title, or Issue N with none', () => {
+    expect(issueName({ number: 2, title: 'The Gravelord Saga' })).toBe('The Gravelord Saga')
+    expect(issueName({ number: 2 })).toBe('Issue 2')
+    expect(issueName({ number: 2, title: '  ' })).toBe('Issue 2')
+  })
+
+  it('says so in the log line', () => {
+    expect(issueFinishedText({ number: 1, title: 'The Gravelord Saga' })).toBe('Issue 1 finished: The Gravelord Saga.')
+    expect(issueFinishedText({ number: 1 })).toBe('Issue 1 finished.')
   })
 })
 
@@ -54,6 +57,20 @@ describe('finishing an issue', () => {
     expect(g.feed.at(-1)?.text).toBe('Issue 1 finished: The Gravelord Saga.')
     // The opposition stays where it is.
     expect(g.villains).toHaveLength(1)
+  })
+
+  it('saves a blank title as none', () => {
+    const g = finishIssue(table(), { ...choices, title: '   ' }, clock)
+    expect(g.issues[0]).toMatchObject({ number: 1, state: 'finished' })
+    expect(g.issues[0]).not.toHaveProperty('title')
+    expect(issueName(g.issues[0]!)).toBe('Issue 1')
+    expect(g.feed.at(-1)?.text).toBe('Issue 1 finished.')
+  })
+
+  it('drops an early title cleared in the dialog', () => {
+    const before = table()
+    const named = setIssueRecord(before, before.issues[0]!.id, { title: 'Early' })
+    expect(finishIssue(named, { ...choices, title: '' }, clock).issues[0]).not.toHaveProperty('title')
   })
 
   it('offers a back issue to checked heroes only', () => {
@@ -86,9 +103,8 @@ describe('finishing an issue', () => {
     expect(g.heroes[0]!.play.defenses).toHaveLength(1)
   })
 
-  it('needs a title, a current issue, and not a solo game', () => {
+  it('needs a current issue, and not a solo game', () => {
     const start = table()
-    expect(finishIssue(start, { ...choices, title: '  ' }, clock)).toBe(start)
     const finished = finishIssue(start, choices, clock)
     expect(finishIssue(finished, choices, clock)).toBe(finished)
     const solo = { ...start, solo: { kind: 'hero' as const, sourceId: 'x' } }
@@ -386,10 +402,11 @@ describe('the next issue', () => {
     expect(startIssue(running, 's2', { ...defaultChoices({ leaving: [], coming: [] }), recover: true }, clock)).toBe(running)
   })
 
-  it('the second issue finishes as issue 2, with a title of its own', () => {
-    const g = finishIssue(go(between()), { title: 'Issue 2', summary: '', heroIds: [] }, clock)
-    expect(g.issues[1]).toMatchObject({ number: 2, title: 'Issue 2', state: 'finished' })
-    expect(defaultIssueTitle(g, { number: 3 })).toBe('Issue 3')
+  it('the second issue finishes as issue 2, untitled unless named', () => {
+    const g = finishIssue(go(between()), { title: '', summary: '', heroIds: [] }, clock)
+    expect(g.issues[1]).toMatchObject({ number: 2, state: 'finished' })
+    expect(g.issues[1]).not.toHaveProperty('title')
+    expect(issueName(g.issues[1]!)).toBe('Issue 2')
   })
 
   it('says what stands before starting', () => {
@@ -417,7 +434,7 @@ describe('the next issue', () => {
     const g = between()
     const id = g.issues[0]!.id
     expect(setIssueRecord(g, id, { title: 'New' }).issues[0]!.title).toBe('New')
-    expect(setIssueRecord(g, id, { title: ' ' }).issues[0]!.title).toBe('The Gravelord Saga')
+    expect(setIssueRecord(g, id, { title: ' ' }).issues[0]).not.toHaveProperty('title')
     expect(setIssueRecord(g, id, { summary: '' }).issues[0]).not.toHaveProperty('summary')
     const running = table()
     expect(setIssueRecord(setIssueRecord(running, running.issues[0]!.id, { title: 'Early' }), running.issues[0]!.id, { title: '' }).issues[0]).not.toHaveProperty('title')

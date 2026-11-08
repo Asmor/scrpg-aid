@@ -748,18 +748,24 @@ describe('finishing the issue', () => {
     return { ...page, dialog: within(screen.getByRole('dialog', { name: 'Finish issue 1?' })) }
   }
 
-  it('uses the placeholder as the title when the field is left empty', async () => {
+  it('leaves the issue untitled when the field is left empty', async () => {
     const { dialog } = await finishing()
-    expect(dialog.getByText('Each hero\'s back issue gets this name, or "Thursday game" if it\'s left empty.')).toBeInTheDocument()
+    expect(dialog.getByText("Each hero's back issue gets this name. Leave it empty to call it Issue 1.")).toBeInTheDocument()
+    expect(dialog.getByText('Each checked hero gets "Issue 1" as a back issue. Players confirm it on their own device.')).toBeInTheDocument()
+    // The preview has no title line, so it doesn't say "Issue 1" twice.
+    expect(dialog.getByRole('heading', { name: 'End of issue 1' })).toBeInTheDocument()
     await userEvent.click(dialog.getByRole('button', { name: 'Finish issue 1' }))
-    expect(screen.getByText('END OF ISSUE 1').nextElementSibling).toHaveTextContent('Thursday game')
+    const card = screen.getByRole('region', { name: 'End of issue 1' })
+    expect(within(card).getByRole('heading', { name: 'End of issue 1' })).toHaveTextContent('END OF ISSUE 1')
+    expect(within(card).queryByText('Issue 1')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Issue 1 finished.').length).toBeGreaterThan(0)
   })
 
   it("shows the end card, leaves the GM's own hero out, and offers Undo", async () => {
     const { dialog, saved, libraryHero } = await finishing()
     const title = dialog.getByRole('textbox', { name: 'Title (optional)' })
     expect(title).toHaveValue('')
-    expect(title).toHaveAttribute('placeholder', 'Thursday game')
+    expect(title).toHaveAttribute('placeholder', 'Issue 1')
     expect(dialog.getByText('Thursday game · Scene 1, The Foundry, ends after round 4.')).toBeInTheDocument()
     expect(dialog.getByText('Maya Reyes +2')).toBeInTheDocument()
     expect(dialog.getByText('Alex gets the prompt next time they join.')).toBeInTheDocument()
@@ -999,6 +1005,20 @@ describe('starting the next issue', () => {
     await userEvent.type(rename.getByLabelText('Title'), 'A new name')
     await userEvent.click(rename.getByRole('button', { name: 'Save' }))
     await waitFor(async () => expect((await saved()).issues[0]!.title).toBe('A new name'))
+  })
+
+  it('clears a finished issue\'s title, leaving "Issue 1"', async () => {
+    const { saved } = await paused()
+    await userEvent.click(gmScreen().getByRole('tab', { name: 'Scenes' }))
+    await menuItem('More for issue 1', 'Rename…')
+    const rename = within(screen.getByRole('dialog', { name: 'Rename issue 1' }))
+    expect(rename.getByLabelText('Title')).toHaveAttribute('placeholder', 'Issue 1')
+    await userEvent.clear(rename.getByLabelText('Title'))
+    await userEvent.click(rename.getByRole('button', { name: 'Save' }))
+    await waitFor(async () => expect((await saved()).issues[0]).not.toHaveProperty('title'))
+    expect(screen.getByRole('heading', { name: 'End of issue 1' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Start issue 2…' }))
+    expect(within(screen.getByRole('dialog', { name: /^Start issue 2/ })).getByText('Issue 1 is finished.')).toBeInTheDocument()
   })
 })
 

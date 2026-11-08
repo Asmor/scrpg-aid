@@ -10,16 +10,12 @@ import { villainDisplayName } from '../villain/model'
 import { clearHeroMods, heroPointsLeft, heroRecovers, MAX_HERO_POINTS, modSizes, returnHeroPointBonus, spendHeroPoints, type Clock } from '../play/state'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
 import { nameList } from './names'
-import { betweenIssues, createIssue, currentIssue, gameDisplayName, nextIssueNumber, sceneName, sceneNumber, type Game, type GameFeedEntry, type HeroInGame, type Issue, type IssueAck, type Scene } from './model'
+import { betweenIssues, createIssue, currentIssue, nextIssueNumber, sceneName, sceneNumber, type Game, type GameFeedEntry, type HeroInGame, type Issue, type IssueAck, type Scene } from './model'
 import { draftOfCurrent, enterScene, sceneEndSummary, type StartChoices } from './scenes'
 import { GM, heroLabel, resolveHit, withLog } from './table'
 
-/** A new issue's title: the game's name for its first, and "Issue N" otherwise. */
-export function defaultIssueTitle(game: Pick<Game, 'name' | 'issues'>, issue: Pick<Issue, 'number'>): string {
-  return issue.number === 1 && game.name.trim() && !game.issues.some((i) => i.state === 'finished') ? gameDisplayName(game) : `Issue ${issue.number}`
-}
-
 export interface FinishChoices {
+  /** Optional: blank or all-space is saved as no title, and the issue is then "Issue N" (issueName). */
   title: string
   summary: string
   /** The players' heroes offered a back issue (the game's ids). */
@@ -44,7 +40,7 @@ export function modsToClear(game: Pick<Game, 'heroes'>): { name: string; sizes: 
 export function finishIssue(game: Game, choices: FinishChoices, clock: Clock): Game {
   const issue = currentIssue(game)
   const title = choices.title.trim().slice(0, MAX_NAME)
-  if (!issue || game.solo || !title) return game
+  if (!issue || game.solo) return game
   const summary = choices.summary.trim().slice(0, MAX_TEXT)
   const settled = (game.pendingHits ?? []).reduce((g, h) => resolveHit(g, h.id, undefined, clock), game)
   const record = draftOfCurrent(settled).rows
@@ -57,11 +53,11 @@ export function finishIssue(game: Game, choices: FinishChoices, clock: Clock): G
   const offeredTo = settled.heroes.filter((h) => h.player && choices.heroIds.includes(h.id)).map((h) => ({ heroId: h.id, sourceId: h.sourceId, name: heroDisplayName(h.sheet) }))
   const issues = settled.issues.map((i): Issue => {
     if (i.id !== issue.id) return i
-    const { summary: _, ...rest } = i
-    return { ...rest, title, ...(summary ? { summary } : {}), state: 'finished', finishedAt: clock.now.toISOString(), offeredTo }
+    const { summary: _, title: _t, ...rest } = i
+    return { ...rest, ...(title ? { title } : {}), ...(summary ? { summary } : {}), state: 'finished', finishedAt: clock.now.toISOString(), offeredTo }
   })
   const { currentIssueId: _, ...rest } = settled
-  const lines = [...(cleared.length ? [logLine(clock, `Bonuses and penalties removed: ${cleared.map((c) => `${c.name} ${c.sizes}`).join('; ')}.`)] : []), logLine(clock, `Issue ${issue.number} finished: ${title}.`)]
+  const lines = [...(cleared.length ? [logLine(clock, `Bonuses and penalties removed: ${cleared.map((c) => `${c.name} ${c.sizes}`).join('; ')}.`)] : []), logLine(clock, issueFinishedText({ number: issue.number, title }))]
   return withLog({ ...rest, heroes, scenes, issues }, lines)
 }
 
@@ -246,14 +242,17 @@ export function scenesByIssue(game: Pick<Game, 'scenes' | 'issues' | 'currentIss
   return [...groups, current ? { issue: current, number: current.number, state: 'now', scenes: rest } : { number: nextIssueNumber(game), state: 'next', scenes: rest }]
 }
 
-/** Names or describes an issue. A finished issue always has a title; renaming doesn't change back issues already added. */
+/** The log line (and announcement) for a finished issue: "Issue 1 finished: The Gravelord Saga.", or "Issue 1 finished." with no title. */
+export const issueFinishedText = (issue: Pick<Issue, 'number' | 'title'>) => `Issue ${issue.number} finished${issue.title?.trim() ? `: ${issue.title.trim()}` : ''}.`
+
+/** Names or describes an issue. A blank title clears it, leaving "Issue N"; renaming doesn't change back issues already added. */
 export function setIssueRecord(game: Game, issueId: string, record: { title?: string; summary?: string }): Game {
   return {
     ...game,
     issues: game.issues.map((i) => {
       if (i.id !== issueId) return i
       const { title: _t, summary: _s, ...rest } = i
-      const title = record.title === undefined ? i.title : record.title.trim().slice(0, MAX_NAME) || (i.state === 'finished' ? i.title : undefined)
+      const title = record.title === undefined ? i.title : record.title.trim().slice(0, MAX_NAME)
       const summary = record.summary === undefined ? i.summary : record.summary.trim().slice(0, MAX_TEXT)
       return { ...rest, ...(title ? { title } : {}), ...(summary ? { summary } : {}) }
     }),

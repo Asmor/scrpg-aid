@@ -14,6 +14,7 @@ const go = (hash: string) =>
   })
 
 afterEach(() => {
+  vi.unstubAllGlobals()
   window.location.hash = ''
 })
 
@@ -42,6 +43,21 @@ describe('App', () => {
     expect(within(screen.getByRole('menu', { name: 'Help' })).getByRole('menuitem', { name: 'Help topics' })).toHaveAttribute('href', '#/help')
     go('#/help/glossary')
     expect(await screen.findByRole('heading', { level: 1, name: 'Glossary' })).toBeInTheDocument()
+  })
+
+  it("on phones, the other pages' header has the library's one menu instead of Settings and Help", async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('max-width'), media: query, addEventListener: () => {}, removeEventListener: () => {} }))
+    render(<App store={new MemoryHeroStore()} villainStore={new MemoryVillainStore()} searchStore={new MemorySavedSearchStore()} />)
+    for (const hash of ['#/settings', '#/help']) {
+      go(hash)
+      const header = within((await screen.findByRole('heading', { level: 1, name: 'SCRPG Aid' })).closest('header')!)
+      expect(header.queryByRole('button', { name: 'Help' })).not.toBeInTheDocument()
+      expect(header.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+      await userEvent.click(header.getByRole('button', { name: 'Menu: color scheme, settings, help' }))
+      const menu = within(screen.getByRole('menu', { name: 'Settings and help' }))
+      expect(menu.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Settings', 'Help topics', 'Keyboard shortcuts', 'About SCRPG Aid'])
+      await userEvent.keyboard('{Escape}')
+    }
   })
 
   it('opens Keyboard shortcuts with ? anywhere outside a text field', async () => {

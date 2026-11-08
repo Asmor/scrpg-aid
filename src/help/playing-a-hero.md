@@ -20,7 +20,7 @@ If you'd rather roll real dice, set Settings › Dice › Rolling to physical di
 
 ## Dice pad
 
-With physical dice, the dice pad is where you enter what you rolled: tap the numbers in the order of the dice shown, then Accept. Roll for me hands the roll back to the app.
+With physical dice, the dice pad is where you enter your roll: tap the numbers you rolled, in any order, then Accept. Roll for me hands the roll back to the app.
 
 ## Bonuses and penalties
 

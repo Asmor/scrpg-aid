@@ -405,8 +405,8 @@ export const betweenIssues = (game: { currentIssueId?: string }) => !game.curren
 /** The number the next issue will have, between issues. */
 export const nextIssueNumber = (game: { issues: readonly Pick<Issue, 'number'>[] }) => (game.issues.at(-1)?.number ?? 0) + 1
 
-/** An issue's name: its title, or "Issue 2" until it has one. */
-export const issueTitle = (issue: Pick<Issue, 'title' | 'number'>) => issue.title?.trim() || `Issue ${issue.number}`
+/** An issue's name: its title, or "Issue 2" when it has none (scrpg-aid-designs/issues/spec.md, section 1). */
+export const issueName = (issue: Pick<Issue, 'title' | 'number'>) => issue.title?.trim() || `Issue ${issue.number}`
 
 /** A new issue, current. */
 export const createIssue = (id: string, number: number): Issue => ({ id, number, state: 'now' })

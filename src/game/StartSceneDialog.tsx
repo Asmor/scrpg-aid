@@ -7,7 +7,7 @@ import { Fold } from '../components/Fold'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { nameList } from './names'
-import { betweenIssues, currentScene, issueTitle, nextIssueNumber, sceneName, sceneNumber, trackerFromCounts, type Game } from './model'
+import { betweenIssues, currentScene, nextIssueNumber, sceneName, sceneNumber, trackerFromCounts, type Game } from './model'
 import type { IssueStartFacts } from './issues'
 import { defaultChoices, playersWillSee, refKey, startPlan, trackerLine, type Fate, type SceneResets, type StartChoices } from './scenes'
 import { TrackerBoxes } from './ScenesTab'
@@ -121,7 +121,7 @@ export function StartSceneDialog({ game, sceneId, issue, onStart, onEdit, onClos
       <p className="gt-sub">
         {between && finished ? (
           <>
-            Issue {finished.number}, {issueTitle(finished)}, is finished.
+            {finished.title?.trim() ? `Issue ${finished.number}, ${finished.title.trim()}, is finished.` : `Issue ${finished.number} is finished.`}
           </>
         ) : (
           <>
