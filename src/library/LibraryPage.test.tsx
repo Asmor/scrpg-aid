@@ -351,9 +351,18 @@ describe('selection', () => {
     expect(bar.getByText('3 selected')).toBeInTheDocument()
 
     await userEvent.click(bar.getByRole('button', { name: 'Export' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Backup file (.json)' }))
     const [name, text] = vi.mocked(downloadFile).mock.calls[0]!
     expect(name).toMatch(/^scrpg-aid-export-\d{4}-\d{2}-\d{2}\.json$/)
     expect(readImport(text as string)).toMatchObject({ ok: true, heroes: [{ id: 'para' }], villains: [{}, {}], savedSearches: [] })
+
+    // Reference sheet… opens the export dialog with the selection.
+    await userEvent.click(bar.getByRole('button', { name: 'Export' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Reference sheet…' }))
+    const sheet = within(screen.getByRole('dialog', { name: 'Reference sheet' }))
+    expect(within(sheet.getByRole('list', { name: 'Full pages' })).getAllByRole('listitem').map((li) => li.querySelector('strong')!.textContent)).toEqual(['Paradigm', 'Gravelord', 'Rust Hound'])
+    await userEvent.click(sheet.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog', { name: 'Reference sheet' })).not.toBeInTheDocument()
 
     await userEvent.click(bar.getByRole('button', { name: 'Delete…' }))
     const dialog = within(screen.getByRole('dialog', { name: 'Delete 3 items?' }))

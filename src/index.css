@@ -10244,3 +10244,474 @@ kbd {
     justify-content: center;
   }
 }
+
+/* ---- Reference sheets (scrpg-aid-designs/reference-sheets/spec.md) ---- */
+
+.modal--reference {
+  width: min(100%, 60rem);
+}
+
+.ref-dialog__sub,
+.ref-dialog__steps {
+  margin: -0.5rem 0 0.25rem;
+  color: var(--ui-muted);
+}
+
+.ref-dialog__steps {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+}
+
+.ref-dialog__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18rem;
+  gap: 1.25rem;
+}
+
+.ref-dialog__contents,
+.ref-dialog__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ref-label {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ui-muted);
+}
+
+.ref-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.625rem;
+}
+
+.ref-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.375rem 0.625rem;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.ref-row:last-child {
+  border-bottom: 0;
+}
+
+.ref-row__type {
+  flex: none;
+  width: 5.75rem;
+  font-size: 0.8125rem;
+  color: var(--ui-muted);
+}
+
+.ref-row__name {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.ref-outs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ref-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  cursor: pointer;
+}
+
+.ref-check input {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0.125rem 0 0;
+  flex: none;
+}
+
+.ref-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.ref-option__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ui-muted);
+}
+
+.ref-option .segmented button {
+  padding: 0 0.625rem;
+}
+
+.ref-dialog__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ui-border);
+}
+
+.ref-dialog__file {
+  flex: 1;
+  min-width: 12rem;
+  font-size: 0.875rem;
+}
+
+/* A page of paper on the screen: always light, whatever the theme. */
+.ref-thumb {
+  position: relative;
+  overflow: hidden;
+  align-self: center;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px var(--ui-shadow);
+}
+
+.ref-thumb__inner {
+  transform-origin: 0 0;
+}
+
+.ref-page {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 48px 48px 72px;
+  background: #fff;
+  color: #1a1d2b;
+  font-size: 12px;
+  line-height: 1.42;
+  overflow: hidden;
+}
+
+.ref-page__columns {
+  display: grid;
+  flex: 1;
+  column-gap: 16px;
+  min-height: 0;
+}
+
+.ref-page__column {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ref-page__column + .ref-page__column {
+  border-left: 1px solid #dde0ea;
+  margin-left: -8px;
+  padding-left: 8px;
+}
+
+/* The cards, on paper and in the preview. */
+.ref-print__title {
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+
+.ref-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 10px;
+  color: #1a1d2b;
+  font-size: 12px;
+  line-height: 1.42;
+}
+
+.ref-card p,
+.ref-card ul,
+.ref-card h3 {
+  margin: 0;
+}
+
+.ref-card__band {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 4px;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.ref-card__type {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #565c70;
+}
+
+.ref-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ref-card__name {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.ref-card__text {
+  white-space: pre-line;
+}
+
+.ref-muted {
+  margin: 0;
+  color: #565c70;
+}
+
+.ref-pill {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px solid #b9bdcb;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ref-card__ability {
+  padding-top: 4px;
+  border-top: 1px solid #dde0ea;
+}
+
+.ref-card__members {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.ref-card__members .ref-label,
+.ref-card .ref-label {
+  font-size: 11px;
+  color: #565c70;
+}
+
+.ref-diebox {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 36px;
+  height: 30px;
+  padding-bottom: 2px;
+  border: 1.5px solid #1a1d2b;
+  border-radius: 6px;
+  font-size: 10px;
+  color: #565c70;
+}
+
+.ref-diebox__x {
+  position: absolute;
+  top: -2px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1d2b;
+}
+
+.ref-box {
+  display: inline-block;
+  flex: none;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  border: 1.5px solid #1a1d2b;
+  border-radius: 2px;
+  vertical-align: -2px;
+}
+
+.ref-box--checked {
+  background: linear-gradient(45deg, transparent 44%, #1a1d2b 44%, #1a1d2b 56%, transparent 56%), linear-gradient(-45deg, transparent 44%, #1a1d2b 44%, #1a1d2b 56%, transparent 56%);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.ref-card__steps,
+.ref-card__twists,
+.ref-card__aspects {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0;
+  list-style: none;
+}
+
+.ref-card__aspects li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ref-twist {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.ref-twist .ref-box {
+  margin: 3px 0 0;
+}
+
+.ref-zone {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+/* The scene block at the top of a scene export. */
+.ref-scene {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  color: #1a1d2b;
+}
+
+.ref-scene__name {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.ref-tracker {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ref-tracker__box {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  border: 1.5px solid #1a1d2b;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.ref-tracker__box--green {
+  border-color: var(--game-green);
+}
+
+.ref-tracker__box--yellow {
+  border-color: var(--game-yellow);
+}
+
+.ref-tracker__box--red {
+  border-color: var(--game-red);
+}
+
+.ref-scene__notes {
+  padding: 8px 10px;
+  border: 1px solid #b9bdcb;
+  border-radius: 6px;
+}
+
+/* The print: only the sheet, while one is printing. */
+.ref-print {
+  display: none;
+}
+
+.ref-columns {
+  column-gap: 16px;
+  column-rule: 1px solid #dde0ea;
+}
+
+.ref-columns--2 {
+  column-count: 2;
+}
+
+.ref-columns--3 {
+  column-count: 3;
+}
+
+.ref-print__card {
+  margin-bottom: 14px;
+  break-inside: avoid;
+}
+
+.ref-print__following {
+  margin-top: 8px;
+  break-before: avoid;
+}
+
+@media print {
+  html.printing-reference body > :not(.ref-print) {
+    display: none !important;
+  }
+
+  html.printing-reference .ref-print {
+    display: block;
+  }
+
+  .ref-print__full,
+  .ref-print__cards {
+    break-before: page;
+  }
+
+  .ref-print > :first-child {
+    break-before: auto;
+  }
+
+  .ref-print__card--column {
+    break-before: column;
+  }
+
+  .ref-columns--new-page {
+    break-before: page;
+  }
+
+  .ref-print--no-write-ins :is(.current-health, .print-only:has(.write-in)) {
+    display: none !important;
+  }
+}
+
+@media (max-width: 759px) {
+  .ref-dialog__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

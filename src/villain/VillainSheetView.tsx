@@ -9,6 +9,7 @@
 import type { ReactNode } from 'react'
 import { DieIcon } from '../components/icons'
 import { SheetAbilityRow } from '../components/HeroSheetView'
+import { appearanceOf, fillStyle } from '../colors/palette'
 import { CurrentHealthLine, HealthBlock } from '../components/SheetPreview'
 import { ComesWithList } from './ComesWith'
 import type { Villain } from './model'
@@ -189,14 +190,20 @@ function Abilities({ sheet }: { sheet: VillainSheet }) {
   )
 }
 
-/** The villain's name, alias and identity line, for exports (the page's header adds its controls). */
-export function VillainSheetTitle({ villain }: { villain: Villain }) {
+/** The villain's name, alias and identity line, for exports (the page's header adds its controls). `banded`: in its color band, as the page shows it. */
+export function VillainSheetTitle({ villain, banded = false }: { villain: Villain; banded?: boolean }) {
   const sheet = buildVillainSheet(villain)
   return (
     <header className="character-head">
       <div className="character-head__name">
         <div className="character-head__title">
-          <h2>{sheet.name}</h2>
+          {banded ? (
+            <h2 className="char-band char-fill" style={fillStyle(appearanceOf({ kind: 'villain', appearance: villain.appearance }))}>
+              {sheet.name}
+            </h2>
+          ) : (
+            <h2>{sheet.name}</h2>
+          )}
           {sheet.alias && sheet.alias !== sheet.name && <span className="character-head__alias">{sheet.alias}</span>}
         </div>
         <p className="character-head__identity">{villainIdentity(sheet)}</p>

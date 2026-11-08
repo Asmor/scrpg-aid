@@ -145,6 +145,10 @@ describe('the library on a phone', () => {
     await userEvent.click(bar.getByRole('button', { name: 'Add tag' }))
     await userEvent.keyboard('prep{Enter}')
     await waitFor(async () => expect(((await heroes.get('para')) as { hero: Hero }).hero.tags).toEqual(['prep']))
+    // Export is a menu: a backup file, or a reference sheet.
+    await userEvent.click(bar.getByRole('button', { name: 'Export' }))
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Backup file (.json)', 'Reference sheet…'])
+    await userEvent.keyboard('{Escape}')
     await userEvent.click(bar.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('region', { name: 'Selected items' })).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: 'Select Paradigm' })).not.toBeInTheDocument()

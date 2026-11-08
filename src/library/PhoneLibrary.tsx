@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { Modal } from '../components/Modal'
 import { ActiveTags, FooterLine, LibraryMessages, NameCell, NewMenu, NoMatches, RemoveTagPanel, RowMenu, SaveSearchField, SearchField, TagChecklist, TypeChips, EmptyLibrary, UnreadableList } from './DesktopLibrary'
+import { ExportSelectionMenu } from './ExportSelection'
 import type { GameLink, LibraryModel } from './LibraryPage'
 import { usePopover } from './popover-state'
 import { filterCount } from './query'
@@ -206,9 +207,7 @@ function BottomBar({ model }: { model: LibraryModel }) {
         </button>
         {remove.open && <RemoveTagPanel model={model} popover={remove} />}
       </span>
-      <button type="button" className="button button--small" onClick={() => model.exportItems(keys)}>
-        Export
-      </button>
+      <ExportSelectionMenu model={model} keys={keys} />
       {model.sendItems && (
         <button type="button" className="button button--small" onClick={() => model.sendItems?.(keys)}>
           Send…

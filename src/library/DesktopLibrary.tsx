@@ -8,6 +8,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { GameLink, LibraryModel } from './LibraryPage'
 import { helpPath } from '../app/route'
 import { usePageKey } from '../help/help-context'
+import { ExportSelectionMenu } from './ExportSelection'
 import { PopoverDialog, PopoverMenu } from './Popover'
 import { usePopover, type Popover } from './popover-state'
 import { nextSort, noMatchText, withFilterTag, type LibraryQuery, type SortKey } from './query'
@@ -351,9 +352,7 @@ function SelectionBar({ model }: { model: LibraryModel }) {
         </button>
         {remove.open && <RemoveTagPanel model={model} popover={remove} />}
       </span>
-      <button type="button" className="button button--small" onClick={() => model.exportItems(keys)}>
-        Export
-      </button>
+      <ExportSelectionMenu model={model} keys={keys} />
       {model.sendItems && (
         <button type="button" className="button button--small" onClick={() => model.sendItems?.(keys)}>
           Send…

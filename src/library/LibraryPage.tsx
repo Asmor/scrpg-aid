@@ -36,6 +36,8 @@ import { PhoneLibrary } from './PhoneLibrary'
 import { exportFileName, nameList } from './names'
 import { SendDialog } from './SendDialog'
 import { useSession } from '../session/context'
+import { ReferenceSheetDialog } from '../reference/ReferenceSheetDialog'
+import type { LibrarySheetItem, LibrarySheetLookup, SheetSource } from '../reference/contents'
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -93,6 +95,7 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   // The items in the open Send dialog.
   const [sending, setSending] = useState<LibraryItem[] | null>(null)
+  const [referencing, setReferencing] = useState<SheetSource | null>(null)
   const canSend = useSession().send !== undefined
   const settings = useSettings()
 
@@ -245,6 +248,14 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
   )
 
   const sendDialog = sending && <SendDialog items={sending} onClose={() => setSending(null)} />
+  const referenceDialog = referencing && <ReferenceSheetDialog source={referencing} onClose={() => setReferencing(null)} />
+  /** Reference sheet… (scrpg-aid-designs/reference-sheets/spec.md, section 2): the selected items, and the library to find what environments bring. */
+  const referenceSheet = (keys: readonly string[]) => {
+    const items = keys.flatMap((k) => item(k) ?? []).map((it) => ({ kind: it.type.key, doc: it.doc }) as LibrarySheetItem)
+    // A snapshot: the sheet doesn't change under the dialog as the library saves.
+    const all = new Map(ready?.items)
+    setReferencing({ kind: 'library', items, lookup: (kind, id) => all.get(itemKey(kind, id))?.doc as ReturnType<LibrarySheetLookup> })
+  }
 
   return {
     state: data.state,
@@ -265,6 +276,7 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     importControl,
     deleteDialog,
     sendDialog,
+    referenceDialog,
     countFor: (query: LibraryQuery) => items.filter((i) => matches(itemFields(i), query)).length,
     /** The games holding a copy of an item (the In games column): games run here, and games joined as a player (a hero only). */
     inGames: (item: LibraryItem): GameLink[] => [
@@ -277,6 +289,7 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
     bulkAddTag,
     bulkRemoveTag,
     exportItems,
+    referenceSheet,
     /** Send… (section 15 of the game table spec); undefined where there's no session to send with. */
     sendItems: canSend ? (keys: readonly string[]) => setSending(keys.flatMap((k) => item(k) ?? [])) : undefined,
     duplicate,
@@ -325,6 +338,7 @@ export function LibraryPage({ theme, setTheme, searchStore, backupTime }: Librar
         {phone ? <PhoneLibrary model={model} /> : <DesktopLibrary model={model} />}
         {model.deleteDialog}
         {model.sendDialog}
+        {model.referenceDialog}
       </div>
     </PopoverGroup>
   )

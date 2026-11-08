@@ -15,6 +15,7 @@ import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 import type { Action } from '../creation/effects'
 import { FormsSection } from './FormsSection'
 import { AbilityIcons, AbilityText, DieIcon } from './icons'
+import { appearanceOf, fillStyle } from '../colors/palette'
 import { CurrentHealthLine, HealthBlock, StatusTiles } from './SheetPreview'
 
 /** One ability: its action icons and name, its type, and its text with icons inline. */
@@ -219,14 +220,23 @@ function Roleplaying({ hero, sheet, advancement, interactive }: { hero: Hero; sh
   )
 }
 
-/** The hero's name, alias and identity line, for exports (the page's header adds its controls). */
-export function HeroSheetTitle({ hero }: { hero: Hero }) {
+/**
+ * The hero's name, alias and identity line, for exports (the page's header adds its controls).
+ * `banded` draws the name in the hero's color band, as the page (and so its PDF) does.
+ */
+export function HeroSheetTitle({ hero, banded = false }: { hero: Hero; banded?: boolean }) {
   const sheet = buildSheet(hero)
   return (
     <header className="character-head">
       <div className="character-head__name">
         <div className="character-head__title">
-          <h2>{heroDisplayName(hero)}</h2>
+          {banded ? (
+            <h2 className="char-band char-fill" style={fillStyle(appearanceOf({ kind: 'hero', appearance: hero.appearance }))}>
+              {heroDisplayName(hero)}
+            </h2>
+          ) : (
+            <h2>{heroDisplayName(hero)}</h2>
+          )}
           {hero.details.alias.trim() && hero.details.name.trim() && <span className="character-head__alias">{hero.details.alias}</span>}
         </div>
         <p className="character-head__identity">{heroIdentity(sheet)}</p>
