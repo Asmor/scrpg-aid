@@ -12,7 +12,7 @@
  */
 import type { TableView } from '../game/project'
 import { Subscribable } from './subscribable'
-import { messageVersion, PROTOCOL_VERSION, readHostMessage, type HostMessage, type RefusedReason, type YouAre } from './protocol'
+import { messageVersion, PROTOCOL_VERSION, readHostMessage, type HeldBy, type HostMessage, type RefusedReason, type YouAre } from './protocol'
 import { quietAfterLeave, type Connect, type Transport } from './transport'
 
 /** How long the GM can be away before the offline view, and how often to try again after that. */
@@ -35,9 +35,16 @@ export interface Received {
   at: string
 }
 
+/** Why this device isn't in the game: the GM's refusal, an old GM, or (a player) someone took over its hero. */
+export type RefusedWhy = RefusedReason | 'oldHost' | 'takenOver'
+
 export interface LinkSnapshot {
   status: ClientStatus
-  refused?: RefusedReason | 'oldHost'
+  refused?: RefusedWhy
+  /** With `taken`: who holds the hero. */
+  held?: HeldBy
+  /** With `takenOver`: who took it. */
+  takenBy?: string
   received?: Received
   /** The GM's last state couldn't be read: the page shows the one before and asks again. */
   outOfSync?: true
@@ -153,14 +160,14 @@ export abstract class HostLink<S extends LinkSnapshot> extends Subscribable<S> {
         clearInterval(this.retryTimer)
         this.retryTimer = undefined
         const received: Received = { room: msg.room, version: msg.version, table: msg.table, gm: msg.gm, ...(msg.you ? { you: msg.you } : {}), at: this.now().toISOString() }
-        const { refused: _, outOfSync: __, ...rest } = this.snapshot
+        const { refused: _, outOfSync: __, held: ___, takenBy: ____, ...rest } = this.snapshot
         this.publish({ ...rest, status: 'live', received } as S)
         this.onState(received)
         return
       }
       case 'refused':
         this.gmPeer = peer
-        this.refuse(msg.reason)
+        this.onRefused(msg.reason, msg.held)
         return
       case 'removed':
         if (peer !== this.gmPeer) return
@@ -217,10 +224,16 @@ export abstract class HostLink<S extends LinkSnapshot> extends Subscribable<S> {
     if (!this.retryTimer) this.retryTimer = setInterval(() => this.reconnect(), RETRY_EVERY)
   }
 
+  /** The GM's device refused this one. */
+  protected onRefused(reason: RefusedReason, held: HeldBy | undefined): void {
+    this.refuse(reason, held ? ({ held } as Partial<S>) : undefined)
+  }
+
   /** The GM's device won't take this one. */
-  protected refuse(reason: RefusedReason | 'oldHost'): void {
+  protected refuse(reason: RefusedWhy, extra?: Partial<S>): void {
     clearTimeout(this.offlineTimer)
     clearInterval(this.retryTimer)
-    this.publish({ ...this.snapshot, ...this.gmGoneChanges(), status: 'refused', refused: reason })
+    const { held: _, takenBy: __, ...rest } = this.snapshot
+    this.publish({ ...rest, ...this.gmGoneChanges(), ...extra, status: 'refused', refused: reason } as S)
   }
 }

@@ -12,7 +12,7 @@
  *   sheet update request.
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { advancementPath, gamesPath, heroPath, joinPath, navigate, tablePath } from '../app/route'
+import { advancementPath, gamesPath, heroPath, joinPath, navigate, tablePath, watchPath } from '../app/route'
 import { useStore } from '../app/store-context'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
 import { receivedFrom, setIssuePrompt, type IssuePrompts, type JoinedGame } from './joined-store'
@@ -487,8 +487,31 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     />
   )
 
+  /** Leaves the game for another page: Choose another hero, Watch, or Leave. */
+  const leaveFor = (path: string) => {
+    session.leaveGame()
+    navigate(path)
+  }
+  const takenHero = table?.heroes.find((h) => h.id === received?.you?.heroId)
+
   const banner =
-    status === 'refused' ? (
+    status === 'refused' && snap?.refused === 'takenOver' ? (
+      // Someone took over this player's hero (section 7): their library hero isn't touched.
+      <div role="alert" className="gt-banner gt-banner--error">
+        <p>{takenHero ? `${snap.takenBy ?? 'Another player'} took over ${heroOnTableName(takenHero)}.` : refusedText('takenOver', gameName, snap.takenBy)}</p>
+        <div className="button-row">
+          <button type="button" className="button button--small button--primary" onClick={() => leaveFor(joinPath(room))}>
+            Choose another hero
+          </button>
+          <button type="button" className="button button--small" onClick={() => leaveFor(watchPath(room))}>
+            Watch the game
+          </button>
+          <button type="button" className="button button--small" onClick={() => leaveFor(gamesPath)}>
+            Leave
+          </button>
+        </div>
+      </div>
+    ) : status === 'refused' ? (
       <p role="alert" className="gt-banner gt-banner--error">
         {refusedText(snap!.refused ?? 'removed', gameName)}
       </p>

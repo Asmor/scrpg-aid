@@ -163,6 +163,7 @@ export const heroShape = object({
   updatedAt: nonEmptyString,
   tags: arrayOf(string),
   'appearance?': appearanceShape,
+  'copiedFrom?': nonEmptyString,
   ...buildFields,
   'pendingRolls?': object({ 'background?': rollRecord, 'powerSource?': rollRecord, 'archetype?': rollRecord, 'personality?': rollRecord, 'secondaryArchetype?': rollRecord }),
   backIssues: arrayOf(object({ id: nonEmptyString, title: string, 'gameId?': string, 'gameName?': string, 'issueId?': string, 'issueNumber?': integer, at: string })),

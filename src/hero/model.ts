@@ -360,6 +360,8 @@ export interface Hero {
   tags: string[]
   /** The hero's colors (scrpg-aid-designs/character-colors/spec.md); unset reads as the default. */
   appearance?: Appearance
+  /** The id of the shared hero this is a copy of (Join with my own copy, game-table spec section 7). */
+  copiedFrom?: string
   details: HeroDetails
   /**
    * The player's names for traits that need one (Signature Weaponry, the roleplaying
@@ -509,6 +511,15 @@ export const heroNameOr = (hero: Pick<Hero, 'details'>, fallback: string) => her
 /** The name to show for a hero in lists. */
 export function heroDisplayName(hero: Hero): string {
   return heroNameOr(hero, 'Unnamed hero')
+}
+
+/**
+ * The player's own copy of a hero someone else holds in a game (Join with my own copy, game-table
+ * spec section 7): a new id and the same sheet and name, remembering which hero it was copied from.
+ */
+export function ownCopyOfHero(hero: Hero, options: { id?: string; now?: Date } = {}): Hero {
+  const timestamp = (options.now ?? new Date()).toISOString()
+  return { ...structuredClone(hero), id: options.id ?? newId(), createdAt: timestamp, updatedAt: timestamp, copiedFrom: hero.id }
 }
 
 /**

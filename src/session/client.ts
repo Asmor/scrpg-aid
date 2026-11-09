@@ -12,7 +12,7 @@ import type { HeroAction } from '../game/actions'
 import { heroNameOr, type Hero } from '../hero/model'
 import { HostLink, type LinkSnapshot, type OtherHostMessage, type Received } from './link'
 import type { Appearance } from '../colors/palette'
-import { PROTOCOL_VERSION, type ClientMessage } from './protocol'
+import { PROTOCOL_VERSION, type ClientMessage, type HeldBy, type RefusedReason } from './protocol'
 import type { Connect } from './transport'
 import { heroShape } from '../hero/validate'
 import { nonEmptyString, object, oneOf, string } from '../shape'
@@ -64,6 +64,8 @@ export interface ClientInfo {
   sheet: Hero
   /** The game, when reconnecting a saved one: the GM checks the code still belongs to it. */
   gameId?: string
+  /** The player chose to take over the hero from whoever holds it (sent until the GM first answers). */
+  takeOver?: true
 }
 
 export interface ClientOptions {
@@ -178,7 +180,9 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
     const { clientId, name, heroSourceId, sheet } = this.base
     // A game seen before is named, so a code that now belongs to another game isn't taken for it.
     const gameId = this.snapshot.received?.table.id ?? this.base.gameId
-    this.transport.send({ v: PROTOCOL_VERSION, type: 'hello', role: 'player', clientId, name, heroSourceId, sheet, ...(gameId ? { gameId } : {}) } satisfies ClientMessage, peer)
+    // Take over only on the way in: once the hero is ours, a reconnect must never take it back from a later taker.
+    const takeOver = this.base.takeOver && !this.snapshot.received?.you
+    this.transport.send({ v: PROTOCOL_VERSION, type: 'hello', role: 'player', clientId, name, heroSourceId, sheet, ...(gameId ? { gameId } : {}), ...(takeOver ? { takeOver: true as const } : {}) } satisfies ClientMessage, peer)
   }
 
   protected override onCodeChanged(code: string): void {
@@ -207,6 +211,9 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
       case 'spendReminder':
         this.publish({ ...this.snapshot, spendReminder: true })
         return
+      case 'takenOver':
+        if (msg.heroId === this.heroId) this.refuse('takenOver', { takenBy: msg.by })
+        return
       case 'syncResult': {
         if (msg.heroId !== this.heroId) return
         this.setSyncWaiting(false)
@@ -218,6 +225,12 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
         return
       }
     }
+  }
+
+  /** The hero this device was playing, held by someone else now: it was taken over while this device was away. */
+  protected override onRefused(reason: RefusedReason, held: HeldBy | undefined): void {
+    if (reason === 'taken' && this.snapshot.received?.you) return this.refuse('takenOver', { takenBy: held?.by === 'gm' ? 'The GM' : (held?.name ?? 'Another player') })
+    super.onRefused(reason, held)
   }
 
   /** The GM went away or refused: unanswered actions won't be answered. */

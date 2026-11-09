@@ -24,7 +24,7 @@ export interface SessionApi extends CurrentSession {
   /** Gives a game a new code; while hosting it, keeps these connected players and screens and removes the rest. */
   newCode(gameId: string, keep?: ReadonlySet<string>): ReturnType<SessionManager['newCode']>
   /** Joins a hosted game as a player with one hero. */
-  joinGame(options: { room: string; name: string; hero: Hero; cached?: Received; gameId?: string }): void
+  joinGame(options: { room: string; name: string; hero: Hero; cached?: Received; gameId?: string; takeOver?: true }): void
   leaveGame(): void
   /** The name this screen goes by when watching. */
   screenName: string

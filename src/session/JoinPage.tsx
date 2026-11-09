@@ -2,7 +2,8 @@
  * Join as a player (scrpg-aid-designs/game-table/spec.md, section 7): the game code (from the GM's link,
  * or typed in), the player's name (remembered on the device), and Bring a hero, a list of the
  * player's finished heroes. A hero already in this game rejoins as the game's copy; any other is
- * copied in when the GM's device takes the hello.
+ * copied in when the GM's device takes the hello. A hero someone else holds in the game asks
+ * what to do (./HeldHeroDialog.tsx).
  *
  * Joining waits here until the GM's device answers, then opens the table. A code no game answers
  * on (changed by the GM, or not hosted yet) gets an error under the code field instead
@@ -11,10 +12,12 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { gamesPath, joinPath, listPath, navigate, tablePath } from '../app/route'
 import { useStore } from '../app/store-context'
-import { heroDisplayName, isDraft, type Hero } from '../hero/model'
+import { heroDisplayName, isDraft, ownCopyOfHero, type Hero } from '../hero/model'
+import { HeldHeroDialog } from './HeldHeroDialog'
+import type { HeldBy } from './protocol'
 import { normalizeRoomCode } from './code'
 import { JOIN_WAIT } from './client'
-import { NO_GAME, refusedText } from './refused'
+import { heldNote, NO_GAME, refusedText } from './refused'
 import { usePlayingSnapshot, useSession } from './context'
 import { useOptionalJoinedStore } from '../app/joined-store-context'
 import type { JoinedGame } from '../game/joined-store'
@@ -67,6 +70,9 @@ export function JoinPage({ room: given }: { room?: string }) {
   const [joining, setJoining] = useState<string | null>(null)
   const joinStarted = useRef(0)
   const [error, setError] = useState<string | null>(null)
+  // Someone else holds the hero joined with: the choice to make, and heroes known to be held.
+  const [heldHero, setHeldHero] = useState<{ hero: Hero; held: HeldBy } | null>(null)
+  const [heldNotes, setHeldNotes] = useState<Readonly<Record<string, string>>>({})
   const status = playing?.status
   const leaveGame = useRef(session.leaveGame)
   useEffect(() => {
@@ -84,12 +90,21 @@ export function JoinPage({ room: given }: { room?: string }) {
       setJoining(null)
       setError(why)
     }
+    // Someone else holds the hero: ask what to do (section 7).
+    const ask = (held: HeldBy) => {
+      const joinedWith = heroes?.find((h) => h.id === session.playing?.info.heroSourceId)
+      if (!joinedWith) return fail(refusedText('taken', 'this game'))
+      leaveGame.current()
+      setJoining(null)
+      setHeldHero({ hero: joinedWith, held })
+    }
+    if (status === 'refused' && playing?.refused === 'taken' && playing.held) return ask(playing.held)
     if (status === 'refused') return fail(refusedText(playing?.refused ?? 'removed', 'this game'))
     if (status === 'offline') return fail(NO_GAME)
     // JOIN_WAIT from when Join was pressed: a status change on the way doesn't restart it.
     const timer = setTimeout(() => fail(NO_GAME), Math.max(0, JOIN_WAIT - (Date.now() - joinStarted.current)))
     return () => clearTimeout(timer)
-  }, [joining, status, playing?.refused])
+  }, [joining, status, playing?.refused, playing?.held, heroes, session.playing])
 
   const code = normalizeRoomCode(room)
   const hero = heroes?.find((h) => h.id === heroId)
@@ -100,6 +115,28 @@ export function JoinPage({ room: given }: { room?: string }) {
     return joined.find((j) => j.room === code && j.heroSourceId === h.id)?.since
   }
   const heroSince = hero && since(hero)
+
+  const join = (with_: Hero, takeOver?: true) => {
+    setError(null)
+    session.joinGame({ room: code!, name: name.trim(), hero: with_, ...(takeOver ? { takeOver } : {}) })
+    setJoining(code!)
+    // The address follows the code typed, so a reload tries that one (no hashchange, so the page stays).
+    if (window.location.hash !== joinPath(code!)) window.history.replaceState(window.history.state, '', joinPath(code!))
+  }
+
+  /** Join with my own copy: a new library hero, joining fresh. */
+  const joinWithOwnCopy = async (of: Hero) => {
+    const copy = ownCopyOfHero(of)
+    try {
+      await store.save(copy)
+    } catch (e: unknown) {
+      setError(`Couldn't save your copy of ${heroDisplayName(of)}: ${e instanceof Error ? e.message : String(e)}`)
+      return
+    }
+    setHeroes((list) => [...(list ?? []), copy])
+    setHeroId(copy.id)
+    join(copy)
+  }
 
   return (
     <div className="play-page join-page">
@@ -119,11 +156,7 @@ export function JoinPage({ room: given }: { room?: string }) {
         onSubmit={(e) => {
           e.preventDefault()
           if (!code || !hero || !name.trim() || joining) return
-          setError(null)
-          session.joinGame({ room: code, name: name.trim(), hero })
-          setJoining(code)
-          // The address follows the code typed, so a reload tries that one (no hashchange, so the page stays).
-          if (window.location.hash !== joinPath(code)) window.history.replaceState(window.history.state, '', joinPath(code))
+          join(hero)
         }}
       >
         <label className="field" htmlFor={`${formId}-room`}>
@@ -168,6 +201,7 @@ export function JoinPage({ room: given }: { room?: string }) {
                 <span>
                   <strong>{heroDisplayName(h)}</strong>
                   {at && <span className="gt-sub"> · in this game since {sinceDate(at)}</span>}
+                  {heldNotes[h.id] && <span className="gt-sub"> · {heldNotes[h.id]}</span>}
                 </span>
               </label>
             )
@@ -182,6 +216,25 @@ export function JoinPage({ room: given }: { room?: string }) {
           </p>
         )}
       </form>
+      {heldHero && code && (
+        <HeldHeroDialog
+          hero={heroDisplayName(heldHero.hero)}
+          held={heldHero.held}
+          onTakeOver={() => {
+            setHeldHero(null)
+            join(heldHero.hero, true)
+          }}
+          onOwnCopy={() => {
+            setHeldHero(null)
+            void joinWithOwnCopy(heldHero.hero)
+          }}
+          onChooseAnother={() => {
+            setHeldNotes((notes) => ({ ...notes, [heldHero.hero.id]: heldNote(heldHero.held) }))
+            setHeldHero(null)
+          }}
+          onCancel={() => setHeldHero(null)}
+        />
+      )}
     </div>
   )
 }

@@ -59,6 +59,7 @@ import { heroView, villainView } from './views'
 import type { VillainStatusActions } from './VillainStatusPanel'
 import { logStatusChanges, newStatusLines, setHandCount, setStatusOverride, setWeakness } from './villain-status'
 import { useHostSnapshot, useSession } from '../session/context'
+import { GiveHeroDialog } from './GiveHeroDialog'
 import { formatAgo } from '../library/when'
 import { newRoomCode } from '../session/code'
 import * as T from './table'
@@ -83,7 +84,7 @@ type Dialog =
   | { kind: 'referenceSheet'; sceneId: string }
   | { kind: 'sceneDelete'; sceneId: string; number: number }
   | { kind: 'asideRemove'; ref: OppositionRef; name: string }
-  | { kind: 'heroHealth' | 'heroMod' | 'heroTwist' | 'heroRemove'; hero: HeroView }
+  | { kind: 'heroHealth' | 'heroMod' | 'heroTwist' | 'heroRemove' | 'heroGive'; hero: HeroView }
   | { kind: 'removeItem'; ref: T.ItemRef; name: string }
   | { kind: 'memberMod'; groupId: string; memberId: string; name: string }
   | { kind: 'fix'; part: 'current' | 'acted' | 'round' }
@@ -376,6 +377,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
         { label: 'Give a bonus or penalty…', onSelect: () => setDialog({ kind: 'heroMod', hero }) },
         { label: 'Add a twist…', onSelect: () => setDialog({ kind: 'heroTwist', hero }) },
         { label: hero.reactionUsed ? 'Mark reaction unused' : 'Mark reaction used', onSelect: () => changeHero(hero.ref.id, { kind: 'reaction', used: !hero.reactionUsed }) },
+        // Hand a hero on, to undo a mistaken takeover (section 7): only while hosting.
+        ...(host ? [{ label: 'Give to…', onSelect: () => setDialog({ kind: 'heroGive', hero }) }] : []),
         remove,
       ]
     },
@@ -823,6 +826,15 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       {dialog?.kind === 'heroHealth' && <HealthDialog name={dialog.hero.name} health={dialog.hero.health ?? 0} {...(dialog.hero.maxHealth !== undefined ? { maxHealth: dialog.hero.maxHealth } : {})} onSet={(value) => changeHero(dialog.hero.ref.id, { kind: 'health', value })} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'heroMod' && <ModDialog title={`Give ${dialog.hero.name} a bonus or penalty`} onAdd={(mod) => changeHero(dialog.hero.ref.id, { kind: 'mod', mod })} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'heroTwist' && <TwistDialog name={dialog.hero.name} onAdd={(twist) => changeHero(dialog.hero.ref.id, { kind: 'twist', twist })} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'heroGive' && host && (
+        <GiveHeroDialog
+          hero={dialog.hero.name}
+          players={hosted?.unseated ?? []}
+          toGm={Boolean(T.findHero(game, dialog.hero.ref.id)?.player)}
+          onGive={(clientId) => host.giveHero(dialog.hero.ref.id, clientId)}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog?.kind === 'heroRemove' && (
         <ConfirmDialog
           title={`Remove ${dialog.hero.name} from the game?`}

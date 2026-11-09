@@ -12,6 +12,8 @@ Make a game from Games › New game. It starts with issue 1 and an empty scene u
 
 Start hosting, then share the game's code or invite link. Players join with heroes from their own library, on their own devices. Your device holds the game: players' actions come to you and you send everyone the result. Anyone with the code can also watch on a TV or second screen.
 
+A player can take over a hero someone else holds, yours included. To undo that, use the hero's ⋯ › Give to… to hand it to a player without a hero, or back to you.
+
 ## The GM screen
 
 The GM screen sits beside the table. Running shows whatever you're working on: a villain, a group, a challenge or the environment. Under it, the Bring in tab brings things onto the table, Scenes plans what's coming, and Notes is yours alone.

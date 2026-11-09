@@ -132,7 +132,7 @@ export class SessionManager {
    * game as this device last saw it (a joined game opened from the Games page), shown until the
    * GM answers.
    */
-  joinGame({ room, name, hero, cached, gameId }: { room: string; name: string; hero: Hero; cached?: Received; gameId?: string }): void {
+  joinGame({ room, name, hero, cached, gameId, takeOver }: { room: string; name: string; hero: Hero; cached?: Received; gameId?: string; takeOver?: true }): void {
     const current = this.current.playing
     if (current && current.info.room === room && current.info.heroSourceId === hero.id && current.getSnapshot().status !== 'refused') return
     this.disconnect()
@@ -143,7 +143,8 @@ export class SessionManager {
     const known = gameId ?? cached?.table.id
     const saved: PlayingSaved = { v: 1, room, name: name.trim() || 'A player', heroSourceId: hero.id, sheet: hero, ...(known ? { gameId: known } : {}) }
     this.store.savePlaying(saved)
-    this.set({ playing: this.newPlaying(saved, cached) })
+    // Take over isn't saved: a reload before the GM answers asks again, which is safe.
+    this.set({ playing: this.newPlaying(saved, cached, takeOver) })
   }
 
   /** Leaves the game being played: the hero stays at the table, shown as disconnected. */
@@ -257,11 +258,11 @@ export class SessionManager {
     })
   }
 
-  private newPlaying(saved: PlayingSaved, cached?: Received): PlayerClient {
+  private newPlaying(saved: PlayingSaved, cached?: Received, takeOver?: true): PlayerClient {
     let knownGame = saved.gameId
     return new PlayerClient(
       this.connect,
-      { room: saved.room, clientId: this.store.clientId(), name: saved.name, heroSourceId: saved.heroSourceId, sheet: saved.sheet, ...(saved.gameId ? { gameId: saved.gameId } : {}) },
+      { room: saved.room, clientId: this.store.clientId(), name: saved.name, heroSourceId: saved.heroSourceId, sheet: saved.sheet, ...(saved.gameId ? { gameId: saved.gameId } : {}), ...(takeOver ? { takeOver } : {}) },
       {
         ...(saved.syncWaiting ? { syncWaiting: true } : {}),
         ...(cached ? { cached } : {}),

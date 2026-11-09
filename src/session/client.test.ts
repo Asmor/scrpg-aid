@@ -196,3 +196,45 @@ describe("a player's device", () => {
     expect(other.getSnapshot()).toMatchObject({ status: 'refused', refused: 'oldHost' })
   })
 })
+
+describe('a hero someone else holds (game-table spec, section 7)', () => {
+  it('hears who holds it, then takes it over; the former player is told who took it', async () => {
+    const { net, host, client } = await setup()
+    const priya = new PlayerClient(net.connect, { room: ROOM, clientId: 'c2', name: 'Priya', heroSourceId: 'maya-src', sheet: maya() })
+    await net.settle()
+    expect(priya.getSnapshot()).toMatchObject({ status: 'refused', refused: 'taken', held: { by: 'player', name: 'Alex', connected: true, game: 'Thursday game' } })
+    priya.leave()
+    const taker = new PlayerClient(net.connect, { room: ROOM, clientId: 'c2', name: 'Priya', heroSourceId: 'maya-src', sheet: maya(), takeOver: true })
+    await net.settle()
+    expect(taker.getSnapshot().status).toBe('live')
+    expect(host.game!.heroes[0]!.player!.clientId).toBe('c2')
+    expect(client.getSnapshot()).toMatchObject({ status: 'refused', refused: 'takenOver', takenBy: 'Priya' })
+  })
+
+  it('learns its hero was taken over while it was away, when it comes back', async () => {
+    const { net, host, client } = await setup()
+    client.leave()
+    await net.settle()
+    const taker = new PlayerClient(net.connect, { room: ROOM, clientId: 'c2', name: 'Priya', heroSourceId: 'maya-src', sheet: maya(), takeOver: true })
+    await net.settle()
+    expect(taker.getSnapshot().status).toBe('live')
+    // Alex's device comes back with what it last saw: it had been playing the hero.
+    const back = new PlayerClient(net.connect, { room: ROOM, clientId: 'c1', name: 'Alex', heroSourceId: 'maya-src', sheet: maya() }, { cached: client.getSnapshot().received! })
+    await net.settle()
+    expect(back.getSnapshot()).toMatchObject({ status: 'refused', refused: 'takenOver', takenBy: 'Priya' })
+    expect(host.game!.heroes[0]!.player!.clientId).toBe('c2')
+  })
+
+  it('never takes the hero back on a reconnect after taking it over', async () => {
+    const { net, host } = await setup()
+    const taker = new PlayerClient(net.connect, { room: ROOM, clientId: 'c2', name: 'Priya', heroSourceId: 'maya-src', sheet: maya(), takeOver: true })
+    await net.settle()
+    // Someone else takes it over from Priya, then Priya's device reconnects.
+    const third = new PlayerClient(net.connect, { room: ROOM, clientId: 'c3', name: 'Jo', heroSourceId: 'maya-src', sheet: maya(), takeOver: true })
+    await net.settle()
+    expect(third.getSnapshot().status).toBe('live')
+    taker.reconnect()
+    await net.settle()
+    expect(host.game!.heroes[0]!.player!.clientId).toBe('c3')
+  })
+})

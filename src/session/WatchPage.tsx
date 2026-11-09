@@ -7,16 +7,18 @@ import { useEffect, useId, useState } from 'react'
 import { gamesPath, navigate, watchPath } from '../app/route'
 import { DisplayView } from '../game/DisplayView'
 import { gameDisplayName } from '../game/model'
-import { OBSERVER_LIMIT, type RefusedReason } from './protocol'
+import { OBSERVER_LIMIT } from './protocol'
+import type { RefusedWhy } from './link'
 import { normalizeRoomCode } from './code'
 import { useSession, useWatchingSnapshot } from './context'
 
-const REFUSED: Record<RefusedReason | 'oldHost', string> = {
+const REFUSED: Record<RefusedWhy, string> = {
   version: "The GM's device is on a newer version of the app. Reload this page to update it, then try again.",
   oldHost: "The GM's device is on an older version of the app. Ask the GM to reload their page, then try again.",
   full: `This game already has ${OBSERVER_LIMIT} screens watching, the most it takes.`,
   taken: "The GM's device turned this screen away.",
-  gmHero: "The GM's device turned this screen away.",
+  invalid: "The GM's device turned this screen away.",
+  takenOver: "The GM's device turned this screen away.",
   removed: 'The GM removed this screen from the game.',
   wrongGame: 'That code now belongs to a different game. Check the code with your GM.',
 }

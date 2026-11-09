@@ -12,14 +12,14 @@
 import { applyHeroAction, trackChanges, type FieldVersions } from '../game/actions'
 import { logStatusChanges } from '../game/villain-status'
 import { recordIssueAck } from '../game/issues'
-import type { Game, HeroInGame } from '../game/model'
+import { gameDisplayName, type Game, type HeroInGame } from '../game/model'
 import { project, type TableView } from '../game/project'
 import type { GameStore } from '../game/store'
-import { addHero, setCharacterColors, findHero, removeFromTable, setGameCode, updateSheet, withLog, GM } from '../game/table'
+import { addHero, giveHero, setCharacterColors, findHero, removeFromTable, setGameCode, takeOverHero, updateSheet, withLog, GM } from '../game/table'
 import { heroDisplayName } from '../hero/model'
 import { heroPointsLeft, type Clock } from '../play/state'
 import { Subscribable } from './subscribable'
-import { fitView, messageVersion, OBSERVER_LIMIT, PLAYER_LIMIT, PROTOCOL_VERSION, readClientMessage, type ClientMessage, type HostMessage, type RefusedReason } from './protocol'
+import { cut, fitView, MAX_NAME, messageVersion, OBSERVER_LIMIT, PLAYER_LIMIT, PROTOCOL_VERSION, readClientMessage, type ClientMessage, type HostMessage, type HeldBy, type RefusedReason } from './protocol'
 import { quietAfterLeave, type Connect, type Transport } from './transport'
 import { arrayOf, nonEmptyString, object, oneOf, string } from '../shape'
 
@@ -59,6 +59,14 @@ export interface HostSnapshot {
   observers: readonly Watcher[]
   /** Players who were away when the code last changed, until they come back: they need the new code from the GM. */
   needsNewCode: ReadonlySet<string>
+  /** Players still connected whose hero someone took over: the GM can give them a hero (Give to…). */
+  unseated: readonly Unseated[]
+}
+
+/** A connected player without a hero: theirs was taken over. */
+export interface Unseated {
+  clientId: string
+  name: string
 }
 
 /** What a new code did: the old code, and who came along, was removed, or needs the new code. Names as the GM knows them. */
@@ -76,7 +84,7 @@ export interface Watcher {
   screenName: string
 }
 
-type Peer = { clientId: string; role: 'player'; heroId: string } | { clientId: string; role: 'observer'; screenName: string }
+type Peer = { clientId: string; role: 'player'; heroId: string } | { clientId: string; role: 'observer'; screenName: string } | { clientId: string; role: 'unseated'; name: string }
 
 /** A message from a peer before the game has loaded, handled once it has. */
 type Waiting = { raw: unknown; peer: string }
@@ -104,7 +112,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
   private saving: Promise<void> = Promise.resolve()
 
   constructor(connect: Connect, saved: Omit<HostSaved, 'v'>, store: GameStore, clock: () => Clock, save: (saved: HostSaved) => void = () => {}, random: () => number = Math.random) {
-    super({ version: 0, connected: new Set(), observers: [], needsNewCode: new Set() })
+    super({ version: 0, connected: new Set(), observers: [], needsNewCode: new Set(), unseated: [] })
     this.code = saved.room
     this.connect = connect
     this.gameId = saved.gameId
@@ -169,7 +177,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
     const removed = new Map<string, string>()
     const removedHeroes: string[] = []
     for (const [peer, p] of this.peers) {
-      const name = p.role === 'observer' ? p.screenName : (findHero(game, p.heroId)?.player?.name ?? 'A player')
+      const name = p.role === 'observer' ? p.screenName : p.role === 'unseated' ? p.name : (findHero(game, p.heroId)?.player?.name ?? 'A player')
       if (keep.has(p.clientId)) {
         kept.set(p.clientId, name)
         this.send({ v: PROTOCOL_VERSION, type: 'codeChanged', code }, peer)
@@ -201,7 +209,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
         { kept: [...kept.values()], removed: [...removed.values()] },
       ),
     )
-    this.publish({ ...this.snapshot, connected: new Set(), observers: [], needsNewCode: new Set(away.map((h) => h.player!.clientId)) })
+    this.publish({ ...this.snapshot, connected: new Set(), observers: [], unseated: [], needsNewCode: new Set(away.map((h) => h.player!.clientId)) })
     return { from, code, kept: [...kept.values()], removed: [...removed.values()], needsCode: away.map((h) => h.player!.name || 'A player') }
   }
 
@@ -347,21 +355,23 @@ export class HostSession extends Subscribable<HostSnapshot> {
     if (msg.gameId !== undefined && msg.gameId !== this.gameId) return this.refuse(peer, 'wrongGame')
     const game = this.snapshot.game!
     const name = msg.name.trim() || 'A player'
-    // The client always sends its sheet's own id; anything else would add a hero it can't find.
-    if (msg.heroSourceId !== msg.sheet.id) return
+    // The client always sends its sheet's own id; anything else is malformed, and changes nothing.
+    if (msg.heroSourceId !== msg.sheet.id) return this.refuse(peer, 'invalid')
     const existing = game.heroes.find((h) => h.sourceId === msg.heroSourceId)
     let heroId: string
-    // The GM added this hero as their own (a shared pregen, say): it isn't the player's to take.
-    if (existing && !existing.player) return this.refuse(peer, 'gmHero')
-    if (existing) {
-      // The same hero again: the same player, or (when that player isn't here) the same person on another device.
-      const owner = existing.player?.clientId
-      if (owner && owner !== msg.clientId && this.isConnected(owner)) return this.refuse(peer, 'taken')
+    if (existing?.player?.clientId === msg.clientId) {
+      // Rejoining your own hero never asks.
       heroId = existing.id
-      const since = existing.player?.since ?? this.clock().now.toISOString()
-      if (existing.player?.clientId !== msg.clientId || existing.player.name !== name) {
-        this.apply((g) => ({ ...g, heroes: g.heroes.map((h) => (h.id === heroId ? { ...h, player: { clientId: msg.clientId, name, since } } : h)) }))
-      }
+      if (existing.player.name !== name) this.apply((g) => ({ ...g, heroes: g.heroes.map((h) => (h.id === heroId && h.player ? { ...h, player: { ...h.player, name } } : h)) }))
+    } else if (existing) {
+      // Someone else holds it (game-table spec, section 7): the player chooses, and only Take over comes back.
+      const holder = existing.player
+      const gameName = cut(gameDisplayName(game), MAX_NAME)
+      if (!msg.takeOver) return this.refuse(peer, 'taken', holder ? { by: 'player', name: cut(holder.name || 'A player', MAX_NAME), connected: this.isConnected(holder.clientId), game: gameName } : { by: 'gm', connected: true, game: gameName })
+      if (!holder && game.heroes.filter((h) => h.player).length >= PLAYER_LIMIT) return this.refuse(peer, 'full')
+      heroId = existing.id
+      this.apply((g) => takeOverHero(g, heroId, { clientId: msg.clientId, name, since: this.clock().now.toISOString() }, this.clock()))
+      if (holder) this.unseat(holder, heroId, name)
     } else {
       if (game.heroes.filter((h) => h.player).length >= PLAYER_LIMIT) return this.refuse(peer, 'full')
       const since = this.clock().now.toISOString()
@@ -454,15 +464,51 @@ export class HostSession extends Subscribable<HostSnapshot> {
     const connected = new Set(peers.filter((p) => p.role === 'player').map((p) => p.clientId))
     // One entry per screen, even with two connections from it for a moment.
     const observers = [...new Map(peers.flatMap((p) => (p.role === 'observer' ? [[p.clientId, { clientId: p.clientId, screenName: p.screenName }] as const] : []))).values()]
+    const unseated = [...new Map(peers.flatMap((p) => (p.role === 'unseated' ? [[p.clientId, { clientId: p.clientId, name: p.name }] as const] : []))).values()]
     const before = this.snapshot
     const sameConnected = connected.size === before.connected.size && [...connected].every((c) => before.connected.has(c))
     const sameObservers = observers.length === before.observers.length && observers.every((o, i) => o.clientId === before.observers[i]!.clientId && o.screenName === before.observers[i]!.screenName)
-    if (sameConnected && sameObservers) return
-    this.publish({ ...this.snapshot, connected, observers })
+    const sameUnseated = unseated.length === before.unseated.length && unseated.every((u, i) => u.clientId === before.unseated[i]!.clientId && u.name === before.unseated[i]!.name)
+    if (sameConnected && sameObservers && sameUnseated) return
+    this.publish({ ...this.snapshot, connected, observers, unseated })
   }
 
-  private refuse(peer: string, reason: RefusedReason): void {
-    this.send({ v: PROTOCOL_VERSION, type: 'refused', reason }, peer)
+  private refuse(peer: string, reason: RefusedReason, held?: HeldBy): void {
+    this.send({ v: PROTOCOL_VERSION, type: 'refused', reason, ...(held ? { held } : {}) }, peer)
+  }
+
+  /**
+   * Tells the player `former` that `by` took over their hero. Their connections stay, without a
+   * hero, until they leave or the GM gives them one.
+   */
+  private unseat(former: { clientId: string; name: string }, heroId: string, by: string): void {
+    for (const [peer, p] of this.peers) {
+      if (p.role !== 'player' || p.clientId !== former.clientId || p.heroId !== heroId) continue
+      this.send({ v: PROTOCOL_VERSION, type: 'takenOver', heroId, by }, peer)
+      this.peers.set(peer, { clientId: former.clientId, role: 'unseated', name: former.name || 'A player' })
+    }
+    this.publishConnected()
+  }
+
+  /**
+   * Give to… (the GM, game-table spec section 7): hands a hero to a connected player who has none
+   * (their hero was taken over), or to the GM (`undefined`). Whoever held it is told.
+   */
+  giveHero(heroId: string, to: string | undefined): void {
+    const game = this.snapshot.game
+    const hero = game && findHero(game, heroId)
+    if (!hero || hero.player?.clientId === to) return
+    const peer = to === undefined ? undefined : [...this.peers].find(([, p]) => p.role === 'unseated' && p.clientId === to)
+    if (to !== undefined && !peer) return
+    const holder = hero.player
+    const player = peer && peer[1].role === 'unseated' ? { clientId: peer[1].clientId, name: peer[1].name, since: this.clock().now.toISOString() } : undefined
+    this.apply((g) => giveHero(g, heroId, player, this.clock()))
+    if (holder) this.unseat(holder, heroId, player ? player.name : 'The GM')
+    if (peer) {
+      this.peers.set(peer[0], { clientId: peer[1].clientId, role: 'player', heroId })
+      this.publishConnected()
+      this.sendState(peer[0])
+    }
   }
 
   private sendToHero(heroId: string, msg: HostMessage): void {
@@ -476,6 +522,8 @@ export class HostSession extends Subscribable<HostSnapshot> {
     // Observers all see the same; each player's view has their own requests and lines.
     const views = new Map<string, TableView>()
     for (const [peer, p] of this.peers) {
+      // A player whose hero was taken over sees the took-over screen, not the table.
+      if (p.role === 'unseated') continue
       const heroId = p.role === 'player' ? p.heroId : undefined
       const key = heroId ?? p.role
       let view = views.get(key)
@@ -487,7 +535,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
   private sendState(peer: string, table?: TableView): void {
     const game = this.snapshot.game
     const p = this.peers.get(peer)
-    if (!game || !p) return
+    if (!game || !p || p.role === 'unseated') return
     const hero: HeroInGame | undefined = p.role === 'player' ? findHero(game, p.heroId) : undefined
     const you = hero?.player ? { heroId: hero.id, since: hero.player.since ?? game.createdAt } : undefined
     this.send({ v: PROTOCOL_VERSION, type: 'state', room: this.room, version: this.snapshot.version, table: table ?? fitView(project(game, p.role, p.role === 'player' ? p.heroId : undefined)), gm: this.gm, ...(you ? { you } : {}) }, peer)

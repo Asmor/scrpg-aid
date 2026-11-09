@@ -134,7 +134,7 @@ export const heroType: LibraryType<Hero> = {
       name,
       named,
       draft: false,
-      details: [archetype, powerSource].filter(Boolean).join(' · '),
+      details: [archetype, powerSource, hero.copiedFrom && 'Copy of a shared hero'].filter(Boolean).join(' · '),
       ...(sheet.warnings.length ? { issues: { count: sheet.warnings.length, href: editPath(hero.id) } } : {}),
       openHref: heroPath(hero.id),
       primary: { label: 'Play', href: playPath(hero.id) },

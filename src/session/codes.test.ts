@@ -128,20 +128,20 @@ describe('a new game code while hosting', () => {
     const alex = player('c1', 'Alex', hero('maya', 'Maya Reyes'))
     await net.settle()
     const impostor = net.connect(OLD)
-    impostor.send({ v: 11, type: 'codeChanged', code: NEW })
-    impostor.send({ v: 11, type: 'removed' })
+    impostor.send({ v: 12, type: 'codeChanged', code: NEW })
+    impostor.send({ v: 12, type: 'removed' })
     await net.settle()
     expect(alex.room).toBe(OLD)
     expect(alex.getSnapshot().status).toBe('live')
   })
 
   it('reads the new messages, and turns away malformed ones', () => {
-    expect(readHostMessage({ v: 11, type: 'codeChanged', code: NEW })).toEqual({ v: 11, type: 'codeChanged', code: NEW })
-    expect(readHostMessage({ v: 11, type: 'codeChanged', code: 'k7qx-2mrt' })).toBeUndefined()
-    expect(readHostMessage({ v: 11, type: 'removed' })).toEqual({ v: 11, type: 'removed' })
-    expect(readHostMessage({ v: 11, type: 'removed', reason: 5 })).toBeUndefined()
-    expect(readHostMessage({ v: 11, type: 'refused', reason: 'wrongGame' })).toBeDefined()
-    const hello = { v: 11, type: 'hello', role: 'player', clientId: 'c1', name: 'Alex', heroSourceId: 'maya', sheet: hero('maya', 'Maya'), gameId: 'g' }
+    expect(readHostMessage({ v: 12, type: 'codeChanged', code: NEW })).toEqual({ v: 12, type: 'codeChanged', code: NEW })
+    expect(readHostMessage({ v: 12, type: 'codeChanged', code: 'k7qx-2mrt' })).toBeUndefined()
+    expect(readHostMessage({ v: 12, type: 'removed' })).toEqual({ v: 12, type: 'removed' })
+    expect(readHostMessage({ v: 12, type: 'removed', reason: 5 })).toBeUndefined()
+    expect(readHostMessage({ v: 12, type: 'refused', reason: 'wrongGame' })).toBeDefined()
+    const hello = { v: 12, type: 'hello', role: 'player', clientId: 'c1', name: 'Alex', heroSourceId: 'maya', sheet: hero('maya', 'Maya'), gameId: 'g' }
     expect(readClientMessage(hello)).toEqual(hello)
     expect(readClientMessage({ ...hello, gameId: '' })).toBeUndefined()
   })

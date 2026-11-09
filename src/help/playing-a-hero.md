@@ -6,6 +6,8 @@ Using your hero at the table, in someone's game or on your own.
 
 Play together › Join as a player, then enter the code your GM gave you and pick a hero. The game gets a copy of your hero's sheet. If you change the hero in your library later, the game offers to send the GM the update.
 
+If someone else in the game already has that hero (a pre-made hero passed around, say), you choose: take it over, join with your own copy (a separate hero in your library), or pick a different hero. If someone takes over your hero, you can choose another, watch, or leave.
+
 ## Playing solo
 
 A hero's Play page works without a GM, for trying things out or for a game where everyone shares one device. It keeps its own play state, separate from any game.
