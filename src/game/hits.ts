@@ -9,9 +9,9 @@ import { villainDisplayName } from '../villain/model'
 import { villainHealth } from '../villain/play'
 import type { TableTarget } from './actions'
 import type { Game } from './model'
-import { changeHeroPlay, changeVillainPlay, damageHero, defenseChooser, findHero, findVillain, holdHit, withLog } from './table'
+import { changeHeroPlay, changeVillainPlay, damageHero, defenseChooser, findHero, findVillain, holdHit, feedLine, withLog } from './table'
 
-const logLine = (clock: Clock, by: string, text: string, gmOnly: boolean) => ({ id: clock.newId(), at: clock.now.toISOString(), by, text, ...(gmOnly ? { gmOnly: true as const } : {}) })
+const logLine = (clock: Clock, by: string, text: string, gmOnly: boolean) => feedLine(clock, text, { by, gmOnly })
 
 /**
  * `by` hits a hero or villain for `amount`: one of its defenses blocks what it can (the one

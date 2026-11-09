@@ -8,7 +8,7 @@ import { completeHero } from '../test/heroes'
 import { PlayProviders } from '../test/play'
 import { playStores } from '../test/play-stores'
 import { adaptiveBruiser } from '../test/villains'
-import { deliverAlerts, gmAlerts, gmWatch, needsHomeScreen, playerAlerts, type AlertChannels, type PlayerWatch } from './alerts'
+import { askToNotify, browserChannels, canVibrate, deliverAlerts, gmAlerts, gmWatch, needsHomeScreen, playChime, playerAlerts, type AlertChannels, type PlayerWatch } from './alerts'
 import { SettingsContext } from './context'
 import { DEFAULT_SETTINGS, type Settings } from './model'
 import { SettingsPage } from './SettingsPage'
@@ -171,5 +171,69 @@ describe('the Alerts section', () => {
     expect(needsHomeScreen()).toBe(false)
     vi.stubGlobal('navigator', { userAgent: 'Android' })
     expect(needsHomeScreen()).toBe(false)
+  })
+})
+
+describe("the browser's channels", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('plays a chime of two notes for a turn and three for an answer, and stays quiet without audio', () => {
+    const tones: number[] = []
+    class FakeAudio {
+      currentTime = 0
+      destination = {}
+      resume = () => Promise.resolve()
+      createOscillator = () => ({ frequency: { value: 0 }, connect: (g: unknown) => g, start: () => {}, stop() { tones.push(this.frequency.value) } })
+      createGain = () => ({ gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} }, connect: () => {} })
+    }
+    vi.stubGlobal('AudioContext', FakeAudio)
+    playChime('turn')
+    expect(tones).toEqual([660, 880])
+    playChime('answer')
+    expect(tones.slice(2)).toEqual([880, 880, 660])
+  })
+
+  it('vibrates when the device can', () => {
+    const vibrate = vi.fn()
+    vi.stubGlobal('navigator', { ...navigator, vibrate })
+    expect(canVibrate()).toBe(true)
+    browserChannels.vibrate('turn')
+    browserChannels.vibrate('answer')
+    expect(vibrate.mock.calls).toEqual([[[120, 80, 120]], [[80]]])
+  })
+
+  it('notifies only with permission, through the service worker when one is in charge', async () => {
+    const shown: string[] = []
+    class FakeNotification {
+      static permission: NotificationPermission = 'default'
+      static requestPermission = vi.fn(async () => 'granted' as NotificationPermission)
+      constructor(title: string, options: { body: string }) {
+        shown.push(`${title}: ${options.body}`)
+      }
+    }
+    vi.stubGlobal('Notification', FakeNotification)
+    browserChannels.notify('Ignored')
+    expect(shown).toEqual([])
+    expect(await askToNotify()).toBe(true)
+    FakeNotification.permission = 'granted'
+    expect(await askToNotify()).toBe(true)
+    browserChannels.notify("It's your turn.")
+    expect(shown).toEqual(["SCRPG Aid: It's your turn."])
+
+    const showNotification = vi.fn()
+    vi.stubGlobal('navigator', { ...navigator, serviceWorker: { controller: {}, ready: Promise.resolve({ showNotification }) } })
+    browserChannels.notify('From the worker')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(showNotification).toHaveBeenCalledWith('SCRPG Aid', { body: 'From the worker', tag: 'scrpg-alert' })
+
+    FakeNotification.permission = 'denied'
+    expect(await askToNotify()).toBe(false)
+  })
+
+  it('knows when the page is out of sight', () => {
+    expect(browserChannels.background()).toBe(document.visibilityState !== 'visible')
   })
 })

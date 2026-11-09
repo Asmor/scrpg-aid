@@ -22,6 +22,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA = Path(os.environ.get("SCRPG_DATA", ROOT / "data"))
 
+# What the app counts from the table for a count status rule (villains-and-challenges spec, section 1).
+TABLE_COUNTS = {"gmMinionsAndLieutenants", "gmMinions", "environmentGroupsAndChallenges", "otherVillains", "heroesWithPenalty"}
 DICE = {"d4", "d6", "d8", "d10", "d12"}
 ABILITY_TYPES = {"A", "R", "I", "A/I"}
 PRINCIPLE_CATEGORIES = {"esoteric", "expertise", "ideals", "identity", "responsibility"}
@@ -498,6 +500,12 @@ def check_villains(docs):
             status = e.get("status") if isinstance(e.get("status"), dict) else {}
             if not status.get("basis"):
                 err(ew, "status missing 'basis'")
+            tc = status.get("tableCount")
+            if tc is not None:
+                if status.get("basis") != "count":
+                    err(ew, "only a count status can have 'tableCount'")
+                elif tc not in TABLE_COUNTS:
+                    err(ew, f"status has unknown tableCount '{tc}'")
             for t in status.get("tiers", []):
                 if t.get("die") not in DICE:
                     err(ew, f"status tier has invalid die '{t.get('die')}'")

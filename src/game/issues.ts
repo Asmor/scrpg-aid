@@ -10,9 +10,9 @@ import { villainDisplayName } from '../villain/model'
 import { clearHeroMods, heroPointsLeft, heroRecovers, MAX_HERO_POINTS, modSizes, returnHeroPointBonus, spendHeroPoints, type Clock } from '../play/state'
 import { MAX_NAME, MAX_TEXT } from '../session/protocol'
 import { nameList } from './names'
-import { betweenIssues, createIssue, currentIssue, nextIssueNumber, sceneName, sceneNumber, type Game, type GameFeedEntry, type HeroInGame, type Issue, type IssueAck, type Scene } from './model'
+import { betweenIssues, createIssue, currentIssue, nextIssueNumber, sceneNumber, type Game, type GameFeedEntry, type HeroInGame, type Issue, type IssueAck, type Scene } from './model'
 import { draftOfCurrent, enterScene, sceneEndSummary, type StartChoices } from './scenes'
-import { GM, heroLabel, resolveHit, withLog } from './table'
+import { feedLine, heroLabel, resolveHit, withLog } from './table'
 
 export interface FinishChoices {
   /** Optional: blank or all-space is saved as no title, and the issue is then "Issue N" (issueName). */
@@ -22,7 +22,7 @@ export interface FinishChoices {
   heroIds: readonly string[]
 }
 
-const logLine = (clock: Clock, text: string): GameFeedEntry => ({ id: clock.newId(), at: clock.now.toISOString(), by: GM, text })
+const logLine = (clock: Clock, text: string): GameFeedEntry => feedLine(clock, text)
 
 /** The heroes who'd lose bonuses or penalties at the end of the issue, each with their mods' sizes. */
 export function modsToClear(game: Pick<Game, 'heroes'>): { name: string; sizes: string }[] {
@@ -258,9 +258,6 @@ export function setIssueRecord(game: Game, issueId: string, record: { title?: st
     }),
   }
 }
-
-/** The table's toast for a new issue. */
-export const issueBeganText = (number: number, scene: Pick<Scene, 'name'>) => `Issue ${number} began: ${sceneName(scene)}.`
 
 /**
  * The GM's Games card between issues (scrpg-aid-designs/issues/games-cards.dc.html): "Back issues: 2 of 3

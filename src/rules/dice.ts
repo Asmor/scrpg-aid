@@ -6,6 +6,9 @@ export const ZONES: readonly Zone[] = ['green', 'yellow', 'red']
 /** All die sizes, smallest first. */
 export const DICE: readonly Die[] = ['d4', 'd6', 'd8', 'd10', 'd12']
 
+/** Whether shrinking a minion or lieutenant of this die removes it: the smallest die can't shrink. */
+export const shrinksAway = (die: Die) => die === DICE[0]
+
 /** The number of faces, which is also the die's maximum value. */
 export function dieSize(die: Die): number {
   return Number(die.slice(1))

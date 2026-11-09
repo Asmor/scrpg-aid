@@ -19,7 +19,7 @@ import type { TableTarget } from './actions'
 import type { Game } from './model'
 import { applySave, groupSaveMods, heroMinionSave, memberSaveText, rollSave, usedUp, ACTION_NAME, type GroupRollRow, type Random } from './npc'
 import { defend, hitCharacter } from './hits'
-import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, memberName, seenAs, withLog } from './table'
+import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, memberName, seenAs, feedLine, withLog } from './table'
 
 /** The target's name, or undefined when it isn't on the table any more. */
 export function targetName(game: Game, to: TableTarget): string | undefined {
@@ -49,7 +49,7 @@ export function targetHidden(game: Game, to: TableTarget): boolean {
   return false
 }
 
-const line = (clock: Clock, by: string, text: string, gmOnly: boolean) => ({ id: clock.newId(), at: clock.now.toISOString(), by, text, ...(gmOnly ? { gmOnly: true as const } : {}) })
+const line = (clock: Clock, by: string, text: string, gmOnly: boolean) => feedLine(clock, text, { by, gmOnly })
 
 /**
  * Gives `to` a bonus or penalty from `from`. A hero's or villain's history notes it (and, with

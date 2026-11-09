@@ -35,7 +35,7 @@ async function setup(hash: string, saved?: (s: ReturnType<typeof localSessionSto
 describe('watching a game', () => {
   it('asks for the code and a name for the screen, then shows the display view', async () => {
     const { net, host, storage } = await setup('#/watch')
-    await userEvent.type(screen.getByLabelText('Game code'), 'abcd efgh')
+    await userEvent.type(await screen.findByLabelText('Game code'), 'abcd efgh')
     await userEvent.type(screen.getByLabelText('Name this screen (the GM sees it)'), 'Living room TV')
     await userEvent.click(screen.getByRole('button', { name: 'Start watching' }))
     expect(window.location.hash).toBe('#/watch/ABCD-EFGH')

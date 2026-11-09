@@ -39,5 +39,3 @@ export const emptyTemplateLists = (): TemplateLists => ({ minionTemplates: [], l
 /** How many templates in all. */
 export const templateCount = (lists: TemplateLists) => TEMPLATE_LIST_KEYS.reduce((n, k) => n + lists[k].length, 0)
 
-/** The list key for a kind. */
-export const listKeyOf = (kind: TemplateKind): TemplateListKey => TEMPLATE_LIST_KEYS.find((k) => TEMPLATE_LIST_INFO[k].kind === kind)!

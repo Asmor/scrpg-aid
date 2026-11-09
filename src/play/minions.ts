@@ -12,10 +12,10 @@
  */
 import type { CharColor } from '../colors/palette'
 import { archetypesById } from '../rules/data'
-import { stepDie } from '../rules/dice'
+import { shrinksAway, stepDie } from '../rules/dice'
 import type { BasicAction, Die, EffectUse } from '../rules/types'
 import type { PlayMinion, PlayMod, PlayState } from '../hero/model'
-import { describeEffect, effectAmount } from './roll'
+import { describeEffect } from './roll'
 import { appendHistory, describeMod, modName, type Clock } from './state'
 
 const ACTION_NAME: Record<BasicAction, string> = { attack: 'Attack', defend: 'Defend', boost: 'Boost', hinder: 'Hinder', overcome: 'Overcome' }
@@ -86,8 +86,8 @@ export function removeMinion(play: PlayState, id: string, clock: Clock, why = 'R
 export function shrinkMinion(play: PlayState, id: string, clock: Clock): PlayState {
   const m = minionsOf(play).find((x) => x.id === id)
   if (!m) return play
+  if (shrinksAway(m.die)) return removeMinion(play, id, clock, 'Shrank away:')
   const smaller = stepDie(m.die, -1)
-  if (smaller === m.die) return removeMinion(play, id, clock, 'Shrank away:')
   return { ...play, minions: minionsOf(play).map((x) => (x.id === id ? { ...x, die: smaller } : x)), history: appendHistory(play.history, entry(clock, `${m.name} shrank to ${smaller}.`)) }
 }
 
@@ -167,5 +167,3 @@ export function recordMinionRoll(play: PlayState, id: string, roll: MinionRoll, 
   }
 }
 
-/** The effect's amount: never below 0. */
-export const minionAmount = (roll: Pick<MinionRoll, 'value' | 'mods'>) => effectAmount(minionTotal(roll))

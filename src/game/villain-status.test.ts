@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { villainArchetypes } from '../rules/villain-data'
 import { setHealth, type Clock } from '../play/state'
 import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
@@ -365,5 +366,19 @@ describe('project', () => {
       expect(v.statusDie).toBeUndefined()
       expect(v.statusReason).toBeUndefined()
     }
+  })
+})
+
+describe('which archetypes count from the table', () => {
+  it('comes from the data: status.tableCount on a count rule', () => {
+    const counted = villainArchetypes.flatMap((a) => (a.status.basis === 'count' && a.status.tableCount ? [[a.id, a.status.tableCount]] : []))
+    expect(Object.fromEntries(counted)).toEqual({
+      domain: 'environmentGroupsAndChallenges',
+      inhibitor: 'heroesWithPenalty',
+      legion: 'gmMinions',
+      loner: 'otherVillains',
+      overlord: 'gmMinionsAndLieutenants',
+      squad: 'otherVillains',
+    })
   })
 })

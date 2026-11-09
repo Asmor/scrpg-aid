@@ -3,6 +3,7 @@
  * the turn order, the heroes, the opposition and the log. It's the same for everyone; `gm`
  * adds the GM's controls and never moves anything around. Without it, everything is read-only.
  */
+import { shrinksAway } from '../rules/dice'
 import { HelpTip } from '../help/HelpTip'
 import { ChooseDefense } from './ChooseDefense'
 import { defenseText, type Defense } from '../play/defense'
@@ -614,8 +615,8 @@ function GroupCard({ group, acting, envName, gm }: { group: NpcGroup; acting: bo
                   <button type="button" className="button button--quiet button--small" aria-label={`Add a bonus or penalty to ${memberName(group, m.n)}`} onClick={() => gm.addMemberMod(group, m.id)}>
                     + Mod
                   </button>
-                  <button type="button" className="button button--small" aria-label={`${m.die === 'd4' ? 'Remove' : 'Shrink'} ${memberName(group, m.n)}`} onClick={() => gm.shrinkMember(group, m.id)}>
-                    {m.die === 'd4' ? 'Remove' : 'Shrink'}
+                  <button type="button" className="button button--small" aria-label={`${shrinksAway(m.die) ? 'Remove' : 'Shrink'} ${memberName(group, m.n)}`} onClick={() => gm.shrinkMember(group, m.id)}>
+                    {shrinksAway(m.die) ? 'Remove' : 'Shrink'}
                   </button>
                 </>
               )}

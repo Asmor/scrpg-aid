@@ -20,10 +20,13 @@ export interface CountTier {
   die: Die
 }
 
+/** What the game table counts for a count rule (data/README.md); unset when the GM keeps the count. */
+export type TableCountKind = 'gmMinionsAndLieutenants' | 'gmMinions' | 'environmentGroupsAndChallenges' | 'otherVillains' | 'heroesWithPenalty'
+
 /** How a villain archetype's status die is set (p. 220–234). */
 export type VillainStatusRule =
   | { basis: 'healthZone'; summary: string; zones: Record<'green' | 'yellow' | 'red', Die> }
-  | { basis: 'count'; summary?: string; counts: string; tiers: CountTier[] }
+  | { basis: 'count'; summary?: string; counts: string; tiers: CountTier[]; tableCount?: TableCountKind }
   | { basis: 'fixed'; summary: string; die: Die }
   | { basis: 'weakness'; summary: string; tiers: { condition: string; die: Die }[] }
   | { basis: 'challenge'; summary: string; startingDie: Die; challenge: { successes: number; text: string }[] }

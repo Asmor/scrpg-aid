@@ -42,7 +42,7 @@ async function setup(hash: string, gameStore = new MemoryGameStore()) {
 }
 
 async function join(settle: () => Promise<void>) {
-  await userEvent.type(screen.getByLabelText('Your name (everyone at the table sees it)'), 'Alex')
+  await userEvent.type(await screen.findByLabelText('Your name (everyone at the table sees it)'), 'Alex')
   await userEvent.click(screen.getByRole('button', { name: 'Join with Maya Reyes' }))
   await settle()
   await waitFor(() => expect(window.location.hash).toBe(`#/table/${OLD}`))
@@ -99,7 +99,7 @@ describe('a player and a new game code', () => {
 describe('joining with an old code', () => {
   it('says no game is using it, under the code field, and leaves', async () => {
     const { settle } = await setup(`#/join/WXYZ-2345`)
-    await userEvent.type(screen.getByLabelText('Your name (everyone at the table sees it)'), 'Alex')
+    await userEvent.type(await screen.findByLabelText('Your name (everyone at the table sees it)'), 'Alex')
     const button = await screen.findByRole('button', { name: 'Join with Maya Reyes' })
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
     act(() => fireEvent.click(button))
@@ -117,7 +117,7 @@ describe('joining with an old code', () => {
 describe('joining with a code typed in', () => {
   it('puts the code typed in the address, so a reload tries that one', async () => {
     await setup(`#/join/WXYZ-2345`)
-    await userEvent.type(screen.getByLabelText('Your name (everyone at the table sees it)'), 'Alex')
+    await userEvent.type(await screen.findByLabelText('Your name (everyone at the table sees it)'), 'Alex')
     const field = screen.getByLabelText('Game code')
     await userEvent.clear(field)
     await userEvent.type(field, 'PBYQ-7V83')

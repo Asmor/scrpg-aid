@@ -16,7 +16,7 @@ import type { Game, HeroInGame } from '../game/model'
 import { project, type TableView } from '../game/project'
 import type { GameStore } from '../game/store'
 import { addHero, setCharacterColors, findHero, removeFromTable, setGameCode, updateSheet, withLog, GM } from '../game/table'
-import { heroDisplayName, type Hero } from '../hero/model'
+import { heroDisplayName } from '../hero/model'
 import { heroPointsLeft, type Clock } from '../play/state'
 import { Subscribable } from './subscribable'
 import { fitView, messageVersion, OBSERVER_LIMIT, PLAYER_LIMIT, PROTOCOL_VERSION, readClientMessage, type ClientMessage, type HostMessage, type RefusedReason } from './protocol'
@@ -502,9 +502,3 @@ export class HostSession extends Subscribable<HostSnapshot> {
   }
 }
 
-/** A hero to show for a sync request: the one in the game, and the sheet the player wants. */
-export function syncRequestFor(game: Game, heroId: string): { hero: HeroInGame; sheet: Hero; at: string } | undefined {
-  const request = game.pendingSyncs.find((r) => r.heroId === heroId)
-  const hero = findHero(game, heroId)
-  return request && hero ? { hero, sheet: request.sheet, at: request.at } : undefined
-}

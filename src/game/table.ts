@@ -9,7 +9,7 @@
  */
 import type { Appearance, CharColor } from '../colors/palette'
 import { nameList } from './names'
-import { stepDie } from '../rules/dice'
+import { shrinksAway, stepDie } from '../rules/dice'
 import type { Die, Zone } from '../rules/types'
 import { heroDisplayName, type Hero, type PlayHistoryEntry, type PlayMod, type PlayState } from '../hero/model'
 import { appendHistory, currentHealth, describeMod, setHealth, setReactionUsed, type Clock } from '../play/state'
@@ -41,7 +41,8 @@ export function withLog(game: Game, entries: readonly GameFeedEntry[]): Game {
   return entries.length ? { ...game, feed: [...game.feed, ...entries].slice(-FEED_LIMIT) } : game
 }
 
-const line = (clock: Clock, text: string, options: { by?: string; gmOnly?: boolean; details?: string[] } = {}): GameFeedEntry => ({
+/** A log line, by the GM unless `by` says who: the one maker of log lines. */
+export const feedLine = (clock: Clock, text: string, options: { by?: string; gmOnly?: boolean; details?: string[] } = {}): GameFeedEntry => ({
   id: clock.newId(),
   at: clock.now.toISOString(),
   by: options.by ?? GM,
@@ -50,13 +51,13 @@ const line = (clock: Clock, text: string, options: { by?: string; gmOnly?: boole
   ...(options.gmOnly ? { gmOnly: true as const } : {}),
 })
 
-const log = (game: Game, clock: Clock, text: string, options?: { by?: string; gmOnly?: boolean; details?: string[] }) => withLog(game, [line(clock, text, options)])
+const log = (game: Game, clock: Clock, text: string, options?: { by?: string; gmOnly?: boolean; details?: string[] }) => withLog(game, [feedLine(clock, text, options)])
 
 /** Adds a character's new history entries to the log under its name (hidden while it is). */
 export function shareHistory(game: Game, by: string, entries: readonly { id: string; text: string; details?: string[] }[], clock: Clock, gmOnly = false): Game {
   return withLog(
     game,
-    entries.map((e) => line(clock, e.text, { by, gmOnly, ...(e.details ? { details: e.details } : {}) })),
+    entries.map((e) => feedLine(clock, e.text, { by, gmOnly, ...(e.details ? { details: e.details } : {}) })),
   )
 }
 
@@ -104,7 +105,7 @@ export function setupScene(game: Game, setup: { name: string; counts: TrackerCou
   if (name !== before.name) lines.push(name ? `The scene is now ${name}.` : 'The scene has no name now.')
   if (tracker.join() !== before.tracker.join()) lines.push(`The scene tracker now has ${setup.counts.green} green, ${setup.counts.yellow} yellow and ${setup.counts.red} red ${tracker.length === 1 ? 'box' : 'boxes'}.`)
   if (position !== before.position || (lines.length && setup.reset)) lines.push(`The scene tracker is at ${boxLabel(tracker, position)}.`)
-  return withLog(changeCurrentScene(game, (s) => ({ ...s, name, tracker: { ...setup.counts }, position })), lines.map((text) => line(clock, text)))
+  return withLog(changeCurrentScene(game, (s) => ({ ...s, name, tracker: { ...setup.counts }, position })), lines.map((text) => feedLine(clock, text)))
 }
 
 // ---- What's on the table ----
@@ -561,7 +562,7 @@ export function resolveDanger(game: Game, villainId: string, success: boolean, c
   if (box >= tracker.length) return log(spend({}), clock, villain.hidden ? 'The scene tracker has run out.' : `${name} made the scene more dangerous, but the scene tracker has run out.`)
   const moved = spend({ box }, changeCurrentScene(game, (s) => ({ ...s, position: box })))
   const label = boxLabel(tracker, box)
-  return villain.hidden ? withLog(moved, [line(clock, `The scene tracker moved to ${label}.`), line(clock, `${name} made the scene more dangerous.`, { gmOnly: true })]) : log(moved, clock, `${name} made the scene more dangerous. The scene tracker moved to ${label}.`)
+  return villain.hidden ? withLog(moved, [feedLine(clock, `The scene tracker moved to ${label}.`), feedLine(clock, `${name} made the scene more dangerous.`, { gmOnly: true })]) : log(moved, clock, `${name} made the scene more dangerous. The scene tracker moved to ${label}.`)
 }
 
 /** Takes it back: the tracker moves back if it moved, and the use returns. */
@@ -630,11 +631,11 @@ export function removeMember(game: Game, groupId: string, memberId: string, cloc
   if (!group || !member) return game
   const gmOnly = group.hidden
   const name = memberName(group, member.n)
-  const lines = why === 'ko' ? [] : [line(clock, why === 'shrank' ? `${name} shrank away and is gone.` : `${name} was removed.`, { gmOnly })]
+  const lines = why === 'ko' ? [] : [feedLine(clock, why === 'shrank' ? `${name} shrank away and is gone.` : `${name} was removed.`, { gmOnly })]
   const members = group.members.filter((m) => m.id !== memberId)
   if (members.length) return withLog(changeGroup(game, groupId, (g) => ({ ...g, members })), lines)
   const without = syncTurnOrder({ ...game, groups: game.groups.filter((g) => g.id !== groupId) })
-  return withLog(without, [...lines, line(clock, `Everyone in ${group.name} is out; the group left the table.`, { gmOnly })])
+  return withLog(without, [...lines, feedLine(clock, `Everyone in ${group.name} is out; the group left the table.`, { gmOnly })])
 }
 
 /** Drops a member one die size; on a d4 it's removed instead. */
@@ -642,7 +643,7 @@ export function shrinkMember(game: Game, groupId: string, memberId: string, cloc
   const group = findGroup(game, groupId)
   const member = group?.members.find((m) => m.id === memberId)
   if (!group || !member) return game
-  if (member.die === 'd4') return removeMember(game, groupId, memberId, clock, 'shrank')
+  if (shrinksAway(member.die)) return removeMember(game, groupId, memberId, clock, 'shrank')
   const die = stepDie(member.die, -1)
   const shrunk = changeGroup(game, groupId, (g) => ({ ...g, members: g.members.map((m) => (m.id === memberId ? { ...m, die } : m)) }))
   return log(shrunk, clock, `${memberName(group, member.n)} shrank to ${die}.`, { gmOnly: group.hidden })
@@ -724,7 +725,7 @@ function changeChallenge(game: Game, challengeId: string, change: (c: Challenge)
 export function closeRequests(game: Game, challengeId: string, clock: Clock): Game {
   const challenge = game.challenges.find((c) => c.id === challengeId)
   if (!challenge?.requests.length) return game
-  const lines = challenge.requests.map((r): GameFeedEntry => ({ ...line(clock, 'The GM closed this challenge before answering.', { by: challenge.name }), forHero: r.heroId }))
+  const lines = challenge.requests.map((r): GameFeedEntry => ({ ...feedLine(clock, 'The GM closed this challenge before answering.', { by: challenge.name }), forHero: r.heroId }))
   return withLog(changeChallenge(game, challengeId, (c) => ({ ...c, requests: [] })), lines)
 }
 
@@ -857,8 +858,8 @@ export function startRound(game: Game, first: ActorRef, clock: Clock): Game {
   const next = { ...game, round, turn: { ...game.turn, acted: [], current: first } }
   const gmOnly = isHidden(game, first)
   const lines = gmOnly
-    ? [line(clock, `Round ${round} started.`), line(clock, `${itemName(game, first)} goes first.`, { gmOnly: true })]
-    : [line(clock, `Round ${round} started. ${itemName(game, first)} goes first.`)]
+    ? [feedLine(clock, `Round ${round} started.`), feedLine(clock, `${itemName(game, first)} goes first.`, { gmOnly: true })]
+    : [feedLine(clock, `Round ${round} started. ${itemName(game, first)} goes first.`)]
   return startTurn(withLog(next, lines), first, clock)
 }
 

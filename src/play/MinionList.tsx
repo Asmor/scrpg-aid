@@ -13,6 +13,7 @@ import { ColorSelect } from '../colors/ColorSelect'
 import { appearanceOf, type CharColor } from '../colors/palette'
 import { CharSwatch } from '../components/CharBand'
 import { rollDie } from '../rules/rolling'
+import { DICE } from '../rules/dice'
 import { useSettings } from '../settings/context'
 import type { BasicAction, Die, MinionForm } from '../rules/types'
 import { minionAction, minionActionText, minionEffect, minionMath, takesAnyAction, type MinionRoll } from './minions'
@@ -22,7 +23,6 @@ import { describeMod, modName } from './state'
 
 const ACTIONS: readonly BasicAction[] = ['attack', 'defend', 'boost', 'hinder', 'overcome']
 const ACTION_NAME: Record<BasicAction, string> = { attack: 'Attack', defend: 'Defend', boost: 'Boost', hinder: 'Hinder', overcome: 'Overcome' }
-const DICE: readonly Die[] = ['d4', 'd6', 'd8', 'd10', 'd12']
 
 function Badge({ value }: { value: number }) {
   return <span className={value > 0 ? 'mod-badge mod-badge--bonus' : 'mod-badge mod-badge--penalty'}>{value > 0 ? `+${value}` : `−${-value}`}</span>

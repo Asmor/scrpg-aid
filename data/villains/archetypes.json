@@ -22,7 +22,7 @@
     {
       "id": "domain", "number": 2, "name": "Domain", "book": "core-rules", "page": 222, "healthModifier": 30,
       "suggestedApproaches": ["dampening", "overpowered"],
-      "status": { "basis": "count", "counts": "environment minions, lieutenants, and/or challenges in the scene", "tiers": [
+      "status": { "basis": "count", "tableCount": "environmentGroupsAndChallenges", "counts": "environment minions, lieutenants, and/or challenges in the scene", "tiers": [
         { "min": 3, "die": "d10" }, { "min": 1, "max": 2, "die": "d8" }, { "min": 0, "max": 0, "die": "d6" }
       ] },
       "abilities": {
@@ -110,7 +110,7 @@
     {
       "id": "inhibitor", "number": 7, "name": "Inhibitor", "book": "core-rules", "page": 227, "healthModifier": 10,
       "suggestedApproaches": ["dampening", "focused"],
-      "status": { "basis": "count", "counts": "heroes with at least one penalty", "tiers": [
+      "status": { "basis": "count", "tableCount": "heroesWithPenalty", "counts": "heroes with at least one penalty", "tiers": [
         { "min": 3, "die": "d10" }, { "min": 1, "max": 2, "die": "d8" }, { "min": 0, "max": 0, "die": "d6" }
       ] },
       "abilities": {
@@ -148,7 +148,7 @@
       "suggestedApproaches": ["adaptive", "creator", "tactician"],
       "pairingNote": { "approaches": ["creator"], "text": "If pairing with Creator, avoid overlapping abilities." },
       "needsMinionMaker": { "note": "A Legion villain needs some way to create more minions (from an approach ability, archetype ability, or upgrade)." },
-      "status": { "basis": "count", "counts": "minions in the scene allied with the villain", "tiers": [
+      "status": { "basis": "count", "tableCount": "gmMinions", "counts": "minions in the scene allied with the villain", "tiers": [
         { "min": 9, "die": "d4" }, { "min": 5, "max": 8, "die": "d6" }, { "min": 3, "max": 4, "die": "d8" }, { "min": 1, "max": 2, "die": "d10" }, { "min": 0, "max": 0, "die": "d12" }
       ] },
       "abilities": {
@@ -169,7 +169,7 @@
     {
       "id": "loner", "number": 10, "name": "Loner", "book": "core-rules", "page": 230, "healthModifier": 10,
       "suggestedApproaches": ["leech", "relentless", "skilled"],
-      "status": { "basis": "count", "counts": "other villains in the scene allied with the villain", "tiers": [
+      "status": { "basis": "count", "tableCount": "otherVillains", "counts": "other villains in the scene allied with the villain", "tiers": [
         { "min": 0, "max": 0, "die": "d10" }, { "min": 1, "max": 2, "die": "d8" }, { "min": 3, "die": "d6" }
       ] },
       "abilities": {
@@ -188,7 +188,7 @@
       "id": "overlord", "number": 11, "name": "Overlord", "book": "core-rules", "page": 231, "healthModifier": 15,
       "suggestedApproaches": ["creator", "mastermind", "tactician"],
       "pairingNote": { "approaches": ["creator"], "text": "If pairing with Creator, avoid overlapping abilities." },
-      "status": { "basis": "count", "counts": "minions and lieutenants loyal to the villain in the scene", "tiers": [
+      "status": { "basis": "count", "tableCount": "gmMinionsAndLieutenants", "counts": "minions and lieutenants loyal to the villain in the scene", "tiers": [
         { "min": 9, "die": "d12" }, { "min": 5, "max": 8, "die": "d10" }, { "min": 3, "max": 4, "die": "d8" }, { "min": 1, "max": 2, "die": "d6" }, { "min": 0, "max": 0, "die": "d4" }
       ] },
       "abilities": {
@@ -224,7 +224,7 @@
     {
       "id": "squad", "number": 13, "name": "Squad", "book": "core-rules", "page": 233, "healthModifier": 5,
       "suggestedApproaches": ["bully", "focused", "specialized"],
-      "status": { "basis": "count", "counts": "other villains in the scene", "tiers": [
+      "status": { "basis": "count", "tableCount": "otherVillains", "counts": "other villains in the scene", "tiers": [
         { "min": 0, "max": 0, "die": "d6" }, { "min": 1, "max": 2, "die": "d8" }, { "min": 3, "die": "d10" }
       ] },
       "abilities": {

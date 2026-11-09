@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareDice, isDie, sortDice, stepDie } from './dice'
+import { compareDice, isDie, shrinksAway, sortDice, stepDie } from './dice'
 
 describe('dice', () => {
   it('recognizes dice', () => {
@@ -30,5 +30,12 @@ describe('dice', () => {
   it('rejects fractional steps and inverted bounds', () => {
     expect(() => stepDie('d8', 1.5)).toThrow(RangeError)
     expect(() => stepDie('d8', 1, { min: 'd10', max: 'd6' })).toThrow(RangeError)
+  })
+})
+
+describe('shrinksAway', () => {
+  it('is true only for the smallest die', () => {
+    expect(shrinksAway('d4')).toBe(true)
+    expect(['d6', 'd8', 'd10', 'd12'].map((d) => shrinksAway(d as 'd6'))).toEqual([false, false, false, false])
   })
 })

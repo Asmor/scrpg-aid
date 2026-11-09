@@ -17,7 +17,7 @@ import { emptyPlay } from '../play/state'
 import { clearDefenses } from '../play/defense'
 import { emptyVillainPlay } from '../villain/play'
 import { betweenIssues, createIssue, createScene, currentScene, emptyOffTable, gameDisplayName, sceneName, sceneNumber, trackerFromCounts, type PlayersSee, type Challenge, type EnvironmentOnTable, type Game, type NpcGroup, type OffTable, type OppositionRef, type Scene, type SceneItem, type SceneItemSource, type VillainInGame } from './model'
-import { boxLabel, closeRequests, environmentLetsGo, newChallenge, newGroup, newVillainCopy, placeEnvironment, removeFromTable, setHidden, setupScene, syncTurnOrder, withLog, withTitanChallenge, type ChallengeSpec, type GroupSpec } from './table'
+import { boxLabel, closeRequests, environmentLetsGo, newChallenge, newGroup, newVillainCopy, placeEnvironment, removeFromTable, setHidden, setupScene, syncTurnOrder, feedLine, withLog, withTitanChallenge, type ChallengeSpec, type GroupSpec } from './table'
 
 export const refKey = (ref: OppositionRef) => `${ref.kind}:${ref.id}`
 export const sameRef = (a: OppositionRef, b: OppositionRef) => a.kind === b.kind && a.id === b.id
@@ -170,9 +170,6 @@ export function sceneChips(game: Game, scene: Scene): SceneChip[] {
   return rows.map((r, i) => ({ key: r.key, text: `${r.title}${numbers[i]}${r.note}`, hidden: r.hidden }))
 }
 
-/** Scene numbers and names for the card and menus: "Scene 3" for an unnamed scene. */
-export const sceneTitle = (game: Game, scene: Scene) => (scene.name.trim() ? sceneName(scene) : `Scene ${sceneNumber(game, scene.id)}`)
-
 // ---- Moving things on and off the table ----
 
 /** Drops off-table copies nothing refers to: no planned scene names them and they aren't set aside. */
@@ -190,7 +187,7 @@ function withCopies(game: Game, copies: OffTable): Game {
   return { ...game, offTable: { villains: [...villains, ...copies.villains], groups: [...groups, ...copies.groups], challenges: [...challenges, ...copies.challenges], environments: [...environments, ...copies.environments] } }
 }
 
-const logLine = (clock: Clock, text: string, gmOnly: boolean) => ({ id: clock.newId(), at: clock.now.toISOString(), by: 'GM', text, ...(gmOnly ? { gmOnly: true as const } : {}) })
+const logLine = (clock: Clock, text: string, gmOnly: boolean) => feedLine(clock, text, { gmOnly })
 
 /** Brings an off-table villain, group or challenge onto the table, and out of set aside. */
 export function moveToTable(game: Game, ref: OppositionRef, hidden: boolean, clock: Clock): Game {

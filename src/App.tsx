@@ -1,48 +1,53 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { listPath, useRoute } from './app/route'
 import { StoreContext } from './app/store-context'
 import { LibraryPage } from './library/LibraryPage'
 import { createDefaultSavedSearchStore, type SavedSearchStore } from './library/saved-searches'
 import { SavedSearchStoreContext } from './app/saved-search-context'
 import type { BackupTimeStore } from './library/backup-time'
-import { HeroPage } from './components/HeroPage'
-import { AdvancementPage } from './advancement/AdvancementPage'
-import { HeroEditor } from './editor/HeroEditor'
 import { VillainStoreContext } from './app/villain-store-context'
 import { TemplateStoresContext } from './app/template-store-context'
 import { createDefaultTemplateStores, type TemplateStores } from './template/store'
 import { createDefaultVillainStore, type VillainStore } from './villain/store'
-import { NewVillain, VillainWizard } from './villain/VillainWizard'
-import { VillainPage } from './villain/VillainPage'
-import { VillainPlayPage } from './villain/VillainPlayPage'
 import { GameStoreContext } from './app/game-store-context'
 import { createDefaultGameStore, type GameStore } from './game/store'
-import { GamePage } from './game/GamePage'
-import { GamesPage } from './game/GamesPage'
-import { GameDisplayPage } from './game/GameDisplayPage'
 import { createDefaultJoinedStore, type JoinedStore } from './game/joined-store'
 import { JoinedStoreContext } from './app/joined-store-context'
-import { PlayerTable } from './game/PlayerTable'
-import { JoinPage } from './session/JoinPage'
-import { WatchPage } from './session/WatchPage'
-import { ReceivePage } from './session/ReceivePage'
-import { TemplateEditor } from './template/TemplateEditor'
 import { SessionProvider } from './session/SessionProvider'
 import type { Connect } from './session/transport'
 import type { SessionStore } from './session/storage'
 import { HelpMenu } from './help/HelpMenu'
-import { HelpPage } from './help/HelpPage'
 import { HelpProvider } from './help/HelpProvider'
 import { ThemeToggle } from './components/ThemeToggle'
 import { createDefaultStore, type HeroStore } from './hero/store'
 import { useTheme } from './theme/useTheme'
 import { SettingsLink } from './settings/SettingsLink'
-import { SettingsPage } from './settings/SettingsPage'
 import { PhoneMenu } from './library/LibraryHeader'
 import { useMediaQuery } from './components/useMediaQuery'
 import type { ThemePreference } from './theme/theme'
 import { SettingsProvider } from './settings/SettingsProvider'
 import { createDefaultSettingsStore, type SettingsStore } from './settings/store'
+
+// Every page but the library (the home screen) loads when first opened, so the first load is
+// smaller (review 2026-11-09, item 18). The service worker precaches every chunk, so they all
+// still work offline.
+const HeroPage = lazy(() => import('./components/HeroPage').then((m) => ({ default: m.HeroPage })))
+const AdvancementPage = lazy(() => import('./advancement/AdvancementPage').then((m) => ({ default: m.AdvancementPage })))
+const HeroEditor = lazy(() => import('./editor/HeroEditor').then((m) => ({ default: m.HeroEditor })))
+const NewVillain = lazy(() => import('./villain/VillainWizard').then((m) => ({ default: m.NewVillain })))
+const VillainWizard = lazy(() => import('./villain/VillainWizard').then((m) => ({ default: m.VillainWizard })))
+const VillainPage = lazy(() => import('./villain/VillainPage').then((m) => ({ default: m.VillainPage })))
+const VillainPlayPage = lazy(() => import('./villain/VillainPlayPage').then((m) => ({ default: m.VillainPlayPage })))
+const GamePage = lazy(() => import('./game/GamePage').then((m) => ({ default: m.GamePage })))
+const GamesPage = lazy(() => import('./game/GamesPage').then((m) => ({ default: m.GamesPage })))
+const GameDisplayPage = lazy(() => import('./game/GameDisplayPage').then((m) => ({ default: m.GameDisplayPage })))
+const PlayerTable = lazy(() => import('./game/PlayerTable').then((m) => ({ default: m.PlayerTable })))
+const JoinPage = lazy(() => import('./session/JoinPage').then((m) => ({ default: m.JoinPage })))
+const WatchPage = lazy(() => import('./session/WatchPage').then((m) => ({ default: m.WatchPage })))
+const ReceivePage = lazy(() => import('./session/ReceivePage').then((m) => ({ default: m.ReceivePage })))
+const TemplateEditor = lazy(() => import('./template/TemplateEditor').then((m) => ({ default: m.TemplateEditor })))
+const HelpPage = lazy(() => import('./help/HelpPage').then((m) => ({ default: m.HelpPage })))
+const SettingsPage = lazy(() => import('./settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 
 interface AppProps {
   store?: HeroStore
@@ -79,6 +84,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
       <TemplateStoresContext.Provider value={templateStores}>
       <SessionProvider {...(connect ? { connect } : {})} {...(sessionStore ? { store: sessionStore } : {})}>
       <HelpProvider>
+      <Suspense fallback={<p className="app-loading" role="status">Loading…</p>}>
       {/* The library (the home screen), the Games page and the game table have their own header bars and layouts. */}
       {route.name === 'list' ? (
         <div className="app">
@@ -134,6 +140,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
         </main>
       </div>
       )}
+      </Suspense>
       </HelpProvider>
       </SessionProvider>
       </TemplateStoresContext.Provider>

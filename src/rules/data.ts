@@ -95,12 +95,6 @@ export const healthStep = stepInfo(healthJson)
 
 export const principleCategories = typed<PrincipleCategory[]>(principlesJson.categories)
 export const principles = typed<Principle[]>(principlesJson.principles)
-export const principleStep = {
-  book: principlesJson.book,
-  page: principlesJson.page,
-  chartPage: principlesJson.chartPage,
-  count: principlesJson.count,
-}
 
 function indexById<T extends { id: string }>(items: readonly T[]): ReadonlyMap<string, T> {
   return new Map(items.map((item) => [item.id, item]))

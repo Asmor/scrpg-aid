@@ -6,7 +6,8 @@
  */
 import { stepDie } from '../rules/dice'
 import type { Die, Zone } from '../rules/types'
-import type { CountTier, VillainStatusRule } from '../rules/villain-types'
+import type { CountTier, TableCountKind, VillainStatusRule } from '../rules/villain-types'
+import { villainArchetypesById } from '../rules/villain-data'
 import { setStatusCount, setWeaknessTier, villainHealth, villainZone } from '../villain/play'
 import { buildVillainSheet } from '../villain/sheet'
 import { heroDisplayName } from '../hero/model'
@@ -39,31 +40,37 @@ const revealed = <T extends { hidden: boolean }>(items: readonly T[]) => items.f
 const groupPart = (g: { name: string; members: readonly unknown[] }) => `${g.name} ×${g.members.length}`
 
 /**
- * What the archetypes that count from the table count (section 1, "What the app counts"). The
- * others with a count rule (Guerrilla, Predator, Inventor) depend on things the app doesn't track,
- * so the GM counts them.
+ * How each kind of table count is worked out (section 1, "What the app counts"). Which archetype
+ * counts which is in the data (`status.tableCount`, data/villains/archetypes.json). The others
+ * with a count rule (Guerrilla, Predator, Inventor) depend on things the app doesn't track, so
+ * the GM counts them.
  */
-const TABLE_COUNTS: Readonly<Record<string, (villain: VillainInGame, table: StatusTable) => TableCount>> = {
+const TABLE_COUNTS: Readonly<Record<TableCountKind, (villain: VillainInGame, table: StatusTable) => TableCount>> = {
   // A villain's minions are just GM minions, so this is all of them.
-  overlord: (_, t) => {
+  gmMinionsAndLieutenants: (_, t) => {
     const groups = revealed(t.groups).filter((g) => g.owner.kind === 'gm')
     return { count: groups.reduce((n, g) => n + g.members.length, 0), parts: groups.map(groupPart) }
   },
-  legion: (_, t) => {
+  gmMinions: (_, t) => {
     const groups = revealed(t.groups).filter((g) => g.owner.kind === 'gm' && g.kind === 'minions')
     return { count: groups.reduce((n, g) => n + g.members.length, 0), parts: groups.map(groupPart) }
   },
-  domain: (_, t) => {
+  environmentGroupsAndChallenges: (_, t) => {
     const groups = revealed(t.groups).filter((g) => g.owner.kind === 'environment')
     const challenges = revealed(t.challenges).filter((c) => c.owner.kind === 'environment' && !challengeDone(c))
     return { count: groups.reduce((n, g) => n + g.members.length, 0) + challenges.length, parts: [...groups.map(groupPart), ...challenges.map((c) => c.name)] }
   },
-  squad: (v, t) => otherVillains(v, t),
-  loner: (v, t) => otherVillains(v, t),
-  inhibitor: (_, t) => {
+  otherVillains: (v, t) => otherVillains(v, t),
+  heroesWithPenalty: (_, t) => {
     const heroes = t.heroes.filter((h) => h.play.mods.some((m) => m.value < 0))
     return { count: heroes.length, parts: heroes.map((h) => heroDisplayName(h.sheet)) }
   },
+}
+
+/** What a villain's archetype counts from the table, from the data; unset when the GM keeps its count. */
+function tableCountKind(villain: Pick<VillainInGame, 'sheet'>): TableCountKind | undefined {
+  const status = villain.sheet.archetype && villainArchetypesById.get(villain.sheet.archetype.id)?.status
+  return status?.basis === 'count' ? status.tableCount : undefined
 }
 
 function otherVillains(villain: VillainInGame, table: StatusTable): TableCount {
@@ -98,13 +105,10 @@ const FALLBACK_WORDS: CountWords = { label: () => 'The count', rule: 'its count'
 
 const wordsFor = (archetypeId: string | undefined) => COUNT_WORDS[archetypeId ?? ''] ?? FALLBACK_WORDS
 
-/** Whether a villain's count comes from the table (the GM can override it), or is the GM's to keep. */
-export const countsFromTable = (villain: Pick<VillainInGame, 'sheet'>) => Boolean(villain.sheet.archetype && Object.hasOwn(TABLE_COUNTS, villain.sheet.archetype.id))
-
 /** What the table says for a villain whose count comes from it. */
 export function tableCount(villain: VillainInGame, table: StatusTable): TableCount | undefined {
-  const count = villain.sheet.archetype && Object.hasOwn(TABLE_COUNTS, villain.sheet.archetype.id) ? TABLE_COUNTS[villain.sheet.archetype.id] : undefined
-  return count?.(villain, table)
+  const kind = tableCountKind(villain)
+  return kind && TABLE_COUNTS[kind](villain, table)
 }
 
 /** The stepper's label: "GM minions and lieutenants in the scene". */
