@@ -465,7 +465,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
               const to = parseTarget(a.to)
               const by = villainDisplayName(runningVillain.sheet)
               if (!to) return x
-              if (a.kind === 'mod') return giveMod(x, to, a.mod, by, clock(), !runningVillain.hidden)
+              if (a.kind === 'mod') return giveMod(x, to, a.mod, by, clock(), !runningVillain.hidden, runningVillain.hidden)
               if (a.kind === 'attack') return applyAttack(x, by, to, a.amount, random ?? Math.random, clock(), runningVillain.hidden).game
               return protect(x, by, to, a.amount, clock(), runningVillain.hidden)
             }, g),

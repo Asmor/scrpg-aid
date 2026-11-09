@@ -7,7 +7,8 @@ import { adaptiveBruiser } from '../test/villains'
 import type { Villain } from '../villain/model'
 import { createGame, type Game } from './model'
 import { project, VIEW_HISTORY, viewName } from './project'
-import { addChallenge, addGroup, addHero, addMemberMod, addVillain, changeHeroPlay, changeVillainPlay, handOff, setEnvironment, setHidden, setPlayersSee, startRound } from './table'
+import { addChallenge, addGroup, addHero, addMemberMod, addVillain, changeHeroPlay, changeVillainPlay, handOff, setEnvironment, setHidden, setPlayersSee, startRound, UNSEEN } from './table'
+import { applyGroupRoll, giveMod, protect } from './resolve'
 import { logEnvironmentRoll, rollAspects } from './environment'
 import { setHealth } from '../play/state'
 import { villainHealth } from '../villain/play'
@@ -82,6 +83,30 @@ describe('project', () => {
       g = logEnvironmentRoll(g, rollAspects(g.environment!.aspects!, () => 0)!, c)
       expect(texts(g)).toEqual(['Rolled the environment dice: Min 1 (Fog), Mid 1 (Cranes), Max 1 (Tide).'])
     })
+  })
+
+  it("never names a hidden source in a hero's mods, defenses or history (review 2026-11-09, item 2)", () => {
+    const c = clock()
+    let g = secretive()
+    const heroId = g.heroes[0]!.id
+    const group = g.groups.find((x) => x.hidden)!
+    const hiddenVillain = g.villains.find((v) => v.hidden)!
+    const to = { kind: 'hero' as const, id: heroId }
+    const row = (memberId: string, total: number) => ({ memberId, roll: { die: 'd6' as const, value: total, mods: [], total }, target: to })
+    g = applyGroupRoll(g, group.id, 'hinder', [row(group.members[0]!.id, 4)], () => 0.5, c)
+    g = applyGroupRoll(g, group.id, 'defend', [row(group.members[1]!.id, 3)], () => 0.5, c)
+    g = giveMod(g, to, { label: 'Shadow strike', value: -1 }, 'Shadow', c, false, true)
+    g = protect(g, 'Shadow', to, 2, c, true)
+    expect(hiddenVillain.sheet.details.name).toBe('Shadow')
+    const hero = project(g, 'player', heroId).heroes[0]!
+    const json = JSON.stringify(hero.play)
+    expect(json).not.toContain('Hidden drones')
+    expect(json).not.toMatch(/from Shadow/)
+    expect(hero.play.mods.map((m) => m.label)).toContain(UNSEEN)
+    expect(hero.play.defenses!.map((d) => d.from)).toEqual([UNSEEN, UNSEEN])
+    expect(hero.play.history.some((e) => e.text.includes(`from ${UNSEEN}`))).toBe(true)
+    // The GM's log still names them.
+    expect(g.feed.some((e) => e.gmOnly && e.text.startsWith('Hidden drones'))).toBe(true)
   })
 
   it("keeps a lieutenant's abilities for the GM", () => {

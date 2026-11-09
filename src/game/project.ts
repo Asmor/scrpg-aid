@@ -19,7 +19,7 @@ import type { PlayMod, PlayTwist } from '../hero/model'
 import type { PlayZone } from '../play/state'
 import type { Die } from '../rules/types'
 import { challengeDone, sceneOnTable, type ActorRef, type Issue, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type NpcGroup, type PendingHit, type PlayersSee, type SceneOnTable } from './model'
-import { groupLabel, isHidden, sameActor } from './table'
+import { groupLabel, isHidden, sameActor, UNSEEN } from './table'
 import { villainStatus } from './villain-status'
 
 export type Audience = 'gm' | 'player' | 'observer'
@@ -153,7 +153,7 @@ export function project(game: Game, audience: Audience, heroId?: string): TableV
     // A lieutenant's abilities are the GM's notes, like a hidden villain's sheet.
     groups: gm ? shown(game.groups) : shown(game.groups).map(withoutAbilities),
     challenges: gm ? shown(game.challenges) : shown(game.challenges).map((c) => challengeFor(c, heroId)),
-    ...(game.pendingHits?.length ? { pendingHits: gm ? game.pendingHits : game.pendingHits.map(({ gmOnly, ...h }) => (gmOnly ? { ...h, by: 'Someone unseen' } : h)) } : {}),
+    ...(game.pendingHits?.length ? { pendingHits: gm ? game.pendingHits : game.pendingHits.map(({ gmOnly, ...h }) => (gmOnly ? { ...h, by: UNSEEN } : h)) } : {}),
     feed: gm ? game.feed : game.feed.filter((e) => !e.gmOnly && (!e.forHero || (heroId !== undefined && e.forHero === heroId))),
   }
 }

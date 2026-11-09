@@ -19,7 +19,7 @@ import type { TableTarget } from './actions'
 import type { Game } from './model'
 import { applySave, groupSaveMods, heroMinionSave, memberSaveText, rollSave, usedUp, ACTION_NAME, type GroupRollRow, type Random } from './npc'
 import { defend, hitCharacter } from './hits'
-import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, memberName, withLog } from './table'
+import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, memberName, seenAs, withLog } from './table'
 
 /** The target's name, or undefined when it isn't on the table any more. */
 export function targetName(game: Game, to: TableTarget): string | undefined {
@@ -53,9 +53,11 @@ const line = (clock: Clock, by: string, text: string, gmOnly: boolean) => ({ id:
 
 /**
  * Gives `to` a bonus or penalty from `from`. A hero's or villain's history notes it (and, with
- * `share`, the log does too); a member's or minion's gets its own line.
+ * `share`, the log does too); a member's or minion's gets its own line. A hidden giver
+ * (`fromHidden`) is "Someone unseen" in the target's history.
  */
-export function giveMod(game: Game, to: TableTarget, mod: Omit<PlayMod, 'id'>, from: string, clock: Clock, share = true): Game {
+export function giveMod(game: Game, to: TableTarget, mod: Omit<PlayMod, 'id'>, giver: string, clock: Clock, share = true, fromHidden = false): Game {
+  const from = seenAs(giver, fromHidden)
   switch (to.kind) {
     case 'hero':
       return changeHeroPlay(game, to.id, (p) => addMod(p, mod, clock, { from }), clock, share)
@@ -92,11 +94,14 @@ export function applyAttack(game: Game, by: string, to: TableTarget, amount: num
   return { game: applySave(logged, group.id, s, clock), note: memberSaveText(name, group.kind, member.die, s) }
 }
 
-/** `by` protects `to` with a Defend of `value`, and the log says so ("Gravelord protected Burglar 2: Defend 3."). */
+/**
+ * `by` protects `to` with a Defend of `value`, and the log says so ("Gravelord protected Burglar 2: Defend 3.").
+ * `gmOnly` means `by` is hidden: the line is the GM's, and the defense is from "Someone unseen".
+ */
 export function protect(game: Game, by: string, to: TableTarget, value: number, clock: Clock, gmOnly = false): Game {
   const name = targetName(game, to)
   if (!name) return game
-  return withLog(defend(game, to, value, by, clock), [line(clock, by, `${by} protected ${name}: Defend ${value}.`, gmOnly || targetHidden(game, to))])
+  return withLog(defend(game, to, value, seenAs(by, gmOnly), clock), [line(clock, by, `${by} protected ${name}: Defend ${value}.`, gmOnly || targetHidden(game, to))])
 }
 
 /** "a −2 penalty", "a +1 bonus", or "no bonus" for a size of 0. */
@@ -156,12 +161,12 @@ export function applyGroupRoll(game: Game, groupId: string, action: BasicAction,
         const sign = action === 'boost' ? 1 : -1
         const size = modSize(row.roll.total)
         say(`${name} ${action === 'boost' ? 'boosted' : 'hindered'} ${toName}: ${sized(size, sign)}.`)
-        if (size > 0) next = giveMod(next, target, { label: group.name, value: sign * size }, name, clock, false)
+        if (size > 0) next = giveMod(next, target, { label: seenAs(group.name, gmOnly), value: sign * size }, name, clock, false, gmOnly)
         break
       }
       case 'defend':
         say(`${name} defended ${toName}: Defend ${amount}.`)
-        next = defend(next, target, amount, name, clock)
+        next = defend(next, target, amount, seenAs(name, gmOnly), clock)
         break
     }
   }

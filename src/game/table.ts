@@ -26,6 +26,12 @@ import { validCounts } from './validate'
 
 export const GM = 'GM'
 
+/** How a hidden actor is named wherever players could read it: a hero's mods, defenses and history, and waiting hits. */
+export const UNSEEN = 'Someone unseen'
+
+/** An actor's name as it's written into others' play state: unnamed while it's hidden, so revealing it later spoils nothing. */
+export const seenAs = (name: string, hidden: boolean) => (hidden ? UNSEEN : name)
+
 const ZONE_NAME: Record<Zone, string> = { green: 'Green', yellow: 'Yellow', red: 'Red' }
 
 // ---- The log ----

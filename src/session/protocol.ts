@@ -312,7 +312,7 @@ export function fitView(view: TableView): TableView {
       ...(i.offeredTo ? { offeredTo: first(i.offeredTo, VIEW_LIMITS.offeredTo).map((o) => ({ ...o, name: cut(o.name, MAX_NAME) })) } : {}),
       sceneCount: upTo(i.sceneCount, 0, 1000),
     })),
-    scene: { ...view.scene, name: cut(view.scene.name, MAX_NAME), number: upTo(view.scene.number, 1, 1000) },
+    scene: { ...view.scene, name: cut(view.scene.name, MAX_NAME), tracker: first(view.scene.tracker, VIEW_LIMITS.tracker), number: upTo(view.scene.number, 1, 1000) },
     ...(environment ? { environment: { ...environment, name: cut(environment.name, MAX_NAME), ...optionalText('description', environment.description, MAX_TEXT) } } : {}),
     round: upTo(view.round, 0, 1000),
     heroPoints: upTo(view.heroPoints, 0, 1000),

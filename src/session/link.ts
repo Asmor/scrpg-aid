@@ -138,7 +138,8 @@ export abstract class HostLink<S extends LinkSnapshot> extends Subscribable<S> {
       const isState = (raw as { type?: unknown }).type === 'state'
       // A GM's device on the older version of the app sends version 1 states.
       if (v !== undefined && v < PROTOCOL_VERSION && isState) this.refuse('oldHost')
-      // A state from the GM that fails the checks (too long, say): never drop it silently.
+      // A state from the GM that fails the checks (too long, say): never drop it silently. Before the
+      // GM is known any peer's counts; a stray one only shows the banner until the next good state.
       else if (v === PROTOCOL_VERSION && isState && (!this.gmPeer || peer === this.gmPeer)) this.outOfSync(peer)
       return
     }
