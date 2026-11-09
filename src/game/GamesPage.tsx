@@ -40,7 +40,7 @@ import { downloadFile } from '../transfer/download'
 import { gameFileName, gameJson } from '../transfer/files'
 import { duplicateGame } from './scenes'
 import { isSoloGameId } from './solo'
-import { betweenIssues, createGame, currentScene, gameDisplayName, isListedGame, sceneName, sceneOnTable, type Game } from './model'
+import { betweenIssues, createGame, currentScene, gameDisplayName, isListedGame, sceneName, sceneNumber, sceneOnTable, type Game } from './model'
 import { oppositionText, sceneLine, finishedPill } from './summary'
 import { betweenIssuesNote } from './issues'
 import { MenuButton, Tracker } from './TableCenter'
@@ -74,7 +74,7 @@ function GameCard({ game, now, actions, hosting }: { game: Game; now: Date; acti
       <div>
         <div className="gt-row">
           {between ? (
-            <strong>{next ? `Next: ${sceneName(next)}` : sceneName(currentScene(game))}</strong>
+            <strong>{next ? `Next: ${sceneName(next)} (scene ${sceneNumber(game, next.id)}, planned)` : sceneName(currentScene(game))}</strong>
           ) : (
             <>
               <strong>{sceneName(currentScene(game))}</strong>

@@ -62,12 +62,11 @@ export function FirstPagePreview({ contents, cards, options, onOpen }: { content
   const layout = layoutCards(cards, contents, options)
   const box = pageBox(options.paper, options.columns)
   const scale = 200 / box.width
-  const count = layout.pages[0]?.columns.reduce((n, c) => n + c.length, 0) ?? 0
   return (
     <button
       type="button"
       className="ref-thumb"
-      aria-label={`Preview the pages. The first card page: ${options.columns} columns, ${count} ${count === 1 ? 'card' : 'cards'}`}
+      aria-label="Preview page 1"
       style={{ width: box.width * scale, height: box.height * scale }}
       onClick={onOpen}
     >

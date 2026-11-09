@@ -186,7 +186,7 @@ export function ApproachStep({ villain, update, confirm, suggest }: StepProps) {
                     }
                   />
                 </div>
-                <p className="hint vw-assign__note">Roleplaying quality, always {villainRoleplayingQuality.die}</p>
+                <p className="hint vw-assign__note">Roleplaying quality, always <DieIcon die={villainRoleplayingQuality.die} size="inline" /></p>
               </div>
             </div>
           </Section>

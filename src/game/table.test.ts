@@ -482,7 +482,7 @@ describe('groups', () => {
     game = shrinkMember(game, groupId, game.groups[0]!.members[0]!.id, c)
     expect(game.groups).toEqual([])
     expect(game.turn.order).toEqual([])
-    expect(texts(game).slice(-2)).toEqual(['Rats 1 shrank away and is gone.', 'All of Rats are gone; the group left the table.'])
+    expect(texts(game).slice(-2)).toEqual(['Rats 1 shrank away and is gone.', 'Everyone in Rats is out; the group left the table.'])
   })
 
   it('keeps member numbers when one is removed', () => {

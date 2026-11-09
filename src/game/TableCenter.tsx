@@ -660,7 +660,7 @@ function ChallengeCard({ challenge, game, gm }: { challenge: Challenge; game: Ta
               </label>
             ) : (
               <>
-                <span className={step.done ? 'gt-box gt-box--on' : 'gt-box'} aria-hidden="true">
+                <span className={step.done ? 'gt-check gt-check--on' : 'gt-check'} aria-hidden="true">
                   {step.done ? '✓' : ''}
                 </span>
                 <span className="gt-step-text">{step.label}</span>
@@ -793,10 +793,10 @@ export function TableCenter({ game, heroes, villains, now, gm, hideLog = false, 
           <HelpTip tip="heroPoints" />
           {gm && (
             <span className="gt-row">
-              <button type="button" className="button button--small" aria-label="Take away a hero point" disabled={game.heroPoints <= 0} onClick={() => gm.changeHeroPoints(-1)}>
+              <button type="button" className="button button--small gt-points-step" aria-label="Take away a hero point" disabled={game.heroPoints <= 0} onClick={() => gm.changeHeroPoints(-1)}>
                 −
               </button>
-              <button type="button" className="button button--small" aria-label="Award a hero point" disabled={game.heroPoints >= MAX_HERO_POINTS} onClick={() => gm.changeHeroPoints(1)}>
+              <button type="button" className="button button--small gt-points-step" aria-label="Award a hero point" disabled={game.heroPoints >= MAX_HERO_POINTS} onClick={() => gm.changeHeroPoints(1)}>
                 +
               </button>
             </span>

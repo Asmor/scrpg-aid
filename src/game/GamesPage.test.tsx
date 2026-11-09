@@ -371,7 +371,7 @@ describe('a game between issues on the Games page', () => {
     await setup([finishIssue(game, { title: 'Saga', summary: '', heroIds: [] }, clock)])
     const card = within(await screen.findByRole('article', { name: 'Thursday game' }))
     expect(card.getByText('Issue 1 finished')).toBeInTheDocument()
-    expect(card.getByText('Next: Into the Tunnels')).toBeInTheDocument()
+    expect(card.getByText('Next: Into the Tunnels (scene 2, planned)')).toBeInTheDocument()
   })
 
   it("tells the GM who has recorded the back issue and what's unspent", async () => {

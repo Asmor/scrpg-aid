@@ -152,7 +152,7 @@ describe('member saves', () => {
     g = applySave(g, guards.id, { memberId: id, damage: 16, incoming: 16, result: { outcome: 'ko', noSave: true } }, c)
     expect(g.groups.map((x) => x.name)).toEqual(['Burglars'])
     expect(g.turn.order.some((o) => o.id === guards.id)).toBe(false)
-    expect(texts(g).slice(-2)).toEqual(["Guards 1 is KO'd outright: 16 damage is at least double its d8.", 'All of Guards are gone; the group left the table.'])
+    expect(texts(g).slice(-2)).toEqual(["Guards 1 is KO'd outright: 16 damage is at least double its d8.", 'Everyone in Guards is out; the group left the table.'])
   })
   it('gives each verdict in words', () => {
     expect(verdictText('minions', 'd8', { outcome: 'ko' }, false)).toBe("Failed · KO'd")

@@ -46,7 +46,7 @@ describe('HeroPage', () => {
   it('links back to the list while loading', () => {
     renderPage(storeReturning(() => new Promise(() => {})))
     expect(screen.getByText('Loading…')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '← All heroes' })).toHaveAttribute('href', '#/')
+    expect(screen.getByRole('link', { name: '← Library' })).toHaveAttribute('href', '#/')
   })
 
   it('says when a saved hero can’t be read', async () => {

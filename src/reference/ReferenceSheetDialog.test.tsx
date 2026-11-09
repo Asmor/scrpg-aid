@@ -85,7 +85,7 @@ describe('ReferenceSheetDialog', () => {
     const columns = within(dialog.getByRole('group', { name: 'Card columns' }))
     expect(columns.getByRole('button', { name: '2' })).toHaveAttribute('aria-pressed', 'true')
     await userEvent.click(columns.getByRole('button', { name: '3' }))
-    await userEvent.click(dialog.getByRole('button', { name: 'Preview the pages. The first card page: 3 columns, 4 cards' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Preview page 1' }))
     // Every card page full size, numbered in the whole file: the two sheets' four pages come first.
     const preview = within(screen.getByRole('dialog', { name: 'Preview' }))
     expect(preview.getByRole('img', { name: 'Page 5, 3 columns' })).toBeInTheDocument()

@@ -634,7 +634,7 @@ export function removeMember(game: Game, groupId: string, memberId: string, cloc
   const members = group.members.filter((m) => m.id !== memberId)
   if (members.length) return withLog(changeGroup(game, groupId, (g) => ({ ...g, members })), lines)
   const without = syncTurnOrder({ ...game, groups: game.groups.filter((g) => g.id !== groupId) })
-  return withLog(without, [...lines, line(clock, `All of ${group.name} are gone; the group left the table.`, { gmOnly })])
+  return withLog(without, [...lines, line(clock, `Everyone in ${group.name} is out; the group left the table.`, { gmOnly })])
 }
 
 /** Drops a member one die size; on a d4 it's removed instead. */

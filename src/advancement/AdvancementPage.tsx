@@ -567,7 +567,7 @@ export function AdvancementPage({ id, clock = defaultClock }: { id: string; cloc
     return (
       <div className="hero-page">
         <p>
-          <a href={listPath}>← All heroes</a>
+          <a href={listPath}>← Library</a>
         </p>
         {state.status === 'loading' && <p>Loading…</p>}
         {state.status === 'missing' && <p role="alert">There's no saved hero with that link. It may have been deleted.</p>}
@@ -582,7 +582,7 @@ export function AdvancementPage({ id, clock = defaultClock }: { id: string; cloc
     return (
       <div className="hero-page">
         <p>
-          <a href={listPath}>← All heroes</a>
+          <a href={listPath}>← Library</a>
         </p>
         <p role="alert">
           {name} is still a draft; advancement starts once it's finished. <a href={editPath(hero.id, continueStep(hero.furthestStep))}>Continue making this hero</a>.

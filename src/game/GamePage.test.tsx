@@ -562,7 +562,7 @@ describe('the game table', () => {
     expect(within(card).getByRole('list', { name: 'Members of Scrap drones' })).toHaveTextContent('Minion 2')
     await userEvent.click(within(card).getByRole('button', { name: 'Remove Scrap drones 2' }))
     expect(screen.queryByRole('article', { name: 'Scrap drones' })).not.toBeInTheDocument()
-    expect(log()).toHaveTextContent('All of Scrap drones are gone; the group left the table.')
+    expect(log()).toHaveTextContent('Everyone in Scrap drones is out; the group left the table.')
     expect(log()).toHaveTextContent('only you see this')
     await waitFor(async () => expect((await saved()).groups).toEqual([]))
   })

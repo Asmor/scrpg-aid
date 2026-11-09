@@ -526,13 +526,13 @@ export function PlayView({ hero, play, changePlay, heroPoints, clock, random }: 
 
       <Card title="Hero points" className="play-card--points">
         <div className="play-points">
-          <button type="button" className="button" aria-label="Spend a hero point" disabled={heroPoints <= 0} onClick={() => changePoints(-1)}>
+          <button type="button" className="button gt-points-step" aria-label="Spend a hero point" disabled={heroPoints <= 0} onClick={() => changePoints(-1)}>
             −
           </button>
           <strong aria-live="polite" aria-label={`${heroPoints} of ${MAX_HERO_POINTS} hero points`}>
             {heroPoints}
           </strong>
-          <button type="button" className="button" aria-label="Gain a hero point" disabled={heroPoints >= MAX_HERO_POINTS} onClick={() => changePoints(1)}>
+          <button type="button" className="button gt-points-step" aria-label="Gain a hero point" disabled={heroPoints >= MAX_HERO_POINTS} onClick={() => changePoints(1)}>
             +
           </button>
         </div>

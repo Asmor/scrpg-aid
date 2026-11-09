@@ -27,8 +27,8 @@ export function QrCode({ text, label }: { text: string; label: string }) {
   }, [text])
   return (
     <svg className="gt-qr" viewBox={`0 0 ${cells.n} ${cells.n}`} role="img" aria-label={label} shapeRendering="crispEdges">
-      <rect width={cells.n} height={cells.n} fill="#fff" />
-      <path d={cells.path} fill="#000" />
+      <rect width={cells.n} height={cells.n} style={{ fill: 'var(--paper)' }} />
+      <path d={cells.path} style={{ fill: 'var(--qr-ink)' }} />
     </svg>
   )
 }

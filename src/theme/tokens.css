@@ -35,6 +35,25 @@
   --game-red: #f28a80;
   --game-red-ink: #1a1d2b;
 
+  /*
+   * Paper: printed pages and their on-screen previews (reference sheets, print), and the QR
+   * code. The same in both themes, since paper is always light.
+   */
+  --paper: #ffffff;
+  --paper-ink: #1a1d2b;
+  --paper-muted: #565c70;
+  --paper-rule: #dde0ea;
+  --paper-border: #b9bdcb;
+  --paper-accent: #4347c9;
+  --paper-accent-soft: #e8e9fa;
+  --paper-danger: #8e2ba0;
+  --qr-ink: #000000;
+  /* The color picker's previews of a character on each theme's card, whichever theme is on. */
+  --preview-light-bg: #ffffff;
+  --preview-light-ink: #1a1d2b;
+  --preview-dark-bg: #1b1e2a;
+  --preview-dark-ink: #e8eaf2;
+
   --font-body: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-heading: 'Barlow Condensed', 'Arial Narrow', sans-serif;
 

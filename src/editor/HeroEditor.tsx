@@ -269,7 +269,7 @@ export function HeroEditor({ id, step: stepId, part }: { id: string; step?: stri
     return (
       <div className="hero-page">
         <p>
-          <a href={listPath}>← All heroes</a>
+          <a href={listPath}>← Library</a>
         </p>
         {state.status === 'loading' && <p>Loading…</p>}
         {state.status === 'missing' && <p role="alert">There's no saved hero with that link. It may have been deleted.</p>}

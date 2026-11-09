@@ -49,7 +49,7 @@ export function HeroPage({ id, mode = 'sheet', clock = defaultClock, random }: {
     return (
       <div className="hero-page">
         <p>
-          <a href={listPath}>← All heroes</a>
+          <a href={listPath}>← Library</a>
         </p>
         {state.status === 'loading' && <p>Loading…</p>}
         {state.status === 'missing' && <p role="alert">There's no saved hero with that link. It may have been deleted.</p>}
@@ -67,7 +67,7 @@ export function HeroPage({ id, mode = 'sheet', clock = defaultClock, random }: {
     return (
       <div className="hero-page">
         <p>
-          <a href={listPath}>← All heroes</a>
+          <a href={listPath}>← Library</a>
         </p>
         <p role="alert">
           {heroDisplayName(hero)} is still a draft. <a href={continueHref}>Continue making this hero</a> and finish it to play.
