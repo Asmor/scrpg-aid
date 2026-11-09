@@ -79,10 +79,17 @@ describe('hero rows', () => {
   it('creates a draft held in memory and opens the wizard', async () => {
     const newHeroes = new NewHeroes()
     const s = stores()
-    const path = await heroType.create!({ stores: s, newHeroes })
+    const path = await heroType.create!({ stores: s, newHeroes, rolling: 'app' })
     const id = decodeURIComponent(/#\/hero\/([^/]+)\/edit\/start/.exec(path)![1]!)
-    expect(newHeroes.get(id)?.status).toBe('draft')
+    expect(newHeroes.get(id)).toMatchObject({ status: 'draft', rollMode: 'app' })
     expect((await s.heroes.list()).heroes).toEqual([])
+  })
+
+  it("starts a new hero's Who rolls? from Settings › Rolling", async () => {
+    const newHeroes = new NewHeroes()
+    const path = await heroType.create!({ stores: stores(), newHeroes, rolling: 'physical' })
+    const id = decodeURIComponent(/#\/hero\/([^/]+)\/edit\/start/.exec(path)![1]!)
+    expect(newHeroes.get(id)?.rollMode).toBe('manual')
   })
 })
 
@@ -106,7 +113,7 @@ describe('villain rows', () => {
 
   it('starts a new villain in the wizard, saving nothing yet', async () => {
     const s = stores()
-    expect(await villainType.create!({ stores: s, newHeroes: new NewHeroes() })).toBe('#/villain/new')
+    expect(await villainType.create!({ stores: s, newHeroes: new NewHeroes(), rolling: 'app' })).toBe('#/villain/new')
     expect((await s.villains.list()).villains).toEqual([])
   })
 })

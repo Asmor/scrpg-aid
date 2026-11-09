@@ -173,7 +173,7 @@ function useLibraryModel({ searchStore, backupTime }: { searchStore: SavedSearch
 
   const create = (type: LibraryType) =>
     void run(`start a new ${type.label.toLowerCase()}`, async () => {
-      const path = await type.create!({ stores, newHeroes })
+      const path = await type.create!({ stores, newHeroes, rolling: settings.settings.rolling })
       navigate(path)
     })
   // The first-run card's Run a game: Games › New game, with this device's defaults.

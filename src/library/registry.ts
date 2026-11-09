@@ -15,6 +15,7 @@ import { editPath, playPath, heroPath, newVillainPath, villainEditPath, villainP
 import type { NewHeroes } from '../app/new-heroes'
 import { buildSheet } from '../creation/sheet'
 import { createHero, duplicateHero, heroDisplayName, isDraft, type Hero } from '../hero/model'
+import type { Settings } from '../settings/model'
 import type { HeroStore } from '../hero/store'
 import { continueStep, NUMBERED_STEPS, WIZARD_STEPS, wizardStepIndex } from '../hero/wizard-steps'
 import { heroFileName, heroJson, villainFileName, villainJson } from '../transfer/files'
@@ -85,8 +86,11 @@ export interface LibraryType<D extends LibraryDoc = LibraryDoc> {
   backupKey: 'heroes' | 'villains' | 'minionTemplates' | 'lieutenantTemplates' | 'challengeTemplates' | 'environmentTemplates'
   /** Which kind of copy a game holds of it, for the In games column: a hero's or villain's copy, or something made from a template. */
   inGames: 'hero' | 'villain' | 'minion' | 'lieutenant' | 'challenge' | 'environment'
-  /** Starts a new one from the New menu, returning the page to open (unset if the type can't be created). */
-  create?(context: { stores: LibraryStores; newHeroes: NewHeroes }): Promise<string>
+  /**
+   * Starts a new one from the New menu, returning the page to open (unset if the type can't be
+   * created). `rolling` is Settings › Rolling, which a new hero's "Who rolls?" starts from.
+   */
+  create?(context: { stores: LibraryStores; newHeroes: NewHeroes; rolling: Settings['rolling'] }): Promise<string>
 }
 
 /** "Step 3 of 8 · Archetype", or "At Start". */
@@ -139,9 +143,9 @@ export const heroType: LibraryType<Hero> = {
   },
   duplicate: (hero) => duplicateHero(hero),
   exportFile: (hero) => ({ name: heroFileName(hero, 'json'), text: heroJson(hero) }),
-  async create({ newHeroes }) {
+  async create({ newHeroes, rolling }) {
     // A draft held in memory: the wizard saves it on the first choice (the hero wizard spec, "Drafts").
-    const hero: Hero = { ...createHero('guided'), status: 'draft' }
+    const hero: Hero = { ...createHero('guided'), status: 'draft', rollMode: rolling === 'physical' ? 'manual' : 'app' }
     newHeroes.add(hero)
     return editPath(hero.id, 'start')
   },

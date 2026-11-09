@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHero, emptyDetails, heroDisplayName, newId } from './model'
+import { createHero, emptyDetails, heroDisplayName, heroNameOr, newId } from './model'
 
 describe('hero model', () => {
   it('creates a blank hero with the given method', () => {
@@ -37,6 +37,13 @@ describe('hero model', () => {
     expect(heroDisplayName(hero)).toBe('Jane Doe')
     hero.details.name = 'Captain Example'
     expect(heroDisplayName(hero)).toBe('Captain Example')
+  })
+
+  it('names an unnamed hero by the fallback given, the alias first', () => {
+    const hero = createHero('guided')
+    expect(heroNameOr(hero, 'Your hero')).toBe('Your hero')
+    hero.details.alias = 'Jane Doe'
+    expect(heroNameOr(hero, 'Your hero')).toBe('Jane Doe')
   })
 
   it('falls back to random bytes when randomUUID is unavailable', () => {

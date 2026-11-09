@@ -6,7 +6,7 @@ import { completeHero } from '../test/heroes'
 import { adaptiveBruiser } from '../test/villains'
 import type { Villain } from '../villain/model'
 import { createGame, type Game } from './model'
-import { project, VIEW_HISTORY, viewName } from './project'
+import { heroOnTableName, project, VIEW_HISTORY, viewName } from './project'
 import { addChallenge, addGroup, addHero, addMemberMod, addVillain, changeHeroPlay, changeVillainPlay, handOff, setEnvironment, setHidden, setPlayersSee, startRound, UNSEEN } from './table'
 import { applyGroupRoll, giveMod, protect } from './resolve'
 import { logEnvironmentRoll, rollAspects } from './environment'
@@ -184,6 +184,12 @@ describe('project', () => {
     for (const id of hiddenIds(game)) expect(JSON.stringify(view)).toContain(id)
     expect(view.environment).toMatchObject({ hidden: true })
     expect(view.feed.some((e) => e.gmOnly)).toBe(true)
+  })
+
+  it("names an alias-only hero by the alias, as the GM's log does (review 2026-11-09, item 6)", () => {
+    const sheet = { ...completeHero(), details: { ...completeHero().details, name: ' ', alias: 'Maya' } }
+    expect(heroOnTableName({ sheet })).toBe('Maya')
+    expect(heroOnTableName({ sheet: { ...sheet, details: { ...sheet.details, alias: '' } } })).toBe('Unnamed hero')
   })
 
   it('names actors from the view', () => {

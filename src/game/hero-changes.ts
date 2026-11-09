@@ -29,6 +29,7 @@ export function applyHeroChange(play: PlayState, sheet: Pick<HeroSheet, 'healthR
     }
   })()
   if (change.kind === 'mod') return next
-  const before = play.history.length
-  return { ...next, history: next.history.map((e, i) => (i < before ? e : { ...e, text: `GM: ${e.text}` })) }
+  // By id, not position: a full history drops its oldest entry as it gains one.
+  const before = new Set(play.history.map((e) => e.id))
+  return { ...next, history: next.history.map((e) => (before.has(e.id) ? e : { ...e, text: `GM: ${e.text}` })) }
 }

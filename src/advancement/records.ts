@@ -6,7 +6,7 @@
 import { appearanceOf, appearanceText, sameAppearance, type Appearance } from '../colors/palette'
 import { BACK_ISSUES_PER_COLLECTION } from '../creation/advancement'
 import { DETAIL_LABEL } from '../hero/labels'
-import type { AdvancementEntry, BackIssue, Hero, HeroDetails } from '../hero/model'
+import { heroNameOr, type AdvancementEntry, type BackIssue, type Hero, type HeroDetails } from '../hero/model'
 import type { Clock } from '../play/state'
 
 /** The game a back issue came from: the name stays on it, so it reads right after the game is deleted. */
@@ -59,7 +59,7 @@ export interface OfferedIssue extends IssueRef {
  * six with no name given.
  */
 export function addOfferedIssue(hero: Hero, offered: OfferedIssue, collection: string | undefined, clock: Clock): { hero: Hero; text: string } {
-  const name = hero.details.name.trim() || 'Your hero'
+  const name = heroNameOr(hero, 'Your hero')
   const named = collection?.trim()
   const add = (h: Hero) => addBackIssue(h, { title: offered.title, game: offered.game, issue: { id: offered.id, number: offered.number } }, clock)
   const { situation } = backIssueOffer(hero, offered.id)

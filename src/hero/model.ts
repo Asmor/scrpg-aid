@@ -503,9 +503,12 @@ export function isDraft(hero: Pick<Hero, 'status'>): boolean {
   return hero.status === 'draft'
 }
 
+/** A hero's name: the codename, else the alias, else `fallback`. */
+export const heroNameOr = (hero: Pick<Hero, 'details'>, fallback: string) => hero.details.name.trim() || hero.details.alias.trim() || fallback
+
 /** The name to show for a hero in lists. */
 export function heroDisplayName(hero: Hero): string {
-  return hero.details.name.trim() || hero.details.alias.trim() || 'Unnamed hero'
+  return heroNameOr(hero, 'Unnamed hero')
 }
 
 /**

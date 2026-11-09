@@ -25,7 +25,7 @@ import { ModForm } from '../play/ModForm'
 import type { TableShortcut } from './useTableShortcuts'
 import { RollDialog, type FormPicker, type RollSubject } from '../play/RollDialog'
 import { appearanceOf } from '../colors/palette'
-import { currentHealth, describeMod, effectiveZone, heroPointCount, modName, statusDieFor } from '../play/state'
+import { currentHealth, describeMod, effectiveZone, heroPointCount, heroPointsLeft, modName, statusDieFor } from '../play/state'
 import type { PendingAction } from '../session/client'
 import type { HeroAction } from './actions'
 import { betweenIssues, nextIssueNumber } from './model'
@@ -217,7 +217,8 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
             <span className="gt-label">Status die</span>
             {die ? <DieIcon die={die} /> : <span>—</span>}
           </span>
-          <span className="gt-player__stat">{heroPointCount(view.heroPoints)} · the GM awards them</span>
+          {/* Between issues the Buy card counts what's left to spend, so this says both (review 2026-11-09, item 9). */}
+          <span className="gt-player__stat">{paused ? `${view.heroPoints} at the table · ${heroPointsLeft(view.heroPoints, play)} left for you` : `${heroPointCount(view.heroPoints)} · the GM awards them`}</span>
         </div>
         <label className="checkbox">
           <input type="checkbox" checked={play.reactionUsed} disabled={off} aria-describedby={describedBy} onChange={(e) => act({ kind: 'reaction', used: e.target.checked })} />

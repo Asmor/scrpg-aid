@@ -15,7 +15,7 @@ import type { Defense } from '../play/defense'
 import { buildVillainSheet } from '../villain/sheet'
 import type { HeroInGame } from './model'
 import { villainSummary } from '../villain/play'
-import type { PlayMod, PlayTwist } from '../hero/model'
+import { heroDisplayName, type PlayMod, type PlayTwist } from '../hero/model'
 import type { PlayZone } from '../play/state'
 import type { Die } from '../rules/types'
 import { challengeDone, sceneOnTable, type ActorRef, type Issue, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type NpcGroup, type PendingHit, type PlayersSee, type SceneOnTable } from './model'
@@ -198,4 +198,4 @@ export function viewHidden(view: Pick<TableView, 'heroes' | 'villains' | 'groups
 }
 
 /** A hero's name in a view. */
-export const heroOnTableName = (h: Pick<HeroOnTable, 'sheet'>) => h.sheet.details.name.trim() || 'Unnamed hero'
+export const heroOnTableName = (h: Pick<HeroOnTable, 'sheet'>) => heroDisplayName(h.sheet)

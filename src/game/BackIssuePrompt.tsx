@@ -9,7 +9,7 @@ import { BackIssuePips } from '../components/BackIssuePips'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { MAX_NAME } from '../session/protocol'
-import type { Hero } from '../hero/model'
+import { heroNameOr, type Hero } from '../hero/model'
 
 interface Props {
   number: number
@@ -28,7 +28,7 @@ interface Props {
 
 export function BackIssuePrompt({ number, title, hero, issueId, who, gameName, laterLabel = 'Later', onAdd, onLater }: Props) {
   const id = useId()
-  const name = hero.details.name.trim() || 'Your hero'
+  const name = heroNameOr(hero, 'Your hero')
   const [collection, setCollection] = useState('')
   const { situation, count } = backIssueOffer(hero, issueId)
   const primary = useRef<HTMLButtonElement>(null)

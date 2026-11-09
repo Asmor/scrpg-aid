@@ -16,7 +16,7 @@ import { stepDie } from '../rules/dice'
 import type { BasicAction, Die, EffectUse } from '../rules/types'
 import type { PlayMinion, PlayMod, PlayState } from '../hero/model'
 import { describeEffect, effectAmount } from './roll'
-import { describeMod, modName, type Clock } from './state'
+import { appendHistory, describeMod, modName, type Clock } from './state'
 
 const ACTION_NAME: Record<BasicAction, string> = { attack: 'Attack', defend: 'Defend', boost: 'Boost', hinder: 'Hinder', overcome: 'Overcome' }
 
@@ -72,14 +72,14 @@ export function addMinion(play: PlayState, minion: Omit<PlayMinion, 'id' | 'mods
   return {
     ...play,
     minions: [...minionsOf(play), made],
-    history: [...play.history, entry(clock, `Made a minion: ${label(made)}${made.form ? `, ${made.form}` : ''}, ${minionActionText(made.action).toLowerCase()}.`)],
+    history: appendHistory(play.history, entry(clock, `Made a minion: ${label(made)}${made.form ? `, ${made.form}` : ''}, ${minionActionText(made.action).toLowerCase()}.`)),
   }
 }
 
 export function removeMinion(play: PlayState, id: string, clock: Clock, why = 'Removed'): PlayState {
   const gone = minionsOf(play).find((m) => m.id === id)
   if (!gone) return play
-  return { ...play, minions: minionsOf(play).filter((m) => m.id !== id), history: [...play.history, entry(clock, `${why} ${label(gone)}.`)] }
+  return { ...play, minions: minionsOf(play).filter((m) => m.id !== id), history: appendHistory(play.history, entry(clock, `${why} ${label(gone)}.`)) }
 }
 
 /** A die size smaller; below the smallest die the minion is gone. */
@@ -88,21 +88,21 @@ export function shrinkMinion(play: PlayState, id: string, clock: Clock): PlaySta
   if (!m) return play
   const smaller = stepDie(m.die, -1)
   if (smaller === m.die) return removeMinion(play, id, clock, 'Shrank away:')
-  return { ...play, minions: minionsOf(play).map((x) => (x.id === id ? { ...x, die: smaller } : x)), history: [...play.history, entry(clock, `${m.name} shrank to ${smaller}.`)] }
+  return { ...play, minions: minionsOf(play).map((x) => (x.id === id ? { ...x, die: smaller } : x)), history: appendHistory(play.history, entry(clock, `${m.name} shrank to ${smaller}.`)) }
 }
 
 export function addMinionMod(play: PlayState, id: string, mod: Omit<PlayMod, 'id'>, clock: Clock): PlayState {
   const m = minionsOf(play).find((x) => x.id === id)
   if (!m) return play
   const added = { ...mod, id: clock.newId() }
-  return { ...play, minions: minionsOf(play).map((x) => (x.id === id ? { ...x, mods: [...x.mods, added] } : x)), history: [...play.history, entry(clock, `${m.name} gained ${describeMod(added)}.`)] }
+  return { ...play, minions: minionsOf(play).map((x) => (x.id === id ? { ...x, mods: [...x.mods, added] } : x)), history: appendHistory(play.history, entry(clock, `${m.name} gained ${describeMod(added)}.`)) }
 }
 
 export function removeMinionMod(play: PlayState, id: string, modId: string, clock: Clock): PlayState {
   const m = minionsOf(play).find((x) => x.id === id)
   const mod = m?.mods.find((x) => x.id === modId)
   if (!m || !mod) return play
-  return { ...play, minions: minionsOf(play).map((x) => (x.id === id ? { ...x, mods: x.mods.filter((y) => y.id !== modId) } : x)), history: [...play.history, entry(clock, `${m.name}: removed ${describeMod(mod)}.`)] }
+  return { ...play, minions: minionsOf(play).map((x) => (x.id === id ? { ...x, mods: x.mods.filter((y) => y.id !== modId) } : x)), history: appendHistory(play.history, entry(clock, `${m.name}: removed ${describeMod(mod)}.`)) }
 }
 
 /**
@@ -115,7 +115,7 @@ export function setMinionForm(play: PlayState, id: string, form: string, clock: 
   if (!m || (m.form === form && !m.needsForm)) return play
   const action = takesAnyAction(form) ? 'any' : m.action
   const { needsForm: _, ...rest } = m
-  return { ...play, minions: minionsOf(play).map((x) => (x.id === id ? { ...rest, form, action } : x)), history: [...play.history, entry(clock, `${m.name} is now ${form}.`)] }
+  return { ...play, minions: minionsOf(play).map((x) => (x.id === id ? { ...rest, form, action } : x)), history: appendHistory(play.history, entry(clock, `${m.name} is now ${form}.`)) }
 }
 
 /** A minion's roll: its die's value plus its checked mods. */
@@ -163,7 +163,7 @@ export function recordMinionRoll(play: PlayState, id: string, roll: MinionRoll, 
   return {
     ...play,
     minions: minionsOf(play).map((x) => (x.id === id ? { ...x, mods: x.mods.filter((y) => !usedUp.some((u) => u.id === y.id)) } : x)),
-    history: [...play.history, { ...entry(clock, `${m.name} took ${ACTION_NAME[roll.action]}:`, details), roll: true as const }, ...usedUp.map((x) => entry(clock, `${m.name} used up ${modName(x)}.`))],
+    history: appendHistory(play.history, { ...entry(clock, `${m.name} took ${ACTION_NAME[roll.action]}:`, details), roll: true as const }, ...usedUp.map((x) => entry(clock, `${m.name} used up ${modName(x)}.`))),
   }
 }
 

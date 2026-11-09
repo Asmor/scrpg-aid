@@ -9,7 +9,7 @@
  *   switches to the offline view, and the device keeps trying every 30 seconds (./link.ts).
  */
 import type { HeroAction } from '../game/actions'
-import type { Hero } from '../hero/model'
+import { heroNameOr, type Hero } from '../hero/model'
 import { HostLink, type LinkSnapshot, type OtherHostMessage, type Received } from './link'
 import type { Appearance } from '../colors/palette'
 import { PROTOCOL_VERSION, type ClientMessage } from './protocol'
@@ -237,7 +237,7 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
 
   private heroName(): string {
     const hero = this.snapshot.received?.table.heroes.find((h) => h.id === this.heroId)
-    return hero?.sheet.details.name.trim() || 'your hero'
+    return hero ? heroNameOr(hero.sheet, 'your hero') : 'your hero'
   }
 
   private sendAction(id: string, heroId: string, action: HeroAction): void {

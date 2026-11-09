@@ -173,6 +173,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     return () => clearTimeout(timer)
   }, [sceneUndo])
   const observed = useMemo(() => (game ? project(game, 'observer') : undefined), [game])
+  // The GM's own view, built once per change rather than every render.
+  const gmView = useMemo(() => (game ? project(game, 'gm') : undefined), [game])
   useDisplayBroadcast(id, observed, host?.room)
   // A villain's status die changing, or a player's new Overcome on a challenge, is announced to the GM.
   const seenFeed = useRef(game?.feed)
@@ -297,7 +299,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
 
   // ---- What the cards show ----
 
-  const table = project(game, 'gm')
+  const table = gmView ?? project(game, 'gm')
   const heroes: HeroView[] = game.heroes.map((h) => heroView(h, { scene: table.scene }, { disconnected: Boolean(h.player && !connected.has(h.player.clientId)), syncRequested: game.pendingSyncs.some((r) => r.heroId === h.id), waiting: (game.pendingHits ?? []).filter((x) => x.heroId === h.id), chooser: T.defenseChooser(h) }))
   const villains: VillainView[] = table.villains.map(villainView)
 

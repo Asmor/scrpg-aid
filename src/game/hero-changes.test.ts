@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { emptyPlay } from '../play/state'
+import { emptyPlay, HISTORY_LIMIT } from '../play/state'
 import { applyHeroChange } from './hero-changes'
 
 const sheet = { maxHealth: 30, healthRanges: { green: [30, 23], yellow: [22, 12], red: [11, 1] } as never }
@@ -16,6 +16,15 @@ describe('the GM’s changes to a hero', () => {
     const used = applyHeroChange(twisted, sheet, { kind: 'reaction', used: true }, clock)
     expect(used.reactionUsed).toBe(true)
     expect(used.history.at(-1)!.text).toBe('GM: Used this round’s reaction.')
+  })
+
+  it('still marks the GM’s change once the history is full', () => {
+    const full = { ...emptyPlay(), health: 18, history: Array.from({ length: HISTORY_LIMIT }, (_, i) => ({ id: `h${i}`, at: '2026-11-01T00:00:00Z', text: `Old ${i}` })) }
+    const play = applyHeroChange(full, sheet, { kind: 'health', value: 14 }, clock)
+    expect(play.history).toHaveLength(HISTORY_LIMIT)
+    expect(play.history[0]!.text).toBe('Old 1')
+    expect(play.history.at(-1)!.text).toBe('GM: Lost 4 HP (18 → 14).')
+    expect(play.history.at(-2)!.text).toBe(`Old ${HISTORY_LIMIT - 1}`)
   })
 
   it('names the GM as a mod’s giver', () => {

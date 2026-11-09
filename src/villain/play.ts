@@ -7,7 +7,7 @@
 import { stepDie } from '../rules/dice'
 import type { Die, HealthRange } from '../rules/types'
 import type { VillainStatusRule } from '../rules/villain-types'
-import { currentHealth, healthZone, type Clock, type PlayZone } from '../play/state'
+import { appendHistory, currentHealth, healthZone, type Clock, type PlayZone } from '../play/state'
 import type { PlayMod, PlayTwist } from '../hero/model'
 import { villainDisplayName, type Villain, type VillainPlayState } from './model'
 import { buildVillainSheet } from './sheet'
@@ -54,7 +54,7 @@ export function villainStatusDie(rule: VillainStatusRule, input: StatusInput): D
 }
 
 const entry = (clock: Clock, text: string) => ({ id: clock.newId(), at: clock.now.toISOString(), text })
-const noted = (play: VillainPlayState, clock: Clock, text: string): VillainPlayState => ({ ...play, history: [...play.history, entry(clock, text)] })
+const noted = (play: VillainPlayState, clock: Clock, text: string): VillainPlayState => ({ ...play, history: appendHistory(play.history, entry(clock, text)) })
 
 /** Sets the heroes in this scene (unset: the number it's built for). */
 export function setSceneHeroes(play: VillainPlayState, count: number | undefined, clock: Clock): VillainPlayState {

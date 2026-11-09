@@ -364,6 +364,8 @@ describe('between issues', () => {
     expect(screen.getByRole('button', { name: 'Lose 1 Health' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Lose 1 Health' })).toHaveAccessibleDescription('Paused between issues')
     expect(screen.getByRole('button', { name: 'Roll' })).toBeDisabled()
+    // The hero point line counts both: the table's points and what's left to spend.
+    expect(screen.getByText(`${host.game!.heroPoints} at the table · ${host.game!.heroPoints} left for you`)).toBeInTheDocument()
     // Sheet updates carry on.
     await userEvent.click(screen.getByRole('button', { name: /^More for/ }))
     expect(await screen.findByRole('menuitem', { name: 'Update from my sheet…' })).toBeEnabled()

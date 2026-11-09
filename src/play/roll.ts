@@ -11,7 +11,7 @@ import { ACTION_LABEL } from '../creation/effects'
 import type { HeroTrait } from '../creation/traits'
 import type { PlayHistoryEntry, PlayMod } from '../hero/model'
 import type { Action, AbilityEffect, Die, EffectUse } from '../rules/types'
-import { describeMod, type Clock, type PlayCore } from './state'
+import { appendHistory, describeMod, type Clock, type PlayCore } from './state'
 
 /** A die in the pool and what it stands for ("Speed d12", "Green status d8"). */
 export interface PoolDie {
@@ -268,7 +268,7 @@ export function confirmRoll<P extends PlayCore>(play: P, record: RollRecord, clo
   return {
     ...play,
     mods: play.mods.filter((m) => !usedUp.some((u) => u.id === m.id)),
-    history: [...play.history, ...entries.map(({ details: d, ...e }) => (d?.length ? { ...e, details: d } : e))],
+    history: appendHistory(play.history, ...entries.map(({ details: d, ...e }) => (d?.length ? { ...e, details: d } : e))),
   }
 }
 
@@ -322,7 +322,7 @@ function minionChanges(before: NonNullable<WithMinions['minions']>, after: NonNu
 export function undoRoll<P extends PlayCore>(play: P, change: RollChange, shared?: Clock): P {
   const mods = [...play.mods.filter((m) => !change.added.includes(m.id)), ...change.usedUp.filter((m) => !play.mods.some((x) => x.id === m.id))]
   const history = shared
-    ? [...play.history, { id: shared.newId(), at: shared.now.toISOString(), text: `Undid: ${change.title}` }]
+    ? appendHistory(play.history, { id: shared.newId(), at: shared.now.toISOString(), text: `Undid: ${change.title}` })
     : play.history.filter((h) => !change.history.includes(h.id))
   const minions = (play as WithMinions).minions
   return {

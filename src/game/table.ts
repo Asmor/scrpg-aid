@@ -12,7 +12,7 @@ import { nameList } from './names'
 import { stepDie } from '../rules/dice'
 import type { Die, Zone } from '../rules/types'
 import { heroDisplayName, type Hero, type PlayHistoryEntry, type PlayMod, type PlayState } from '../hero/model'
-import { currentHealth, describeMod, setHealth, setReactionUsed, type Clock } from '../play/state'
+import { appendHistory, currentHealth, describeMod, setHealth, setReactionUsed, type Clock } from '../play/state'
 import { blockWith, clearDefenses, defensesOf, defenseText, pickDefense, removeDefense, type Defense } from '../play/defense'
 import { buildSheet } from '../creation/sheet'
 import { FEED_LIMIT } from '../session/types'
@@ -518,7 +518,7 @@ export function updateSheet(game: Game, ref: { kind: 'hero'; id: string; sheet: 
     // A player's colors reach the game by themselves (scrpg-aid-designs/character-colors/spec.md, section 6): a sheet waiting for review may hold older ones.
     const { appearance: _, ...rest } = structuredClone(ref.sheet)
     const kept = hero.player ? (hero.sheet.appearance ? { appearance: hero.sheet.appearance } : {}) : ref.sheet.appearance ? { appearance: ref.sheet.appearance } : {}
-    const updated = { ...hero, sheet: { ...rest, ...kept }, play: { ...play, history: [...play.history, entry] } }
+    const updated = { ...hero, sheet: { ...rest, ...kept }, play: { ...play, history: appendHistory(play.history, entry) } }
     const next = { ...game, heroes: game.heroes.map((h) => (h.id === ref.id ? updated : h)), pendingSyncs: game.pendingSyncs.filter((r) => r.heroId !== ref.id) }
     return log(next, clock, `${heroDisplayName(ref.sheet)}: ${text}`, { details: adjustments })
   }
@@ -527,7 +527,7 @@ export function updateSheet(game: Game, ref: { kind: 'hero'; id: string; sheet: 
   const { play, adjustments } = reconcileVillain(villain.play, ref.sheet, villain.sheet)
   const text = `The sheet was updated ${why}.`
   const entry: PlayHistoryEntry = { id: clock.newId(), at, text, ...(adjustments.length ? { details: adjustments } : {}) }
-  const updated = { ...villain, sheet: structuredClone(ref.sheet), play: { ...play, history: [...play.history, entry] } }
+  const updated = { ...villain, sheet: structuredClone(ref.sheet), play: { ...play, history: appendHistory(play.history, entry) } }
   const replaced = withTitanChallenge({ ...game, villains: game.villains.map((v) => (v.id === ref.id ? updated : v)) }, ref.id, clock)
   return log(replaced, clock, `${villainDisplayName(ref.sheet)}: ${text}`, { details: adjustments, gmOnly: villain.hidden })
 }

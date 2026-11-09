@@ -77,7 +77,13 @@ const entry = (clock: Clock, text: string, details?: string[]): PlayHistoryEntry
   ...(details?.length ? { details } : {}),
 })
 
-const withEntry = <P extends { history: PlayHistoryEntry[] }>(play: P, e: PlayHistoryEntry): P => ({ ...play, history: [...play.history, e] })
+/** The most history entries a hero, villain or minion keeps: the newest (review 2026-11-09, item 5). */
+export const HISTORY_LIMIT = 500
+
+/** History with `entries` added at the end, keeping the newest HISTORY_LIMIT. Every appender goes through this. */
+export const appendHistory = <E>(history: readonly E[], ...entries: NoInfer<E>[]): E[] => [...history, ...entries].slice(-HISTORY_LIMIT)
+
+const withEntry = <P extends { history: PlayHistoryEntry[] }>(play: P, e: PlayHistoryEntry): P => ({ ...play, history: appendHistory(play.history, e) })
 
 /** The play state a hero and a villain (Phase 5) share: Health, the reaction, mods, twists, and history. */
 export type PlayCore = Pick<PlayState, 'health' | 'reactionUsed' | 'mods' | 'twists' | 'history'>
@@ -197,7 +203,7 @@ export function startOver(): PlayState {
  */
 export function heroRecovers(play: PlayState, clock: Clock): PlayState {
   const { heroPointBuys, history } = play
-  return { ...emptyPlay(), ...(heroPointBuys ? { heroPointBuys } : {}), history: [...history, entry(clock, 'Recovered for the new issue: Health restored; mods, twists and minions cleared.')] }
+  return { ...emptyPlay(), ...(heroPointBuys ? { heroPointBuys } : {}), history: appendHistory(history, entry(clock, 'Recovered for the new issue: Health restored; mods, twists and minions cleared.')) }
 }
 
 /** "3 hero points". */
