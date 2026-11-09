@@ -134,7 +134,8 @@ Output should be kept in `data/`.
   - It appears in the recipient's mods list immediately, with a history entry naming who gave it
     - "Gained '+2 rallied' bonus from Captain Example."
   - The recipient can remove it
-- Known limitation: some strict networks block peer-to-peer connections without a relay (TURN) server; revisit if real tables hit it
+- ~~Known limitation: some strict networks block peer-to-peer connections without a relay (TURN) server; revisit if real tables hit it~~
+  - Relay is done (via metered.ca)
 
 ### Phase 5: Other gameplay elements
 
@@ -143,7 +144,6 @@ Implement all functionality for the following:
 - Villains
 - Minions & Lieutenants (these are similar enough that the difference may as well just be a "lieutenant" checkbox)
 - Environments
-- Clocks
 - Skill challenges
 
 ### Phase 6: UI Pass
