@@ -72,7 +72,7 @@ export function WatchPage({ room: given }: { room?: string }) {
         </main>
       )
     }
-    const status = snapshot.status === 'reconnecting' ? 'Reconnecting to the GM…' : snapshot.status === 'offline' ? `The GM isn't connected. As of ${timeOf(received.at)}.` : undefined
+    const status = snapshot.outOfSync && snapshot.status === 'live' ? 'Out of sync, reconnecting…' : snapshot.status === 'reconnecting' ? 'Reconnecting to the GM…' : snapshot.status === 'offline' ? `The GM isn't connected. As of ${timeOf(received.at)}.` : undefined
     return <DisplayView table={received.table} watching={`Watching ${gameDisplayName(received.table)} · ${code}`} {...(status ? { status } : {})} />
   }
   return <WatchForm key={code ?? ''} room={given} />

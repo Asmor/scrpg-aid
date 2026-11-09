@@ -6,6 +6,7 @@
  * the hero, and logged to the history (./state.ts has the rules; ./forms.ts says which
  * abilities can be used).
  */
+import { MAX_TEXT } from '../session/protocol'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { inTextField, modalOpen } from '../help/shortcuts'
 import { Toasts } from '../components/Toasts'
@@ -618,7 +619,7 @@ export function PlayView({ hero, play, changePlay, heroPoints, clock, random }: 
             </label>
             <label className="field" htmlFor={`${formId}-twist-text`}>
               <span>Twist</span>
-              <input id={`${formId}-twist-text`} type="text" value={twistText} onChange={(e) => setTwistText(e.target.value)} />
+              <input id={`${formId}-twist-text`} type="text" maxLength={MAX_TEXT} value={twistText} onChange={(e) => setTwistText(e.target.value)} />
             </label>
             <button type="submit" className="button" disabled={!twistText.trim()}>
               Add

@@ -259,7 +259,7 @@ export function TwistDialog({ name, onAdd, onClose }: { name: string; onAdd: (tw
             </label>
           ))}
         </fieldset>
-        <Field label="Twist">{(id) => <input id={id} type="text" value={text} onChange={(e) => setText(e.target.value)} />}</Field>
+        <Field label="Twist">{(id) => <input id={id} type="text" maxLength={MAX_TEXT} value={text} onChange={(e) => setText(e.target.value)} />}</Field>
         <Actions submit="Add twist" onCancel={onClose} disabled={!text.trim()} />
       </form>
     </Modal>

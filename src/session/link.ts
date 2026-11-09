@@ -18,6 +18,8 @@ import { quietAfterLeave, type Connect, type Transport } from './transport'
 /** How long the GM can be away before the offline view, and how often to try again after that. */
 export const OFFLINE_AFTER = 30_000
 export const RETRY_EVERY = 30_000
+/** The least time between asks for a fresh state after one that couldn't be read. */
+export const RESYNC_EVERY = 5000
 
 export type ClientStatus = 'connecting' | 'live' | 'reconnecting' | 'offline' | 'refused'
 
@@ -37,6 +39,8 @@ export interface LinkSnapshot {
   status: ClientStatus
   refused?: RefusedReason | 'oldHost'
   received?: Received
+  /** The GM's last state couldn't be read: the page shows the one before and asks again. */
+  outOfSync?: true
 }
 
 /** The GM's other messages, for a subclass to handle (results, sync answers). */
@@ -52,6 +56,7 @@ export abstract class HostLink<S extends LinkSnapshot> extends Subscribable<S> {
   private offlineTimer: ReturnType<typeof setTimeout> | undefined
   private retryTimer: ReturnType<typeof setInterval> | undefined
   private left = false
+  private lastResync = -Infinity
   private readonly clockNow: (() => Date) | undefined
 
   constructor(connect: Connect, room: string, initial: S, now?: () => Date) {
@@ -129,9 +134,12 @@ export abstract class HostLink<S extends LinkSnapshot> extends Subscribable<S> {
   private receive(raw: unknown, peer: string): void {
     const msg = readHostMessage(raw)
     if (!msg) {
-      // A GM's device on the older version of the app sends version 1 states.
       const v = messageVersion(raw)
-      if (v !== undefined && v < PROTOCOL_VERSION && (raw as { type?: unknown }).type === 'state') this.refuse('oldHost')
+      const isState = (raw as { type?: unknown }).type === 'state'
+      // A GM's device on the older version of the app sends version 1 states.
+      if (v !== undefined && v < PROTOCOL_VERSION && isState) this.refuse('oldHost')
+      // A state from the GM that fails the checks (too long, say): never drop it silently.
+      else if (v === PROTOCOL_VERSION && isState && (!this.gmPeer || peer === this.gmPeer)) this.outOfSync(peer)
       return
     }
     // The first peer to send this room's state is the GM; anyone else claiming to be is ignored.
@@ -144,7 +152,7 @@ export abstract class HostLink<S extends LinkSnapshot> extends Subscribable<S> {
         clearInterval(this.retryTimer)
         this.retryTimer = undefined
         const received: Received = { room: msg.room, version: msg.version, table: msg.table, gm: msg.gm, ...(msg.you ? { you: msg.you } : {}), at: this.now().toISOString() }
-        const { refused: _, ...rest } = this.snapshot
+        const { refused: _, outOfSync: __, ...rest } = this.snapshot
         this.publish({ ...rest, status: 'live', received } as S)
         this.onState(received)
         return
@@ -164,6 +172,15 @@ export abstract class HostLink<S extends LinkSnapshot> extends Subscribable<S> {
       default:
         this.onOther(msg)
     }
+  }
+
+  /** Shows "Out of sync" and asks the GM for its state again (hello does that), now and then. */
+  private outOfSync(peer: string): void {
+    if (!this.snapshot.outOfSync) this.publish({ ...this.snapshot, outOfSync: true })
+    const now = this.now().getTime()
+    if (now - this.lastResync < RESYNC_EVERY) return
+    this.lastResync = now
+    this.hello(peer)
   }
 
   /** The GM moved the game to a new code: follow it there (the GM's device takes us back as before). */

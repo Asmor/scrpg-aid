@@ -5,6 +5,7 @@
  * The villain document is the sheet only: play state lives in the villain's solo game
  * (scrpg-aid-designs/game-table/spec.md, section 12), saved as it changes (./play.ts has the rules).
  */
+import { MAX_TEXT } from '../session/protocol'
 import { useId, useState, type ReactNode } from 'react'
 import { listPath, villainEditPath, villainPath } from '../app/route'
 import { ActionIcon, DiceText, DieIcon } from '../components/icons'
@@ -297,7 +298,7 @@ export function VillainPlayPage({ id, clock = () => ({ now: new Date(), newId: (
           >
             <label className="field" htmlFor={`${formId}-twist`}>
               <span>Minor twist</span>
-              <input id={`${formId}-twist`} type="text" value={twistText} onChange={(e) => setTwistText(e.target.value)} />
+              <input id={`${formId}-twist`} type="text" maxLength={MAX_TEXT} value={twistText} onChange={(e) => setTwistText(e.target.value)} />
             </label>
             <button type="submit" className="button" disabled={!twistText.trim()}>
               Add

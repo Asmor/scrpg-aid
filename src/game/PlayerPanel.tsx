@@ -7,6 +7,7 @@
  *
  * While the GM isn't connected, controls that change the game are disabled and say "Needs the GM".
  */
+import { MAX_TEXT } from '../session/protocol'
 import { defenseText } from '../play/defense'
 import { ChooseDefense } from './ChooseDefense'
 import { useId, useState, type ReactNode } from 'react'
@@ -301,7 +302,7 @@ export function PlayerPanel({ hero, view, pending, live, syncWaiting, act, menu,
             <label className="visually-hidden" htmlFor={`${id}-twist`}>
               Minor twist
             </label>
-            <input id={`${id}-twist`} type="text" value={twist} placeholder="Minor twist" onChange={(e) => setTwist(e.target.value)} />
+            <input id={`${id}-twist`} type="text" maxLength={MAX_TEXT} value={twist} placeholder="Minor twist" onChange={(e) => setTwist(e.target.value)} />
             <button type="submit" className="button button--small" disabled={!twist.trim()}>
               Add
             </button>

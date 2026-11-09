@@ -3,6 +3,7 @@
  * heroes at this table with a stepper (defaulting to the game's hero count), the Health that
  * gives, and, when bringing it in, the templates it comes with, each checked, with how many.
  */
+import { MAX_TEXT } from '../session/protocol'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useOptionalTemplateStores } from '../app/template-store-context'
 import { DieIcon } from '../components/icons'
@@ -198,7 +199,7 @@ export function VillainTwistDialog({ name, onMinor, onCaptured, onEscapes, onClo
       >
         <label className="field" htmlFor={id}>
           <span>Minor twist</span>
-          <input id={id} type="text" value={text} onChange={(e) => setText(e.target.value)} />
+          <input id={id} type="text" maxLength={MAX_TEXT} value={text} onChange={(e) => setText(e.target.value)} />
         </label>
         <div className="button-row gt-dialog-actions">
           <button type="submit" className="button button--primary" disabled={!text.trim()}>

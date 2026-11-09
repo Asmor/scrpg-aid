@@ -492,6 +492,10 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
       <p role="alert" className="gt-banner gt-banner--error">
         {refusedText(snap!.refused ?? 'removed', gameName)}
       </p>
+    ) : snap?.outOfSync && status === 'live' ? (
+      <p role="status" className="gt-banner">
+        Out of sync, reconnecting…
+      </p>
     ) : status === 'reconnecting' ? (
       <p role="status" className="gt-banner">
         Reconnecting to the GM… Actions are paused.

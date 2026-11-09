@@ -32,6 +32,8 @@ export const MAX_LIST = 200
 export const MAX_MESSAGE = 1_000_000
 /** The most log lines a projection carries. */
 export const VIEW_FEED = 200
+/** The most heroes, villains, groups, challenges, group members, defenses, steps and turn entries a view carries. */
+export const VIEW_LIMITS = { heroes: 30, villains: 50, groups: 50, challenges: 50, members: 50, defenses: 20, steps: 20, requests: 50, pendingHits: 50, offeredTo: 30, tracker: 30, turn: 100, details: 50, issues: 1000 } as const
 
 export type ClientMessage =
   /** `gameId` when reconnecting a saved game: the GM checks the code and the game match. */
@@ -194,7 +196,7 @@ const zone = oneOf('green', 'yellow', 'red')
 const playZone = oneOf('green', 'yellow', 'red', 'out')
 const position: Check = (v, path) => range(0, 1000)(v, path)
 const twist = object({ id, kind: oneOf('minor', 'major'), text: text() })
-const feedEntry = object({ id, at: text(40), by: text(MAX_NAME), text: text(), 'details?': list(text(), 50), 'gmOnly?': oneOf(true), 'forHero?': id })
+const feedEntry = object({ id, at: text(40), by: text(MAX_NAME), text: text(), 'details?': list(text(), VIEW_LIMITS.details), 'gmOnly?': oneOf(true), 'forHero?': id })
 
 const issueView = object({
   id,
@@ -203,21 +205,21 @@ const issueView = object({
   'summary?': text(MAX_TEXT),
   state: oneOf('now', 'finished'),
   'finishedAt?': text(40),
-  'offeredTo?': list(object({ heroId: id, sourceId: id, name: text(MAX_NAME) }), 30),
+  'offeredTo?': list(object({ heroId: id, sourceId: id, name: text(MAX_NAME) }), VIEW_LIMITS.offeredTo),
   sceneCount: range(0, 1000),
 })
 
 const tableViewShape = object({
   id,
   name: text(MAX_NAME),
-  issues: list(issueView, 1000),
+  issues: list(issueView, VIEW_LIMITS.issues),
   'currentIssueId?': id,
-  scene: object({ name: text(MAX_NAME), tracker: list(zone, 30), position, number: range(1, 1000) }),
+  scene: object({ name: text(MAX_NAME), tracker: list(zone, VIEW_LIMITS.tracker), position, number: range(1, 1000) }),
   'environment?': object({ id, 'color?': charColor, name: text(MAX_NAME), hidden: boolean, 'description?': text(MAX_TEXT) }),
   round: position,
   heroPoints: position,
-  turn: object({ order: list(actor, 100), acted: list(actor, 100), 'current?': actor }),
-  heroes: list(object({ id, sourceId: id, sheet: heroShape, play: (v, path) => playStateShape(v, path) ?? object({ history: list(() => undefined, VIEW_HISTORY) })(v, path), 'player?': object({ name: text(MAX_NAME), 'since?': text(40) }) }), 30),
+  turn: object({ order: list(actor, VIEW_LIMITS.turn), acted: list(actor, VIEW_LIMITS.turn), 'current?': actor }),
+  heroes: list(object({ id, sourceId: id, sheet: heroShape, play: (v, path) => playStateShape(v, path) ?? object({ history: list(() => undefined, VIEW_HISTORY) })(v, path), 'player?': object({ name: text(MAX_NAME), 'since?': text(40) }) }), VIEW_LIMITS.heroes),
   villains: list(
     object({
       id,
@@ -231,10 +233,10 @@ const tableViewShape = object({
       'maxHealth?': integer,
       'statusDie?': die,
       'mods?': list(mod),
-      'defenses?': list(object({ id, value: integer, from: text(MAX_NAME) }), 20),
+      'defenses?': list(object({ id, value: integer, from: text(MAX_NAME) }), VIEW_LIMITS.defenses),
       'twists?': list(twist),
     }),
-    50,
+    VIEW_LIMITS.villains,
   ),
   groups: list(
     object({
@@ -246,12 +248,12 @@ const tableViewShape = object({
       hidden: boolean,
       owner: object({ kind: oneOf('gm', 'environment') }),
       actions: groupActions,
-      members: list(object({ id, n: integer, die, mods: list(mod), acted: boolean, 'defenses?': list(object({ id, value: integer, from: text(MAX_NAME) }), 20) }), 50),
+      members: list(object({ id, n: integer, die, mods: list(mod), acted: boolean, 'defenses?': list(object({ id, value: integer, from: text(MAX_NAME) }), VIEW_LIMITS.defenses) }), VIEW_LIMITS.members),
     }),
-    50,
+    VIEW_LIMITS.groups,
   ),
-  challenges: list(object({ id, 'color?': charColor, 'templateId?': id, name: text(MAX_NAME), hidden: boolean, owner: object({ kind: oneOf('gm', 'environment') }), steps: list(object({ label: text(MAX_NAME), done: boolean }), 20), requests: list(object({ id, heroId: id, total: range(-100, 100), 'trait?': text(MAX_NAME), at: text(40) }), 50), 'description?': text(MAX_TEXT), 'whenDone?': text(MAX_TEXT) }), 50),
-  'pendingHits?': list(object({ id, heroId: id, by: text(MAX_NAME), amount: range(0, 1000), at: text(MAX_NAME), 'gmOnly?': oneOf(true) }), 50),
+  challenges: list(object({ id, 'color?': charColor, 'templateId?': id, name: text(MAX_NAME), hidden: boolean, owner: object({ kind: oneOf('gm', 'environment') }), steps: list(object({ label: text(MAX_NAME), done: boolean }), VIEW_LIMITS.steps), requests: list(object({ id, heroId: id, total: range(-100, 100), 'trait?': text(MAX_NAME), at: text(40) }), VIEW_LIMITS.requests), 'description?': text(MAX_TEXT), 'whenDone?': text(MAX_TEXT) }), VIEW_LIMITS.challenges),
+  'pendingHits?': list(object({ id, heroId: id, by: text(MAX_NAME), amount: range(0, 1000), at: text(MAX_NAME), 'gmOnly?': oneOf(true) }), VIEW_LIMITS.pendingHits),
   feed: list(feedEntry, VIEW_FEED),
 })
 
@@ -282,8 +284,62 @@ export function readHostMessage(value: unknown): HostMessage | undefined {
   return read<HostMessage>(value, HOST)
 }
 
-/** Keeps a projection within what players accept: the newest log lines only. */
+/** Text cut to `max` characters, ending in "…" when it was cut. */
+export const cut = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1)}…` : s)
+const newest = <T>(items: readonly T[], max: number): T[] => (items.length > max ? items.slice(-max) : [...items])
+const first = <T>(items: readonly T[], max: number): T[] => (items.length > max ? items.slice(0, max) : [...items])
+const upTo = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
+
+type Labelled = { label: string }
+const cutLabels = <T extends Labelled>(items: readonly T[]): T[] => first(items, MAX_LIST).map((m) => ({ ...m, label: cut(m.label, MAX_NAME) }))
+const cutDefenses = <T extends { from: string }>(items: readonly T[] | undefined): { defenses?: T[] } => (items ? { defenses: newest(items, VIEW_LIMITS.defenses).map((d) => ({ ...d, from: cut(d.from, MAX_NAME) })) } : {})
+const optionalText = <K extends string>(key: K, value: string | undefined, max: number) => (value === undefined ? {} : ({ [key]: cut(value, max) } as { [P in K]: string }))
+
+/**
+ * Keeps a projection within what players accept (`tableViewProblem`): newest log lines, defenses
+ * and requests; at most so many of everything else; text cut short. The reader's limits and this
+ * stay in one file so they can't drift apart: a view that fails the reader freezes every player.
+ */
 export function fitView(view: TableView): TableView {
-  return view.feed.length > VIEW_FEED ? { ...view, feed: view.feed.slice(-VIEW_FEED) } : view
+  const { environment, pendingHits } = view
+  return {
+    ...view,
+    name: cut(view.name, MAX_NAME),
+    issues: newest(view.issues, VIEW_LIMITS.issues).map((i) => ({
+      ...i,
+      ...optionalText('title', i.title, MAX_NAME),
+      ...optionalText('summary', i.summary, MAX_TEXT),
+      ...(i.offeredTo ? { offeredTo: first(i.offeredTo, VIEW_LIMITS.offeredTo).map((o) => ({ ...o, name: cut(o.name, MAX_NAME) })) } : {}),
+      sceneCount: upTo(i.sceneCount, 0, 1000),
+    })),
+    scene: { ...view.scene, name: cut(view.scene.name, MAX_NAME), number: upTo(view.scene.number, 1, 1000) },
+    ...(environment ? { environment: { ...environment, name: cut(environment.name, MAX_NAME), ...optionalText('description', environment.description, MAX_TEXT) } } : {}),
+    round: upTo(view.round, 0, 1000),
+    heroPoints: upTo(view.heroPoints, 0, 1000),
+    turn: { ...view.turn, order: first(view.turn.order, VIEW_LIMITS.turn), acted: first(view.turn.acted, VIEW_LIMITS.turn) },
+    heroes: first(view.heroes, VIEW_LIMITS.heroes).map((h) => (h.player ? { ...h, player: { ...h.player, name: cut(h.player.name, MAX_NAME) } } : h)),
+    villains: first(view.villains, VIEW_LIMITS.villains).map((v) => ({
+      ...v,
+      name: cut(v.name, MAX_NAME),
+      ...(v.mods ? { mods: cutLabels(v.mods) } : {}),
+      ...cutDefenses(v.defenses),
+      ...(v.twists ? { twists: first(v.twists, MAX_LIST).map((t) => ({ ...t, text: cut(t.text, MAX_TEXT) })) } : {}),
+    })),
+    groups: first(view.groups, VIEW_LIMITS.groups).map((g) => ({
+      ...g,
+      name: cut(g.name, MAX_NAME),
+      members: first(g.members, VIEW_LIMITS.members).map((m) => ({ ...m, mods: cutLabels(m.mods), ...cutDefenses(m.defenses) })),
+    })),
+    challenges: first(view.challenges, VIEW_LIMITS.challenges).map((c) => ({
+      ...c,
+      name: cut(c.name, MAX_NAME),
+      steps: first(c.steps, VIEW_LIMITS.steps).map((s) => ({ ...s, label: cut(s.label, MAX_NAME) })),
+      requests: newest(c.requests, VIEW_LIMITS.requests).map((r) => ({ ...r, total: upTo(r.total, -100, 100), ...optionalText('trait', r.trait, MAX_NAME) })),
+      ...optionalText('description', c.description, MAX_TEXT),
+      ...optionalText('whenDone', c.whenDone, MAX_TEXT),
+    })),
+    ...(pendingHits ? { pendingHits: newest(pendingHits, VIEW_LIMITS.pendingHits).map((h) => ({ ...h, by: cut(h.by, MAX_NAME), at: cut(h.at, MAX_NAME), amount: upTo(h.amount, 0, 1000) })) } : {}),
+    feed: newest(view.feed, VIEW_FEED).map((e) => ({ ...e, by: cut(e.by, MAX_NAME), text: cut(e.text, MAX_TEXT), ...(e.details ? { details: first(e.details, VIEW_LIMITS.details).map((d) => cut(d, MAX_TEXT)) } : {}) })),
+  }
 }
 
