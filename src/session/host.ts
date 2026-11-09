@@ -347,8 +347,12 @@ export class HostSession extends Subscribable<HostSnapshot> {
     if (msg.gameId !== undefined && msg.gameId !== this.gameId) return this.refuse(peer, 'wrongGame')
     const game = this.snapshot.game!
     const name = msg.name.trim() || 'A player'
+    // The client always sends its sheet's own id; anything else would add a hero it can't find.
+    if (msg.heroSourceId !== msg.sheet.id) return
     const existing = game.heroes.find((h) => h.sourceId === msg.heroSourceId)
     let heroId: string
+    // The GM added this hero as their own (a shared pregen, say): it isn't the player's to take.
+    if (existing && !existing.player) return this.refuse(peer, 'gmHero')
     if (existing) {
       // The same hero again: the same player, or (when that player isn't here) the same person on another device.
       const owner = existing.player?.clientId
@@ -362,7 +366,9 @@ export class HostSession extends Subscribable<HostSnapshot> {
       if (game.heroes.filter((h) => h.player).length >= PLAYER_LIMIT) return this.refuse(peer, 'full')
       const since = this.clock().now.toISOString()
       this.apply((g) => addHero(g, msg.sheet, this.clock(), { clientId: msg.clientId, name, since }))
-      heroId = this.snapshot.game!.heroes.find((h) => h.sourceId === msg.heroSourceId)!.id
+      const added = this.snapshot.game?.heroes.find((h) => h.sourceId === msg.heroSourceId)
+      if (!added) return
+      heroId = added.id
     }
     this.peers.set(peer, { clientId: msg.clientId, role: 'player', heroId })
     if (this.snapshot.needsNewCode.has(msg.clientId)) {

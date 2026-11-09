@@ -3,7 +3,7 @@ import { buildSheet } from '../creation/sheet'
 import { finishIssue } from '../game/issues'
 import { createGame, type Game } from '../game/model'
 import { MemoryGameStore } from '../game/store'
-import { addChallenge, addVillain, setChallengeStep } from '../game/table'
+import { addChallenge, addHero, addVillain, setChallengeStep } from '../game/table'
 import type { Hero } from '../hero/model'
 import { currentHealth } from '../play/state'
 import { completeHero } from '../test/heroes'
@@ -34,7 +34,7 @@ function client(net: ReturnType<typeof fakeNetwork>) {
   }
 }
 
-const hello = (clientId: string, sheet: Hero = maya(), name = 'Alex') => ({ v: 10, type: 'hello', role: 'player', clientId, name, heroSourceId: sheet.id, sheet })
+const hello = (clientId: string, sheet: Hero = maya(), name = 'Alex') => ({ v: 11, type: 'hello', role: 'player', clientId, name, heroSourceId: sheet.id, sheet })
 
 async function setup(game: Game = createGame({ id: 'g', name: 'Thursday game' })) {
   const net = fakeNetwork()
@@ -70,12 +70,12 @@ describe('hosting a game', () => {
     const tv = client(net)
     alex.send(hello('c1'))
     bo.send(hello('c2', { ...maya(), id: 'bo-src', details: { ...maya().details, name: 'Paradigm' } }, 'Bo'))
-    tv.send({ v: 10, type: 'hello', role: 'observer', clientId: 'tv', screenName: 'TV' })
+    tv.send({ v: 11, type: 'hello', role: 'observer', clientId: 'tv', screenName: 'TV' })
     await net.settle()
     const heroOf = (src: string) => host.game!.heroes.find((h) => h.sourceId === src)!.id
     const challengeId = host.game!.challenges[0]!.id
     const requests = (who: ReturnType<typeof client>) => who.last('state')!.table.challenges[0]!.requests
-    alex.send({ v: 10, type: 'action', id: 'a1', heroId: heroOf('maya-src'), action: { kind: 'overcomeChallenge', challengeId, total: 9, trait: 'Agility' }, basedOn: 0 })
+    alex.send({ v: 11, type: 'action', id: 'a1', heroId: heroOf('maya-src'), action: { kind: 'overcomeChallenge', challengeId, total: 9, trait: 'Agility' }, basedOn: 0 })
     await net.settle()
     expect(alex.last('result')).toMatchObject({ id: 'a1', ok: true })
     expect(requests(alex).map((r) => r.total)).toEqual([9])
@@ -98,7 +98,7 @@ describe('hosting a game', () => {
     alex.send(hello('c1'))
     await net.settle()
     const heroId = host.game!.heroes[0]!.id
-    alex.send({ v: 10, type: 'action', id: 'a1', heroId, action: { kind: 'health', by: -5 }, basedOn: 1 })
+    alex.send({ v: 11, type: 'action', id: 'a1', heroId, action: { kind: 'health', by: -5 }, basedOn: 1 })
     await net.settle()
     alex.leave()
     await net.settle()
@@ -131,6 +131,29 @@ describe('hosting a game', () => {
     expect(host.game!.heroes[0]!.player!.clientId).toBe('c2')
   })
 
+  it("refuses a player claiming one of the GM's own heroes, which stays the GM's", async () => {
+    const { net, host } = await setup(addHero(createGame({ id: 'g', name: 'Thursday game' }), maya(), clock()))
+    const alex = client(net)
+    alex.send(hello('c1'))
+    await net.settle()
+    expect(alex.last('refused')).toMatchObject({ reason: 'gmHero' })
+    expect(host.game!.heroes).toHaveLength(1)
+    expect(host.game!.heroes[0]!.player).toBeUndefined()
+  })
+
+  it("ignores a hello whose hero id isn't its sheet's, adding nothing", async () => {
+    const { net, host } = await setup()
+    const alex = client(net)
+    alex.send({ ...hello('c1'), heroSourceId: 'someone-else' })
+    await net.settle()
+    expect(host.game!.heroes).toEqual([])
+    // A good hello after it still joins.
+    alex.send(hello('c1'))
+    await net.settle()
+    expect(host.game!.heroes).toHaveLength(1)
+    expect(alex.last('state')).toBeDefined()
+  })
+
   it('applies an action, sending the new state and then the result', async () => {
     const { net, host } = await setup()
     const alex = client(net)
@@ -138,13 +161,13 @@ describe('hosting a game', () => {
     await net.settle()
     const heroId = host.game!.heroes[0]!.id
     const versionBefore = host.getSnapshot().version
-    alex.send({ v: 10, type: 'action', id: 'a1', heroId, action: { kind: 'reaction', used: true }, basedOn: versionBefore })
+    alex.send({ v: 11, type: 'action', id: 'a1', heroId, action: { kind: 'reaction', used: true }, basedOn: versionBefore })
     await net.settle()
     expect(host.game!.heroes[0]!.play.reactionUsed).toBe(true)
     expect(host.getSnapshot().version).toBe(versionBefore + 1)
     const types = alex.got.slice(-2).map((m) => m.type)
     expect(types).toEqual(['state', 'result'])
-    expect(alex.last('result')).toEqual({ v: 10, type: 'result', id: 'a1', ok: true })
+    expect(alex.last('result')).toEqual({ v: 11, type: 'result', id: 'a1', ok: true })
     expect(alex.last('state')!.table.heroes[0]!.play.reactionUsed).toBe(true)
   })
 
@@ -154,14 +177,14 @@ describe('hosting a game', () => {
     alex.send(hello('c1'))
     await net.settle()
     const heroId = host.game!.heroes[0]!.id
-    const action = { v: 10, type: 'action', id: 'a1', heroId, action: { kind: 'reaction', used: true }, basedOn: 0 }
+    const action = { v: 11, type: 'action', id: 'a1', heroId, action: { kind: 'reaction', used: true }, basedOn: 0 }
     alex.send(action)
     alex.send(action)
     await net.settle()
     expect(host.game!.heroes[0]!.play.reactionUsed).toBe(true)
     expect(alex.got.filter((m) => m.type === 'result')).toEqual([
-      { v: 10, type: 'result', id: 'a1', ok: true },
-      { v: 10, type: 'result', id: 'a1', ok: true },
+      { v: 11, type: 'result', id: 'a1', ok: true },
+      { v: 11, type: 'result', id: 'a1', ok: true },
     ])
   })
 
@@ -173,11 +196,11 @@ describe('hosting a game', () => {
     sam.send(hello('c2', { ...completeHero(), id: 'jo-src' }, 'Sam'))
     await net.settle()
     const heroId = host.game!.heroes[0]!.id
-    alex.send({ v: 10, type: 'action', id: 'a1', heroId, action: { kind: 'removeMod', modId: 'nope' }, basedOn: 0 })
-    sam.send({ v: 10, type: 'action', id: 'a2', heroId, action: { kind: 'reaction', used: true }, basedOn: 0 })
+    alex.send({ v: 11, type: 'action', id: 'a1', heroId, action: { kind: 'removeMod', modId: 'nope' }, basedOn: 0 })
+    sam.send({ v: 11, type: 'action', id: 'a2', heroId, action: { kind: 'reaction', used: true }, basedOn: 0 })
     await net.settle()
-    expect(alex.last('result')).toEqual({ v: 10, type: 'result', id: 'a1', ok: false, reason: 'that bonus or penalty is already gone' })
-    expect(sam.last('result')).toEqual({ v: 10, type: 'result', id: 'a2', ok: false, reason: "that hero isn't yours" })
+    expect(alex.last('result')).toEqual({ v: 11, type: 'result', id: 'a1', ok: false, reason: 'that bonus or penalty is already gone' })
+    expect(sam.last('result')).toEqual({ v: 11, type: 'result', id: 'a2', ok: false, reason: "that hero isn't yours" })
     expect(host.game!.heroes[0]!.play.reactionUsed).toBe(false)
   })
 
@@ -189,7 +212,7 @@ describe('hosting a game', () => {
     const heroId = host.game!.heroes[0]!.id
     const seen = host.getSnapshot().version
     host.apply((g) => ({ ...g, heroes: g.heroes.map((h) => ({ ...h, play: { ...h.play, health: 14 } })) }))
-    alex.send({ v: 10, type: 'action', id: 'a1', heroId, action: { kind: 'setHealth', value: 20 }, basedOn: seen })
+    alex.send({ v: 11, type: 'action', id: 'a1', heroId, action: { kind: 'setHealth', value: 20 }, basedOn: seen })
     await net.settle()
     expect(alex.last('result')).toMatchObject({ ok: false, reason: 'your Health had already changed to 14. Check it and try again' })
   })
@@ -212,8 +235,8 @@ describe('hosting a game', () => {
     await net.settle()
     const heroId = host.game!.heroes[0]!.id
     const changed = { ...maya(), details: { ...maya().details, name: 'Maya Reyes II' } }
-    alex.send({ v: 10, type: 'syncRequest', heroId, sheet: maya() })
-    alex.send({ v: 10, type: 'syncRequest', heroId, sheet: changed })
+    alex.send({ v: 11, type: 'syncRequest', heroId, sheet: maya() })
+    alex.send({ v: 11, type: 'syncRequest', heroId, sheet: changed })
     await net.settle()
     expect(host.game!.pendingSyncs).toMatchObject([{ heroId, sheet: { details: { name: 'Maya Reyes II' } } }])
     expect(host.game!.feed.at(-1)).toMatchObject({ gmOnly: true, text: 'Alex asked to update Maya Reyes to match their sheet.' })
@@ -223,10 +246,10 @@ describe('hosting a game', () => {
     host.declineSync(heroId)
     await net.settle()
     expect(host.game!.pendingSyncs).toEqual([])
-    expect(alex.last('syncResult')).toEqual({ v: 10, type: 'syncResult', heroId, approved: false, adjustments: [] })
+    expect(alex.last('syncResult')).toEqual({ v: 11, type: 'syncResult', heroId, approved: false, adjustments: [] })
     expect(host.game!.heroes[0]!.sheet.details.name).toBe('Maya Reyes')
 
-    alex.send({ v: 10, type: 'syncRequest', heroId, sheet: changed })
+    alex.send({ v: 11, type: 'syncRequest', heroId, sheet: changed })
     await net.settle()
     host.approveSync(heroId)
     await net.settle()
@@ -241,8 +264,8 @@ describe('hosting a game', () => {
     alex.send(hello('c1'))
     await net.settle()
     const heroId = host.game!.heroes[0]!.id
-    alex.send({ v: 10, type: 'syncRequest', heroId, sheet: maya() })
-    alex.send({ v: 10, type: 'syncCancel', heroId })
+    alex.send({ v: 11, type: 'syncRequest', heroId, sheet: maya() })
+    alex.send({ v: 11, type: 'syncCancel', heroId })
     await net.settle()
     expect(host.game!.pendingSyncs).toEqual([])
     expect(host.game!.feed.at(-1)).toMatchObject({ gmOnly: true, text: 'The request to update Maya Reyes was cancelled.' })
@@ -270,7 +293,7 @@ describe('hosting a game', () => {
     old.send({ v: 1, type: 'hello', clientId: 'c9' })
     old.send('junk')
     await net.settle()
-    expect(old.got).toEqual([{ v: 10, type: 'refused', reason: 'version' }])
+    expect(old.got).toEqual([{ v: 11, type: 'refused', reason: 'version' }])
   })
 
   it("handles a hello that arrives before the game has loaded, and says when the game can't be found", async () => {
@@ -322,10 +345,10 @@ describe('a player answering about a back issue', () => {
     await net.settle()
     host.apply((g) => finishIssue(g, { title: 'Saga', summary: '', heroIds: g.heroes.map((h) => h.id) }, clock()))
     const issueId = host.game!.issues[0]!.id
-    bo.send({ v: 10, type: 'issueAck', issueId, heroId, status: 'later' })
+    bo.send({ v: 11, type: 'issueAck', issueId, heroId, status: 'later' })
     await net.settle()
     expect(host.game!.issues[0]!.acks).toBeUndefined()
-    alex.send({ v: 10, type: 'issueAck', issueId, heroId, status: 'added', count: 2 })
+    alex.send({ v: 11, type: 'issueAck', issueId, heroId, status: 'added', count: 2 })
     await net.settle()
     expect(host.game!.issues[0]!.acks?.[heroId]).toMatchObject({ status: 'added', count: 2 })
     expect(JSON.stringify(alex.last('state')!.table)).not.toContain('acks')
@@ -342,16 +365,16 @@ describe('a player\'s colors', () => {
     await net.settle()
     const heroId = alex.last('state')!.you!.heroId
     const feed = host.game!.feed.length
-    alex.send({ v: 10, type: 'appearance', heroId, appearance: { primary: 'pink' } })
+    alex.send({ v: 11, type: 'appearance', heroId, appearance: { primary: 'pink' } })
     await net.settle()
     expect(host.game!.heroes.find((h) => h.id === heroId)!.sheet.appearance).toEqual({ primary: 'pink' })
     expect(host.game!.feed).toHaveLength(feed)
     expect(host.game!.pendingSyncs).toEqual([])
     expect(alex.last('state')!.table.heroes.find((h) => h.id === heroId)!.sheet.appearance).toEqual({ primary: 'pink' })
-    sam.send({ v: 10, type: 'appearance', heroId, appearance: { primary: 'grey' } })
+    sam.send({ v: 11, type: 'appearance', heroId, appearance: { primary: 'grey' } })
     await net.settle()
     expect(host.game!.heroes.find((h) => h.id === heroId)!.sheet.appearance).toEqual({ primary: 'pink' })
-    alex.send({ v: 10, type: 'appearance', heroId })
+    alex.send({ v: 11, type: 'appearance', heroId })
     await net.settle()
     expect(host.game!.heroes.find((h) => h.id === heroId)!.sheet).not.toHaveProperty('appearance')
   })
@@ -362,8 +385,8 @@ describe('a player\'s colors', () => {
     alex.send(hello('c1'))
     await net.settle()
     const heroId = alex.last('state')!.you!.heroId
-    alex.send({ v: 10, type: 'syncRequest', heroId, sheet: { ...maya(), details: { ...maya().details, name: 'Maya Two' }, appearance: { primary: 'grey' } } })
-    alex.send({ v: 10, type: 'appearance', heroId, appearance: { primary: 'pink' } })
+    alex.send({ v: 11, type: 'syncRequest', heroId, sheet: { ...maya(), details: { ...maya().details, name: 'Maya Two' }, appearance: { primary: 'grey' } } })
+    alex.send({ v: 11, type: 'appearance', heroId, appearance: { primary: 'pink' } })
     await net.settle()
     host.approveSync(heroId)
     await net.settle()

@@ -16,6 +16,7 @@ const REFUSED: Record<RefusedReason | 'oldHost', string> = {
   oldHost: "The GM's device is on an older version of the app. Ask the GM to reload their page, then try again.",
   full: `This game already has ${OBSERVER_LIMIT} screens watching, the most it takes.`,
   taken: "The GM's device turned this screen away.",
+  gmHero: "The GM's device turned this screen away.",
   removed: 'The GM removed this screen from the game.',
   wrongGame: 'That code now belongs to a different game. Check the code with your GM.',
 }

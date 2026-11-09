@@ -12,6 +12,8 @@ export function refusedText(reason: RefusedReason | 'oldHost', gameName: string)
       return 'This game is full.'
     case 'taken':
       return 'Your hero is being played in this game on another device. Leave the game there, or ask the GM, then try again.'
+    case 'gmHero':
+      return "That hero is one of the GM's own in this game. Join with another hero, or ask the GM."
     case 'version':
       return "This game's GM is on a newer version of the app. Reload this page to update."
     case 'oldHost':

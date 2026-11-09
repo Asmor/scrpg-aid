@@ -1,5 +1,5 @@
 /**
- * The game table's messages (scrpg-aid-designs/game-table/spec.md, section 10), version 8. The GM's
+ * The game table's messages (scrpg-aid-designs/game-table/spec.md, section 10), version 11. The GM's
  * device hosts a game; players and observers say hello with their role, players send each
  * action as its own message and get a result, and the GM's device sends each peer its
  * projection of the game (../game/project.ts) after every change.
@@ -17,7 +17,7 @@ import { die, heroShape, playStateShape } from '../hero/validate'
 import { groupActions } from '../game/validate'
 import { arrayOf, boolean, integer, isRecord, nonEmptyString, object, oneOf, type Check } from '../shape'
 
-export const PROTOCOL_VERSION = 10
+export const PROTOCOL_VERSION = 11
 
 /** The most observers a game takes (section 10). */
 export const OBSERVER_LIMIT = 20
@@ -37,15 +37,15 @@ export const VIEW_LIMITS = { heroes: 30, villains: 50, groups: 50, challenges: 5
 
 export type ClientMessage =
   /** `gameId` when reconnecting a saved game: the GM checks the code and the game match. */
-  | { v: 10; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero; gameId?: string }
-  | { v: 10; type: 'hello'; role: 'observer'; clientId: string; screenName: string }
-  | { v: 10; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
-  | { v: 10; type: 'syncRequest'; heroId: string; sheet: Hero }
-  | { v: 10; type: 'syncCancel'; heroId: string }
+  | { v: 11; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero; gameId?: string }
+  | { v: 11; type: 'hello'; role: 'observer'; clientId: string; screenName: string }
+  | { v: 11; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
+  | { v: 11; type: 'syncRequest'; heroId: string; sheet: Hero }
+  | { v: 11; type: 'syncCancel'; heroId: string }
   /** A player's colors, applied at once: they're cosmetic, so they skip the GM's review (scrpg-aid-designs/character-colors/spec.md, section 6). */
-  | { v: 10; type: 'appearance'; heroId: string; appearance?: Appearance }
+  | { v: 11; type: 'appearance'; heroId: string; appearance?: Appearance }
   /** What a player did about a back issue, for the GM's list (scrpg-aid-designs/issues/spec.md, section 3). Only ever information. */
-  | { v: 10; type: 'issueAck'; issueId: string; heroId: string; status: 'added' | 'later'; count?: number }
+  | { v: 11; type: 'issueAck'; issueId: string; heroId: string; status: 'added' | 'later'; count?: number }
 
 /** Who a state message is for: a player's own hero in the game, and when it first joined. */
 export interface YouAre {
@@ -54,24 +54,24 @@ export interface YouAre {
 }
 
 export type HostMessage =
-  | { v: 10; type: 'state'; room: string; version: number; table: TableView; gm: string; you?: YouAre }
+  | { v: 11; type: 'state'; room: string; version: number; table: TableView; gm: string; you?: YouAre }
   /** `notes`: lines for the player as toasts (a save against their Attack). */
-  | { v: 10; type: 'result'; id: string; ok: true; notes?: string[] }
-  | { v: 10; type: 'result'; id: string; ok: false; reason: string }
-  | { v: 10; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
-  | { v: 10; type: 'refused'; reason: RefusedReason }
+  | { v: 11; type: 'result'; id: string; ok: true; notes?: string[] }
+  | { v: 11; type: 'result'; id: string; ok: false; reason: string }
+  | { v: 11; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
+  | { v: 11; type: 'refused'; reason: RefusedReason }
   /** The GM got a new code for the game: kept peers move to it (scrpg-aid-designs/game-table/game-table-spec-addendum-game-codes.md). */
-  | { v: 10; type: 'codeChanged'; code: string }
+  | { v: 11; type: 'codeChanged'; code: string }
   /** The GM removed this peer from the game (Remove, or left behind by a new code). */
-  | { v: 10; type: 'removed'; reason?: string }
+  | { v: 11; type: 'removed'; reason?: string }
   /** The GM is about to start the next issue, and this player's hero has hero points left. */
-  | { v: 10; type: 'spendReminder' }
+  | { v: 11; type: 'spendReminder' }
 
 /**
  * Why the GM's device won't take a peer: another version of the app, a full game, the hero is
- * being played on another device, the GM removed them, or the code now belongs to another game.
+ * being played on another device, the hero is one of the GM's own, the GM removed them, or the code now belongs to another game.
  */
-export type RefusedReason = 'version' | 'full' | 'taken' | 'removed' | 'wrongGame'
+export type RefusedReason = 'version' | 'full' | 'taken' | 'gmHero' | 'removed' | 'wrongGame'
 
 // ---- Checks ----
 
@@ -273,7 +273,7 @@ const HOST: Record<string, Check> = {
   state: object({ room: id, version: integer, table: (v, path) => tableViewProblem(v) && `${path} is malformed`, gm: text(MAX_NAME), 'you?': object({ heroId: id, since: text(40) }) }),
   result: (v, path) => (isRecord(v) && v.ok === false ? object({ id, ok: oneOf(false), reason: text(MAX_TEXT) })(v, path) : object({ id, ok: oneOf(true), 'notes?': list(text(MAX_TEXT), 10) })(v, path)),
   syncResult: object({ heroId: id, approved: boolean, adjustments: list(text(), 50) }),
-  refused: object({ reason: oneOf('version', 'full', 'taken', 'removed', 'wrongGame') }),
+  refused: object({ reason: oneOf('version', 'full', 'taken', 'gmHero', 'removed', 'wrongGame') }),
   codeChanged: object({ code: roomCode }),
   removed: object({ 'reason?': text(MAX_TEXT) }),
   spendReminder: object({}),
