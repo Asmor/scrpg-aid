@@ -19,7 +19,7 @@ import { availabilityContext, basicActionBlocked, currentForm, playAbilities, pl
 import { confirmRoll, effectAmount, type RollRecord } from '../play/roll'
 import { addMod, addTwist, buyHeroPointBonus, currentHealth, returnHeroPointBonus, effectiveZone, noteGivenMod, removeMod, removeTwist, setDividedForm, setForm, setHealth, setReactionUsed, type Clock } from '../play/state'
 import type { BasicAction } from '../rules/types'
-import { applyAttack, giveMod, protect, targetHidden, targetName } from './resolve'
+import { applyAttack, giveMod, protect, targetHidden, targetName, type SaveDice } from './resolve'
 import { defend } from './hits'
 import { betweenIssues, challengeDone, nextIssueNumber, sceneOnTable, type ActorRef, type Game, type HeroInGame } from './model'
 import { changeHeroPlay, findHero, handOff, heroPlayInScene, isHidden, itemName, resolveHit, roundOver, sameActor, startRound, waiting, withLog } from './table'
@@ -96,6 +96,8 @@ export interface ActionContext {
   versions: FieldVersions
   /** The GM's dice, for saves against a player's Attack. */
   random?: () => number
+  /** Members' saves against a player's Attack wait for the GM (Settings › Saves for minions and lieutenants). */
+  holdSaves?: boolean
 }
 
 /** The most Overcomes that wait on one challenge. */
@@ -174,7 +176,7 @@ export function applyHeroAction(game: Game, heroId: string, action: HeroAction, 
       return { ok: true, game: resolveHit(game, hit.id, action.defenseId, clock) }
     }
     case 'roll':
-      return applyRoll(game, hero, action.roll, clock, ctx.random ?? Math.random)
+      return applyRoll(game, hero, action.roll, clock, { random: ctx.random ?? Math.random, ...(ctx.holdSaves ? { holdSaves: true } : {}), forHero: hero.id })
     case 'makeMinion':
       return change((p) => addMinion(p, action.minion, clock))
     case 'removeMinion':
@@ -239,7 +241,7 @@ function visibleName(game: Game, to: TableTarget): string | undefined {
   return targetHidden(game, to) ? undefined : targetName(game, to)
 }
 
-function applyRoll(game: Game, hero: HeroInGame, roll: RollAction, clock: Clock, random: () => number): ActionResult {
+function applyRoll(game: Game, hero: HeroInGame, roll: RollAction, clock: Clock, random: SaveDice): ActionResult {
   const { sheet, play, zone } = inScene(game, hero)
   const ctx = availabilityContext(hero.sheet, sheet, play, zone)
   let reaction = false

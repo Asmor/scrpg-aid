@@ -108,6 +108,8 @@ export class HostSession extends Subscribable<HostSnapshot> {
   /** Recent results by "<client id>:<action id>": an action sent again (Try again) is answered, never applied twice. */
   private results = new Map<string, { ok: true; notes?: string[] } | { ok: false; reason: string }>()
   private waiting: Waiting[] | undefined = []
+  /** Members' saves against players' Attacks wait for the GM (the GM's Settings › Saves for minions and lieutenants, set by the game page). */
+  holdSaves = false
   /** Saves happen one after another, in order. */
   private saving: Promise<void> = Promise.resolve()
 
@@ -414,7 +416,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
       reply(r)
     }
     if (!this.owns(from, msg.heroId)) return remember({ ok: false, reason: "that hero isn't yours" })
-    const result = applyHeroAction(game, msg.heroId, msg.action, { basedOn: msg.basedOn, versions: this.versions, random: this.random }, this.clock())
+    const result = applyHeroAction(game, msg.heroId, msg.action, { basedOn: msg.basedOn, versions: this.versions, random: this.random, holdSaves: this.holdSaves }, this.clock())
     if (!result.ok) return remember({ ok: false, reason: result.reason })
     // The new state first, so the result arrives with the value already updated.
     this.apply(() => result.game)

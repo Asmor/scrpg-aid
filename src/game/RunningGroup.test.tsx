@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Hero } from '../hero/model'
 import { SettingsContext } from '../settings/context'
-import { DEFAULT_SETTINGS } from '../settings/model'
+import { DEFAULT_SETTINGS, type Settings } from '../settings/model'
 import type { Clock } from '../play/state'
 import { completeHero } from '../test/heroes'
 import { createGame, heroCopy, type Game } from './model'
@@ -195,9 +195,9 @@ describe('running a group', () => {
 })
 
 describe('with physical dice', () => {
-  const physical = { settings: { ...DEFAULT_SETTINGS, rolling: 'physical' as const }, update: () => {} }
   const pad = () => within(screen.getByRole('group', { name: 'Number pad' }))
-  function setupPhysical(actions: Partial<GroupActions> = {}) {
+  function setupPhysical(actions: Partial<GroupActions> = {}, npcSaves: Settings['npcSaves'] = 'auto') {
+    const physical = { settings: { ...DEFAULT_SETTINGS, rolling: 'physical' as const, npcSaves }, update: () => {} }
     const c = clock()
     const game = addGroup(createGame({ id: 'g' }), { kind: 'minions', name: 'Burglars', die: 'd8', count: 2, hidden: false }, c)
     const all = { shrink: vi.fn(), remove: vi.fn(), addMod: vi.fn(), removeMod: vi.fn(), setActed: vi.fn(), applyRoll: vi.fn(), applySaves: vi.fn(), ...actions } as unknown as GroupActions
@@ -232,9 +232,29 @@ describe('with physical dice', () => {
     expect(await screen.findByRole('dialog', { name: /rolls Attack/ })).toHaveTextContent('5')
   })
 
-  it('asks for the saves of a Damage', async () => {
+  it('rolls the saves of a Damage in the app by default (Saves: Roll automatically)', async () => {
     setupPhysical()
     await userEvent.click(screen.getByRole('button', { name: 'Damage Burglars 1' }))
+    expect(screen.queryByRole('button', { name: 'Enter saves' })).not.toBeInTheDocument()
+    await userEvent.type(screen.getByRole('spinbutton', { name: 'Damage' }), '4')
+    await userEvent.click(screen.getByRole('button', { name: 'Roll saves' }))
+    expect(screen.queryByRole('group', { name: 'Number pad' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Burglars 1:/)).toBeInTheDocument()
+  })
+
+  it('offers Roll saves and Enter saves with Ask each time', async () => {
+    setupPhysical({}, 'ask')
+    await userEvent.click(screen.getByRole('button', { name: 'Damage Burglars 1' }))
+    await userEvent.type(screen.getByRole('spinbutton', { name: 'Damage' }), '4')
+    expect(screen.getByRole('button', { name: 'Roll saves' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Enter saves' }))
+    expect(screen.getByRole('heading', { name: 'Burglars 1 1 of 1 · d8' })).toBeInTheDocument()
+  })
+
+  it('asks for the saves of a Damage with Use my physical dice', async () => {
+    setupPhysical({}, 'physical')
+    await userEvent.click(screen.getByRole('button', { name: 'Damage Burglars 1' }))
+    expect(screen.queryByRole('button', { name: 'Roll saves' })).not.toBeInTheDocument()
     await userEvent.type(screen.getByRole('spinbutton', { name: 'Damage' }), '4')
     await userEvent.keyboard('{Enter}')
     expect(screen.getByRole('heading', { name: 'Burglars 1 1 of 1 · d8' })).toBeInTheDocument()

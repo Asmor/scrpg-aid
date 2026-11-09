@@ -8,6 +8,11 @@ import { isRecord } from '../shape'
 export interface Settings {
   diceDisplay: 'icon' | 'text'
   rolling: 'app' | 'physical'
+  /**
+   * Minion and lieutenant saves with physical dice (section 2): roll them in the app, ask each time,
+   * or enter every one. Used only when `rolling` is 'physical', and only on the GM's device.
+   */
+  npcSaves: 'auto' | 'ask' | 'physical'
   alerts: { turn: boolean; answer: boolean; sound: boolean; vibrate: boolean; notify: boolean }
   textSize: 'normal' | 'large' | 'larger'
   motion: 'system' | 'reduce' | 'allow'
@@ -19,6 +24,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   diceDisplay: 'icon',
   rolling: 'app',
+  npcSaves: 'auto',
   alerts: { turn: false, answer: false, sound: false, vibrate: false, notify: false },
   textSize: 'normal',
   motion: 'system',
@@ -53,6 +59,7 @@ export function parseSettings(value: unknown): Settings {
   return {
     diceDisplay: choice(saved.diceDisplay, ['icon', 'text'], d.diceDisplay),
     rolling: choice(saved.rolling, ['app', 'physical'], d.rolling),
+    npcSaves: choice(saved.npcSaves, ['auto', 'ask', 'physical'], d.npcSaves),
     alerts: {
       turn: flag(alerts.turn, d.alerts.turn),
       answer: flag(alerts.answer, d.alerts.answer),
@@ -70,3 +77,6 @@ export function parseSettings(value: unknown): Settings {
     firstRunDismissed: flag(saved.firstRunDismissed, d.firstRunDismissed),
   }
 }
+
+/** How this device rolls minion and lieutenant saves: always in the app unless it rolls physical dice. */
+export const npcSavesOf = (settings: Pick<Settings, 'rolling' | 'npcSaves'>): Settings['npcSaves'] => (settings.rolling === 'physical' ? settings.npcSaves : 'auto')

@@ -95,6 +95,23 @@ export interface PendingHit {
   gmOnly?: true
 }
 
+/**
+ * A minion's or lieutenant's save from an Attack, waiting for the GM to roll or enter it
+ * (scrpg-aid-designs/settings/spec.md, "Minion and lieutenant saves"). GM only: never projected.
+ * `damage` is the hit before the member's defense, `defenseId` the defense it uses; `from` is the
+ * attacker's name, and `forHero` the attacking hero, whose player sees it's waiting.
+ */
+export interface PendingSave {
+  id: string
+  groupId: string
+  memberId: string
+  damage: number
+  defenseId?: string
+  from: string
+  forHero?: string
+  at: string
+}
+
 /** A player asking for the game's copy of their hero to match their library sheet (section 8; sent from Phase 2). */
 export interface SyncRequest {
   heroId: string
@@ -226,6 +243,8 @@ export interface GameFeedEntry extends FeedEntry {
   statusOf?: string
   /** A line for one player: only that hero's player and the GM see it. */
   forHero?: string
+  /** A line everyone sees that's also a toast for one hero's player: a waiting save on their Attack, resolved. */
+  toastFor?: string
 }
 
 /** An opposition item or environment, wherever it is in the game. */
@@ -355,6 +374,8 @@ export interface Game {
   pendingSyncs: SyncRequest[]
   /** Hits on heroes waiting for the hero's owner to choose one of its defenses (ruling 65). */
   pendingHits?: PendingHit[]
+  /** Saves from Attacks waiting for the GM (Settings › Saves for minions and lieutenants). */
+  pendingSaves?: PendingSave[]
   /** Private to the GM. */
   notes: string
   /** The code players join with. It stays the same each time the game is hosted. */

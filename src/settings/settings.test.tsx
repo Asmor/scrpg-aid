@@ -12,7 +12,7 @@ import { adaptiveBruiser } from '../test/villains'
 import { AddGroupDialog } from '../game/dialogs'
 import { applyToRoot, useSettings } from './context'
 import { SettingsProvider } from './SettingsProvider'
-import { DEFAULT_SETTINGS, parseSettings, SETTINGS_FORMAT, settingsToSaved } from './model'
+import { DEFAULT_SETTINGS, npcSavesOf, parseSettings, SETTINGS_FORMAT, settingsToSaved } from './model'
 import { SettingsPage } from './SettingsPage'
 import { MemorySettingsStore } from './store'
 
@@ -56,8 +56,22 @@ describe('the Settings page', () => {
     await userEvent.click(screen.getByRole('radio', { name: 'Name only' }))
     await waitFor(async () => expect((await store.load()).newGame).toEqual({ trackerPreset: 'epic', startHidden: false, playersSee: 'name' }))
     expect(screen.getByRole('radio', { name: /The app rolls/ })).toBeChecked()
+    expect(screen.queryByRole('combobox', { name: 'Saves for minions and lieutenants' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('radio', { name: /I roll physical dice/ }))
     await waitFor(async () => expect((await store.load()).rolling).toBe('physical'))
+    // Saves for minions and lieutenants shows only with physical dice (section 2).
+    const saves = screen.getByRole('combobox', { name: 'Saves for minions and lieutenants' })
+    expect(saves).toHaveValue('auto')
+    expect(saves).toHaveAccessibleDescription('When a minion or lieutenant takes damage and rolls to save.')
+    await userEvent.selectOptions(saves, 'Ask each time')
+    await waitFor(async () => expect((await store.load()).npcSaves).toBe('ask'))
+  })
+
+  it('rolls saves automatically unless physical dice say otherwise', () => {
+    expect(npcSavesOf({ rolling: 'app', npcSaves: 'physical' })).toBe('auto')
+    expect(npcSavesOf({ rolling: 'physical', npcSaves: 'ask' })).toBe('ask')
+    expect(parseSettings(settingsToSaved({ ...DEFAULT_SETTINGS, npcSaves: 'physical' })).npcSaves).toBe('physical')
+    expect(parseSettings({ format: SETTINGS_FORMAT, settings: { npcSaves: 'sometimes' } }).npcSaves).toBe('auto')
   })
 
   it('applies text size and motion to the root at once', async () => {

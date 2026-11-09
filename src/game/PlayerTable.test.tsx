@@ -19,7 +19,8 @@ import { createGame } from './model'
 import { finishIssue, startIssue } from './issues'
 import { createScene } from './model'
 import { MemoryGameStore } from './store'
-import { addChallenge, addVillain, setChallengeStep, changeHeroPlay, handOff, startRound } from './table'
+import { addChallenge, addGroup, addVillain, setChallengeStep, changeHeroPlay, handOff, startRound } from './table'
+import { holdSave, resolvePendingSave } from './pending-saves'
 
 let n = 0
 const clock = (): Clock => ({ now: new Date(), newId: () => `id${++n}` })
@@ -554,3 +555,23 @@ describe('a reminder about hero points', () => {
   })
 })
 
+
+describe('a save on your Attack waiting for the GM (settings spec, section 2)', () => {
+  it('shows it waiting where the toast goes, then the save’s line once the GM rolls it', async () => {
+    const { host, settle } = await setup()
+    await join(settle)
+    const heroId = host.game!.heroes[0]!.id
+    host.apply((g) => {
+      const c = clock()
+      const added = addGroup(g, { kind: 'minions', name: 'Drones', die: 'd6', count: 1, hidden: false }, c)
+      const group = added.groups[0]!
+      return holdSave(added, { groupId: group.id, memberId: group.members[0]!.id, damage: 3, from: 'Maya Reyes', forHero: heroId }, c)
+    })
+    await settle()
+    expect(await screen.findByText("Waiting for the GM to roll Drones 1's save")).toBeInTheDocument()
+    host.apply((g) => resolvePendingSave(g, g.pendingSaves![0]!.id, { entered: 5 }, clock()))
+    await settle()
+    await waitFor(() => expect(screen.queryByText("Waiting for the GM to roll Drones 1's save")).not.toBeInTheDocument())
+    expect(screen.getAllByText(/^Drones 1 saved against 3 \(rolled 5\)/).length).toBeGreaterThan(0)
+  })
+})

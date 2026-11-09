@@ -107,9 +107,10 @@ const gameShape = object({
   challenges: arrayOf(challengeShape),
   pendingSyncs: arrayOf(object({ heroId: nonEmptyString, sheet: heroShape, at: string })),
   'pendingHits?': arrayOf(object({ id: nonEmptyString, heroId: nonEmptyString, by: string, amount: integer, at: string, 'gmOnly?': oneOf(true) })),
+  'pendingSaves?': arrayOf(object({ id: nonEmptyString, groupId: nonEmptyString, memberId: nonEmptyString, damage: integer, 'defenseId?': nonEmptyString, from: string, 'forHero?': nonEmptyString, at: string })),
   notes: string,
   'code?': nonEmptyString,
-  feed: arrayOf(object({ id: nonEmptyString, at: string, by: string, text: string, 'details?': arrayOf(string), 'gmOnly?': oneOf(true), 'statusOf?': nonEmptyString, 'forHero?': nonEmptyString })),
+  feed: arrayOf(object({ id: nonEmptyString, at: string, by: string, text: string, 'details?': arrayOf(string), 'gmOnly?': oneOf(true), 'statusOf?': nonEmptyString, 'forHero?': nonEmptyString, 'toastFor?': nonEmptyString })),
 })
 
 /** Each zone 0–MAX_BOXES, and at least one box. */

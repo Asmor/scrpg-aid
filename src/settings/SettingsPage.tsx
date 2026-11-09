@@ -176,6 +176,7 @@ export function SettingsPage({ backupTime }: { backupTime?: BackupTimeStore }) {
   }
   const newGame = (key: string, change: Partial<Settings['newGame']>) => set(key, (s) => ({ ...s, newGame: { ...s.newGame, ...change } }))
   const hiddenId = useId()
+  const savesId = useId()
   return (
     <div className="settings">
       <h1>Settings</h1>
@@ -204,6 +205,24 @@ export function SettingsPage({ backupTime }: { backupTime?: BackupTimeStore }) {
           }
         />
         <RollingChoice value={settings.rolling} saved={mark === 'rolling'} onChange={(rolling) => set('rolling', (s) => ({ ...s, rolling }))} />
+        {settings.rolling === 'physical' && (
+          <div className="settings__field settings__field--indented">
+            <label className="settings__label" htmlFor={savesId}>
+              Saves for minions and lieutenants
+            </label>
+            <div className="settings__row">
+              <select id={savesId} value={settings.npcSaves} aria-describedby={`${savesId}-hint`} onChange={(e) => set('saves', (s) => ({ ...s, npcSaves: e.target.value as Settings['npcSaves'] }))}>
+                <option value="auto">Roll automatically</option>
+                <option value="ask">Ask each time</option>
+                <option value="physical">Use my physical dice</option>
+              </select>
+              <Saved on={mark === 'saves'} />
+            </div>
+            <p id={`${savesId}-hint`} className="muted">
+              When a minion or lieutenant takes damage and rolls to save.
+            </p>
+          </div>
+        )}
       </Section>
       <Alerts settings={settings} update={set} mark={mark} />
       <Section title="Display">

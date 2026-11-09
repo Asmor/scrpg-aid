@@ -21,6 +21,7 @@ import type { Die } from '../rules/types'
 import { challengeDone, sceneOnTable, type ActorRef, type Issue, type Challenge, type EnvironmentOnTable, type Game, type GameFeedEntry, type NpcGroup, type PendingHit, type PlayersSee, type SceneOnTable } from './model'
 import { groupLabel, isHidden, sameActor, UNSEEN } from './table'
 import { villainStatus } from './villain-status'
+import { waitingSaveText } from './pending-saves'
 
 export type Audience = 'gm' | 'player' | 'observer'
 
@@ -79,6 +80,8 @@ export interface TableView {
   challenges: Challenge[]
   /** Hits waiting for a hero's owner to choose a defense (ruling 65); a hidden attacker is unnamed for players. */
   pendingHits?: PendingHit[]
+  /** A player's own Attacks whose saves wait for the GM: "Waiting for the GM to roll Burglar 2's save". Nobody else's. */
+  waitingSaves?: string[]
   feed: GameFeedEntry[]
 }
 
@@ -129,6 +132,8 @@ export function project(game: Game, audience: Audience, heroId?: string): TableV
   const visibleActor = (ref: ActorRef) => gm || !isHidden(game, ref)
   const current = game.turn.current && visibleActor(game.turn.current) ? game.turn.current : undefined
   const { total, ...scene } = sceneOnTable(game)
+  // Waiting saves are the GM's; the attacking player sees only that theirs wait (settings spec, section 2).
+  const waiting = audience === 'player' && heroId ? (game.pendingSaves ?? []).flatMap((s) => (s.forHero === heroId ? (waitingSaveText(game, s) ?? []) : [])) : []
   return {
     id: game.id,
     name: game.name,
@@ -154,6 +159,7 @@ export function project(game: Game, audience: Audience, heroId?: string): TableV
     groups: gm ? shown(game.groups) : shown(game.groups).map(withoutAbilities),
     challenges: gm ? shown(game.challenges) : shown(game.challenges).map((c) => challengeFor(c, heroId)),
     ...(game.pendingHits?.length ? { pendingHits: gm ? game.pendingHits : game.pendingHits.map(({ gmOnly, ...h }) => (gmOnly ? { ...h, by: UNSEEN } : h)) } : {}),
+    ...(waiting.length ? { waitingSaves: waiting } : {}),
     feed: gm ? game.feed : game.feed.filter((e) => !e.gmOnly && (!e.forHero || (heroId !== undefined && e.forHero === heroId))),
   }
 }

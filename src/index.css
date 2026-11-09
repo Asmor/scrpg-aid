@@ -11123,3 +11123,22 @@ button.ref-thumb {
   padding: 0;
   list-style: none;
 }
+
+/* Saves for minions and lieutenants sits under "I roll physical dice" (settings spec, section 2). */
+.settings__field--indented {
+  margin-left: 1.5rem;
+}
+
+/* Saves to roll: at the top of the GM's table (settings spec, section 2). */
+.gt-saves {
+  margin-bottom: 0.75rem;
+  border-color: var(--ui-accent);
+}
+
+.gt-saves__list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}

@@ -8,6 +8,8 @@ Every setting, backups, restoring, and games that can't be read.
 
 Show dice as icons or as text (d8). Rolling picks whether the app rolls for you or you roll your own dice and enter the numbers.
 
+With your own dice, Saves for minions and lieutenants says how a GM's device handles saves when a minion or lieutenant takes damage: roll them automatically (the default, to keep play quick), ask each time, or enter every one. Saves from an Attack that wait show in Saves to roll at the top of the table; any still waiting are rolled when the next scene starts or the issue finishes.
+
 ## Alerts
 
 Choose what to be told about (your turn, or something that needs your answer, such as the GM answering a request or a new request for the GM) and how: a sound, a vibration, or a notification when the app is in the background.

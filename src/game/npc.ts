@@ -152,14 +152,17 @@ export function memberSaveText(name: string, kind: NpcGroup['kind'], die: Die, s
 
 export const usedUp = (mods: readonly PlayMod[], used: readonly PlayMod[]) => mods.filter((m) => m.persistent || !used.some((u) => u.id === m.id))
 
-/** Carries out a member's save: its die changes or it's KO'd, its one-time mods used are used up, and the log says so. */
-export function applySave(game: Game, groupId: string, s: MemberSave, clock: Clock): Game {
+/**
+ * Carries out a member's save: its die changes or it's KO'd, its one-time mods used are used up,
+ * and the log says so. `toastFor`: the hero whose player gets the line as a toast too.
+ */
+export function applySave(game: Game, groupId: string, s: MemberSave, clock: Clock, toastFor?: string): Game {
   const group = game.groups.find((g) => g.id === groupId)
   const member = group?.members.find((m) => m.id === s.memberId)
   if (!group || !member) return game
   const name = memberName(group, member.n)
   const text = memberSaveText(name, group.kind, member.die, s)
-  const line = { id: clock.newId(), at: clock.now.toISOString(), by: group.name, text, ...(group.hidden ? { gmOnly: true as const } : {}) }
+  const line = { id: clock.newId(), at: clock.now.toISOString(), by: group.name, text, ...(group.hidden ? { gmOnly: true as const } : {}), ...(toastFor ? { toastFor } : {}) }
   if (s.result.outcome === 'ko') return removeMember(withLog(game, [line]), groupId, member.id, clock, 'ko')
   const mods = s.roll ? usedUp(member.mods, s.roll.mods) : member.mods
   const die = s.result.newDie ?? member.die

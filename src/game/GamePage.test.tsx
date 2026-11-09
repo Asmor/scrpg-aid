@@ -1166,3 +1166,39 @@ describe('the reference sheet from a scene', () => {
     expect(notes).toHaveAccessibleName(/This scene has no notes yet\./)
   })
 })
+
+describe('Saves to roll (settings spec, section 2)', () => {
+  const withWaitingSave = (g: Game) => {
+    const added = addGroup(g, { kind: 'minions', name: 'Burglars', die: 'd6', count: 2, hidden: false }, clock())
+    const group = added.groups[0]!
+    Object.assign(g, added, { pendingSaves: [{ id: 'ps1', groupId: group.id, memberId: group.members[0]!.id, damage: 4, from: 'Maya Reyes', at: '2026-11-09T12:00:00Z' }] })
+  }
+  const physical = async (npcSaves: 'ask' | 'physical') => {
+    const settings = new MemorySettingsStore()
+    await settings.save({ ...DEFAULT_SETTINGS, rolling: 'physical', npcSaves })
+    return settings
+  }
+
+  it('lists each waiting save, and Roll for me rolls it in the app (Ask each time)', async () => {
+    const { saved } = await setup(withWaitingSave, { settings: await physical('ask') })
+    const card = within(await screen.findByRole('region', { name: 'Saves to roll' }))
+    expect(card.getByText('Burglars 1 (d6) saves against 4')).toBeInTheDocument()
+    await userEvent.click(card.getByRole('button', { name: 'Roll for me: Burglars 1' }))
+    await waitFor(async () => expect((await saved()).pendingSaves).toBeUndefined())
+    // random 0.5 on a d6 rolls a 4: saved, so it drops to d4.
+    expect((await saved()).groups[0]!.members[0]!.die).toBe('d4')
+    expect(screen.queryByRole('region', { name: 'Saves to roll' })).not.toBeInTheDocument()
+  })
+
+  it('offers only Enter my roll with physical dice, and takes the number from the pad', async () => {
+    const { saved } = await setup(withWaitingSave, { settings: await physical('physical') })
+    const card = within(await screen.findByRole('region', { name: 'Saves to roll' }))
+    expect(card.queryByRole('button', { name: 'Roll for me: Burglars 1' })).not.toBeInTheDocument()
+    await userEvent.click(card.getByRole('button', { name: 'Enter my roll: Burglars 1' }))
+    await userEvent.click(within(screen.getByRole('group', { name: 'Number pad' })).getByRole('button', { name: '2' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Accept' }))
+    await waitFor(async () => expect((await saved()).pendingSaves).toBeUndefined())
+    // 2 against 4: failed, KO'd.
+    expect((await saved()).groups[0]!.members).toHaveLength(1)
+  })
+})

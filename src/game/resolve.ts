@@ -19,6 +19,7 @@ import type { TableTarget } from './actions'
 import type { Game } from './model'
 import { applySave, groupSaveMods, heroMinionSave, memberSaveText, rollSave, usedUp, ACTION_NAME, type GroupRollRow, type Random } from './npc'
 import { defend, hitCharacter } from './hits'
+import { holdSave, saveNeedsRoll } from './pending-saves'
 import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, memberName, seenAs, feedLine, withLog } from './table'
 
 /** The target's name, or undefined when it isn't on the table any more. */
@@ -71,13 +72,28 @@ export function giveMod(game: Game, to: TableTarget, mod: Omit<PlayMod, 'id'>, g
 }
 
 /**
+ * The GM's dice for saves against an Attack: `random`, unless `holdSaves` (Settings › Saves for
+ * minions and lieutenants: Ask each time, or Use my physical dice), when a member's save that
+ * needs a roll waits for the GM (./pending-saves.ts). `forHero`: the attacking hero, whose player
+ * sees it waiting.
+ */
+export interface SaveDice {
+  random: Random
+  holdSaves?: boolean
+  forHero?: string
+}
+
+const diceOf = (dice: Random | SaveDice): SaveDice => (typeof dice === 'function' ? { random: dice } : dice)
+
+/**
  * `by` attacks `to` for `amount` damage: "Maya Reyes attacked Gravelord: 6 damage." in the log
  * (GM-only when `gmOnly`, or when the target is hidden). One of the target's defenses blocks what
  * it can first (ruling 65): `defenseId`, or the default. Returns the game and, for a member or a
- * hero's minion, its save's line (the player's toast).
+ * hero's minion, its save's line (the player's toast); none while a member's save waits for the GM.
  * Its lines are by `author` (a group member's are by its group), `by` by default.
  */
-export function applyAttack(game: Game, by: string, to: TableTarget, amount: number, random: Random, clock: Clock, gmOnly = false, defenseId?: string, author = by): { game: Game; note?: string } {
+export function applyAttack(game: Game, by: string, to: TableTarget, amount: number, dice: Random | SaveDice, clock: Clock, gmOnly = false, defenseId?: string, author = by): { game: Game; note?: string } {
+  const { random, holdSaves, forHero } = diceOf(dice)
   const name = targetName(game, to)
   if (!name) return { game }
   if (to.kind === 'hero' || to.kind === 'villain') return { game: hitCharacter(game, by, to, amount, clock, gmOnly, defenseId, author) }
@@ -90,6 +106,10 @@ export function applyAttack(game: Game, by: string, to: TableTarget, amount: num
   const group = game.groups.find((g) => g.id === to.groupId)!
   const member = group.members.find((m) => m.id === to.memberId)!
   const logged = withLog(game, [line(clock, author, `${by} attacked ${name}: ${amount} damage.`, gmOnly || group.hidden)])
+  // Hero minions are players' and always roll in the app; a member's save may wait for the GM.
+  if (holdSaves && saveNeedsRoll(group, member.id, amount, defenseId)) {
+    return { game: holdSave(logged, { groupId: group.id, memberId: member.id, damage: amount, ...(defenseId ? { defenseId } : {}), from: by, ...(forHero ? { forHero } : {}) }, clock) }
+  }
   const s = rollSave(group.kind, member, amount, random, defenseId, groupSaveMods(group))
   return { game: applySave(logged, group.id, s, clock), note: memberSaveText(name, group.kind, member.die, s) }
 }
@@ -110,9 +130,9 @@ const sized = (size: number, sign: 1 | -1) => (size === 0 ? (sign > 0 ? 'no bonu
 /**
  * Applies a group roll (section 4): each row's result goes to its target, every rolled member is
  * marked acted and uses up its one-time mods, and each line is logged. `random` rolls the saves
- * of members and minions that are attacked.
+ * of members and minions that are attacked (or they wait, {@link SaveDice}).
  */
-export function applyGroupRoll(game: Game, groupId: string, action: BasicAction, rows: readonly GroupRollRow[], random: Random, clock: Clock): Game {
+export function applyGroupRoll(game: Game, groupId: string, action: BasicAction, rows: readonly GroupRollRow[], random: Random | SaveDice, clock: Clock): Game {
   const group = game.groups.find((g) => g.id === groupId)
   if (!group) return game
   const gmOnly = group.hidden

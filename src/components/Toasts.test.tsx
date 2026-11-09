@@ -89,4 +89,12 @@ describe('toasts', () => {
     stack([])
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
+
+  it('keeps a persisting toast until it is taken away or closed', () => {
+    const onDismiss = vi.fn()
+    render(<Toasts toasts={[{ id: 'w', text: 'Waiting for the GM', persist: true }]} onDismiss={onDismiss} />)
+    act(() => vi.advanceTimersByTime(TOAST_ACTION_MS * 10))
+    expect(onDismiss).not.toHaveBeenCalled()
+    expect(screen.getByText('Waiting for the GM')).toBeInTheDocument()
+  })
 })

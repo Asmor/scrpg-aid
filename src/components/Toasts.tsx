@@ -16,6 +16,8 @@ export interface ToastData {
   /** Something went wrong (but nothing is blocked). */
   warn?: boolean
   action?: { label: string; onClick: () => void }
+  /** Stays until its owner takes it away (or it's closed): for something still under way, like a save waiting for the GM. */
+  persist?: true
 }
 
 /** One toast: closes itself after its time, paused while hovered or focused. */
@@ -32,14 +34,16 @@ function Toast({ toast, onDismiss }: { toast: ToastData; onDismiss: (id: string)
   const focused = useRef(false)
   const id = toast.id
 
+  const persist = Boolean(toast.persist)
   useEffect(() => {
+    if (persist) return
     const run = () => {
       started.current = Date.now()
       timer.current = setTimeout(() => dismiss.current(id), left.current)
     }
     run()
     return () => clearTimeout(timer.current)
-  }, [id])
+  }, [id, persist])
 
   const pause = () => {
     if (started.current === undefined) return
@@ -48,7 +52,7 @@ function Toast({ toast, onDismiss }: { toast: ToastData; onDismiss: (id: string)
     started.current = undefined
   }
   const resume = () => {
-    if (started.current !== undefined || hovered.current || focused.current) return
+    if (persist || started.current !== undefined || hovered.current || focused.current) return
     started.current = Date.now()
     timer.current = setTimeout(() => dismiss.current(id), left.current)
   }

@@ -8,6 +8,7 @@ import { useId, useRef, useState } from 'react'
 import { MemberPad } from '../components/DicePad'
 import { AbilityText, DieIcon } from '../components/icons'
 import { useSettings } from '../settings/context'
+import { npcSavesOf } from '../settings/model'
 import { ABILITY_TYPE_LABEL } from '../hero/labels'
 import { Modal } from '../components/Modal'
 import { useMediaQuery } from '../components/useMediaQuery'
@@ -344,7 +345,8 @@ export function DamageDialog({ group, start, random, onCancel, onApply }: { grou
   // The defense each member uses, when it has a choice (ruling 65); unset means the default.
   const [chosen, setChosen] = useState<Record<string, string>>({})
   const [saves, setSaves] = useState<MemberSave[] | null>(null)
-  const physical = useSettings().settings.rolling === 'physical'
+  // Settings › Saves for minions and lieutenants: Roll saves, Enter saves, or both (Ask).
+  const mode = npcSavesOf(useSettings().settings)
   const [entering, setEntering] = useState<string[] | null>(null)
   const amount = Number(damage)
   const valid = damage.trim() !== '' && Number.isInteger(amount) && amount >= 0 && who.length > 0
@@ -376,7 +378,9 @@ export function DamageDialog({ group, start, random, onCancel, onApply }: { grou
             e.preventDefault()
             if (!valid) return
             const ids = group.members.filter((m) => who.includes(m.id)).map((m) => m.id)
-            const rolling = physical ? membersWhoSave(group, ids, amount, chosen) : []
+            // The button pressed: Enter saves opens the pad for whoever actually rolls.
+            const enter = (e.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'enter' || mode === 'physical'
+            const rolling = enter ? membersWhoSave(group, ids, amount, chosen) : []
             if (rolling.length) setEntering(rolling)
             else setSaves(rollSaves(group, ids, amount, random, chosen))
           }}
@@ -424,9 +428,16 @@ export function DamageDialog({ group, start, random, onCancel, onApply }: { grou
             <button type="button" className="button" onClick={onCancel}>
               Cancel
             </button>
-            <button type="submit" className="button button--primary" disabled={!valid}>
-              Roll saves
-            </button>
+            {mode !== 'physical' && (
+              <button type="submit" name="saves" value="roll" className={mode === 'ask' ? 'button' : 'button button--primary'} disabled={!valid}>
+                Roll saves
+              </button>
+            )}
+            {mode !== 'auto' && (
+              <button type="submit" name="saves" value="enter" className="button button--primary" disabled={!valid}>
+                Enter saves
+              </button>
+            )}
           </div>
         </form>
       ) : (

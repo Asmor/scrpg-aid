@@ -19,7 +19,7 @@ import { MAX_GROUP_SIZE, type AttachedGroupOnTable, type AttachedOnTable, type E
 import { addChallenge, addGroup, GM, withLog } from './table'
 import { describeEffect, effectAmount, overcomeOutcome, type RollRecord } from '../play/roll'
 import type { ModInput } from './actions'
-import { applyAttack, giveMod, protect } from './resolve'
+import { applyAttack, giveMod, protect, type SaveDice } from './resolve'
 import { parseTarget } from './roll-targets'
 
 type Random = () => number
@@ -169,7 +169,7 @@ export function addAttached(game: Game, index: number, count: number, clock: Clo
  * none of these, so results without a target only show in the log. Its lines are public; a
  * line about a hidden target is still the GM's.
  */
-export function environmentBasicAction(game: Game, record: RollRecord, followUps: readonly { mod: ModInput; to?: string }[], choices: readonly { result: number; to: string }[], random: Random, clock: Clock): Game {
+export function environmentBasicAction(game: Game, record: RollRecord, followUps: readonly { mod: ModInput; to?: string }[], choices: readonly { result: number; to: string }[], random: Random | SaveDice, clock: Clock): Game {
   const env = game.environment
   if (!env) return game
   const by = env.name

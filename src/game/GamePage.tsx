@@ -34,7 +34,10 @@ import { AddChallengeDialog, AddGroupDialog, ConfirmDialog, EditStepsDialog, Env
 import { GmScreen, type GmTab, type QuickAddKind, type VillainAttacks } from './GmScreen'
 import type { GroupActions } from './RunningGroup'
 import { applySaves } from './npc'
-import { applyAttack, applyGroupRoll, giveMod, protect } from './resolve'
+import { applyAttack, applyGroupRoll, giveMod, protect, type SaveDice } from './resolve'
+import { npcSavesOf } from '../settings/model'
+import { pendingSaveText, resolvePendingSave, rollWaitingSaves } from './pending-saves'
+import { SavesToRoll, type SaveToRoll } from './SavesToRoll'
 import { parseTarget } from './roll-targets'
 import { applyHeroChange, type HeroChange } from './hero-changes'
 import { betweenIssues, currentIssue, currentScene, gameDisplayName, nextIssueNumber, sceneName, sceneNumber, sceneOnTable, type ActorRef, type Issue, type OppositionRef, type Game, type HeroInGame, type VillainInGame } from './model'
@@ -150,7 +153,14 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const libraryVillains = useDocMap(game?.villains.map((v) => v.sourceId) ?? [], loadVillain, noSave)
   const phone = useMediaQuery('(max-width: 759px)', false)
   const now = useTick()
-  const newGameDefaults = useSettings().settings.newGame
+  const { settings } = useSettings()
+  const newGameDefaults = settings.newGame
+  // Settings › Saves for minions and lieutenants: saves from Attacks wait for the GM unless they roll automatically.
+  const holdSaves = npcSavesOf(settings) !== 'auto'
+  useEffect(() => {
+    if (host) host.holdSaves = holdSaves
+  }, [host, holdSaves])
+  const saveDice = (): SaveDice => ({ random: random ?? Math.random, holdSaves })
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [running, setRunning] = useState<T.ItemRef | null>(null)
   // The turn last seen: when it becomes the environment's turn (or the game opens on it), its panel opens (npcs spec, section 6).
@@ -246,7 +256,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     let finished: Issue | undefined
     let undo: NonNullable<typeof sceneUndo> | null = null
     apply((g) => {
-      const next = finishIssue(g, choices, clock())
+      // Saves still waiting are rolled first (settings spec, section 2).
+      const next = finishIssue(rollWaitingSaves(g, random ?? Math.random, clock()), choices, clock())
       const entry = next.feed.at(-1)
       if (next !== g && entry) {
         finished = next.issues.find((i) => i.id === g.currentIssueId)
@@ -434,7 +445,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     quickChallenge: () => setDialog({ kind: 'quick', which: 'challenge', owned: true }),
     run: (ref) => setRunning(ref),
     handOff: (to) => turn((g) => T.handOff(g, to, clock())),
-    basicAction: (record, followUps, choices) => apply((g) => environmentBasicAction(g, record, followUps, choices, random ?? Math.random, clock())),
+    basicAction: (record, followUps, choices) => apply((g) => environmentBasicAction(g, record, followUps, choices, saveDice(), clock())),
   }
   const groupActions = (groupId: string): GroupActions => ({
     shrink: (memberId) => apply((g) => T.shrinkMember(g, groupId, memberId, clock())),
@@ -442,7 +453,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
     addMod: (memberId, mod) => apply((g) => T.addMemberMod(g, groupId, memberId, mod, clock())),
     removeMod: (memberId, modId) => apply((g) => T.removeMemberMod(g, groupId, memberId, modId, clock())),
     setActed: (memberId, acted) => apply((g) => T.setMemberActed(g, groupId, memberId, acted, clock())),
-    applyRoll: (action, rows) => apply((g) => applyGroupRoll(g, groupId, action, rows, random ?? Math.random, clock())),
+    applyRoll: (action, rows) => apply((g) => applyGroupRoll(g, groupId, action, rows, saveDice(), clock())),
     applySaves: (saves) => apply((g) => applySaves(g, groupId, saves, clock())),
   })
   const runningPanel = runningVillain
@@ -471,7 +482,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
               const by = villainDisplayName(runningVillain.sheet)
               if (!to) return x
               if (a.kind === 'mod') return giveMod(x, to, a.mod, by, clock(), !runningVillain.hidden, runningVillain.hidden)
-              if (a.kind === 'attack') return applyAttack(x, by, to, a.amount, random ?? Math.random, clock(), runningVillain.hidden).game
+              if (a.kind === 'attack') return applyAttack(x, by, to, a.amount, saveDice(), clock(), runningVillain.hidden).game
               return protect(x, by, to, a.amount, clock(), runningVillain.hidden)
             }, g),
           )) satisfies VillainAttacks,
@@ -577,7 +588,18 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
       sheets={phone}
     />
   )
-  const center = <TableCenter game={table} heroes={heroes} villains={villains} now={now} gm={gm} hideLog={phone} />
+  const waitingSaves = (game.pendingSaves ?? []).flatMap((s): SaveToRoll[] => {
+    const group = game.groups.find((g) => g.id === s.groupId)
+    const member = group?.members.find((m) => m.id === s.memberId)
+    const text = pendingSaveText(game, s)
+    return group && member && text ? [{ id: s.id, text, name: T.memberName(group, member.n), die: member.die }] : []
+  })
+  const center = (
+    <>
+      <SavesToRoll saves={waitingSaves} mode={npcSavesOf(settings)} onRoll={(id) => apply((g) => resolvePendingSave(g, id, { random: random ?? Math.random }, clock()))} onEnter={(id, entered) => apply((g) => resolvePendingSave(g, id, { entered }, clock()))} />
+      <TableCenter game={table} heroes={heroes} villains={villains} now={now} gm={gm} hideLog={phone} />
+    </>
+  )
   const saveError = editor.saveError
   const details = between ? finishedPill(game.issues) : `${game.round > 0 ? `Round ${game.round}` : 'Not started'} · ${sceneName(currentScene(game))}`
 
@@ -762,7 +784,7 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
             let undo: { entryId: string; before: Game; label: string; undone: string } | null = null
             let line = ''
             apply((g) => {
-              const next = between ? startIssue(g, sceneId, { ...choices, recover }, c) : startScene(g, sceneId, choices, c)
+              const next = between ? startIssue(g, sceneId, { ...choices, recover }, c) : startScene(rollWaitingSaves(g, random ?? Math.random, c), sceneId, choices, c)
               const entry = next.feed.at(-1)
               if (next !== g && entry) {
                 // A copy: both the editor's draft and what the host hands over can change afterwards.

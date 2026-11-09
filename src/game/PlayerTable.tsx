@@ -250,6 +250,10 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
   // Handoffs are announced as they happen (players never receive hidden ones).
   const seenLines = useRef<Set<string> | undefined>(undefined)
   const [closedToast, setClosedToast] = useState<ToastData | null>(null)
+  const [saveToasts, setSaveToasts] = useState<ToastData[]>([])
+  // Saves on this player's Attacks still waiting for the GM, shown where the toast would go; one closed stays closed.
+  const [closedWaits, setClosedWaits] = useState<ReadonlySet<string>>(new Set())
+  const waitToasts: ToastData[] = (table?.waitingSaves ?? []).map((text, i): ToastData => ({ id: `wait-${i}-${text}`, text, persist: true })).filter((t) => !closedWaits.has(t.id))
   const feed = table?.feed
   useEffect(() => {
     if (!feed) return
@@ -262,7 +266,10 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
     // A line for this player alone: the GM closed a challenge before answering their Overcome.
     const closed = feed.filter((e) => !seen.has(e.id) && e.forHero).at(-1)
     if (closed) setClosedToast({ id: `closed-${closed.id}`, text: `${closed.by}: ${closed.text}` })
-  }, [feed])
+    // The GM rolled a save this player's Attack was waiting on: its line, as a toast.
+    const saved = feed.filter((e) => !seen.has(e.id) && e.toastFor && e.toastFor === heroId).map((e) => ({ id: `save-${e.id}`, text: e.text }))
+    if (saved.length) setSaveToasts((all) => [...all, ...saved])
+  }, [feed, heroId])
 
   // "Your turn", and "Your reaction is ready again" when the turn starting just cleared it.
   useEffect(() => {
@@ -707,7 +714,18 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
           </div>
         </Modal>
       )}
-      <Toasts toasts={[...(snap?.notices ?? []).map((n) => noticeToast(n, (id) => client.retry(id))), ...(sceneToast ? [sceneToast] : []), ...(closedToast ? [closedToast] : []), ...(backToast ? [backToast] : []), ...(pointsToast ? [pointsToast] : [])]} onDismiss={(id) => (id === pointsToast?.id ? setPointsToast(null) : id === sceneToast?.id ? setSceneToast(null) : id === closedToast?.id ? setClosedToast(null) : id === backToast?.id ? setBackToast(null) : client.dismiss(id))} />
+      <Toasts
+        toasts={[...(snap?.notices ?? []).map((n) => noticeToast(n, (id) => client.retry(id))), ...waitToasts, ...saveToasts, ...(sceneToast ? [sceneToast] : []), ...(closedToast ? [closedToast] : []), ...(backToast ? [backToast] : []), ...(pointsToast ? [pointsToast] : [])]}
+        onDismiss={(id) => {
+          if (id.startsWith('wait-')) return setClosedWaits((all) => new Set([...all, id]))
+          if (id.startsWith('save-')) return setSaveToasts((all) => all.filter((t) => t.id !== id))
+          if (id === pointsToast?.id) return setPointsToast(null)
+          if (id === sceneToast?.id) return setSceneToast(null)
+          if (id === closedToast?.id) return setClosedToast(null)
+          if (id === backToast?.id) return setBackToast(null)
+          client.dismiss(id)
+        }}
+      />
     </PopoverGroup>
   )
 }
