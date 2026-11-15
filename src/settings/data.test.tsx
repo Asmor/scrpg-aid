@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { GameStoreContext } from '../app/game-store-context'
 import { JoinedStoreContext } from '../app/joined-store-context'
 import { SavedSearchStoreContext } from '../app/saved-search-context'
@@ -166,6 +166,10 @@ describe('the Data section', () => {
   })
 
   it('says when the last backup was, and backing up records it', async () => {
+    // A fixed clock, so the count of items changed since the backup doesn't depend on today's date.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-09T12:00:00Z'))
+    onTestFinished(() => void vi.useRealTimers())
     const s = await filled()
     const saved: string[] = []
     const backupTime = { load: () => new Date(Date.now() - 19 * 24 * 60 * 60 * 1000).toISOString(), save: (at: string) => void saved.push(at) }

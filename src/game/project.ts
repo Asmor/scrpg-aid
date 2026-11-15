@@ -61,6 +61,12 @@ export interface IssueOnTable extends Omit<Issue, 'acks'> {
 }
 
 /** A game as one audience sees it. */
+/** A player's Attack whose save waits for the GM: the save's id, and what the player sees. */
+export interface WaitingSave {
+  id: string
+  text: string
+}
+
 export interface TableView {
   id: string
   name: string
@@ -80,8 +86,8 @@ export interface TableView {
   challenges: Challenge[]
   /** Hits waiting for a hero's owner to choose a defense (ruling 65); a hidden attacker is unnamed for players. */
   pendingHits?: PendingHit[]
-  /** A player's own Attacks whose saves wait for the GM: "Waiting for the GM to roll Burglar 2's save". Nobody else's. */
-  waitingSaves?: string[]
+  /** A player's own Attacks whose saves wait for the GM, by the waiting save's id: "Waiting for the GM to roll Burglar 2's save". Nobody else's. */
+  waitingSaves?: WaitingSave[]
   feed: GameFeedEntry[]
 }
 
@@ -133,7 +139,7 @@ export function project(game: Game, audience: Audience, heroId?: string): TableV
   const current = game.turn.current && visibleActor(game.turn.current) ? game.turn.current : undefined
   const { total, ...scene } = sceneOnTable(game)
   // Waiting saves are the GM's; the attacking player sees only that theirs wait (settings spec, section 2).
-  const waiting = audience === 'player' && heroId ? (game.pendingSaves ?? []).flatMap((s) => (s.forHero === heroId ? (waitingSaveText(game, s) ?? []) : [])) : []
+  const waiting = audience === 'player' && heroId ? (game.pendingSaves ?? []).flatMap((s): WaitingSave[] => { const text = s.forHero === heroId ? waitingSaveText(game, s) : undefined; return text ? [{ id: s.id, text }] : [] }) : []
   return {
     id: game.id,
     name: game.name,

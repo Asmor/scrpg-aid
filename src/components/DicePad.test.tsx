@@ -23,6 +23,7 @@ const accept = () => screen.getByRole('button', { name: 'Accept' })
 describe('the dice pad', () => {
   it('disables numbers no die can show, saying why, and ignores their keys', async () => {
     pad()
+    expect(screen.getByText("Order doesn't matter.")).toBeInTheDocument()
     expect(key(8)).toBeEnabled()
     expect(key(9)).toBeDisabled()
     expect(key(9)).toHaveAccessibleDescription('No d10 in this roll')
@@ -102,8 +103,9 @@ describe('the dice pad', () => {
     expect(key(6)).toHaveFocus()
   })
 
-  it('takes one number for a one-die roll', async () => {
+  it('takes one number for a one-die roll, with no word about order', async () => {
     const { onAccept } = pad([{ die: 'd6', label: 'Drone' }])
+    expect(screen.queryByText("Order doesn't matter.")).toBeNull()
     await tap(2, 5)
     await userEvent.click(accept())
     expect(onAccept).toHaveBeenCalledWith([5])

@@ -98,15 +98,17 @@ export interface PendingHit {
 /**
  * A minion's or lieutenant's save from an Attack, waiting for the GM to roll or enter it
  * (scrpg-aid-designs/settings/spec.md, "Minion and lieutenant saves"). GM only: never projected.
- * `damage` is the hit before the member's defense, `defenseId` the defense it uses; `from` is the
- * attacker's name, and `forHero` the attacking hero, whose player sees it's waiting.
+ * The member's defense is used when the hit lands, not when the save is rolled: `damage` is what
+ * got through it, `incoming` the hit before it and `defense` the one used (for the log line).
+ * `from` is the attacker's name, and `forHero` the attacking hero, whose player sees it's waiting.
  */
 export interface PendingSave {
   id: string
   groupId: string
   memberId: string
   damage: number
-  defenseId?: string
+  incoming?: number
+  defense?: Defense
   from: string
   forHero?: string
   at: string

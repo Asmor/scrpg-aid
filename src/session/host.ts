@@ -108,7 +108,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
   /** Recent results by "<client id>:<action id>": an action sent again (Try again) is answered, never applied twice. */
   private results = new Map<string, { ok: true; notes?: string[] } | { ok: false; reason: string }>()
   private waiting: Waiting[] | undefined = []
-  /** Members' saves against players' Attacks wait for the GM (the GM's Settings › Saves for minions and lieutenants, set by the game page). */
+  /** Members' saves against players' Attacks wait for the GM (the GM's Settings › Saves for minions and lieutenants, set through ./manager.ts). */
   holdSaves = false
   /** Saves happen one after another, in order. */
   private saving: Promise<void> = Promise.resolve()
@@ -359,7 +359,9 @@ export class HostSession extends Subscribable<HostSnapshot> {
     const name = msg.name.trim() || 'A player'
     // The client always sends its sheet's own id; anything else is malformed, and changes nothing.
     if (msg.heroSourceId !== msg.sheet.id) return this.refuse(peer, 'invalid')
-    const existing = game.heroes.find((h) => h.sourceId === msg.heroSourceId)
+    // A device rejoining picks up the hero it last held, which can be one the GM gave it (Give to…), before matching on the sheet.
+    const held = msg.heroId === undefined ? undefined : findHero(game, msg.heroId)
+    const existing = held?.player?.clientId === msg.clientId ? held : game.heroes.find((h) => h.sourceId === msg.heroSourceId)
     let heroId: string
     if (existing?.player?.clientId === msg.clientId) {
       // Rejoining your own hero never asks.
@@ -372,8 +374,9 @@ export class HostSession extends Subscribable<HostSnapshot> {
       if (!msg.takeOver) return this.refuse(peer, 'taken', holder ? { by: 'player', name: cut(holder.name || 'A player', MAX_NAME), connected: this.isConnected(holder.clientId), game: gameName } : { by: 'gm', connected: true, game: gameName })
       if (!holder && game.heroes.filter((h) => h.player).length >= PLAYER_LIMIT) return this.refuse(peer, 'full')
       heroId = existing.id
-      this.apply((g) => takeOverHero(g, heroId, { clientId: msg.clientId, name, since: this.clock().now.toISOString() }, this.clock()))
+      // The former player is told first, so the new state doesn't reach them as if the hero were still theirs.
       if (holder) this.unseat(holder, heroId, name)
+      this.apply((g) => takeOverHero(g, heroId, { clientId: msg.clientId, name, since: this.clock().now.toISOString() }, this.clock()))
     } else {
       if (game.heroes.filter((h) => h.player).length >= PLAYER_LIMIT) return this.refuse(peer, 'full')
       const since = this.clock().now.toISOString()
@@ -504,8 +507,9 @@ export class HostSession extends Subscribable<HostSnapshot> {
     if (to !== undefined && !peer) return
     const holder = hero.player
     const player = peer && peer[1].role === 'unseated' ? { clientId: peer[1].clientId, name: peer[1].name, since: this.clock().now.toISOString() } : undefined
-    this.apply((g) => giveHero(g, heroId, player, this.clock()))
+    // The former player is told first, so the new state doesn't reach them as if the hero were still theirs.
     if (holder) this.unseat(holder, heroId, player ? player.name : 'The GM')
+    this.apply((g) => giveHero(g, heroId, player, this.clock()))
     if (peer) {
       this.peers.set(peer[0], { clientId: peer[1].clientId, role: 'player', heroId })
       this.publishConnected()
@@ -539,7 +543,7 @@ export class HostSession extends Subscribable<HostSnapshot> {
     const p = this.peers.get(peer)
     if (!game || !p || p.role === 'unseated') return
     const hero: HeroInGame | undefined = p.role === 'player' ? findHero(game, p.heroId) : undefined
-    const you = hero?.player ? { heroId: hero.id, since: hero.player.since ?? game.createdAt } : undefined
+    const you = hero?.player?.clientId === p.clientId ? { heroId: hero.id, since: hero.player.since ?? game.createdAt } : undefined
     this.send({ v: PROTOCOL_VERSION, type: 'state', room: this.room, version: this.snapshot.version, table: table ?? fitView(project(game, p.role, p.role === 'player' ? p.heroId : undefined)), gm: this.gm, ...(you ? { you } : {}) }, peer)
   }
 

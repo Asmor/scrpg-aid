@@ -95,6 +95,12 @@ describe('joining with a hero someone else holds', () => {
     await userEvent.click(dialog.getByRole('button', { name: /^Choose a different hero/ }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByText('· Priya is playing this one')).toBeInTheDocument()
+    // No hero chosen now, and focus is back on the heroes.
+    const radio = screen.getByRole('radio', { name: /Maya Reyes/ })
+    expect(radio).not.toBeChecked()
+    expect(radio).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Join' })).toBeDisabled()
+    await userEvent.click(radio)
     await userEvent.click(screen.getByRole('button', { name: 'Join with Maya Reyes' }))
     await settle()
     dialog = within(await screen.findByRole('dialog'))

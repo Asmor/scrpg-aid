@@ -66,6 +66,8 @@ export interface ClientInfo {
   gameId?: string
   /** The player chose to take over the hero from whoever holds it (sent until the GM first answers). */
   takeOver?: true
+  /** The hero this device last held in the game (saved across reloads), to pick it back up on rejoining. */
+  heroId?: string
 }
 
 export interface ClientOptions {
@@ -182,7 +184,9 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
     const gameId = this.snapshot.received?.table.id ?? this.base.gameId
     // Take over only on the way in: once the hero is ours, a reconnect must never take it back from a later taker.
     const takeOver = this.base.takeOver && !this.snapshot.received?.you
-    this.transport.send({ v: PROTOCOL_VERSION, type: 'hello', role: 'player', clientId, name, heroSourceId, sheet, ...(gameId ? { gameId } : {}), ...(takeOver ? { takeOver: true as const } : {}) } satisfies ClientMessage, peer)
+    // The hero last held here, which may be one the GM gave this device rather than the one it joined with.
+    const heroId = this.snapshot.received?.you?.heroId ?? this.base.heroId
+    this.transport.send({ v: PROTOCOL_VERSION, type: 'hello', role: 'player', clientId, name, heroSourceId, sheet, ...(gameId ? { gameId } : {}), ...(heroId ? { heroId } : {}), ...(takeOver ? { takeOver: true as const } : {}) } satisfies ClientMessage, peer)
   }
 
   protected override onCodeChanged(code: string): void {
@@ -212,7 +216,10 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
         this.publish({ ...this.snapshot, spendReminder: true })
         return
       case 'takenOver':
-        if (msg.heroId === this.heroId) this.refuse('takenOver', { takenBy: msg.by })
+        if (msg.heroId !== this.heroId) return
+        // The GM dropped this player's sheet update with the hero.
+        this.setSyncWaiting(false)
+        this.refuse('takenOver', { takenBy: msg.by })
         return
       case 'syncResult': {
         if (msg.heroId !== this.heroId) return
@@ -229,7 +236,10 @@ export class PlayerClient extends HostLink<ClientSnapshot> {
 
   /** The hero this device was playing, held by someone else now: it was taken over while this device was away. */
   protected override onRefused(reason: RefusedReason, held: HeldBy | undefined): void {
-    if (reason === 'taken' && this.snapshot.received?.you) return this.refuse('takenOver', { takenBy: held?.by === 'gm' ? 'The GM' : (held?.name ?? 'Another player') })
+    if (reason === 'taken' && this.snapshot.received?.you) {
+      this.setSyncWaiting(false)
+      return this.refuse('takenOver', { takenBy: held?.by === 'gm' ? 'The GM' : (held?.name ?? 'Another player') })
+    }
     super.onRefused(reason, held)
   }
 
@@ -291,10 +301,12 @@ export interface PlayingSaved {
   sheet: Hero
   /** The game, once known: sent on rejoin so a code that now belongs to another game isn't taken for it. */
   gameId?: string
+  /** The hero held in the game, once known: it can be one the GM gave this device (Give to…), so a rejoin asks for it. */
+  heroId?: string
   syncWaiting?: true
 }
 
-const playingSaved = object({ v: oneOf(1), room: nonEmptyString, name: string, heroSourceId: nonEmptyString, sheet: heroShape, 'gameId?': nonEmptyString, 'syncWaiting?': oneOf(true) })
+const playingSaved = object({ v: oneOf(1), room: nonEmptyString, name: string, heroSourceId: nonEmptyString, sheet: heroShape, 'gameId?': nonEmptyString, 'heroId?': nonEmptyString, 'syncWaiting?': oneOf(true) })
 
 /** A stored game this device is playing in, or undefined if it's malformed or from another version. */
 export function readPlayingSaved(value: unknown): PlayingSaved | undefined {

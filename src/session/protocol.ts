@@ -1,5 +1,5 @@
 /**
- * The game table's messages (scrpg-aid-designs/game-table/spec.md, section 10), version 13. The GM's
+ * The game table's messages (scrpg-aid-designs/game-table/spec.md, section 10), version 14. The GM's
  * device hosts a game; players and observers say hello with their role, players send each
  * action as its own message and get a result, and the GM's device sends each peer its
  * projection of the game (../game/project.ts) after every change.
@@ -17,7 +17,7 @@ import { die, heroShape, playStateShape } from '../hero/validate'
 import { groupActions } from '../game/validate'
 import { arrayOf, boolean, integer, isRecord, nonEmptyString, object, oneOf, type Check } from '../shape'
 
-export const PROTOCOL_VERSION = 13
+export const PROTOCOL_VERSION = 14
 
 /** The most observers a game takes (section 10). */
 export const OBSERVER_LIMIT = 20
@@ -38,15 +38,16 @@ export const VIEW_LIMITS = { heroes: 30, villains: 50, groups: 50, challenges: 5
 export type ClientMessage =
   /** `gameId` when reconnecting a saved game: the GM checks the code and the game match. */
   /** `takeOver`: the player chose to take over a hero someone else holds (game-table spec, section 7). */
-  | { v: 13; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero; gameId?: string; takeOver?: true }
-  | { v: 13; type: 'hello'; role: 'observer'; clientId: string; screenName: string }
-  | { v: 13; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
-  | { v: 13; type: 'syncRequest'; heroId: string; sheet: Hero }
-  | { v: 13; type: 'syncCancel'; heroId: string }
+  /** `heroId`: the hero this device last held in the game, which can be one the GM gave it (Give to…): a rejoin picks that one back up. */
+  | { v: 14; type: 'hello'; role: 'player'; clientId: string; name: string; heroSourceId: string; sheet: Hero; gameId?: string; heroId?: string; takeOver?: true }
+  | { v: 14; type: 'hello'; role: 'observer'; clientId: string; screenName: string }
+  | { v: 14; type: 'action'; id: string; heroId: string; action: HeroAction; basedOn: number }
+  | { v: 14; type: 'syncRequest'; heroId: string; sheet: Hero }
+  | { v: 14; type: 'syncCancel'; heroId: string }
   /** A player's colors, applied at once: they're cosmetic, so they skip the GM's review (scrpg-aid-designs/character-colors/spec.md, section 6). */
-  | { v: 13; type: 'appearance'; heroId: string; appearance?: Appearance }
+  | { v: 14; type: 'appearance'; heroId: string; appearance?: Appearance }
   /** What a player did about a back issue, for the GM's list (scrpg-aid-designs/issues/spec.md, section 3). Only ever information. */
-  | { v: 13; type: 'issueAck'; issueId: string; heroId: string; status: 'added' | 'later'; count?: number }
+  | { v: 14; type: 'issueAck'; issueId: string; heroId: string; status: 'added' | 'later'; count?: number }
 
 /** Who a state message is for: a player's own hero in the game, and when it first joined. */
 export interface YouAre {
@@ -55,21 +56,21 @@ export interface YouAre {
 }
 
 export type HostMessage =
-  | { v: 13; type: 'state'; room: string; version: number; table: TableView; gm: string; you?: YouAre }
+  | { v: 14; type: 'state'; room: string; version: number; table: TableView; gm: string; you?: YouAre }
   /** `notes`: lines for the player as toasts (a save against their Attack). */
-  | { v: 13; type: 'result'; id: string; ok: true; notes?: string[] }
-  | { v: 13; type: 'result'; id: string; ok: false; reason: string }
-  | { v: 13; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
+  | { v: 14; type: 'result'; id: string; ok: true; notes?: string[] }
+  | { v: 14; type: 'result'; id: string; ok: false; reason: string }
+  | { v: 14; type: 'syncResult'; heroId: string; approved: boolean; adjustments: string[] }
   /** `held`: who holds the hero, for a `taken` refusal. */
-  | { v: 13; type: 'refused'; reason: RefusedReason; held?: HeldBy }
+  | { v: 14; type: 'refused'; reason: RefusedReason; held?: HeldBy }
   /** The GM got a new code for the game: kept peers move to it (scrpg-aid-designs/game-table/game-table-spec-addendum-game-codes.md). */
-  | { v: 13; type: 'codeChanged'; code: string }
+  | { v: 14; type: 'codeChanged'; code: string }
   /** The GM removed this peer from the game (Remove, or left behind by a new code). */
-  | { v: 13; type: 'removed'; reason?: string }
+  | { v: 14; type: 'removed'; reason?: string }
   /** The GM is about to start the next issue, and this player's hero has hero points left. */
-  | { v: 13; type: 'spendReminder' }
+  | { v: 14; type: 'spendReminder' }
   /** Another player took over this player's hero (`by`: their name). */
-  | { v: 13; type: 'takenOver'; heroId: string; by: string }
+  | { v: 14; type: 'takenOver'; heroId: string; by: string }
 
 /**
  * Why the GM's device won't take a peer: another version of the app, a full game, the hero is
@@ -172,7 +173,7 @@ const CLIENT: Record<string, Check> = {
   hello: (v, path) =>
     isRecord(v) && v.role === 'observer'
       ? object({ role: oneOf('observer'), clientId: id, screenName: text(MAX_NAME) })(v, path)
-      : object({ role: oneOf('player'), clientId: id, name: text(MAX_NAME), heroSourceId: id, sheet: heroShape, 'gameId?': id, 'takeOver?': oneOf(true) })(v, path),
+      : object({ role: oneOf('player'), clientId: id, name: text(MAX_NAME), heroSourceId: id, sheet: heroShape, 'gameId?': id, 'heroId?': id, 'takeOver?': oneOf(true) })(v, path),
   action: object({ id, heroId: id, action: heroAction, basedOn: integer }),
   syncRequest: object({ heroId: id, sheet: heroShape }),
   syncCancel: object({ heroId: id }),
@@ -267,7 +268,7 @@ const tableViewShape = object({
   ),
   challenges: list(object({ id, 'color?': charColor, 'templateId?': id, name: text(MAX_NAME), hidden: boolean, owner: object({ kind: oneOf('gm', 'environment') }), steps: list(object({ label: text(MAX_NAME), done: boolean }), VIEW_LIMITS.steps), requests: list(object({ id, heroId: id, total: range(-100, 100), 'trait?': text(MAX_NAME), at: text(40) }), VIEW_LIMITS.requests), 'description?': text(MAX_TEXT), 'whenDone?': text(MAX_TEXT) }), VIEW_LIMITS.challenges),
   'pendingHits?': list(object({ id, heroId: id, by: text(MAX_NAME), amount: range(0, 1000), at: text(MAX_NAME), 'gmOnly?': oneOf(true) }), VIEW_LIMITS.pendingHits),
-  'waitingSaves?': list(text(MAX_TEXT), VIEW_LIMITS.pendingHits),
+  'waitingSaves?': list(object({ id, text: text(MAX_TEXT) }), VIEW_LIMITS.pendingHits),
   feed: list(feedEntry, VIEW_FEED),
 })
 
@@ -354,7 +355,7 @@ export function fitView(view: TableView): TableView {
       ...optionalText('whenDone', c.whenDone, MAX_TEXT),
     })),
     ...(pendingHits ? { pendingHits: newest(pendingHits, VIEW_LIMITS.pendingHits).map((h) => ({ ...h, by: cut(h.by, MAX_NAME), at: cut(h.at, MAX_NAME), amount: upTo(h.amount, 0, 1000) })) } : {}),
-    ...(waitingSaves ? { waitingSaves: newest(waitingSaves, VIEW_LIMITS.pendingHits).map((t) => cut(t, MAX_TEXT)) } : {}),
+    ...(waitingSaves ? { waitingSaves: newest(waitingSaves, VIEW_LIMITS.pendingHits).map((w) => ({ ...w, text: cut(w.text, MAX_TEXT) })) } : {}),
     feed: newest(view.feed, VIEW_FEED).map((e) => ({ ...e, by: cut(e.by, MAX_NAME), text: cut(e.text, MAX_TEXT), ...(e.details ? { details: first(e.details, VIEW_LIMITS.details).map((d) => cut(d, MAX_TEXT)) } : {}) })),
   }
 }

@@ -164,7 +164,7 @@ export function DicePad({ dice, onAccept, onCancel, onRollForMe, autoFocus = fal
       <div>
         {/* A div: the help popover inside can't sit in a paragraph. */}
         <div className="dice-pad__dice">
-          <strong>Your dice</strong> <span className="muted">Order doesn't matter.</span> <HelpTip tip="dicePad" />
+          <strong>Your dice</strong> {dice.length > 1 && <span className="muted">Order doesn't matter.</span>} <HelpTip tip="dicePad" />
         </div>
         <ul className="dice-pad__chips">
           {dice.map((d, i) => (

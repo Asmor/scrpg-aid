@@ -11142,3 +11142,28 @@ button.ref-thumb {
   padding: 0;
   list-style: none;
 }
+
+/* Touch targets left over on phones (review 2026-11-15, item 9): the library's name links, rule issue links and tag ×, a sheet's "Open in edit" and "← Sheet", and chip × buttons such as a bonus's remove. */
+@media (max-width: 759px) {
+  .phone-row__name .library-name,
+  .phone-row .library-issues,
+  .issue-banner a,
+  .hero-editor__top a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .phone-row .library-issues {
+    align-self: flex-start;
+  }
+
+  .phone-row .tag-chip__x {
+    width: 2.75rem;
+  }
+
+  .gt-chip-x {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}

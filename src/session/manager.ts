@@ -247,7 +247,17 @@ export class SessionManager {
   }
 
   private newHost(saved: Omit<HostSaved, 'v'>): HostSession {
-    return new HostSession(this.connect, saved, this.games!, this.clock, (s) => this.store.saveHost(s))
+    const host = new HostSession(this.connect, saved, this.games!, this.clock, (s) => this.store.saveHost(s))
+    host.holdSaves = this.holdSaves
+    return host
+  }
+
+  /** Whether hosted games hold members' saves from players' Attacks for the GM (Settings › Saves for minions and lieutenants): applies on every page. */
+  private holdSaves = false
+
+  setHoldSaves(hold: boolean): void {
+    this.holdSaves = hold
+    if (this.current.hosting) this.current.hosting.holdSaves = hold
   }
 
   private newWatching(saved: WatchingSaved): ObserverClient {
@@ -260,9 +270,10 @@ export class SessionManager {
 
   private newPlaying(saved: PlayingSaved, cached?: Received, takeOver?: true): PlayerClient {
     let knownGame = saved.gameId
+    let knownHero = saved.heroId
     return new PlayerClient(
       this.connect,
-      { room: saved.room, clientId: this.store.clientId(), name: saved.name, heroSourceId: saved.heroSourceId, sheet: saved.sheet, ...(saved.gameId ? { gameId: saved.gameId } : {}), ...(takeOver ? { takeOver } : {}) },
+      { room: saved.room, clientId: this.store.clientId(), name: saved.name, heroSourceId: saved.heroSourceId, sheet: saved.sheet, ...(saved.gameId ? { gameId: saved.gameId } : {}), ...(saved.heroId ? { heroId: saved.heroId } : {}), ...(takeOver ? { takeOver } : {}) },
       {
         ...(saved.syncWaiting ? { syncWaiting: true } : {}),
         ...(cached ? { cached } : {}),
@@ -273,6 +284,12 @@ export class SessionManager {
             knownGame = r.table.id
             const now = this.store.loadPlaying()
             if (now && now.room === r.room) this.store.savePlaying({ ...now, gameId: r.table.id })
+          }
+          // So is the hero held, which changes when the GM gives this device another (Give to…).
+          if (r.you && knownHero !== r.you.heroId) {
+            knownHero = r.you.heroId
+            const now = this.store.loadPlaying()
+            if (now && now.room === r.room) this.store.savePlaying({ ...now, heroId: r.you.heroId })
           }
           if (!this.joined || !r.you) return
           const record: JoinedGame = { id: r.table.id, room: r.room, gm: r.gm, heroId: r.you.heroId, heroSourceId: saved.heroSourceId, sheet: saved.sheet, name: saved.name, since: r.you.since, updatedAt: r.at, version: r.version, table: r.table }

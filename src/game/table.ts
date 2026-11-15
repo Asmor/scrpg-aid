@@ -228,6 +228,16 @@ export function addHero(game: Game, hero: Hero, clock: Clock, player?: HeroInGam
 const holderName = (hero: Pick<HeroInGame, 'player'>) => (hero.player ? hero.player.name || 'a player' : 'the GM')
 
 /**
+ * A hero changing hands: the former player's sheet update waiting for the GM is theirs, not the
+ * new holder's, so it's dropped, and the GM's log says so ("Alex's sheet update was dropped.").
+ */
+function dropSync(game: Game, former: HeroInGame, clock: Clock): Game {
+  if (!game.pendingSyncs.some((r) => r.heroId === former.id)) return game
+  const next = { ...game, pendingSyncs: game.pendingSyncs.filter((r) => r.heroId !== former.id) }
+  return log(next, clock, `${former.player?.name || 'A player'}'s sheet update was dropped.`, { gmOnly: true })
+}
+
+/**
  * A player takes over a hero someone else holds (game-table spec, section 7): the game's copy, play
  * state and all, is theirs from now on. A GM's own hero becomes a player's hero. "Priya took over
  * Maya Reyes from Alex."
@@ -236,7 +246,7 @@ export function takeOverHero(game: Game, heroId: string, player: NonNullable<Her
   const hero = findHero(game, heroId)
   if (!hero || hero.player?.clientId === player.clientId) return game
   const next = { ...game, heroes: game.heroes.map((h) => (h.id === heroId ? { ...h, player } : h)) }
-  return log(next, clock, `${player.name || 'A player'} took over ${heroDisplayName(hero.sheet)} from ${holderName(hero)}.`)
+  return dropSync(log(next, clock, `${player.name || 'A player'} took over ${heroDisplayName(hero.sheet)} from ${holderName(hero)}.`), hero, clock)
 }
 
 /** The GM's Give to…: hands a hero to a player, or (no `player`) back to the GM. */
@@ -246,7 +256,7 @@ export function giveHero(game: Game, heroId: string, player: HeroInGame['player'
   const { player: _, ...rest } = hero
   const next = { ...game, heroes: game.heroes.map((h) => (h.id === heroId ? (player ? { ...rest, player } : rest) : h)) }
   const name = heroDisplayName(hero.sheet)
-  return log(next, clock, player ? `The GM gave ${name} to ${player.name || 'a player'}.` : `The GM took back ${name} from ${holderName(hero)}.`)
+  return dropSync(log(next, clock, player ? `The GM gave ${name} to ${player.name || 'a player'}.` : `The GM took back ${name} from ${holderName(hero)}.`), hero, clock)
 }
 
 /**

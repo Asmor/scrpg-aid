@@ -25,7 +25,7 @@ import { Modal } from '../components/Modal'
 import { Toasts, type ToastData } from '../components/Toasts'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { buildSheet } from '../creation/sheet'
-import { heroDisplayName, isDraft, newId, type Hero } from '../hero/model'
+import { heroDisplayName, heroNameOr, isDraft, newId, type Hero } from '../hero/model'
 import { HelpMenu } from '../help/HelpMenu'
 import { useTableShortcuts } from './useTableShortcuts'
 import { PopoverGroup, type MenuItem } from '../library/Popover'
@@ -148,6 +148,12 @@ function sheetChange(copy: HeroOnTable, library: Hero) {
 
 const heroNowColors = (hero: Hero | undefined) => (hero ? JSON.stringify(hero.appearance ?? null) : undefined)
 
+/** The hero this device plays in a cached game, by the name it goes by. */
+const cachedHeroName = (cached: Pick<JoinedGame, 'table' | 'heroId'>) => {
+  const hero = cached.table.heroes.find((h) => h.id === cached.heroId)
+  return hero ? heroNameOr(hero.sheet, 'a hero') : 'a hero'
+}
+
 export function PlayerTable({ room, random }: { room: string; random?: () => number }) {
   useTableShortcuts()
   const session = useSession()
@@ -253,7 +259,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
   const [saveToasts, setSaveToasts] = useState<ToastData[]>([])
   // Saves on this player's Attacks still waiting for the GM, shown where the toast would go; one closed stays closed.
   const [closedWaits, setClosedWaits] = useState<ReadonlySet<string>>(new Set())
-  const waitToasts: ToastData[] = (table?.waitingSaves ?? []).map((text, i): ToastData => ({ id: `wait-${i}-${text}`, text, persist: true })).filter((t) => !closedWaits.has(t.id))
+  const waitToasts: ToastData[] = (table?.waitingSaves ?? []).map((w): ToastData => ({ id: `wait-${w.id}`, text: w.text, persist: true })).filter((t) => !closedWaits.has(t.id))
   const feed = table?.feed
   useEffect(() => {
     if (!feed) return
@@ -381,7 +387,7 @@ export function PlayerTable({ room, random }: { room: string; random?: () => num
         {cachedGame ? (
           <>
             <p>
-              {gameDisplayName(cachedGame.table)}: you play {cachedGame.table.heroes.find((h) => h.id === cachedGame.heroId)?.sheet.details.name || 'a hero'}. This device isn't connected to it right now.
+              {gameDisplayName(cachedGame.table)}: you play {cachedHeroName(cachedGame)}. This device isn't connected to it right now.
             </p>
             <button
               type="button"

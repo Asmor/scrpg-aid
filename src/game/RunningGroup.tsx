@@ -19,6 +19,7 @@ import { ModForm } from '../play/ModForm'
 import { describeMod, modName } from '../play/state'
 import { defaultDefense, defenseText, defensesOf } from '../play/defense'
 import type { BasicAction } from '../rules/types'
+import { shrinksAway } from '../rules/dice'
 import type { Game, NpcGroup, NpcMember } from './model'
 import { ACTION_NAME, actionsText, groupActionList, membersWhoSave, rollMath, rollMembers, rollSaves, verdictText, type GroupRollRow, type MemberSave, type Random } from './npc'
 import { actedText, memberName, readyMembers } from './table'
@@ -61,7 +62,7 @@ function MemberMenu({ group, member, actions, onMod }: { group: NpcGroup; member
           className="popover--end"
           items={[
             { label: '+ Mod', onSelect: onMod },
-            ...(member.die !== 'd4' ? [{ label: 'Shrink', onSelect: () => actions.shrink(member.id) }] : []),
+            ...(!shrinksAway(member.die) ? [{ label: 'Shrink', onSelect: () => actions.shrink(member.id) }] : []),
             { label: 'Remove', danger: true, onSelect: () => actions.remove(member.id) },
             member.acted ? { label: 'Mark as not acted', onSelect: () => actions.setActed(member.id, false) } : { label: 'Mark as acted', onSelect: () => actions.setActed(member.id, true) },
           ]}

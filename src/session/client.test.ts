@@ -211,6 +211,30 @@ describe('a hero someone else holds (game-table spec, section 7)', () => {
     expect(client.getSnapshot()).toMatchObject({ status: 'refused', refused: 'takenOver', takenBy: 'Priya' })
   })
 
+  it("drops the former player's waiting sheet update with the hero, on takeover and on Give to…", async () => {
+    const { net, host, client } = await setup()
+    const heroId = client.heroId!
+    client.requestSync(maya('Maya Changed'))
+    await net.settle()
+    expect(host.game!.pendingSyncs).toHaveLength(1)
+    const taker = new PlayerClient(net.connect, { room: ROOM, clientId: 'c2', name: 'Priya', heroSourceId: 'maya-src', sheet: maya(), takeOver: true })
+    await net.settle()
+    expect(host.game!.pendingSyncs).toEqual([])
+    expect(host.game!.feed.at(-1)).toMatchObject({ text: "Alex's sheet update was dropped.", gmOnly: true })
+    expect(client.getSnapshot()).toMatchObject({ refused: 'takenOver', syncWaiting: false })
+    // Approving now changes nothing: there's no request.
+    host.approveSync(heroId)
+    expect(host.game!.heroes[0]!.sheet.details.name).toBe('Maya Reyes')
+    // The same when the GM gives the hero away.
+    taker.requestSync(maya('Maya Again'))
+    await net.settle()
+    host.giveHero(heroId, undefined)
+    await net.settle()
+    expect(host.game!.pendingSyncs).toEqual([])
+    expect(host.game!.feed.at(-1)!.text).toBe("Priya's sheet update was dropped.")
+    expect(taker.getSnapshot()).toMatchObject({ refused: 'takenOver', syncWaiting: false })
+  })
+
   it('learns its hero was taken over while it was away, when it comes back', async () => {
     const { net, host, client } = await setup()
     client.leave()

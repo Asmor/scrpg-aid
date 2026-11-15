@@ -155,11 +155,8 @@ export function GamePage({ id, clock = defaultClock, random }: { id: string; clo
   const now = useTick()
   const { settings } = useSettings()
   const newGameDefaults = settings.newGame
-  // Settings › Saves for minions and lieutenants: saves from Attacks wait for the GM unless they roll automatically.
+  // Settings › Saves for minions and lieutenants: saves from Attacks wait for the GM unless they roll automatically (players' Attacks too, through the session).
   const holdSaves = npcSavesOf(settings) !== 'auto'
-  useEffect(() => {
-    if (host) host.holdSaves = holdSaves
-  }, [host, holdSaves])
   const saveDice = (): SaveDice => ({ random: random ?? Math.random, holdSaves })
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [running, setRunning] = useState<T.ItemRef | null>(null)

@@ -78,4 +78,24 @@ describe('the link to the GM', () => {
     expect(client.getSnapshot().outOfSync).toBeUndefined()
     expect(client.getSnapshot().received!.version).toBe(1)
   })
+
+  it("reads a GM's version refusal from another version, saying which side should reload", async () => {
+    for (const [v, refused] of [
+      [PROTOCOL_VERSION + 1, 'version'],
+      [PROTOCOL_VERSION - 1, 'oldHost'],
+    ] as const) {
+      const { net, client, gm } = await setup()
+      gm.send({ v, type: 'refused', reason: 'version' })
+      await net.settle()
+      expect(client.getSnapshot()).toMatchObject({ status: 'refused', refused })
+    }
+  })
+
+  it('ignores anything else from another version', async () => {
+    const { net, client, gm } = await setup()
+    gm.send({ v: PROTOCOL_VERSION + 1, type: 'refused', reason: 'full' })
+    gm.send({ v: PROTOCOL_VERSION + 1, type: 'removed' })
+    await net.settle()
+    expect(client.getSnapshot().status).toBe('connecting')
+  })
 })

@@ -26,6 +26,7 @@ import { PhoneMenu } from './library/LibraryHeader'
 import { useMediaQuery } from './components/useMediaQuery'
 import type { ThemePreference } from './theme/theme'
 import { SettingsProvider } from './settings/SettingsProvider'
+import { PageErrorBoundary } from './app/PageErrorBoundary'
 import { createDefaultSettingsStore, type SettingsStore } from './settings/store'
 
 // Every page but the library (the home screen) loads when first opened, so the first load is
@@ -84,6 +85,8 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
       <TemplateStoresContext.Provider value={templateStores}>
       <SessionProvider {...(connect ? { connect } : {})} {...(sessionStore ? { store: sessionStore } : {})}>
       <HelpProvider>
+      {/* A page that fails to load shows a Reload button instead of a blank screen; a new page tries again. The address is current here because the route state re-renders App on every hash change. */}
+      <PageErrorBoundary resetKey={window.location.hash}>
       <Suspense fallback={<p className="app-loading" role="status">Loading…</p>}>
       {/* The library (the home screen), the Games page and the game table have their own header bars and layouts. */}
       {route.name === 'list' ? (
@@ -141,6 +144,7 @@ export default function App({ store: given, villainStore: givenVillains, gameSto
       </div>
       )}
       </Suspense>
+      </PageErrorBoundary>
       </HelpProvider>
       </SessionProvider>
       </TemplateStoresContext.Provider>

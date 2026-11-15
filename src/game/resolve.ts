@@ -19,8 +19,8 @@ import type { TableTarget } from './actions'
 import type { Game } from './model'
 import { applySave, groupSaveMods, heroMinionSave, memberSaveText, rollSave, usedUp, ACTION_NAME, type GroupRollRow, type Random } from './npc'
 import { defend, hitCharacter } from './hits'
-import { holdSave, saveNeedsRoll } from './pending-saves'
-import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, memberName, seenAs, feedLine, withLog } from './table'
+import { holdMemberSave, saveNeedsRoll } from './pending-saves'
+import { addMemberMod, changeHeroPlay, changeVillainPlay, findHero, findVillain, memberName, seenAs, UNSEEN, feedLine, withLog } from './table'
 
 /** The target's name, or undefined when it isn't on the table any more. */
 export function targetName(game: Game, to: TableTarget): string | undefined {
@@ -55,10 +55,12 @@ const line = (clock: Clock, by: string, text: string, gmOnly: boolean) => feedLi
 /**
  * Gives `to` a bonus or penalty from `from`. A hero's or villain's history notes it (and, with
  * `share`, the log does too); a member's or minion's gets its own line. A hidden giver
- * (`fromHidden`) is "Someone unseen" in the target's history.
+ * (`fromHidden`) is "Someone unseen" in the target's history, and is the mod's label too, since
+ * its own label (an ability's name) would give the giver away.
  */
-export function giveMod(game: Game, to: TableTarget, mod: Omit<PlayMod, 'id'>, giver: string, clock: Clock, share = true, fromHidden = false): Game {
+export function giveMod(game: Game, to: TableTarget, given: Omit<PlayMod, 'id'>, giver: string, clock: Clock, share = true, fromHidden = false): Game {
   const from = seenAs(giver, fromHidden)
+  const mod = fromHidden ? { ...given, label: UNSEEN } : given
   switch (to.kind) {
     case 'hero':
       return changeHeroPlay(game, to.id, (p) => addMod(p, mod, clock, { from }), clock, share)
@@ -108,7 +110,7 @@ export function applyAttack(game: Game, by: string, to: TableTarget, amount: num
   const logged = withLog(game, [line(clock, author, `${by} attacked ${name}: ${amount} damage.`, gmOnly || group.hidden)])
   // Hero minions are players' and always roll in the app; a member's save may wait for the GM.
   if (holdSaves && saveNeedsRoll(group, member.id, amount, defenseId)) {
-    return { game: holdSave(logged, { groupId: group.id, memberId: member.id, damage: amount, ...(defenseId ? { defenseId } : {}), from: by, ...(forHero ? { forHero } : {}) }, clock) }
+    return { game: holdMemberSave(logged, group.id, member.id, amount, defenseId, { from: by, ...(forHero ? { forHero } : {}) }, clock) }
   }
   const s = rollSave(group.kind, member, amount, random, defenseId, groupSaveMods(group))
   return { game: applySave(logged, group.id, s, clock), note: memberSaveText(name, group.kind, member.die, s) }

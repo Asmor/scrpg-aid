@@ -3,6 +3,7 @@ import { CACHE_EVERY, SessionManager } from './manager'
 import { localSessionStore, memoryStorage } from './storage'
 import { fakeNetwork } from './transport'
 import { createGame } from '../game/model'
+import { addHero } from '../game/table'
 import { MemoryGameStore } from '../game/store'
 import { MemoryJoinedStore } from '../game/joined-store'
 import { completeHero } from '../test/heroes'
@@ -70,6 +71,34 @@ describe('the device’s session', () => {
     await net.settle()
     expect(manager.getSnapshot().playing!.cancelSync()).toBe(true)
     expect(localSessionStore(storage).loadPlaying()!.syncWaiting).toBeUndefined()
+  })
+
+  it('rejoins after a reload with a hero the GM gave it, not the one it joined with', async () => {
+    const net = fakeNetwork()
+    const games = new MemoryGameStore()
+    const kai = { ...completeHero(), id: 'kai' }
+    await games.save(addHero(createGame({ id: 'g1' }), kai, clock()))
+    const gmDevice = new SessionManager(net.connect, localSessionStore(memoryStorage()), clock, games)
+    await gmDevice.hostGame('g1', 'Sam')
+    const host = gmDevice.getSnapshot().hosting!
+    const kaiId = host.game!.heroes[0]!.id
+    const storage = memoryStorage()
+    const alex = new SessionManager(net.connect, localSessionStore(storage), clock)
+    const maya = { ...completeHero(), id: 'maya' }
+    alex.joinGame({ room: host.room, name: 'Alex', hero: maya })
+    await net.settle()
+    const priya = new SessionManager(net.connect, localSessionStore(memoryStorage()), clock)
+    priya.joinGame({ room: host.room, name: 'Priya', hero: maya, takeOver: true })
+    await net.settle()
+    host.giveHero(kaiId, alex.getSnapshot().playing!.info.clientId)
+    await net.settle()
+    expect(localSessionStore(storage).loadPlaying()!.heroId).toBe(kaiId)
+    alex.suspend()
+    alex.resume()
+    await net.settle()
+    const playing = alex.getSnapshot().playing!
+    expect(playing.getSnapshot().status).toBe('live')
+    expect(playing.heroId).toBe(kaiId)
   })
 
   it('hosts a game from the table, remembering the name, resuming after a reload and stopping', async () => {

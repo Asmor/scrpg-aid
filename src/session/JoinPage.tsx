@@ -73,6 +73,8 @@ export function JoinPage({ room: given }: { room?: string }) {
   // Someone else holds the hero joined with: the choice to make, and heroes known to be held.
   const [heldHero, setHeldHero] = useState<{ hero: Hero; held: HeldBy } | null>(null)
   const [heldNotes, setHeldNotes] = useState<Readonly<Record<string, string>>>({})
+  // Choose a different hero: focus goes back to the heroes, with none chosen.
+  const heroList = useRef<HTMLFieldSetElement>(null)
   const status = playing?.status
   const leaveGame = useRef(session.leaveGame)
   useEffect(() => {
@@ -186,7 +188,7 @@ export function JoinPage({ room: given }: { room?: string }) {
           <span>Your name (everyone at the table sees it)</span>
           <input id={`${formId}-name`} type="text" autoComplete="nickname" maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
         </label>
-        <fieldset className="join-heroes">
+        <fieldset className="join-heroes" ref={heroList}>
           <legend>Bring a hero</legend>
           {heroes?.length === 0 && (
             <p>
@@ -231,6 +233,8 @@ export function JoinPage({ room: given }: { room?: string }) {
           onChooseAnother={() => {
             setHeldNotes((notes) => ({ ...notes, [heldHero.hero.id]: heldNote(heldHero.held) }))
             setHeldHero(null)
+            setHeroId('')
+            heroList.current?.querySelector<HTMLInputElement>('input[type="radio"]')?.focus()
           }}
           onCancel={() => setHeldHero(null)}
         />

@@ -142,9 +142,13 @@ export abstract class HostLink<S extends LinkSnapshot> extends Subscribable<S> {
     const msg = readHostMessage(raw)
     if (!msg) {
       const v = messageVersion(raw)
-      const isState = (raw as { type?: unknown }).type === 'state'
-      // A GM's device on the older version of the app sends version 1 states.
-      if (v !== undefined && v < PROTOCOL_VERSION && isState) this.refuse('oldHost')
+      const type = (raw as { type?: unknown }).type
+      const isState = type === 'state'
+      // A GM's device on another version refuses this one with a message stamped with its own
+      // version: read just that much, to say which of the two needs to reload.
+      if (v !== undefined && v !== PROTOCOL_VERSION && type === 'refused' && (raw as { reason?: unknown }).reason === 'version') this.refuse(v > PROTOCOL_VERSION ? 'version' : 'oldHost')
+      // A GM's device on an older version of the app sends older states.
+      else if (v !== undefined && v < PROTOCOL_VERSION && isState) this.refuse('oldHost')
       // A state from the GM that fails the checks (too long, say): never drop it silently. Before the
       // GM is known any peer's counts; a stray one only shows the banner until the next good state.
       else if (v === PROTOCOL_VERSION && isState && (!this.gmPeer || peer === this.gmPeer)) this.outOfSync(peer)

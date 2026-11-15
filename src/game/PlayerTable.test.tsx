@@ -574,4 +574,26 @@ describe('a save on your Attack waiting for the GM (settings spec, section 2)', 
     await waitFor(() => expect(screen.queryByText("Waiting for the GM to roll Drones 1's save")).not.toBeInTheDocument())
     expect(screen.getAllByText(/^Drones 1 saved against 3 \(rolled 5\)/).length).toBeGreaterThan(0)
   })
+
+  it('keeps a closed one closed, and the others open, as saves come and go', async () => {
+    const { host, settle } = await setup()
+    await join(settle)
+    const heroId = host.game!.heroes[0]!.id
+    host.apply((g) => {
+      const c = clock()
+      const added = addGroup(g, { kind: 'minions', name: 'Drones', die: 'd6', count: 2, hidden: false }, c)
+      const group = added.groups[0]!
+      const save = (memberId: string) => ({ groupId: group.id, memberId, damage: 3, from: 'Maya Reyes', forHero: heroId })
+      return holdSave(holdSave(added, save(group.members[0]!.id), c), save(group.members[1]!.id), c)
+    })
+    await settle()
+    const second = (await screen.findByText("Waiting for the GM to roll Drones 2's save")).closest('.toast')!
+    await userEvent.click(within(second as HTMLElement).getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByText("Waiting for the GM to roll Drones 2's save")).not.toBeInTheDocument()
+    // The GM rolls the first: the second moves up the list, but stays closed.
+    host.apply((g) => resolvePendingSave(g, g.pendingSaves![0]!.id, { entered: 5 }, clock()))
+    await settle()
+    await waitFor(() => expect(screen.queryByText("Waiting for the GM to roll Drones 1's save")).not.toBeInTheDocument())
+    expect(screen.queryByText("Waiting for the GM to roll Drones 2's save")).not.toBeInTheDocument()
+  })
 })

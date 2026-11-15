@@ -5,6 +5,7 @@
  * through ./npc.ts. Pure.
  */
 import type { PlayMod } from '../hero/model'
+import { blockWith, defensesOf, pickDefense, removeDefense } from '../play/defense'
 import type { Clock } from '../play/state'
 import type { Game, NpcGroup, NpcMember, PendingSave } from './model'
 import { applySave, groupSaveMods, membersWhoSave, rollSave, type Random } from './npc'
@@ -18,6 +19,20 @@ export function saveNeedsRoll(group: NpcGroup, memberId: string, damage: number,
 /** Puts a save aside for the GM. */
 export function holdSave(game: Game, save: Omit<PendingSave, 'id' | 'at'>, clock: Clock): Game {
   return { ...game, pendingSaves: [...(game.pendingSaves ?? []), { ...save, id: clock.newId(), at: clock.now.toISOString() }] }
+}
+
+/**
+ * A member is hit for `incoming` and its save waits for the GM: its defense (`defenseId`, or the
+ * default) is used now, as it would be if the save were rolled at once, and the save waits
+ * against the damage that got through.
+ */
+export function holdMemberSave(game: Game, groupId: string, memberId: string, incoming: number, defenseId: string | undefined, save: Pick<PendingSave, 'from' | 'forHero'>, clock: Clock): Game {
+  const member = game.groups.find((g) => g.id === groupId)?.members.find((m) => m.id === memberId)
+  if (!member) return game
+  const defense = pickDefense(defensesOf(member), incoming, defenseId)
+  const damage = blockWith(incoming, defense).taken
+  const used = defense ? { ...game, groups: game.groups.map((g) => (g.id === groupId ? { ...g, members: g.members.map((m) => (m.id === memberId ? removeDefense(m, defense.id) : m)) } : g)) } : game
+  return holdSave(used, { groupId, memberId, damage, ...(defense ? { incoming, defense } : {}), ...save }, clock)
 }
 
 /** A waiting save's group and member, if they're still at the table. */
@@ -46,7 +61,9 @@ export function resolvePendingSave(game: Game, id: string, roll: { random: Rando
   const saver = saverOf(rest, save)
   if (!saver) return rest
   const random = 'random' in roll ? roll.random : () => 0
-  const s = rollSave(saver.group.kind, saver.member, save.damage, random, save.defenseId, groupSaveMods(saver.group), 'entered' in roll ? roll.entered : undefined)
+  // Its defense was used when the hit landed: a defense it got since doesn't block this hit.
+  const rolled = rollSave(saver.group.kind, { ...saver.member, defenses: [] }, save.damage, random, undefined, groupSaveMods(saver.group), 'entered' in roll ? roll.entered : undefined)
+  const s = save.defense ? { ...rolled, incoming: save.incoming ?? rolled.damage, defense: save.defense } : rolled
   return applySave(rest, saver.group.id, s, clock, save.forHero)
 }
 
@@ -54,7 +71,9 @@ export function resolvePendingSave(game: Game, id: string, roll: { random: Rando
 export function rollWaitingSaves(game: Game, random: Random, clock: Clock): Game {
   const waiting = game.pendingSaves ?? []
   if (!waiting.length) return game
-  const said = withLog(game, [feedLine(clock, `Rolled ${waiting.length === 1 ? 'the waiting save' : `${waiting.length} waiting saves`} automatically.`, { gmOnly: waiting.every((s) => saverOf(game, s)?.group.hidden ?? true) })])
+  // Saves for members that are gone are just dropped: only the others count.
+  const live = waiting.filter((s) => saverOf(game, s))
+  const said = live.length ? withLog(game, [feedLine(clock, `Rolled ${live.length === 1 ? 'the waiting save' : `${live.length} waiting saves`} automatically.`, { gmOnly: live.every((s) => saverOf(game, s)!.group.hidden) })]) : game
   return waiting.reduce((g, s) => resolvePendingSave(g, s.id, { random }, clock), said)
 }
 
@@ -69,8 +88,9 @@ export function pendingSaveText(game: Game, save: PendingSave): string | undefin
   return `${memberName(group, member.n)} (${[member.die, ...mods].join(', ')}) saves against ${save.damage}`
 }
 
-/** What the attacking hero's player sees while it waits: "Waiting for the GM to roll Burglar 2's save". */
+/** What the attacking hero's player sees while it waits: "Waiting for the GM to roll Burglar 2's save" (no name once the GM has hidden its group). */
 export function waitingSaveText(game: Game, save: PendingSave): string | undefined {
   const saver = saverOf(game, save)
-  return saver && `Waiting for the GM to roll ${memberName(saver.group, saver.member.n)}'s save`
+  if (!saver) return undefined
+  return saver.group.hidden ? 'Waiting for the GM to roll a save' : `Waiting for the GM to roll ${memberName(saver.group, saver.member.n)}'s save`
 }

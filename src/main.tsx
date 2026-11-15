@@ -6,9 +6,12 @@ import './theme/tokens.css'
 import './index.css'
 import App from './App'
 import PwaUpdater from './PwaUpdater'
+import { reloadOnPreloadError } from './app/preload-error'
 
 // Touch screens don't fire HTML drag events; this turns touch drags into them (moving mods in the roll dialog).
 enableDragDropTouch()
+// A page's code that fails to load (an old tab after an update): reload once to get the new version.
+reloadOnPreloadError()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

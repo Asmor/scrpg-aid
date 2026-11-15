@@ -101,7 +101,7 @@ describe('project', () => {
     const hero = project(g, 'player', heroId).heroes[0]!
     const json = JSON.stringify(hero.play)
     expect(json).not.toContain('Hidden drones')
-    expect(json).not.toMatch(/from Shadow/)
+    expect(json).not.toContain('Shadow')
     expect(hero.play.mods.map((m) => m.label)).toContain(UNSEEN)
     expect(hero.play.defenses!.map((d) => d.from)).toEqual([UNSEEN, UNSEEN])
     expect(hero.play.history.some((e) => e.text.includes(`from ${UNSEEN}`))).toBe(true)
