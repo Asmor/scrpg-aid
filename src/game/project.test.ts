@@ -77,11 +77,14 @@ describe('project', () => {
       expect(project(g, 'gm').feed.filter((e) => e.gmOnly).map((e) => e.text)).toEqual(['The GM added Drones (1 d6 minion), hidden from players.', "Drones 1 gained '-1 Dazed' penalty."])
     })
 
-    it("shares the environment's lines: it's always known", () => {
+    it("keeps a hidden environment's lines for the GM, and shares them once it's shown", () => {
       const c = clock()
       let g = setEnvironment(createGame({ id: 'g' }), { name: 'Docks', hidden: true, aspects: [{ name: 'Fog', die: 'd6' }, { name: 'Cranes', die: 'd8' }, { name: 'Tide', die: 'd10' }] }, c)
       g = logEnvironmentRoll(g, rollAspects(g.environment!.aspects!, () => 0)!, c)
-      expect(texts(g)).toEqual(['Rolled the environment dice: Min 1 (Fog), Mid 1 (Cranes), Max 1 (Tide).'])
+      expect(texts(g)).toEqual([])
+      g = setHidden(g, { kind: 'environment', id: g.environment!.id }, false, c)
+      g = logEnvironmentRoll(g, rollAspects(g.environment!.aspects!, () => 0)!, c)
+      expect(texts(g).at(-1)).toBe('Rolled the environment dice: Min 1 (Fog), Mid 1 (Cranes), Max 1 (Tide).')
     })
   })
 

@@ -6,7 +6,7 @@ import { addAttached, attachedChallengeCount, attachedGroup, environmentBasicAct
 import { createGame, type Game } from './model'
 import { project } from './project'
 import { gameProblem } from './validate'
-import { addGroup, addHero, setEnvironment, startRound, syncTurnOrder } from './table'
+import { UNSEEN, addGroup, addHero, setEnvironment, startRound, syncTurnOrder } from './table'
 import { completeHero } from '../test/heroes'
 import { buildSheet } from '../creation/sheet'
 import { currentHealth } from '../play/state'
@@ -99,7 +99,7 @@ describe('an environment template on the table', () => {
     expect(tableViewProblem(project(long, 'player'))).toBeUndefined()
   })
 
-  it('rolls the environment dice as Min, Mid and Max, naming each aspect, logged for everyone', () => {
+  it('rolls the environment dice as Min, Mid and Max, naming each aspect, logged for the GM while hidden', () => {
     const { g, c } = table()
     const roll = rollAspects(g.environment!.aspects!, dice(7, 2, 5))!
     expect([roll.min, roll.mid, roll.max].map((d) => [d.value, d.aspect])).toEqual([
@@ -107,10 +107,10 @@ describe('an environment template on the table', () => {
       [5, 'Night Security'],
       [7, 'Slick Tiles'],
     ])
-    // The environment is always known, so its lines are public, even while it's hidden.
+    // Hidden: the GM's line. Shown: everyone's.
     const logged = logEnvironmentRoll(g, roll, c).feed.at(-1)
-    expect(logged).toMatchObject({ text: 'Rolled the environment dice: Min 2 (Howling Wind), Mid 5 (Night Security), Max 7 (Slick Tiles).' })
-    expect(logged).not.toHaveProperty('gmOnly')
+    expect(logged).toMatchObject({ text: 'Rolled the environment dice: Min 2 (Howling Wind), Mid 5 (Night Security), Max 7 (Slick Tiles).', gmOnly: true })
+    expect(logEnvironmentRoll({ ...g, environment: { ...g.environment!, hidden: false } }, roll, c).feed.at(-1)).not.toHaveProperty('gmOnly')
     expect(rollAspects([], dice())).toBeUndefined()
   })
 
@@ -123,14 +123,14 @@ describe('an environment template on the table', () => {
     expect(g.feed.at(-1)).toMatchObject({ text: "The GM set Docks's aspects: Fog (d6), Aspect 2 (d8), Cranes (d10)." })
     expect(g.feed.at(-1)).not.toHaveProperty('gmOnly')
     expect(setAspects(g, [{ name: 'Only one', die: 'd6' }], c)).toBe(g)
-    // Public even while the environment is hidden.
+    // The GM's while the environment is hidden.
     const hidden = { ...g, environment: { ...g.environment!, hidden: true } }
-    expect(setAspects(hidden, [{ name: 'Fog', die: 'd6' }, { name: '', die: 'd8' }, { name: 'Cranes', die: 'd10' }], c).feed.at(-1)).not.toHaveProperty('gmOnly')
+    expect(setAspects(hidden, [{ name: 'Fog', die: 'd6' }, { name: '', die: 'd8' }, { name: 'Cranes', die: 'd10' }], c).feed.at(-1)).toMatchObject({ gmOnly: true })
   })
 
   it('marks twists used in the round, unmarks them, and resets them all', () => {
     const { g, c } = table()
-    expect(setTwistUsed(g, 't1', true, c).feed.at(-1)).not.toHaveProperty('gmOnly')
+    expect(setTwistUsed(g, 't1', true, c).feed.at(-1)).toMatchObject({ gmOnly: true })
     let next = setTwistUsed({ ...g, round: 2, environment: { ...g.environment!, hidden: false } }, 't1', true, c)
     expect(next.environment!.twists![0]!.used).toEqual({ round: 2 })
     expect(next.feed.at(-1)!.text).toBe('Twist used: Floodlights.')
@@ -206,8 +206,9 @@ describe("the environment's basic actions", () => {
   }
   const health = (g: Game) => currentHealth(buildSheet(g.heroes[0]!.sheet), g.heroes[0]!.play)!
 
-  it('logs the roll and attacks a hero, publicly even while the environment is hidden', () => {
-    const { g, c, maya } = withHero()
+  it('logs the roll and attacks a hero, publicly once the environment is shown', () => {
+    const { g: hidden, c, maya } = withHero()
+    const g = { ...hidden, environment: { ...hidden.environment!, hidden: false } }
     const next = environmentBasicAction(g, record('attack', 6), [], [{ result: 0, to: `hero:${maya}` }], dice(), c)
     expect(health(next)).toBe(health(g) - 6)
     const lines = next.feed.slice(g.feed.length)
@@ -217,6 +218,21 @@ describe("the environment's basic actions", () => {
       // The hero's own history, as with any hit.
       [expect.stringMatching(/^Lost 6 HP/), undefined],
     ])
+  })
+
+  it('keeps a hidden environment out of what players see: its lines are the GM’s, and it’s unnamed on what it gives', () => {
+    const { g, c, maya } = withHero()
+    let next = environmentBasicAction(g, record('attack', 6), [], [{ result: 0, to: `hero:${maya}` }], dice(), c)
+    next = environmentBasicAction(next, record('hinder', 5), [{ mod: { label: 'Slick', value: -2 }, to: `hero:${maya}` }], [], dice(), c)
+    next = environmentBasicAction(next, record('defend', 4), [], [{ result: 0, to: `hero:${maya}` }], dice(), c)
+    expect(health(next)).toBe(health(g) - 6)
+    const fresh = next.feed.slice(g.feed.length)
+    expect(fresh.filter((l) => l.text.includes('Rooftop Heist')).every((l) => l.gmOnly)).toBe(true)
+    const view = project(next, 'player', maya)
+    expect(JSON.stringify(view)).not.toContain('Rooftop Heist')
+    expect(JSON.stringify(view)).not.toContain('Slick')
+    expect(view.heroes[0]!.play.mods.map((m) => m.label)).toEqual([UNSEEN])
+    expect(view.heroes[0]!.play.defenses!.map((d) => d.from)).toEqual([UNSEEN])
   })
 
   it("gives a Hinder's penalty, a Defend, and logs an Overcome", () => {
