@@ -15,7 +15,7 @@ The steps for building a hero, paraphrased. The options for each step are in `da
 
 ## Methods (p. 42–43)
 
-- **Guided:** roll dice at each step to narrow the options, then choose among the results. A player may reroll once per step if nothing fits (p. 46).
+- **Guided:** roll dice at each step to narrow the options, then choose among the results. The book allows one reroll per step if nothing fits (p. 46); this app allows rerolls as often as the player likes (ruling 71).
 - **Constructed:** pick any entry at each step instead of rolling. The step still gives the same dice *sizes* for the next step.
 - **Freeform ("secret third option"):** assign powers, qualities, and abilities directly, with GM approval.
 

@@ -4,7 +4,7 @@
  */
 import { useId } from 'react'
 import { principleCategories, principles, principlesById } from '../rules/data'
-import { formatEntryRef } from '../rules/books'
+import { SourceRef } from './SourceRef'
 import type { PrincipleCategoryId } from '../rules/types'
 import { CUSTOM_PRINCIPLE_ID, type CustomPrinciple, type PrincipleChoice } from '../hero/model'
 import { ACTION_LABEL, ACTIONS, textEffects, type Action } from '../creation/effects'
@@ -166,6 +166,10 @@ export function PrinciplePicker({ category, label = 'Principle', choice, onChang
       )}
       {principle && choice && (
         <div className="principle-picker__detail">
+          <p>
+            <strong>{principle.name}</strong>
+            <SourceRef of={principle} />
+          </p>
           {principle.customization && (
             <IssueField field={principleBlankField(principle.id)}>
               {(f) => (
@@ -183,7 +187,6 @@ export function PrinciplePicker({ category, label = 'Principle', choice, onChang
             </IssueField>
           )}
           <p>{fillPrinciple(principle.roleplaying, choice)}</p>
-          <p className="page-ref">{formatEntryRef(principle)}</p>
         </div>
       )}
     </div>

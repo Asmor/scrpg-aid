@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
 import { expandRefs, type TraitRef } from '../rules/catalog'
 import type { AbilityPick, PrincipleChoice, TraitAssignment } from '../hero/model'
-import type { Ability, Bonus } from '../rules/types'
+import type { Ability, Bonus, PageRef } from '../rules/types'
 import { archetypesById, powerSourcesById } from '../rules/data'
 import { deriveTraits, type HeroTrait, traitLabel } from '../creation/traits'
 import { A, P, Q, validHero } from '../test/heroes'
@@ -149,7 +149,10 @@ describe('PrinciplePicker', () => {
     await userEvent.selectOptions(select, custom)
     await userEvent.type(screen.getByRole('textbox'), 'Fire')
     expect(JSON.parse(screen.getByRole('status').textContent!)).toMatchObject({ customization: 'Fire' })
-    expect(screen.getByText(/Core Rules, p\./)).toBeInTheDocument()
+    // The principle's name, then its source and page on the same line, before its text.
+    const head = screen.getByText(/Core Rules, p\./).closest('p')!
+    expect(head.querySelector('strong')).toBeInTheDocument()
+    expect(head.querySelector('cite')).toHaveTextContent(/^Core Rules, p\. \d+$/)
     await userEvent.selectOptions(select, '')
     expect(screen.getByRole('status')).toHaveTextContent('null')
   })
@@ -170,7 +173,7 @@ describe('describeOptions', () => {
 const HARMONY: Ability = { name: 'Harmony', type: 'I', text: 'As long as you have at least one bonus created from [quality], treat [power] as one size higher (max d12).' }
 const EMBOLDEN = powerSourcesById.get('higher-power')!.yellowAbilities.options!.find((a) => a.name === 'Embolden')!
 
-function Abilities({ initial = [], options, fixed = false }: { initial?: AbilityPick[]; options: Ability[]; fixed?: boolean }) {
+function Abilities({ initial = [], options, fixed = false, pageRef }: { initial?: AbilityPick[]; options: Ability[]; fixed?: boolean; pageRef?: PageRef }) {
   const [picks, setPicks] = useState(initial)
   const hero = validHero()
   return (
@@ -186,6 +189,7 @@ function Abilities({ initial = [], options, fixed = false }: { initial?: Ability
         picks={picks}
         onChange={setPicks}
         fixed={fixed}
+        {...(pageRef ? { pageRef } : {})}
       />
       <output>{JSON.stringify(picks)}</output>
     </>
@@ -219,6 +223,13 @@ describe('AbilityPicker', () => {
     expect(output()).toEqual([{ source: 'powerSource.yellow', name: 'Area Alteration', blanks: { 'Boost or Hinder': 'Hinder' } }])
     await userEvent.click(screen.getByRole('checkbox', { name: /Area Alteration/ }))
     expect(output()).toEqual([])
+  })
+
+  it('shows the list’s source and page after each ability’s name', () => {
+    render(<Abilities options={accident} pageRef={{ book: 'core-rules', page: 58 }} />)
+    const card = screen.getByRole('checkbox', { name: /Area Alteration/ }).closest('.ability-card')!
+    expect(card.querySelector('.choice__title')).toHaveTextContent(/^Area Alteration \(Action\) Core Rules, p\. 58$/)
+    expect(card.querySelector('cite')).toHaveTextContent('Core Rules, p. 58')
   })
 
   it('fills trait slots in order', async () => {
@@ -372,11 +383,23 @@ describe('TablePicker', () => {
     expect(readable(screen.getByText(/That roll doesn't reach any thing/))).toBe("That roll doesn't reach any thing. Roll d6 for a fresh one.")
   })
 
-  it('points to the method choice when a roll reaches nothing and the reroll is used', () => {
+  it('puts each entry’s source and page right after its name, from its own book', () => {
+    const table = [
+      { id: 'a', roll: 1, name: 'Anachronistic', book: 'core-rules', page: 53 },
+      { id: 'b', roll: 2, name: 'Elsewhere', book: 'some-other-book', pages: [7, 8] },
+    ]
+    render(<TablePicker what="thing" method="constructed" dice={['d6']} table={table} roll={undefined} selectedId={undefined} onRoll={() => {}} onSelect={() => {}} describe={() => 'Its details.'} />)
+    const heads = [...document.querySelectorAll('.option__head')].map((h) => h.textContent)
+    expect(heads).toEqual(['Anachronistic Core Rules, p. 53', 'Elsewhere some-other-book, pp. 7, 8'])
+    // The details follow, with no page at their end.
+    expect(document.querySelector('.option__sub')).toHaveTextContent(/^Its details\.$/)
+  })
+
+  it('offers Re-roll or the method choice when a roll reaches nothing', () => {
     const table = [{ id: 'high', roll: 20, name: 'High' }]
     render(
-      <TablePicker what="thing" method="guided" dice={['d6']} table={table} roll={{ dice: ['d6'], results: [5], manual: false, rerolled: true }} selectedId={undefined} onRoll={() => {}} onSelect={() => {}} />,
+      <TablePicker what="thing" method="guided" dice={['d6']} table={table} roll={{ dice: ['d6'], results: [5], manual: false }} selectedId={undefined} onRoll={() => {}} onSelect={() => {}} />,
     )
-    expect(screen.getByText(/That roll doesn't reach any thing/)).toHaveTextContent('Switch this hero to Constructed (in the Start step) to pick any.')
+    expect(screen.getByText(/That roll doesn't reach any thing/)).toHaveTextContent("That roll doesn't reach any thing. Re-roll, or switch this hero to Constructed (in the Start step) to pick any.")
   })
 })

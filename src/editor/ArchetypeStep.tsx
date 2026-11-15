@@ -12,7 +12,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { expandRefs, traitKey, type TraitRef } from '../rules/catalog'
 import { dieSize } from '../rules/dice'
 import { archetypes, archetypesById, powerSourcesById, principleCategories, principlesById } from '../rules/data'
-import { formatEntryRef } from '../rules/books'
+import { SourceRef } from './SourceRef'
 import type { AbilityChoice, Archetype, Die, IfAlreadyHave } from '../rules/types'
 import type { ArchetypePart } from '../hero/archetype-parts'
 import { describeOptions } from '../creation/format'
@@ -48,7 +48,7 @@ function ArchetypeSummary({ ar }: { ar: Archetype }) {
       ]
   return (
     <>
-      <DiceText text={parts.filter(Boolean).join('. ')} />. <span className="page-ref">{formatEntryRef(ar)}</span>
+      <DiceText text={parts.filter(Boolean).join('. ')} />.
     </>
   )
 }
@@ -105,7 +105,7 @@ function leftovers(ar: Archetype, choice: ArchetypeChoice): string[] {
 
 /**
  * Clears what leftovers() lists. Changes the draft in place. A second archetype's roll is
- * kept as pending, so removing it doesn't give a fresh roll and reroll (ruling 46).
+ * kept as pending, so removing it doesn't throw the roll away (ruling 46).
  */
 function clearLeftovers(ar: Archetype, choice: ArchetypeChoice, hero: Hero): void {
   if (ar.complex && ar.secondaryArchetype?.minimumPowers === undefined) choice.traits = []
@@ -151,7 +151,7 @@ function ArchetypeDetails({ hero, update, ar, choice, at, skipAbilities = false,
   const left = leftovers(ar, choice)
 
   const abilities = (source: AbilitySource) => choice.abilities.filter((p) => p.source === source)
-  const picker = abilityPicker(hero, traits, choice, (change) => update((h) => change(at(h))))
+  const picker = abilityPicker(hero, traits, ar, choice, (change) => update((h) => change(at(h))))
   const blocks = skipAbilities ? [] : ABILITY_BLOCKS
   return (
     <>
@@ -290,7 +290,7 @@ function Leftovers({ ar, left, onClear }: { ar: Archetype; left: readonly string
  * Makes an AbilityPicker for one source of a choice's abilities. `picks` overrides which
  * picks it shows (by default, those from `source`).
  */
-function abilityPicker(hero: Hero, traits: ReturnType<typeof deriveTraits>['traits'], choice: ArchetypeChoice, edit: (change: (c: ArchetypeChoice) => void) => void) {
+function abilityPicker(hero: Hero, traits: ReturnType<typeof deriveTraits>['traits'], ar: Archetype, choice: ArchetypeChoice, edit: (change: (c: ArchetypeChoice) => void) => void) {
   return (source: AbilitySource, legend: string, options: AbilityChoice['options'], hint?: string, fixed = false, picks?: readonly AbilityPick[]) => {
     const shown = picks ?? choice.abilities.filter((p) => p.source === source)
     return (
@@ -311,6 +311,7 @@ function abilityPicker(hero: Hero, traits: ReturnType<typeof deriveTraits>['trai
           })
         }
         fixed={fixed}
+        pageRef={ar}
       />
     )
   }
@@ -518,7 +519,7 @@ function PartCard({ hero, ar, part, open, onToggle, children }: { hero: Hero; ar
 function PartBody({ hero, update, ar, part }: { hero: Hero; update: Update; ar: Archetype; part: string }) {
   const choice = hero.archetype!
   const traits = deriveTraits(hero).traits
-  const picker = abilityPicker(hero, traits, choice, (change) => update((h) => change(h.archetype!)))
+  const picker = abilityPicker(hero, traits, ar, choice, (change) => update((h) => change(h.archetype!)))
   const second = choice.secondary ? archetypesById.get(choice.secondary.id) : undefined
   const divided = choice.divided
 
@@ -674,7 +675,10 @@ export function ArchetypeStep({ hero, update }: { hero: Hero; update: Update }) 
         <div className="chosen-card">
           <span className="option__n">{ar.roll}</span>
           <span className="option__body">
-            <span className="option__name">{ar.name}</span>
+            <span className="option__head">
+              <span className="option__name">{ar.name}</span>
+              <SourceRef of={ar} />
+            </span>
             <span className="option__sub">
               <ArchetypeSummary ar={ar} />
             </span>

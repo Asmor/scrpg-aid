@@ -59,7 +59,7 @@ describe('rolls that no longer reach the choice', () => {
 
   it('flags a Guided choice its roll doesn’t reach, after a reroll say', () => {
     const hero = createHero('guided')
-    hero.background = { id: unreached.id, qualities: [], roll: { ...roll([7, 3]), rerolled: true } }
+    hero.background = { id: unreached.id, qualities: [], roll: roll([7, 3]) }
     expect(checkRolls(hero)).toEqual([
       { step: 'background', code: 'not-rolled', message: `Your background roll (7 and 3) doesn't reach ${unreached.name}. Choose one it reaches, or keep it if your table allows.` },
     ])

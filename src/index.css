@@ -11182,3 +11182,12 @@ button.ref-thumb {
     min-height: 2.75rem;
   }
 }
+
+/* An option's source and page after its name, in the hero wizard (hero-wizard spec, "Step anatomy", item 2). */
+.source-ref {
+  font-style: italic;
+  font-weight: 400;
+  white-space: nowrap;
+  font-size: 0.875em;
+  color: var(--ui-muted);
+}

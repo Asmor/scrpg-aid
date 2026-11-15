@@ -96,7 +96,7 @@ describe('serialize', () => {
       traitNames: { 'quality:roleplaying-quality': 'Lucky' },
       background: {
         id: 'upper-class',
-        roll: { dice: ['d10', 'd10'], results: [1, 4], manual: true, rerolled: true },
+        roll: { dice: ['d10', 'd10'], results: [1, 4], manual: true },
         qualities: [{ trait: t, die: 'd10' }],
         principle: { id: 'custom', custom: { category: 'responsibility', name: 'P', roleplaying: 'r', minorTwist: 'm', majorTwist: 'M', greenAbility: { name: '', text: 't' } } },
       },

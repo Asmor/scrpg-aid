@@ -7,7 +7,8 @@
 import { useId } from 'react'
 import { parseTraitKey, traitKey, type TraitRef } from '../rules/catalog'
 import { parseSlots, type ChoiceSlot, type TraitSlot } from '../rules/slots'
-import type { Ability } from '../rules/types'
+import type { Ability, PageRef } from '../rules/types'
+import { SourceRef } from './SourceRef'
 import type { AbilityPick, AbilitySource, Hero } from '../hero/model'
 import { abilityField, abilityListField, limitedSlotIndex, slotCandidates, type SlotLimit } from '../creation/abilities'
 import { canSetUse, replacePick, setBlank, setCustomName, setUse } from '../creation/picks'
@@ -44,6 +45,8 @@ interface AbilityPickerProps {
   hideLegend?: boolean
   /** See AbilityChooser. */
   listField?: string | false
+  /** See AbilityChooser. */
+  pageRef?: PageRef
 }
 
 /** A trait that can fill a slot: what it is, its die, and its name. */
@@ -210,6 +213,8 @@ interface AbilityChooserProps<P extends EditablePick> {
   hideLegend?: boolean
   /** The field naming this list in its issues: by default its source's; false for one list among several sharing a source (Red categories). */
   listField?: string | false
+  /** Where the list's abilities are in the book (the hero wizard shows it on each card, after the name). */
+  pageRef?: PageRef
 }
 
 /** Taking abilities from a list and filling in their blanks, for any kind of character. */
@@ -217,7 +222,7 @@ interface AbilityChooserProps<P extends EditablePick> {
  * Each ability is a card: checkbox, name, type and text (with action icons). Checking it opens
  * its slot pickers, its optional custom name, and the text as filled in.
  */
-export function AbilityChooser<P extends EditablePick>({ filling, legend, hint, options, source, picks, onChange, fixed = false, nameable = true, slotLimit, hideLegend = false, listField }: AbilityChooserProps<P>) {
+export function AbilityChooser<P extends EditablePick>({ filling, legend, hint, options, source, picks, onChange, fixed = false, nameable = true, slotLimit, hideLegend = false, listField, pageRef }: AbilityChooserProps<P>) {
   // Keep picks that aren't on this list (e.g. after changing power source) so they can be removed; the checks flag them.
   const stray = picks.filter((p) => !options.some((o) => o.name === p.name))
   const replace = (name: string, next: P | undefined) => onChange(replacePick(picks, name, next))
@@ -242,6 +247,7 @@ export function AbilityChooser<P extends EditablePick>({ filling, legend, hint, 
                       <p className="ability-pick__fixed">
                         <span className="choice__title">
                           {ability.name} <span className="choice__note">({TYPE_NAME[ability.type]})</span>
+                          <SourceRef of={pageRef} />
                         </span>
                         <span className="choice__detail">
                           <AbilityText text={ability.text} actions={ability.effects && effectActions(ability.effects)} />
@@ -262,6 +268,7 @@ export function AbilityChooser<P extends EditablePick>({ filling, legend, hint, 
                       <span className="choice__body">
                         <span className="choice__title">
                           {ability.name} <span className="choice__note">({TYPE_NAME[ability.type]})</span>
+                          <SourceRef of={pageRef} />
                         </span>
                         <span className="choice__detail">
                           <AbilityText text={ability.text} actions={ability.effects && effectActions(ability.effects)} />

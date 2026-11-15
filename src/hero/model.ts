@@ -377,7 +377,7 @@ export interface Hero {
   health: HealthChoice | null
   /**
    * Guided rolls made before the step's entry was chosen. Saving them keeps leaving the step
-   * or reloading from giving a fresh roll (each step gets one reroll); choosing an entry
+   * or reloading from throwing the roll away; choosing an entry
    * moves the roll onto the choice.
    */
   pendingRolls?: Partial<Record<RollSlot, RollRecord>>

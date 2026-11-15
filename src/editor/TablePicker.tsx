@@ -1,15 +1,16 @@
 /**
  * Choosing a table entry (background, power source, archetype, personality): the step's
  * Dice in and Choose sections. Guided: roll the step's dice (in the app, or typed in from
- * real dice), then pick an entry one die or the sum of two reaches, with one re-roll per
- * step; each option says how the roll reached it. Constructed: pick any entry. A choice the
+ * real dice), then pick an entry one die or the sum of two reaches, re-rolling as often as
+ * the player likes (ruling 71); each option says how the roll reached it. Constructed: pick any entry. A choice the
  * roll no longer reaches stays chosen (the rule checks flag it).
  */
 import { useId, type ReactNode } from 'react'
-import { canReroll, newRoll, reroll, rollDice, rolledOn, tableOptions, type RollRecord, type RollSource } from '../rules/rolling'
+import { newRoll, reroll, rollDice, rolledOn, tableOptions, type RollRecord, type RollSource } from '../rules/rolling'
 import type { Die } from '../rules/types'
 import type { CreationMethod, RollMode } from '../hero/model'
 import { DiceRoll } from '../components/DiceRoll'
+import { SourceRef } from './SourceRef'
 import { DiceList } from '../components/icons'
 import { SectionIssues } from './inline-issues'
 
@@ -17,6 +18,10 @@ interface Entry {
   id: string
   roll: number
   name: string
+  /** Its source and page (every table entry in data/ has them). */
+  book?: string
+  page?: number
+  pages?: number[]
 }
 
 interface TablePickerProps<T extends Entry> {
@@ -36,7 +41,7 @@ interface TablePickerProps<T extends Entry> {
   /**
    * A roll made for another choice that this one may pick from until it's rolled for itself
    * (Modular's base archetype can be another option from the archetype roll). Rolling here
-   * replaces it, with a reroll of its own (rulings 46 and 47).
+   * replaces it (rulings 46 and 47).
    */
   inherited?: { roll: RollRecord; from: string }
   /** Injectable for tests. */
@@ -63,8 +68,8 @@ export function TablePicker<T extends Entry>({ what, method, rollMode, dice, tab
   const name = useId()
   const article = /^[aeiou]/.test(what) ? 'an' : 'a'
 
-  // A roll made on other dice (an earlier step changed them) doesn't count: roll afresh,
-  // keeping the step's reroll (the user's ruling 42 in data/rulings.md).
+  // A roll made on other dice (an earlier step changed them) doesn't count: roll afresh
+  // (ruling 42 in data/rulings.md).
   const current = roll && rolledOn(roll, dice) ? roll : undefined
   const stale = roll && !current ? roll : undefined
   const borrowed = !roll && inherited && rolledOn(inherited.roll, dice) ? inherited : undefined
@@ -95,18 +100,17 @@ export function TablePicker<T extends Entry>({ what, method, rollMode, dice, tab
           <h4>Dice in</h4>
           {borrowed && (
             <p>
-              Your {borrowed.from} roll was <strong>{listAnd(borrowed.roll.results)}</strong> on <DiceList dice={borrowed.roll.dice} />. Pick a {what} it reaches, or roll <DiceList dice={dice} /> for a fresh roll (which gets a re-roll of its own).
+              Your {borrowed.from} roll was <strong>{listAnd(borrowed.roll.results)}</strong> on <DiceList dice={borrowed.roll.dice} />. Pick a {what} it reaches, or roll <DiceList dice={dice} /> for a fresh roll.
             </p>
           )}
           {stale && (
             <p role="alert">
-              You rolled {listAnd(stale.results)} on <DiceList dice={stale.dice} />, but this step's dice are now <DiceList dice={dice} />, because an earlier choice changed. Roll again; this doesn't use your re-roll.
+              You rolled {listAnd(stale.results)} on <DiceList dice={stale.dice} />, but this step's dice are now <DiceList dice={dice} />, because an earlier choice changed. Roll again.
             </p>
           )}
           <DiceRoll
             dice={dice}
             roll={current}
-            canReroll={canReroll(current)}
             manualFirst={rollMode === 'manual'}
             onRoll={doRoll}
             onManual={(results, again) => onRoll(again && current ? reroll(current, results, true) : newRoll(dice, results, true))}
@@ -133,7 +137,10 @@ export function TablePicker<T extends Entry>({ what, method, rollMode, dice, tab
               <label key={entry.id} className="option">
                 <span className="option__n">{entry.roll}</span>
                 <span className="option__body">
-                  <span className="option__name">{entry.name}</span>
+                  <span className="option__head">
+                    <span className="option__name">{entry.name}</span>
+                    {entry.book && <SourceRef of={{ book: entry.book, ...(entry.page !== undefined ? { page: entry.page } : {}), ...(entry.pages ? { pages: entry.pages } : {}) }} />}
+                  </span>
                   {describe && <span className="option__sub">{describe(entry)}</span>}
                 </span>
                 {notes.length > 0 && (
@@ -160,8 +167,7 @@ export function TablePicker<T extends Entry>({ what, method, rollMode, dice, tab
       )}
       {method === 'guided' && current && options.length === 0 && (
         <p>
-          That roll doesn't reach any {what}.{' '}
-          {canReroll(current) ? 'Use your re-roll.' : 'Switch this hero to Constructed (in the Start step) to pick any.'}
+          That roll doesn't reach any {what}. Re-roll, or switch this hero to Constructed (in the Start step) to pick any.
         </p>
       )}
     </div>

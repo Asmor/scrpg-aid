@@ -10,7 +10,7 @@ import { type Check, arrayOf, boolean, either, integer, nonEmptyString, nullable
 export const die = oneOf('d4', 'd6', 'd8', 'd10', 'd12')
 
 export const traitRef = object({ kind: oneOf('power', 'quality'), id: nonEmptyString })
-const rollRecord = object({ dice: arrayOf(die), results: arrayOf(integer), manual: boolean, 'rerolled?': boolean })
+const rollRecord = object({ dice: arrayOf(die), results: arrayOf(integer), manual: boolean })
 export const assignment = object({ trait: traitRef, die, 'upgrades?': oneOf(true) })
 export const blanks = recordOf(either(string, arrayOf(string)))
 // Ability sources accept any text, not just today's AbilitySource values, so heroes

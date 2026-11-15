@@ -11,8 +11,6 @@ export interface RollRecord {
   dice: Die[]
   results: number[]
   manual: boolean
-  /** Each step allows one reroll (see canReroll). */
-  rerolled?: boolean
 }
 
 /** Returns a number in [0, 1). Injectable so tests can roll known values. */
@@ -94,19 +92,10 @@ export function rolledOn(roll: RollRecord, dice: readonly Die[]): boolean {
 }
 
 /**
- * A step allows one reroll if nothing fits (data/rules/hero-creation.md, "Methods", p. 46).
- * The user ruled that "nothing fits" means the player doesn't like the options, so the
- * reroll is available whether or not the roll reached any entry.
- */
-export function canReroll(roll: RollRecord | undefined): boolean {
-  return roll !== undefined && !roll.rerolled
-}
-
-/**
- * Replaces a roll with a reroll of the same dice, marking the step's reroll as used.
- * Results must already be checked, as for newRoll. Throws if the reroll was already used.
+ * Replaces a roll with a reroll of the same dice. The book allows one reroll per step (p. 46);
+ * this app allows as many as the player likes (ruling 71 in data/rulings.md). Results must
+ * already be checked, as for newRoll.
  */
 export function reroll(roll: RollRecord, results: readonly number[], manual: boolean): RollRecord {
-  if (!canReroll(roll)) throw new Error('This step has already used its reroll.')
-  return { dice: [...roll.dice], results: [...results], manual, rerolled: true }
+  return { dice: [...roll.dice], results: [...results], manual }
 }

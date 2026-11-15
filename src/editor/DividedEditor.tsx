@@ -11,6 +11,7 @@ import type { DividedChoice, Hero } from '../hero/model'
 import { placeTrait, splitCandidates, type Split, type SplitPlace as Place } from '../creation/divided'
 import { ROLEPLAYING_QUALITY, traitField, traitLabel, type HeroTrait } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
+import { SourceRef } from './SourceRef'
 import { DiceText, DieIcon } from '../components/icons'
 import { IssueField, SectionIssues, type FieldIssueProps } from './inline-issues'
 
@@ -33,7 +34,10 @@ export function TransitionPicker({ hero, ar, traits, divided, onChange }: { hero
           <label key={m.id} className="choice">
             <input type="radio" name={name} checked={m.id === divided?.transitionMethod} onChange={() => onChange({ ...divided, transitionMethod: m.id })} />
             <span className="choice__body">
-              <span className="choice__title">{m.name}</span>
+              <span className="choice__title">
+                {m.name}
+                <SourceRef of={ar} />
+              </span>
               <span className="choice__detail">
                 <DiceText text={m.summary} />
               </span>
@@ -49,6 +53,7 @@ export function TransitionPicker({ hero, ar, traits, divided, onChange }: { hero
           options={method?.greenAbilities.options ?? []}
           source="archetype.transition"
           step="archetype"
+          pageRef={ar}
           picks={divided?.transitionAbility ? [divided.transitionAbility] : []}
           // Taking another ability replaces the one chosen before.
           onChange={(picks) => {

@@ -55,7 +55,7 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 ### 7. When a table reroll is allowed
 - **Page:** p. 46.
 - **Question:** The rules say a player "may reroll once per step if nothing fits." When should the app offer the reroll?
-- **Decision:** Whenever the player dislikes the options. "Nothing fits" means nothing fits their concept.
+- **Decision:** Whenever the player dislikes the options. "Nothing fits" means nothing fits their concept. How often is now ruling 71: as often as they like.
 - **Basis:** Interpretation (guess).
 
 ### 8. "Gain" bonuses on a power or quality the hero already has
@@ -73,7 +73,7 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 ### 42. A power source roll after the background's dice change
 - **Pages:** Power source (p. 56–57); Methods (p. 46).
 - **Question:** The power source step rolls the dice the background gives. If a Guided player rolls for a power source and then changes to a background with different power source dice, the old roll no longer fits. Does the new roll count against the step's one reroll?
-- **Decision:** No. The new dice get a fresh roll, and the step still has its one reroll.
+- **Decision:** The new dice get a fresh roll. (The step's one reroll is superseded by ruling 71: rerolls are unlimited, so there's nothing to count.)
 - **Basis:** Interpretation.
 
 ### 43. Swapping the die on a required trait the hero already has
@@ -97,8 +97,14 @@ Ruling numbers are permanent IDs, so other notes can refer to them. A new ruling
 ### 46. Rerolling the second archetype's roll
 - **Pages:** Divided (p. 94); Modular (p. 96); Methods (p. 46).
 - **Question:** Divided's second archetype roll (and Modular's, if the player rolls fresh): can it be rerolled, and does that use the archetype step's reroll?
-- **Decision:** It's a new roll with its own one reroll, whether or not the first archetype roll used its reroll.
+- **Decision:** It's a new roll, and it can be rerolled. (How often is superseded by ruling 71: as often as the player likes.)
 - **Basis:** Interpretation.
+
+### 71. Unlimited rerolls in hero creation
+- **Pages:** Methods (p. 46).
+- **Question:** The book lets a Guided player "reroll once per step if nothing fits." Should the app hold players to one reroll per step?
+- **Decision:** No. A creation roll can be rerolled as often as the player likes, at every step, including Divided's and Modular's second archetype roll. A reroll that rules out the current choice keeps it and flags it as an issue. This supersedes the "once" in rulings 7, 42 and 46; what they decide about which dice are rolled still stands.
+- **Basis:** Fiat (the user's ruling, 2026-11-15).
 
 ### 47. Modular's base archetype after a fresh roll
 - **Pages:** Modular (p. 96).

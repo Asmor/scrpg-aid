@@ -224,7 +224,7 @@ describe('HeroEditor', () => {
     )
   })
 
-  it('rolls for a background the guided way, with one reroll', async () => {
+  it('rolls for a background the guided way, and re-rolls it', async () => {
     const store = await storeWith()
     renderEditor(store, 'background')
     const roll = await screen.findByRole('button', { name: 'Roll d10 and d10' })
@@ -255,12 +255,13 @@ describe('HeroEditor', () => {
     await userEvent.clear(a!)
     await userEvent.type(a!, '3')
     await userEvent.click(screen.getByRole('button', { name: 'Use these results' }))
-    expect(screen.getByText(/You rolled/)).toHaveTextContent('after using your re-roll')
-    expect(screen.queryByRole('button', { name: 'Re-roll (1 left)' })).not.toBeInTheDocument()
+    expect(screen.getByText(/You rolled/)).toHaveTextContent('You rolled 3 and 2')
+    // Re-roll is still there: as many as the player likes.
+    expect(screen.getByRole('button', { name: 'Re-roll' })).toBeInTheDocument()
 
     // The roll is saved with the chosen background.
     await userEvent.click(backgroundRadios()[0]!)
-    await waitFor(async () => expect((await saved(store)).background?.roll).toEqual({ dice: ['d10', 'd10'], results: [3, 2], manual: true, rerolled: true }))
+    await waitFor(async () => expect((await saved(store)).background?.roll).toEqual({ dice: ['d10', 'd10'], results: [3, 2], manual: true }))
   })
 
   it('keeps earlier choices when switching background, flagging the ones that no longer fit', async () => {
@@ -295,7 +296,7 @@ describe('HeroEditor', () => {
 
   it('saves a reroll made after choosing a background', async () => {
     const store = await storeWith((h) => {
-      h.background = { id: 'upper-class', qualities: [], roll: { dice: ['d10', 'd10'], results: [1, 5], manual: false, rerolled: false } }
+      h.background = { id: 'upper-class', qualities: [], roll: { dice: ['d10', 'd10'], results: [1, 5], manual: false } }
     })
     renderEditor(store, 'background')
     await userEvent.click(await screen.findByRole('button', { name: 'Enter my own re-roll' }))
@@ -303,7 +304,7 @@ describe('HeroEditor', () => {
     await userEvent.type(a!, '4')
     await userEvent.type(b!, '6')
     await userEvent.click(screen.getByRole('button', { name: 'Use these results' }))
-    await waitFor(async () => expect((await saved(store)).background).toEqual({ id: 'upper-class', qualities: [], roll: { dice: ['d10', 'd10'], results: [4, 6], manual: true, rerolled: true } }))
+    await waitFor(async () => expect((await saved(store)).background).toEqual({ id: 'upper-class', qualities: [], roll: { dice: ['d10', 'd10'], results: [4, 6], manual: true } }))
     // Upper Class (1) isn't reached by 4 and 6 any more, so it's flagged as the current choice.
     expect(screen.getByRole('radio', { name: /Upper Class.*Not reached by this roll/ })).toBeChecked()
     // It stays chosen, and the roll check flags it.
@@ -340,7 +341,7 @@ describe('HeroEditor', () => {
     const view = renderEditor(store, 'background')
     await userEvent.click(await screen.findByRole('button', { name: 'Roll d10 and d10' }))
     expect(screen.getByText(/You rolled/)).not.toHaveTextContent('typed in')
-    expect(screen.getByRole('button', { name: 'Re-roll (1 left)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Re-roll' })).toBeInTheDocument()
     await waitFor(async () => expect((await saved(store)).pendingRolls?.background).toMatchObject({ dice: ['d10', 'd10'], manual: false }))
     const { results } = (await saved(store)).pendingRolls!.background!
     view.unmount()
@@ -424,9 +425,9 @@ describe('HeroEditor', () => {
 
   it('asks for a fresh power source roll when the background’s dice changed, without using the reroll', async () => {
     const store = await storeWith((h) => {
-      // Rolled (and rerolled) with Upper Class's d10, d8, d8, then switched to Academic's d10, d8.
+      // Rolled with Upper Class's d10, d8, d8, then switched to Academic's d10, d8.
       h.background = { id: 'academic', qualities: [] }
-      h.pendingRolls = { powerSource: { dice: ['d10', 'd8', 'd8'], results: [1, 2, 3], manual: false, rerolled: true } }
+      h.pendingRolls = { powerSource: { dice: ['d10', 'd8', 'd8'], results: [1, 2, 3], manual: false } }
     })
     renderEditor(store, 'power-source')
     expect(readable(await screen.findByRole('alert'))).toContain("You rolled 1, 2 and 3 on d10, d8 and d8, but this step's dice are now d10 and d8")
@@ -439,7 +440,7 @@ describe('HeroEditor', () => {
     await userEvent.type(inputs[1]!, '5')
     await userEvent.click(screen.getByRole('button', { name: 'Use these results' }))
     expect(readable(screen.getByText(/You rolled/))).toContain('You rolled 4 and 5 on d10 and d8 (typed in).')
-    expect(screen.getByRole('button', { name: 'Re-roll (1 left)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Re-roll' })).toBeInTheDocument()
     await waitFor(async () => expect((await saved(store)).pendingRolls?.powerSource).toEqual({ dice: ['d10', 'd8'], results: [4, 5], manual: true }))
   })
 
@@ -656,14 +657,14 @@ describe('HeroEditor', () => {
     const store = await storeWith((h) => {
       h.background = { id: 'upper-class', qualities: [] }
       h.powerSource = { id: 'accident', powers: [], abilities: [], bonus: [] }
-      h.archetype = { id: 'divided', traits: [], abilities: [], bonus: [], roll: { dice: ['d12', 'd6'], results: [12, 6], manual: false, rerolled: true } }
+      h.archetype = { id: 'divided', traits: [], abilities: [], bonus: [], roll: { dice: ['d12', 'd6'], results: [12, 6], manual: false } }
     })
     renderEditor(store, 'archetype')
     const second = await screen.findByRole('region', { name: 'Second archetype' })
     await userEvent.click(within(second).getByRole('button', { name: 'Roll d12 and d6' }))
     await waitFor(async () => expect((await saved(store)).pendingRolls?.secondaryArchetype?.dice).toEqual(['d12', 'd6']))
     // A roll of its own, with its own reroll (ruling 46).
-    expect(within(second).getByRole('button', { name: 'Re-roll (1 left)' })).toBeInTheDocument()
+    expect(within(second).getByRole('button', { name: 'Re-roll' })).toBeInTheDocument()
   })
 
   it('picks Modular’s base archetype from the archetype roll, or a fresh one (ruling 47), and adds filler powers', async () => {
@@ -715,8 +716,8 @@ describe('HeroEditor', () => {
     await waitFor(async () => expect((await saved(store)).archetype?.divided?.split).toBeUndefined())
   })
 
-  it('keeps the second archetype’s roll when removing it, so it can’t be rolled afresh (ruling 46)', async () => {
-    const secondRoll = { dice: ['d12', 'd6'] as const, results: [1, 2], manual: false, rerolled: true as const }
+  it('keeps the second archetype’s roll when removing it, so it isn’t thrown away (ruling 46)', async () => {
+    const secondRoll = { dice: ['d12', 'd6'] as const, results: [1, 2], manual: false }
     const store = await storeWith((h) => {
       Object.assign(h, { ...dividedHero(), id: 'h1' })
       h.method = 'constructed'

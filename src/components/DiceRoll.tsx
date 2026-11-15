@@ -1,6 +1,6 @@
 /**
  * Rolling dice, in the app or with real ones: each rolled die shows its number large with
- * its icon under it, a Re-roll button says what's left, and "Enter my own roll" takes the
+ * its icon under it, Re-roll rolls again as often as the player likes (ruling 71), and "Enter my own roll" takes the
  * player's own results, checked against each die's size. Shared by creation now and play
  * later. The tiles keep their size, leaving room for a dice animation; with
  * prefers-reduced-motion the animation is skipped (see the CSS).
@@ -93,15 +93,12 @@ export interface ShownRoll {
   dice: readonly Die[]
   results: readonly number[]
   manual?: boolean
-  rerolled?: boolean
 }
 
 interface DiceRollProps {
   /** The dice to roll when there's no roll yet. */
   dice: readonly Die[]
   roll: ShownRoll | undefined
-  /** Whether the one re-roll is still there to use. */
-  canReroll: boolean
   /** Rolls in the app: the caller rolls `dice` (a fresh roll) or the roll's own dice (a re-roll). */
   onRoll: (again: boolean) => void
   /** The player's own results, for a fresh roll or a re-roll. */
@@ -112,7 +109,7 @@ interface DiceRollProps {
   children?: ReactNode
 }
 
-export function DiceRoll({ dice, roll, canReroll, onRoll, onManual, manualFirst = false, children }: DiceRollProps) {
+export function DiceRoll({ dice, roll, onRoll, onManual, manualFirst = false, children }: DiceRollProps) {
   const [manual, setManual] = useState<'roll' | 'reroll' | null>(null)
   // My own dice opens the fields straight away for a fresh roll.
   const typing = manual ?? (!roll && manualFirst ? 'roll' : null)
@@ -123,8 +120,7 @@ export function DiceRoll({ dice, roll, canReroll, onRoll, onManual, manualFirst 
           <RolledDice dice={roll.dice} results={roll.results} />
           <p className="dice-roll__summary">
             You rolled <strong>{listAnd(roll.results)}</strong> on <DiceList dice={roll.dice} />
-            {roll.manual ? ' (typed in)' : ''}
-            {roll.rerolled ? ', after using your re-roll' : ''}. {children}
+            {roll.manual ? ' (typed in)' : ''}. {children}
           </p>
         </div>
       )}
@@ -153,14 +149,12 @@ export function DiceRoll({ dice, roll, canReroll, onRoll, onManual, manualFirst 
         </div>
       ) : (
         <div className="button-row">
-          <button type="button" className="button button--small" disabled={!canReroll} onClick={() => onRoll(true)}>
-            {canReroll ? 'Re-roll (1 left)' : 'Re-roll used'}
+          <button type="button" className="button button--small" onClick={() => onRoll(true)}>
+            Re-roll
           </button>
-          {canReroll && (
-            <button type="button" className="button button--small" onClick={() => setManual('reroll')}>
-              Enter my own re-roll
-            </button>
-          )}
+          <button type="button" className="button button--small" onClick={() => setManual('reroll')}>
+            Enter my own re-roll
+          </button>
         </div>
       )}
     </div>

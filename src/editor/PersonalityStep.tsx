@@ -29,8 +29,7 @@ type Update = (change: (draft: Hero) => void) => void
 function PersonalitySummary({ p }: { p: Personality }) {
   return (
     <>
-      Status dice: Green <DieIcon die={p.statusDice.green} size="inline" />, Yellow <DieIcon die={p.statusDice.yellow} size="inline" />, Red <DieIcon die={p.statusDice.red} size="inline" />. Out: <DiceText text={p.outAbility} />{' '}
-      <span className="page-ref">{formatEntryRef(p)}</span>
+      Status dice: Green <DieIcon die={p.statusDice.green} size="inline" />, Yellow <DieIcon die={p.statusDice.yellow} size="inline" />, Red <DieIcon die={p.statusDice.red} size="inline" />. Out: <DiceText text={p.outAbility} />
     </>
   )
 }
@@ -221,6 +220,7 @@ export function PersonalityStep({ hero, update }: { hero: Hero; update: Update }
               options={[{ name: OUT_ABILITY_NAME, type: 'A', text: outEntry.outAbility }]}
               source="out"
               step="personality"
+              pageRef={outEntry}
               picks={[{ source: 'out', name: OUT_ABILITY_NAME, ...(outChoice.outUses ? { uses: outChoice.outUses } : {}), ...(outChoice.outBlanks ? { blanks: outChoice.outBlanks } : {}) }]}
               onChange={(picks) =>
                 update((h) => {

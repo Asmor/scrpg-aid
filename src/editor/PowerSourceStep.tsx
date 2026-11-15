@@ -4,7 +4,6 @@
  */
 import { expandRefs } from '../rules/catalog'
 import { backgroundsById, powerSources, powerSourcesById } from '../rules/data'
-import { formatEntryRef } from '../rules/books'
 import type { AbilityChoice, PowerSource } from '../rules/types'
 import { describeOptions } from '../creation/format'
 import type { AbilityPick, AbilitySource, Hero } from '../hero/model'
@@ -20,7 +19,7 @@ import { DiceText } from '../components/icons'
 function PowerSourceSummary({ ps }: { ps: PowerSource }) {
   return (
     <>
-      Powers: {describeOptions(ps.powers.options)}. Archetype dice <DiceText text={ps.archetypeDice.join(', ')} />. <span className="page-ref">{formatEntryRef(ps)}</span>
+      Powers: {describeOptions(ps.powers.options)}. Archetype dice <DiceText text={ps.archetypeDice.join(', ')} />.
     </>
   )
 }
@@ -100,6 +99,7 @@ export function PowerSourceStep({ hero, update }: { hero: Hero; update: (change:
               step="powerSource"
               picks={choice.abilities.filter((p) => p.source === 'powerSource.green')}
               onChange={(picks) => setAbilities('powerSource.green', picks)}
+              pageRef={ps}
             />
           )}
           <AbilityPicker
@@ -112,6 +112,7 @@ export function PowerSourceStep({ hero, update }: { hero: Hero; update: (change:
             step="powerSource"
             picks={choice.abilities.filter((p) => p.source === 'powerSource.yellow')}
             onChange={(picks) => setAbilities('powerSource.yellow', picks)}
+            pageRef={ps}
           />
 
           {/* Every entry in the data has at most one bonus (the trait checks assume the same). */}

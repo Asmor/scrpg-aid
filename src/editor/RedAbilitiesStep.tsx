@@ -8,7 +8,8 @@
 import { useId, useState } from 'react'
 import { redAbilityCategories, redAbilityStep } from '../rules/data'
 import { formatEntryRef } from '../rules/books'
-import type { Ability } from '../rules/types'
+import type { Ability, PageRef } from '../rules/types'
+import { outerLayer } from '../creation/layers'
 import type { AbilityPick, AbilitySource, Hero } from '../hero/model'
 import { abilityListField, type SlotLimit } from '../creation/abilities'
 import { extraRedOptions, redCategoryKey } from '../creation/lookup'
@@ -41,7 +42,7 @@ export function RedAbilityLists({ hero, picks, allowed, source, step, onChange }
   const [open, setOpen] = useState(() => new Set(picks.map((p) => redPickSection(hero, p))))
   // Picks are saved with their category, since names repeat across categories.
   const setSection = (key: string, next: AbilityPick[], category?: string) => onChange([...picks.filter((p) => redPickSection(hero, p) !== key), ...next.map((p) => (category ? { ...p, category } : p))])
-  const picker = (key: string, legend: string, options: readonly Ability[], category?: string, hint?: string, slotLimit?: SlotLimit) => {
+  const picker = (key: string, legend: string, options: readonly Ability[], category?: string, hint?: string, slotLimit?: SlotLimit, pageRef?: PageRef) => {
     const chosen = inSection(key).length
     return (
       <details
@@ -76,6 +77,7 @@ export function RedAbilityLists({ hero, picks, allowed, source, step, onChange }
           slotLimit={slotLimit}
           // The count is about all the lists together: it shows above them.
           listField={false}
+          {...(pageRef ? { pageRef } : {})}
           onChange={(next) => setSection(key, next, category)}
         />
       </details>
@@ -84,7 +86,7 @@ export function RedAbilityLists({ hero, picks, allowed, source, step, onChange }
   const yours = redAbilityCategories.filter((c) => hasRedCategory(traits, c))
   const others = redAbilityCategories.filter((c) => !hasRedCategory(traits, c))
   const extras = extraRedOptions(hero)
-  const categoryPicker = (c: (typeof redAbilityCategories)[number]) => picker(redCategoryKey(c), `${categoryName(c)} Red abilities`, c.abilities, redCategoryKey(c), formatEntryRef(c), redSlotLimit(c))
+  const categoryPicker = (c: (typeof redAbilityCategories)[number]) => picker(redCategoryKey(c), `${categoryName(c)} Red abilities`, c.abilities, redCategoryKey(c), undefined, redSlotLimit(c), c)
   // A category with a pick stays listed even when filtered out, so it can be removed.
   const shownOthers = onlyMine ? others.filter((c) => inSection(redCategoryKey(c)).length > 0) : others
   return (
@@ -104,7 +106,7 @@ export function RedAbilityLists({ hero, picks, allowed, source, step, onChange }
             )}
           </div>
           {inSection('stray').length > 0 && picker('stray', 'Red abilities not on any list', [], undefined, 'Untick these to remove them.')}
-          {extras.length > 0 && picker('extra', 'Extra Red abilities from your archetype', extras)}
+          {extras.length > 0 && picker('extra', 'Extra Red abilities from your archetype', extras, undefined, undefined, undefined, outerLayer(hero)?.archetype)}
           {yours.map(categoryPicker)}
           {shownOthers.map(categoryPicker)}
           {onlyMine && others.length > shownOthers.length && (

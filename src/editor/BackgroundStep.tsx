@@ -2,7 +2,6 @@
 import { traitLabel } from '../creation/traits'
 import { expandRefs } from '../rules/catalog'
 import { backgrounds, backgroundsById, backgroundStep, principleCategories } from '../rules/data'
-import { formatEntryRef } from '../rules/books'
 import type { Background } from '../rules/types'
 import { describeOptions } from '../creation/format'
 import { setStepRoll, stepRoll, takePendingRoll } from '../creation/rolls'
@@ -20,7 +19,7 @@ function BackgroundSummary({ bg }: { bg: Background }) {
     <>
       Qualities <DiceText text={bg.qualities.dice.join(', ')} />
       {required.length > 0 && ` (one on ${describeOptions(required)})`}: {describeOptions(bg.qualities.options)}. Principle of {category}. Power source dice{' '}
-      <DiceText text={bg.powerSourceDice.join(', ')} />. <span className="page-ref">{formatEntryRef(bg)}</span>
+      <DiceText text={bg.powerSourceDice.join(', ')} />.
     </>
   )
 }

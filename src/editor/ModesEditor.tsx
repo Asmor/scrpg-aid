@@ -9,6 +9,7 @@ import { getTrait, parseTraitKey, traitKey, type TraitRef } from '../rules/catal
 import type { Archetype, Die, ModularMode, Zone } from '../rules/types'
 import type { Hero, ModeChoice, ModularChoice } from '../hero/model'
 import { modeLimits } from '../creation/format'
+import { outerLayer } from '../creation/layers'
 import { changeDie, changeLabel, changeNote, defaultModeDice, describeAdjustment, findMode, modeRowField, modeRows, modeSlots, modeTraits, setModeRow, setModeSlot, strayModes, type ModeChange, type ModeRow } from '../creation/modular'
 import { traitLabel, type HeroTrait } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
@@ -192,6 +193,7 @@ function ModeCard({ hero, traits, zone, options, mode, label, taken, onChange, o
             options={[entry.ability]}
             source="archetype.mode"
             step="archetype"
+            pageRef={entry.book ? { book: entry.book, ...(entry.page !== undefined ? { page: entry.page } : {}) } : outerLayer(hero)?.archetype}
             picks={mode.ability ? [mode.ability] : []}
             onChange={(picks) => {
               const { ability: _, ...rest } = mode

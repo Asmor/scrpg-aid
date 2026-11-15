@@ -10,7 +10,7 @@ Each step has a summary on the side, and the sheet preview shows the hero as it 
 
 ## Rolling or choosing
 
-Most steps let you roll on the step's table or pick from it yourself. Rolls use the app's dice, or your own dice if Settings › Dice › Rolling is set to physical dice.
+Most steps let you roll on the step's table or pick from it yourself. Rolls use the app's dice, or your own dice if Settings › Dice › Rolling is set to physical dice. You can re-roll as often as you like; the book allows one re-roll per step, but this app doesn't hold you to it.
 
 ## Drafts
 

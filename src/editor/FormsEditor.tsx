@@ -12,6 +12,7 @@ import type { FormChoice, Hero, MinionFormsChoice } from '../hero/model'
 import { formAbilityOptions, formDice, formLabel, formPowerOptions, formSlots, formTraits, formUpgradeOptions, setFormSlot } from '../creation/forms'
 import { traitLabel, type HeroTrait } from '../creation/traits'
 import { AbilityPicker } from './AbilityPicker'
+import { SourceRef } from './SourceRef'
 import { DiceAssigner } from './DiceAssigner'
 import { DiceText } from '../components/icons'
 import { SectionIssues } from './inline-issues'
@@ -104,6 +105,7 @@ function FormCard({ hero, ar, traits, forms, form, label, onChange, onRemove }: 
         options={formAbilityOptions(spec, forms, form)}
         source="archetype.form"
         step="archetype"
+        pageRef={ar}
         picks={form.ability ? [form.ability] : []}
         // Taking another ability replaces the one the form had.
         onChange={(picks) => {
@@ -221,6 +223,7 @@ export function MinionForms({ hero, ar, traits, choice, onChange }: { hero: Hero
           <span className="choice__body">
             <span className="choice__title">
               {f.name} <span className="choice__note">(bonus of +{f.minBonus} or more)</span>
+              <SourceRef of={spec} />
             </span>
             <span className="choice__detail">{f.effect}</span>
           </span>
