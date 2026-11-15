@@ -11143,7 +11143,7 @@ button.ref-thumb {
   list-style: none;
 }
 
-/* Touch targets left over on phones (review 2026-11-15, item 9): the library's name links, rule issue links and tag ×, a sheet's "Open in edit" and "← Sheet", and chip × buttons such as a bonus's remove. */
+/* Touch targets left over on phones (review 2026-11-15, item 9, and its fixes review): the library's name links, rule issue links and tags, a sheet's tags, "Open in edit" and "← Sheet", and chip × buttons such as a bonus's remove. */
 @media (max-width: 759px) {
   .phone-row__name .library-name,
   .phone-row .library-issues,
@@ -11158,8 +11158,23 @@ button.ref-thumb {
     align-self: flex-start;
   }
 
-  .phone-row .tag-chip__x {
+  .phone-row .tag-chip__x,
+  .sheet-tags .tag-chip__x {
     width: 2.75rem;
+  }
+
+  /* The chip is tall enough; its name (a filter button) fills it, so the whole height is the target. */
+  .phone-row .tag-chip,
+  .sheet-tags .tag-chip {
+    align-items: stretch;
+  }
+
+  .phone-row .tag-chip__name,
+  .sheet-tags .tag-chip__name,
+  .phone-row .tag-chip__x,
+  .sheet-tags .tag-chip__x {
+    display: inline-flex;
+    align-items: center;
   }
 
   .gt-chip-x {
